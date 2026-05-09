@@ -40,7 +40,15 @@
       "PowerShell(Stop-Process *)",
       "Bash(dir /b /a)",
       "Bash(git init *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git *)",
+      "Bash(Start-Sleep -Seconds 3)",
+      "Bash(Invoke-WebRequest -Uri \"http://localhost:8888\" -UseBasicParsing -TimeoutSec 3)",
+      "Bash(Get-Content \"C:\\\\Users\\\\USER\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-USER-actuary-potal\\\\64d911a5-a0ab-4cbd-b584-7b87e4aa4724\\\\tasks\\\\bgd5x322s.output\" -Tail 5)",
+      "PowerShell(Start-Sleep -Seconds 3; try { $r = Invoke-WebRequest -Uri \"http://localhost:8888\" -TimeoutSec 5 -ErrorAction Stop; \"서버 응답: $\\($r.StatusCode\\)\" } catch { $_.Exception.Message })",
+      "Bash(tasklist)",
+      "Bash(taskkill /F /PID 95652 /PID 99168 /PID 99896 /PID 108484)"
     ],
     "defaultMode": "bypassPermissions"
   }

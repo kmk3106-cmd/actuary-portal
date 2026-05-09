@@ -104,6 +104,25 @@
     .empty-state  { text-align:center; padding:40px 20px; color:#9ca3af; }
     .empty-state i { font-size:36px; margin-bottom:12px; display:block; opacity:.4; }
 
+    /* 정량평가 섹션 */
+    .quant-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
+    .quant-item { background:#f8faff; border:1.5px solid #dbeafe; border-radius:12px; padding:14px 16px; }
+    .quant-label { font-size:13px; font-weight:700; color:#1e40af; margin-bottom:4px; display:flex; align-items:center; gap:6px; }
+    .quant-num { background:#1d4ed8; color:#fff; width:20px; height:20px; border-radius:50%;
+      font-size:11px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .quant-hint { font-size:11px; color:#9ca3af; margin-bottom:8px; line-height:1.5; }
+    .quant-select, .quant-input {
+      width:100%; padding:8px 10px; border:1.5px solid #bfdbfe; border-radius:8px;
+      font-size:13px; font-family:inherit; background:#fff; box-sizing:border-box; }
+    .quant-select:focus, .quant-input:focus { outline:none; border-color:#4f86f7; }
+    .quant-score-row { display:flex; align-items:center; justify-content:space-between;
+      margin-top:8px; padding-top:8px; border-top:1px solid #dbeafe; }
+    .quant-score-label { font-size:11px; color:#9ca3af; }
+    .quant-score-val { font-size:18px; font-weight:800; color:#1d4ed8; }
+    .quant-subtotal { display:flex; align-items:center; justify-content:space-between;
+      background:#eff6ff; border-radius:10px; padding:12px 18px;
+      font-size:13px; font-weight:600; color:#374151; }
+
     @media(max-width:900px) {
       .score-bar { grid-template-columns:1fr 1fr; }
       .other-task-row { grid-template-columns:130px 1fr 60px 72px 32px; }
@@ -112,6 +131,7 @@
     @media(max-width:600px) {
       .other-task-row { grid-template-columns:1fr 1fr; }
       .col-header    { display:none; }
+      .quant-grid    { grid-template-columns:1fr; }
     }
   </style>
 </head>
@@ -235,6 +255,86 @@
         </div>
       </div>
 
+      <!-- 정량평가 입력 -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <div class="section-icon" style="background:#dbeafe;color:#1d4ed8;"><i class="fas fa-calculator"></i></div>
+            정량평가 입력
+            <span style="font-size:11px;color:#9ca3af;font-weight:400;">입력값 → 룰 기반 자동산출</span>
+          </div>
+          <span class="section-badge" style="background:#dbeafe;color:#1d4ed8;" id="quantBadge">미입력</span>
+        </div>
+        <div style="padding:16px 24px;">
+          <div class="quant-grid">
+            <div class="quant-item">
+              <div class="quant-label"><span class="quant-num">①</span> 팀장지시사항수행</div>
+              <div class="quant-hint">이행완료=100점 / 미이행=0점 · 비중 5%</div>
+              <select class="quant-select" id="qDirective" onchange="onQuantChange()">
+                <option value="">선택</option>
+                <option value="1">이행완료</option>
+                <option value="0">미이행</option>
+              </select>
+              <div class="quant-score-row">
+                <span class="quant-score-label">산출점수</span>
+                <span class="quant-score-val" id="qScoreDirective">-</span>
+              </div>
+            </div>
+            <div class="quant-item">
+              <div class="quant-label"><span class="quant-num">②</span> 재무수치안정화기여</div>
+              <div class="quant-hint">1,000억↑=100 / 500↑=90 / 200↑=80 / 100↑=70 / 미만=0 · 비중 10%</div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <input type="number" class="quant-input" id="qCsmAmount" min="0" placeholder="억원 단위" oninput="onQuantChange()">
+                <span style="font-size:12px;color:#6b7280;white-space:nowrap;">억원</span>
+              </div>
+              <div class="quant-score-row">
+                <span class="quant-score-label">산출점수</span>
+                <span class="quant-score-val" id="qScoreCsm">-</span>
+              </div>
+            </div>
+            <div class="quant-item">
+              <div class="quant-label"><span class="quant-num">③</span> 결산기한준수</div>
+              <div class="quant-hint">2일↑=100 / 1일=90 / 0일=80 / -1일=70 / -2일=60 / -3일↓=0 · 비중 20%</div>
+              <div style="font-size:12px;color:#6b7280;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:7px 10px;margin-top:4px;">
+                <i class="fas fa-calendar-check" style="color:#4f86f7;margin-right:4px;"></i>결산캘린더에서 자동 반영
+                <span id="qDeadlineDaysDisp" style="margin-left:8px;font-weight:700;color:#1d4ed8;"></span>
+              </div>
+              <div class="quant-score-row">
+                <span class="quant-score-label">산출점수</span>
+                <span class="quant-score-val" id="qScoreDeadline">-</span>
+              </div>
+            </div>
+            <div class="quant-item">
+              <div class="quant-label"><span class="quant-num">④</span> 임원회의 소스제공</div>
+              <div class="quant-hint">1건 이상=100점 / 0건=0점 · 비중 15%</div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <input type="number" class="quant-input" id="qMeetingCount" min="0" placeholder="건수" oninput="onQuantChange()">
+                <span style="font-size:12px;color:#6b7280;white-space:nowrap;">건</span>
+              </div>
+              <div class="quant-score-row">
+                <span class="quant-score-label">산출점수</span>
+                <span class="quant-score-val" id="qScoreMeeting">-</span>
+              </div>
+            </div>
+          </div>
+          <div class="quant-subtotal">
+            <span><i class="fas fa-sigma" style="margin-right:6px;"></i>정량 소계 (가중합산)</span>
+            <span id="qSubtotal" style="font-size:20px;font-weight:800;color:#1d4ed8;">-</span>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="btn-cancel" onclick="loadCurrentRecord()">
+            <i class="fas fa-undo"></i> 취소
+          </button>
+          <button class="btn-save" onclick="saveQuantitative()">
+            <i class="fas fa-save"></i> 저장
+          </button>
+          <button class="btn-reflect" onclick="pushQuantToPerf()">
+            <i class="fas fa-sync-alt"></i> 성과관리에 반영
+          </button>
+        </div>
+      </div>
+
       <!-- 결산외 업무 입력 -->
       <div class="section-card">
         <div class="section-header">
@@ -314,6 +414,125 @@ const currentUser = RBAC.getCurrentUser();
 let kpiTasks    = { kpi1:[], kpi2:[], kpi3:[] };
 let kpiScores   = { kpi1:null, kpi2:null, kpi3:null };
 let kpiCommentVal = '';
+
+// ── 정량평가 ──
+let quantData = { directive_done: null, csm_amount: null, deadline_days: null, meeting_count: null };
+
+function calcQDirective(v) {
+  if (v === '' || v == null) return null;
+  return parseInt(v) === 1 ? 100 : 0;
+}
+function calcQCsm(v) {
+  if (v === '' || v == null) return null;
+  const n = Number(v);
+  if (n >= 1000) return 100; if (n >= 500) return 90;
+  if (n >= 200)  return 80;  if (n >= 100) return 70; return 0;
+}
+function calcQDeadline(v) {
+  if (v === '' || v == null) return null;
+  const n = parseInt(v);
+  if (n >= 2)   return 100; if (n === 1)  return 90;
+  if (n === 0)  return 80;  if (n === -1) return 70;
+  if (n === -2) return 60;  return 0;
+}
+function calcQMeeting(v) {
+  if (v === '' || v == null) return null;
+  return Number(v) >= 1 ? 100 : 0;
+}
+
+function onQuantChange() {
+  const dv = document.getElementById('qDirective').value;
+  const cv = document.getElementById('qCsmAmount').value;
+  const mv = document.getElementById('qMeetingCount').value;
+  quantData.directive_done  = dv !== '' ? parseInt(dv) : null;
+  quantData.csm_amount      = cv !== '' ? Number(cv)   : null;
+  quantData.meeting_count   = mv !== '' ? Number(mv)   : null;
+
+  const s1 = calcQDirective(dv), s2 = calcQCsm(cv);
+  const s3 = calcQDeadline(quantData.deadline_days != null ? String(quantData.deadline_days) : '');
+  const s4 = calcQMeeting(mv);
+
+  document.getElementById('qScoreDirective').textContent = s1 != null ? s1 + '점' : '-';
+  document.getElementById('qScoreCsm').textContent       = s2 != null ? s2 + '점' : '-';
+  document.getElementById('qScoreDeadline').textContent  = s3 != null ? s3 + '점' : '-';
+  document.getElementById('qScoreMeeting').textContent   = s4 != null ? s4 + '점' : '-';
+
+  const ws = [s1!=null?s1*0.05:null, s2!=null?s2*0.10:null, s3!=null?s3*0.20:null, s4!=null?s4*0.15:null].filter(v=>v!==null);
+  const sub = ws.length ? Math.round(ws.reduce((a,b)=>a+b,0)*10)/10 : null;
+  document.getElementById('qSubtotal').textContent = sub != null ? sub + '점' : '-';
+
+  const filled = [quantData.directive_done, quantData.csm_amount, quantData.meeting_count].filter(v=>v!=null).length;
+  document.getElementById('quantBadge').textContent = filled > 0 ? filled + '/3 입력' : '미입력';
+}
+
+async function saveQuantitative() {
+  const body = {
+    year: currentYear, month: currentMonth, member_name: currentMember,
+    raw_directive:     quantData.directive_done,
+    raw_csm_amount:    quantData.csm_amount,
+    raw_deadline_days: quantData.deadline_days,
+    raw_meeting_count: quantData.meeting_count,
+  };
+  try {
+    let res;
+    if (currentRecordId) {
+      res = await fetch('/tables/work_tasks/' + currentRecordId, {
+        method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+      });
+    } else {
+      res = await fetch('/tables/work_tasks', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+      });
+      if (res.ok) { const d = await res.json(); currentRecordId = d.id; }
+    }
+    if (!res.ok) throw new Error();
+    Portal.showToast('정량평가 데이터가 저장되었습니다.', 'success');
+    await loadHistory();
+  } catch(e) { Portal.showToast('저장에 실패했습니다.', 'error'); }
+}
+
+async function pushQuantToPerf() {
+  const s1 = calcQDirective(quantData.directive_done);
+  const s2 = calcQCsm(quantData.csm_amount);
+  const s3 = calcQDeadline(quantData.deadline_days != null ? String(quantData.deadline_days) : '');
+  const s4 = calcQMeeting(quantData.meeting_count);
+  if ([s1,s2,s4].some(v => v == null)) {
+    Portal.showToast('지시수행, CSM, 임원회의를 모두 입력한 후 반영하세요.', 'error'); return;
+  }
+  const basicQuant = Math.round((s1*0.05 + s2*0.10 + s3*0.20 + s4*0.15) * 10) / 10;
+  try {
+    await saveQuantitative();
+    const res  = await fetch('/tables/performance_records?limit=500');
+    const data = await res.json();
+    const match = (data.rows||[]).find(r =>
+      r.target_name === currentMember &&
+      String(r.year) === String(currentYear) &&
+      String(r.month) === String(currentMonth));
+    const perfBody = {
+      year: currentYear, month: currentMonth, target_name: currentMember,
+      raw_directive:     quantData.directive_done,
+      raw_csm_amount:    quantData.csm_amount,
+      raw_deadline_days: quantData.deadline_days,
+      raw_meeting_count: quantData.meeting_count,
+      score_directive:   s1,
+      score_csm:         s2,
+      score_deadline:    s3,
+      score_meeting:     s4,
+      basic_score:       basicQuant,
+      rule_version:      '1.0.0',
+    };
+    if (match) {
+      await fetch('/tables/performance_records/'+match.id, {
+        method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(perfBody)
+      });
+    } else {
+      await fetch('/tables/performance_records', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(perfBody)
+      });
+    }
+    Portal.showToast(`${currentMember} 정량평가 반영 완료 (정량소계: ${basicQuant}점)`, 'success');
+  } catch(e) { Portal.showToast('반영에 실패했습니다.', 'error'); }
+}
 
 function updateKpiBadge() {
   const total = Object.values(kpiTasks).reduce((s,arr)=>s+(arr||[]).filter(t=>t.desc).length,0);
@@ -584,18 +803,30 @@ async function loadCurrentRecord() {
       kpiTasks      = match.kpi_tasks   || { kpi1:[], kpi2:[], kpi3:[] };
       kpiScores     = match.kpi_scores  || { kpi1:null, kpi2:null, kpi3:null };
       kpiCommentVal = match.kpi_comment || '';
+      quantData.directive_done  = match.raw_directive    ?? null;
+      quantData.csm_amount      = match.raw_csm_amount   ?? null;
+      quantData.deadline_days   = match.raw_deadline_days ?? null;
+      quantData.meeting_count   = match.raw_meeting_count ?? null;
     } else {
       currentRecordId = null;
       otherTasks    = [];
       kpiTasks      = { kpi1:[], kpi2:[], kpi3:[] };
       kpiScores     = { kpi1:null, kpi2:null, kpi3:null };
       kpiCommentVal = '';
+      quantData = { directive_done:null, csm_amount:null, deadline_days:null, meeting_count:null };
     }
     // Populate KPI UI
     document.getElementById('kpiScore_kpi1').value = kpiScores.kpi1 ?? '';
     document.getElementById('kpiScore_kpi2').value = kpiScores.kpi2 ?? '';
     document.getElementById('kpiScore_kpi3').value = kpiScores.kpi3 ?? '';
     document.getElementById('kpiComment').value    = kpiCommentVal;
+    // Populate 정량평가 UI
+    document.getElementById('qDirective').value    = quantData.directive_done  != null ? String(quantData.directive_done)  : '';
+    document.getElementById('qCsmAmount').value    = quantData.csm_amount      ?? '';
+    document.getElementById('qMeetingCount').value = quantData.meeting_count   ?? '';
+    const ddDisp = document.getElementById('qDeadlineDaysDisp');
+    if (ddDisp) ddDisp.textContent = quantData.deadline_days != null ? quantData.deadline_days + '일' : '(미입력)';
+    onQuantChange();
     renderKpiSection();
     renderOtherTasks();
     loadHistory();

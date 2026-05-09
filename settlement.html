@@ -153,8 +153,14 @@
     .chk-group { border-top:1px solid #f3f4f6; }
     .chk-group-header { padding:10px 24px; background:#f8faff; font-size:12px; font-weight:700;
       color:#6b7280; display:flex; align-items:center; gap:8px; }
-    .chk-task-row { display:grid; grid-template-columns:auto 1fr 75px 100px 56px;
-      gap:10px; align-items:center; padding:10px 24px; border-bottom:1px solid #f3f4f6; }
+    .chk-task-row { display:grid; grid-template-columns:auto 1fr 75px 110px 90px 48px;
+      gap:8px; align-items:center; padding:10px 24px; border-bottom:1px solid #f3f4f6; }
+    .chk-deadline-sel { padding:4px 4px; border:1.5px solid #e5e7eb; border-radius:7px; font-size:11px;
+      font-family:inherit; width:100%; box-sizing:border-box; background:#fff; cursor:pointer; }
+    .chk-deadline-sel:focus { outline:none; border-color:#4f86f7; }
+    .chk-deadline-sel.has-val { border-color:#6366f1; color:#6366f1; font-weight:700; }
+    .chk-deadline-sel.auto-val { background:#f0fdf4; border-color:#86efac; color:#166534; font-weight:700; cursor:default; }
+    .chk-deadline-sel.auto-val:disabled { opacity:1; }
     .chk-task-row:last-child { border-bottom:none; }
     .chk-task-row:hover { background:#f9fafb; }
     .chk-checkbox { width:18px; height:18px; cursor:pointer; accent-color:#4f86f7; flex-shrink:0; }
@@ -167,7 +173,7 @@
     .chk-date-input { padding:5px 8px; border:1.5px solid #e5e7eb; border-radius:8px; font-size:12px; font-family:inherit; width:100%; box-sizing:border-box; }
     .chk-date-input:focus { outline:none; border-color:#4f86f7; }
     .chk-st { font-size:10px; font-weight:700; padding:2px 5px; border-radius:5px; text-align:center; white-space:nowrap; display:block; }
-    .chk-st-조기 { background:#dbeafe; color:#1e40af; }
+    .chk-st-조기마감 { background:#dbeafe; color:#1e40af; }
     .chk-st-준수 { background:#dcfce7; color:#166534; }
     .chk-st-지연 { background:#fee2e2; color:#991b1b; }
     .chk-st-미완 { background:#f3f4f6; color:#9ca3af; }
@@ -175,7 +181,7 @@
 
     @media(max-width:600px){
       .chk-stats { grid-template-columns:1fr 1fr; }
-      .chk-task-row { grid-template-columns:auto 1fr 60px 80px 50px; gap:6px; padding:10px 14px; }
+      .chk-task-row { grid-template-columns:auto 1fr 55px 85px 70px 40px; gap:5px; padding:10px 14px; }
       .settle-chk-header { padding:14px 16px; }
       .chk-progress-outer { margin:0 16px; }
       .chk-stats { padding:12px 16px 8px; }
@@ -291,6 +297,10 @@
           <div class="chk-stat"><div class="chk-stat-label">완료율</div><div class="chk-stat-val" id="chkPct" style="color:#4f86f7">0%</div></div>
           <div class="chk-stat"><div class="chk-stat-label">완료항목수</div><div class="chk-stat-val" id="chkDoneCount" style="color:#10b981">0 / 26</div></div>
           <div class="chk-stat"><div class="chk-stat-label">총 소요시간</div><div class="chk-stat-val" id="chkTotalMin" style="color:#f59e0b">0분</div></div>
+          <div class="chk-stat" style="flex:2;min-width:160px;">
+            <div class="chk-stat-label">결산기한준수 점수 <span style="font-size:10px;color:#9ca3af;">(항목별 평균)</span></div>
+            <div class="chk-stat-val" id="chkDeadlineScoreDisp" style="color:#6366f1;">-</div>
+          </div>
         </div>
         <div class="chk-progress-outer"><div class="chk-progress-fill" id="chkProgressFill" style="width:0%"></div></div>
 
@@ -387,32 +397,32 @@
 
   // ========== 결산 D+N 영업일 스케줄 ==========
   const SETTLE_SCHEDULE = [
-    { id:'s01', label:'계리계약 마감',                      group:'계약/준비금',    due:5    },
-    { id:'s02', label:'지급준비금 마감',                    group:'계약/준비금',    due:7    },
-    { id:'s03', label:'준비금 마감',                        group:'계약/준비금',    due:8    },
-    { id:'s04', label:'보험료분해 마감',                    group:'계약/준비금',    due:10   },
-    { id:'s05', label:'재보험 마감 (출재/청구)',            group:'계약/준비금',    due:12   },
-    { id:'s06', label:'보증준비금 마감',                    group:'계약/준비금',    due:13   },
-    { id:'s07', label:'잉여금처리 & 계약자배당',           group:'계약/준비금',    due:null },
-    { id:'s08', label:'예금보험료',                         group:'계약/준비금',    due:null },
-    { id:'s09', label:'결산 모델 배포',                     group:'모델/가정',      due:1    },
-    { id:'s10', label:'계리모델 입력데이터 준비',          group:'모델/가정',      due:8    },
-    { id:'s11', label:'경제적 가정 산출',                   group:'모델/가정',      due:7    },
-    { id:'s12', label:'최초/후속 모델포인트 생성',         group:'모델/가정',      due:9    },
-    { id:'s13', label:'최초인식 보험부채 산출',            group:'부채산출',       due:9    },
-    { id:'s14', label:'후속측정 보험부채 산출',            group:'부채산출',       due:12   },
-    { id:'s15', label:'사업비 배부',                        group:'부채산출',       due:12   },
-    { id:'s16', label:'최초인식대상계약 확정',             group:'부채산출',       due:9    },
-    { id:'s17', label:'결산대상계약 확정',                  group:'부채산출',       due:10   },
-    { id:'s18', label:'가중평균할인율 산출',               group:'부채산출',       due:10   },
-    { id:'s19', label:'BEL/RA data 입수 및 계약그룹 작업', group:'ETL/데이터',    due:12   },
-    { id:'s20', label:'결산대상계약 및 실제CF 이관 (ETL)', group:'ETL/데이터',    due:12   },
-    { id:'s21', label:'실제CF Data 이관 (ETL)',             group:'ETL/데이터',    due:13   },
-    { id:'s22', label:'가중평균할인율 산출 (재보험)',       group:'재보험',         due:14   },
-    { id:'s23', label:'BEL/RA data 입수 (재보험)',          group:'재보험',         due:15   },
-    { id:'s24', label:'부채결산 무브먼트',                  group:'무브먼트/전송',  due:15   },
-    { id:'s25', label:'부채결산 무브먼트 (재보험)',         group:'무브먼트/전송',  due:15   },
-    { id:'s26', label:'회계팀 결산Data 전송',               group:'무브먼트/전송',  due:15   },
+    { id:'s01', label:'계리계약 마감',                      group:'계약/준비금',    due:5,    assignee:'오정택'         },
+    { id:'s02', label:'지급준비금 마감',                    group:'계약/준비금',    due:7,    assignee:'이용우'         },
+    { id:'s03', label:'준비금 마감',                        group:'계약/준비금',    due:8,    assignee:'강세진'         },
+    { id:'s04', label:'보험료분해 마감',                    group:'계약/준비금',    due:10,   assignee:'김채린'         },
+    { id:'s05', label:'재보험 마감 (출재/청구)',            group:'계약/준비금',    due:12,   assignee:'김예은'         },
+    { id:'s06', label:'보증준비금 마감',                    group:'계약/준비금',    due:13,   assignee:'강세진'         },
+    { id:'s07', label:'잉여금처리 & 계약자배당',           group:'계약/준비금',    due:null, assignee:'이상현'         },
+    { id:'s08', label:'예금보험료',                         group:'계약/준비금',    due:null, assignee:'강세진'         },
+    { id:'s09', label:'결산 모델 배포',                     group:'모델/가정',      due:1,    assignee:'한인석'         },
+    { id:'s10', label:'계리모델 입력데이터 준비',          group:'모델/가정',      due:8,    assignee:'김예은/이성원'  },
+    { id:'s11', label:'경제적 가정 산출',                   group:'모델/가정',      due:7,    assignee:'이상백'         },
+    { id:'s12', label:'최초/후속 모델포인트 생성',         group:'모델/가정',      due:9,    assignee:'이성원'         },
+    { id:'s13', label:'최초인식 보험부채 산출',            group:'부채산출',       due:9,    assignee:'김예은'         },
+    { id:'s14', label:'후속측정 보험부채 산출',            group:'부채산출',       due:12,   assignee:'한인석/이성원'  },
+    { id:'s15', label:'사업비 배부',                        group:'부채산출',       due:12,   assignee:'마혜원'         },
+    { id:'s16', label:'최초인식대상계약 확정',             group:'부채산출',       due:9,    assignee:'이용우'         },
+    { id:'s17', label:'결산대상계약 확정',                  group:'부채산출',       due:10,   assignee:'이용우'         },
+    { id:'s18', label:'가중평균할인율 산출',               group:'부채산출',       due:10,   assignee:'예대호'         },
+    { id:'s19', label:'BEL/RA data 입수 및 계약그룹 작업', group:'ETL/데이터',    due:12,   assignee:'이동민'         },
+    { id:'s20', label:'결산대상계약 및 실제CF 이관 (ETL)', group:'ETL/데이터',    due:12,   assignee:'김예은'         },
+    { id:'s21', label:'실제CF Data 이관 (ETL)',             group:'ETL/데이터',    due:13,   assignee:'이동민'         },
+    { id:'s22', label:'가중평균할인율 산출 (재보험)',       group:'재보험',         due:14,   assignee:'예대호'         },
+    { id:'s23', label:'BEL/RA data 입수 (재보험)',          group:'재보험',         due:15,   assignee:'김예은'         },
+    { id:'s24', label:'부채결산 무브먼트',                  group:'무브먼트/전송',  due:15,   assignee:'이동민'         },
+    { id:'s25', label:'부채결산 무브먼트 (재보험)',         group:'무브먼트/전송',  due:15,   assignee:'김예은'         },
+    { id:'s26', label:'회계팀 결산Data 전송',               group:'무브먼트/전송',  due:15,   assignee:'예대호'         },
   ];
 
   const KR_HOLIDAYS = new Map([
@@ -491,6 +501,27 @@
         if (s === ds) return count;
       }
       if (s > ds) break;
+    }
+    return null;
+  }
+
+  // 전월 포함 상대적 영업일 번호 반환
+  // 당월: 1, 2, 3 ...  /  전월 마지막영업일: 0  /  전월 2번째마지막: -1 ...
+  function getRelativeBizDay(year, month, ds) {
+    const d = new Date(ds + 'T00:00:00');
+    const dYear = d.getFullYear(), dMonth = d.getMonth() + 1;
+    if (dYear === year && dMonth === month) return getBizDayNum(year, month, ds);
+    const prevMonth = month === 1 ? 12 : month - 1;
+    const prevYear  = month === 1 ? year - 1 : year;
+    if (dYear === prevYear && dMonth === prevMonth) {
+      if (!isBusinessDay(ds)) return null;
+      const daysInPrev = new Date(prevYear, prevMonth, 0).getDate();
+      let countAfter = 0;
+      for (let i = d.getDate() + 1; i <= daysInPrev; i++) {
+        const s = `${prevYear}-${String(prevMonth).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+        if (isBusinessDay(s)) countAfter++;
+      }
+      return -countAfter; // 0=전월마지막영업일, -1=그전 영업일 ...
     }
     return null;
   }
@@ -898,6 +929,7 @@
   let chkDone = new Set(), chkTimes = {}, chkRecordId = null;
   let chkDates = {}; // taskId -> completionDateStr
   let chklChipMap = {}; // completionDateStr -> [{taskLabel, status}]
+  let chkDeadlineDaysMap = {}; // taskId -> 단축(+)/지연(-) 일수
 
   function buildChklChipMap() {
     chklChipMap = {};
@@ -966,34 +998,35 @@
     const dueDateStr = getNthBizDay(chkYear, chkMonth, schedTask.due);
     if (!dueDateStr) return '완료';
     if (completionDate <= dueDateStr) {
-      const bizDue = getBizDayNum(chkYear, chkMonth, dueDateStr) || schedTask.due;
-      const bizComp = getBizDayNum(chkYear, chkMonth, completionDate);
-      if (bizComp && bizComp < bizDue) return '조기';
+      const bizDue = getBizDayNum(chkYear, chkMonth, dueDateStr) ?? schedTask.due;
+      const bizComp = getRelativeBizDay(chkYear, chkMonth, completionDate);
+      if (bizComp != null && bizComp < bizDue) return '조기마감';
       return '준수';
     }
     return '지연';
   }
 
   function renderChecklist() {
-    const doneCount = chkDone.size;
-    const total = SETTLE_SCHEDULE.length;
-    const pct = Math.round(doneCount / total * 100);
-    const totalMin = Object.values(chkTimes).reduce((s, v) => s + (parseInt(v) || 0), 0);
-    document.getElementById('chkPct').textContent = pct + '%';
-    document.getElementById('chkDoneCount').textContent = doneCount + ' / ' + total;
-    document.getElementById('chkTotalMin').textContent = totalMin + '분';
-    document.getElementById('chkProgressFill').style.width = pct + '%';
-
+    updateChkStats();
     const container = document.getElementById('chkTaskList');
-    const headerRow = `<div style="display:grid;grid-template-columns:auto 1fr 75px 100px 56px;gap:10px;padding:6px 24px;background:#f8faff;border-top:1px solid #f3f4f6;border-bottom:1px solid #f3f4f6;">
+    const headerRow = `<div style="display:grid;grid-template-columns:auto 1fr 75px 110px 90px 48px;gap:8px;padding:6px 24px;background:#f8faff;border-top:1px solid #f3f4f6;border-bottom:1px solid #f3f4f6;">
       <span></span>
       <span style="font-size:11px;font-weight:700;color:#6b7280;">업무명</span>
       <span style="font-size:11px;font-weight:700;color:#6b7280;text-align:center;">소요시간</span>
       <span style="font-size:11px;font-weight:700;color:#6b7280;text-align:center;">완료일</span>
+      <span style="font-size:11px;font-weight:700;color:#6366f1;text-align:center;">단축/지연일</span>
       <span style="font-size:11px;font-weight:700;color:#6b7280;text-align:center;">상태</span>
     </div>`;
+    // 비팀장은 자기 assignee 항목 + 미지정(assignee 없음) 항목만 표시
+    const visibleIds = new Set(
+      SETTLE_SCHEDULE
+        .filter(t => isLeader || !t.assignee || t.assignee.split('/').map(s=>s.trim()).includes(chkMember))
+        .map(t => t.id)
+    );
+
     container.innerHTML = headerRow + SETTLE_GROUPS.map(grp => {
-      const tasks = SETTLE_SCHEDULE.filter(t => t.group === grp);
+      const tasks = SETTLE_SCHEDULE.filter(t => t.group === grp && visibleIds.has(t.id));
+      if (!tasks.length) return '';
       const grpDone = tasks.filter(t => chkDone.has(t.id)).length;
       return `<div class="chk-group">
         <div class="chk-group-header">
@@ -1002,7 +1035,7 @@
         </div>
         ${tasks.map(t => {
           const status = getTaskStatus(t.id);
-          const stClass = status === '조기' ? 'chk-st-조기' : status === '준수' ? 'chk-st-준수' : status === '지연' ? 'chk-st-지연' : 'chk-st-미완';
+          const stClass = status === '조기마감' ? 'chk-st-조기마감' : status === '준수' ? 'chk-st-준수' : status === '지연' ? 'chk-st-지연' : 'chk-st-미완';
           const stText = status || '미완';
           return `
           <div class="chk-task-row">
@@ -1015,7 +1048,28 @@
               oninput="chkTimes['${t.id}']=parseInt(this.value)||0;updateChkStats()">
             <input type="date" class="chk-date-input" id="chkdate_${t.id}"
               value="${chkDates[t.id] || ''}"
-              onchange="chkDates['${t.id}']=this.value;renderChecklist();buildChklChipMap();renderCalendar();if(selectedDate)showDayPanel(selectedDate)">
+              onchange="chkDates['${t.id}']=this.value;autoCalcDeadline('${t.id}');renderChecklist();buildChklChipMap();renderCalendar();if(selectedDate)showDayPanel(selectedDate)">
+            ${t.due != null
+              ? `<select class="chk-deadline-sel${chkDeadlineDaysMap[t.id]!=null?' auto-val':''}" disabled title="완료일 기준 자동계산">
+                  <option value="">-</option>
+                  <option value="2"  ${chkDeadlineDaysMap[t.id]===2?'selected':''}>+2일↑</option>
+                  <option value="1"  ${chkDeadlineDaysMap[t.id]===1?'selected':''}>+1일</option>
+                  <option value="0"  ${chkDeadlineDaysMap[t.id]===0?'selected':''}>0일</option>
+                  <option value="-1" ${chkDeadlineDaysMap[t.id]===-1?'selected':''}>-1일</option>
+                  <option value="-2" ${chkDeadlineDaysMap[t.id]===-2?'selected':''}>-2일</option>
+                  <option value="-3" ${chkDeadlineDaysMap[t.id]===-3?'selected':''}>-3일↓</option>
+                </select>`
+              : `<select class="chk-deadline-sel${chkDeadlineDaysMap[t.id]!=null?' has-val':''}"
+                  onchange="onTaskDeadlineChange('${t.id}',this.value)" title="마감기일 미지정: 직접 선택">
+                  <option value="">기한</option>
+                  <option value="2"  ${chkDeadlineDaysMap[t.id]===2?'selected':''}>+2일↑</option>
+                  <option value="1"  ${chkDeadlineDaysMap[t.id]===1?'selected':''}>+1일</option>
+                  <option value="0"  ${chkDeadlineDaysMap[t.id]===0?'selected':''}>0일</option>
+                  <option value="-1" ${chkDeadlineDaysMap[t.id]===-1?'selected':''}>-1일</option>
+                  <option value="-2" ${chkDeadlineDaysMap[t.id]===-2?'selected':''}>-2일</option>
+                  <option value="-3" ${chkDeadlineDaysMap[t.id]===-3?'selected':''}>-3일↓</option>
+                </select>`
+            }
             <span class="chk-st ${stClass}">${stText}</span>
           </div>`;
         }).join('')}
@@ -1030,6 +1084,47 @@
     updateChkStats();
   }
 
+  function calcDeadlineAvgScore() {
+    if (!chkMember) return null;
+    const memberTasks = SETTLE_SCHEDULE.filter(t =>
+      t.assignee && t.assignee.split('/').map(s=>s.trim()).includes(chkMember)
+    );
+    const scored = memberTasks.filter(t => chkDeadlineDaysMap[t.id] != null);
+    if (!scored.length) return null;
+    const scores = scored.map(t => calcDeadlinePerfScore(chkDeadlineDaysMap[t.id]));
+    return Math.round(scores.reduce((a,b)=>a+b,0) / scores.length * 10) / 10;
+  }
+
+  function autoCalcDeadline(taskId) {
+    const task = SETTLE_SCHEDULE.find(t => t.id === taskId);
+    if (!task || task.due == null) return; // due 없는 태스크는 수동입력
+    const completionDate = chkDates[taskId];
+    if (!completionDate) {
+      delete chkDeadlineDaysMap[taskId];
+      updateChkStats();
+      return;
+    }
+    // 완료일의 상대적 영업일 번호 산출 (전월 포함)
+    const compBiz = getRelativeBizDay(chkYear, chkMonth, completionDate);
+    if (compBiz == null) {
+      // 주말/공휴일 또는 2달 이전 날짜 → 자동계산 불가
+      delete chkDeadlineDaysMap[taskId];
+      Portal.showToast(`${task.label}: 완료일이 주말/공휴일입니다. 단축/지연일을 직접 선택하세요.`, 'warn');
+      updateChkStats();
+      return;
+    }
+    const diff = task.due - compBiz; // 양수=단축, 음수=지연
+    const clamped = diff >= 2 ? 2 : diff <= -3 ? -3 : diff;
+    chkDeadlineDaysMap[taskId] = clamped;
+    updateChkStats();
+  }
+
+  function onTaskDeadlineChange(taskId, value) {
+    if (value === '') { delete chkDeadlineDaysMap[taskId]; }
+    else { chkDeadlineDaysMap[taskId] = parseInt(value); }
+    updateChkStats();
+  }
+
   function updateChkStats() {
     const doneCount = chkDone.size;
     const total = SETTLE_SCHEDULE.length;
@@ -1039,6 +1134,9 @@
     document.getElementById('chkDoneCount').textContent = doneCount + ' / ' + total;
     document.getElementById('chkTotalMin').textContent = totalMin + '분';
     document.getElementById('chkProgressFill').style.width = pct + '%';
+    const avgScore = calcDeadlineAvgScore();
+    const scoreDisp = document.getElementById('chkDeadlineScoreDisp');
+    if (scoreDisp) scoreDisp.textContent = avgScore != null ? avgScore + '점' : '-';
   }
 
   async function loadChecklist() {
@@ -1054,8 +1152,9 @@
       chkTimes = match?.settlement_times || {};
       chkDates = match?.settlement_dates || {};
       chkRecordId = match?.id || null;
+      chkDeadlineDaysMap = match?.settlement_deadline_days || {};
     } catch(e) {
-      chkDone = new Set(); chkTimes = {}; chkDates = {}; chkRecordId = null;
+      chkDone = new Set(); chkTimes = {}; chkDates = {}; chkRecordId = null; chkDeadlineDaysMap = {};
     }
     renderChecklist();
     buildChklChipMap();
@@ -1069,6 +1168,7 @@
       settlement_done: [...chkDone],
       settlement_times: chkTimes,
       settlement_dates: chkDates,
+      settlement_deadline_days: chkDeadlineDaysMap,
     };
     try {
       let res;
@@ -1087,47 +1187,41 @@
       buildChklChipMap();
       renderCalendar();
       if (selectedDate) showDayPanel(selectedDate);
-      await pushDeadlineScore();
+      if (Object.keys(chkDeadlineDaysMap).length > 0) pushDeadlineToPerf();
     } catch(e) { Portal.showToast('저장에 실패했습니다.', 'error'); }
   }
 
-  async function pushDeadlineScore() {
-    let onTime = 0, late = 0, early = 0, notDone = 0;
-    SETTLE_SCHEDULE.forEach(t => {
-      if (!chkDone.has(t.id)) { notDone++; return; }
-      const completionDate = chkDates[t.id];
-      if (!completionDate) { onTime++; return; }
-      const dueDateStr = getNthBizDay(chkYear, chkMonth, t.due);
-      if (!dueDateStr) { onTime++; return; }
-      if (completionDate < dueDateStr) early++;
-      else if (completionDate === dueDateStr) onTime++;
-      else late++;
-    });
-    const total = SETTLE_SCHEDULE.length;
-    const score = Math.round((early + onTime) / total * 100);
+  function calcDeadlinePerfScore(days) {
+    if (days >= 2) return 100;
+    if (days === 1) return 90;
+    if (days === 0) return 80;
+    if (days === -1) return 70;
+    if (days === -2) return 60;
+    return 0;
+  }
 
+  async function pushDeadlineToPerf() {
+    const score = calcDeadlineAvgScore();
+    if (score == null) return;
     try {
-      const res = await fetch('/tables/performance_records?limit=500');
+      const res  = await fetch('/tables/performance_records?limit=500');
       const data = await res.json();
-      const match = (data.rows || []).find(r =>
+      const match = (data.rows||[]).find(r =>
         r.target_name === chkMember &&
         String(r.year) === String(chkYear) &&
-        String(r.month) === String(chkMonth)
-      );
-      const perfBody = { year: chkYear, month: chkMonth, target_name: chkMember, score_deadline: score };
+        String(r.month) === String(chkMonth));
       if (match) {
-        await fetch('/tables/performance_records/' + match.id, {
-          method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(perfBody)
+        await fetch('/tables/performance_records/'+match.id, {
+          method:'PUT', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({...match, score_deadline: score})
         });
       } else {
         await fetch('/tables/performance_records', {
-          method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(perfBody)
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ year:chkYear, month:chkMonth, target_name:chkMember, score_deadline: score })
         });
       }
-      Portal.showToast(`기한준수 점수 ${score}점이 성과관리에 반영되었습니다.`, 'success');
-    } catch(e) {
-      console.error('Failed to push deadline score', e);
-    }
+    } catch(e) { /* silent */ }
   }
 
   function cancelChecklist() {

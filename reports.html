@@ -82,6 +82,10 @@
       border-radius:8px; background:#f0f6ff; color:#4f86f7; font-size:12px; font-weight:600;
       text-decoration:none; border:none; cursor:pointer; transition:background .15s; }
     .dl-btn:hover { background:#dbeafe; }
+    .del-hist-btn { display:inline-flex; align-items:center; gap:4px; padding:5px 10px;
+      border-radius:8px; background:#fef2f2; color:#ef4444; font-size:12px; font-weight:600;
+      border:none; cursor:pointer; transition:background .15s; margin-left:4px; }
+    .del-hist-btn:hover { background:#fee2e2; }
     .history-empty { padding:48px; text-align:center; color:#d1d5db; }
   </style>
 </head>
@@ -274,7 +278,7 @@
       container.innerHTML = `<table class="htable">
         <thead><tr>
           <th>보고서 유형</th><th>기준월</th><th>작성자</th>
-          <th>상태</th><th>파일명</th><th>생성 시각</th><th>다운로드</th>
+          <th>상태</th><th>파일명</th><th>생성 시각</th><th>다운로드</th><th></th>
         </tr></thead>
         <tbody>
         ${logs.map(r => `<tr>
@@ -288,12 +292,29 @@
           <td>${r.status==='success' && r.filename
             ? `<a class="dl-btn" href="/api/reports/download/${encodeURIComponent(r.filename)}" download><i class="fas fa-download"></i> 다운로드</a>`
             : '<span style="color:#d1d5db;font-size:12px">-</span>'}</td>
+          <td><button class="del-hist-btn" onclick="deleteHistory('${r.id}')"><i class="fas fa-trash"></i></button></td>
         </tr>`).join('')}
         </tbody>
       </table>`;
     } catch(e) {
       document.getElementById('histContainer').innerHTML = '<div class="history-empty">이력을 불러오지 못했습니다.</div>';
     }
+  }
+
+  function deleteHistory(id) {
+    Portal.confirm('이 이력을 삭제하시겠습니까?', async () => {
+      try {
+        const res = await fetch(`/tables/report_history/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          Portal.showToast('삭제되었습니다.', 'success');
+          loadHistory();
+        } else {
+          Portal.showToast('삭제 실패', 'error');
+        }
+      } catch(e) {
+        Portal.showToast('삭제 실패: ' + e.message, 'error');
+      }
+    });
   }
 
   loadHistory();

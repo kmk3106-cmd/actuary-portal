@@ -15,6 +15,11 @@
     .sel-group { display:flex; gap:8px; }
     .year-sel { padding:8px 14px; border:1.5px solid #e5e7eb; border-radius:10px;
       font-size:14px; color:#374151; font-family:inherit; background:#fff; cursor:pointer; }
+    .month-btns { display:flex; gap:4px; flex-wrap:wrap; }
+    .month-btn { padding:7px 11px; border:1.5px solid #e5e7eb; border-radius:8px; background:#fff;
+      font-size:13px; font-weight:600; color:#6b7280; cursor:pointer; transition:all .15s; }
+    .month-btn:hover { border-color:#4f86f7; color:#4f86f7; }
+    .month-btn.active { background:#4f86f7; border-color:#4f86f7; color:#fff; }
     .weight-label { color:#111827; font-weight:700; font-size:12px; }
 
     /* View tabs */
@@ -112,6 +117,15 @@
     .score-unit { font-size:13px; color:#9ca3af; margin-bottom:5px; }
     .perf-text { font-size:13px; color:#374151; line-height:1.7; white-space:pre-wrap; }
     .perf-text-empty { font-size:13px; color:#d1d5db; font-style:italic; }
+    .card-bonus-row { padding:12px 20px; background:#f9fafb; border-top:1px solid #f3f4f6;
+      display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+    .bonus-check-label { display:flex; align-items:center; gap:5px; font-size:13px; font-weight:600;
+      color:#374151; cursor:pointer; user-select:none; }
+    .bonus-check-label input { width:15px; height:15px; cursor:pointer; accent-color:#4f86f7; }
+    .btn-save-bonus { padding:4px 14px; background:#4f86f7; color:#fff; border:none; border-radius:8px;
+      font-size:12px; font-weight:600; cursor:pointer; margin-left:auto; }
+    .btn-save-bonus:hover { background:#3b72e3; }
+    .card-no-record { padding:14px 20px; font-size:13px; color:#9ca3af; font-style:italic; }
 
     /* Stats row */
     .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
@@ -169,10 +183,8 @@
       <div class="toolbar">
         <div class="sel-group">
           <select class="year-sel" id="yearSel" onchange="onFilterChange()"></select>
-          <select class="year-sel" id="monthSel" onchange="onFilterChange()">
-            <option value="0">연간 집계</option>
-          </select>
         </div>
+        <div class="month-btns" id="monthBtns"></div>
       </div>
 
       <!-- 통계 -->
@@ -217,9 +229,9 @@
                 </tr>
                 <tr>
                   <th class="col-section">지시수행<br><span class="weight-label">(5%)</span></th>
-                  <th>CSM기여<br><span class="weight-label">(10%)</span></th>
+                  <th>재무수치안<br><span class="weight-label">(10%)</span></th>
                   <th>기한준수<br><span class="weight-label">(20%)</span></th>
-                  <th>임원회의<br><span class="weight-label">(15%)</span></th>
+                  <th>임원소스<br><span class="weight-label">(15%)</span></th>
                   <th class="col-section">KPI1<br><span class="weight-label">(20%)</span></th>
                   <th>KPI2<br><span class="weight-label">(20%)</span></th>
                   <th>KPI3<br><span class="weight-label">(10%)</span></th>
@@ -271,46 +283,61 @@
         <input type="text" class="form-input" id="fTargetName">
       </div>
 
-      <div class="section-divider"><i class="fas fa-calculator"></i> 정량평가</div>
-      <div class="form-row-3">
-        <div class="form-group">
-          <label class="form-label">팀장지시수행 (5%)</label>
-          <input type="number" class="form-input" id="fScoreTeam" min="0" max="100">
+      <div class="section-divider"><i class="fas fa-calculator"></i> 정량평가 <span style="font-size:11px;font-weight:400;color:#9ca3af;">개인별 업무입력에서 자동 집계</span></div>
+      <div style="background:#f8faff;border:1.5px solid #dbeafe;border-radius:10px;padding:12px 16px;margin-bottom:14px;">
+        <div style="font-size:11px;color:#9ca3af;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+          <span><i class="fas fa-info-circle"></i> 팀원이 개인별 업무입력 화면에서 입력한 값이 자동 반영됩니다.</span>
+          <button onclick="fetchWorkTasksForModal()" style="padding:3px 10px;background:#eff6ff;color:#3b82f6;border:1px solid #bfdbfe;border-radius:6px;font-size:11px;cursor:pointer;"><i class="fas fa-sync-alt"></i> 재집계</button>
         </div>
-        <div class="form-group">
-          <label class="form-label">CSM기여 (10%)</label>
-          <input type="number" class="form-input" id="fScoreCsm" min="0" max="100">
+        <div class="form-row-3">
+          <div class="form-group">
+            <label class="form-label">① 지시수행 <span style="color:#9ca3af;font-size:10px;">(5%)</span></label>
+            <input type="text" class="form-input" id="qDisp_directive" readonly style="background:#f9fafb;color:#374151;" placeholder="미입력">
+            <div style="font-size:11px;color:#9ca3af;margin-top:3px;">점수: <strong id="qScore_directive" style="color:#1d4ed8;">-</strong></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">② 재무수치안 <span style="color:#9ca3af;font-size:10px;">(10%)</span></label>
+            <input type="text" class="form-input" id="qDisp_csm" readonly style="background:#f9fafb;color:#374151;" placeholder="미입력">
+            <div style="font-size:11px;color:#9ca3af;margin-top:3px;">점수: <strong id="qScore_csm" style="color:#1d4ed8;">-</strong></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">③ 기한준수 <span style="color:#9ca3af;font-size:10px;">(20%)</span></label>
+            <input type="text" class="form-input" id="qDisp_deadline" readonly style="background:#f9fafb;color:#374151;" placeholder="미입력">
+            <div style="font-size:11px;color:#9ca3af;margin-top:3px;">점수: <strong id="qScore_deadline" style="color:#1d4ed8;">-</strong></div>
+          </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">기한준수 (20%)</label>
-          <input type="number" class="form-input" id="fScoreDeadline" min="0" max="100">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">④ 임원소스 <span style="color:#9ca3af;font-size:10px;">(15%)</span></label>
+            <input type="text" class="form-input" id="qDisp_meeting" readonly style="background:#f9fafb;color:#374151;" placeholder="미입력">
+            <div style="font-size:11px;color:#9ca3af;margin-top:3px;">점수: <strong id="qScore_meeting" style="color:#1d4ed8;">-</strong></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">기본평가점수 <span style="color:#9ca3af;font-size:11px;">자동계산</span></label>
+            <input type="number" class="form-input" id="fBasicScore" readonly style="background:#f9fafb;color:#6b7280;">
+          </div>
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">임원회의 (15%)</label>
-          <input type="number" class="form-input" id="fScoreMeeting" min="0" max="100">
-        </div>
-        <div class="form-group">
-          <label class="form-label">기본평가점수 (자동계산)</label>
-          <input type="number" class="form-input" id="fBasicScore" min="0" max="100">
-        </div>
-      </div>
+      <!-- hidden: 정량 점수 저장용 -->
+      <input type="hidden" id="fScoreDirective">
+      <input type="hidden" id="fScoreCsm">
+      <input type="hidden" id="fScoreDeadline">
+      <input type="hidden" id="fScoreMeeting">
 
       <div id="kpiSection">
         <div class="section-divider"><i class="fas fa-star"></i> 정성평가 (KPI) — 팀장 입력</div>
         <div class="form-row-3">
           <div class="form-group">
             <label class="form-label">KPI1 계리모델AI활용 (20%)</label>
-            <input type="number" class="form-input" id="fScoreKpi1" min="0" max="100" placeholder="미입력">
+            <input type="number" class="form-input" id="fScoreKpi1" min="0" max="100" placeholder="미입력" oninput="autoCalcScores()">
           </div>
           <div class="form-group">
             <label class="form-label">KPI2 재무수치분석 (20%)</label>
-            <input type="number" class="form-input" id="fScoreKpi2" min="0" max="100" placeholder="미입력">
+            <input type="number" class="form-input" id="fScoreKpi2" min="0" max="100" placeholder="미입력" oninput="autoCalcScores()">
           </div>
           <div class="form-group">
             <label class="form-label">KPI3 계리지원강화 (10%)</label>
-            <input type="number" class="form-input" id="fScoreKpi3" min="0" max="100" placeholder="미입력">
+            <input type="number" class="form-input" id="fScoreKpi3" min="0" max="100" placeholder="미입력" oninput="autoCalcScores()">
           </div>
         </div>
       </div>
@@ -319,21 +346,21 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">프로젝트 가산 (+10%)</label>
-          <select class="form-select" id="fBonusProject">
+          <select class="form-select" id="fBonusProject" onchange="autoCalcScores()">
             <option value="false">해당없음</option><option value="true">해당 (O)</option>
           </select>
         </div>
         <div class="form-group">
           <label class="form-label">승진대상 가산 (+10%)</label>
-          <select class="form-select" id="fBonusPromotion">
+          <select class="form-select" id="fBonusPromotion" onchange="autoCalcScores()">
             <option value="false">해당없음</option><option value="true">해당 (O)</option>
           </select>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">최종평가점수</label>
-          <input type="number" class="form-input" id="fFinalScore" step="0.1">
+          <label class="form-label">최종평가점수 <span style="color:#9ca3af;font-size:11px;">자동계산</span></label>
+          <input type="number" class="form-input" id="fFinalScore" step="0.1" readonly style="background:#f9fafb;color:#6b7280;">
         </div>
         <div class="form-group">
           <label class="form-label">등급</label>
@@ -380,6 +407,7 @@ let selectedMember = 'all';
 let allRecords = [];
 const isLeader = RBAC.isTeamLeader();
 const currentUser = RBAC.getCurrentUser();
+const TEAM_MEMBERS = ['한인석','이동민','이상현','마혜원','예대호','이성원','고인수','김예은','강세진','이용우','오정택','김채린'];
 
 function buildSelects() {
   const ySel = document.getElementById('yearSel');
@@ -392,13 +420,6 @@ function buildSelects() {
       s.appendChild(o);
     });
   });
-  // Month toolbar selector
-  const mSel = document.getElementById('monthSel');
-  for (let m = 1; m <= 12; m++) {
-    const o = document.createElement('option');
-    o.value = m; o.textContent = m + '월';
-    mSel.appendChild(o);
-  }
   // Month modal selector
   const fmSel = document.getElementById('fMonth');
   for (let m = 1; m <= 12; m++) {
@@ -407,11 +428,32 @@ function buildSelects() {
     if (m === thisMonth) o.selected = true;
     fmSel.appendChild(o);
   }
+  buildMonthBtns();
+}
+
+function buildMonthBtns() {
+  const container = document.getElementById('monthBtns');
+  container.innerHTML = '';
+  const labels = ['연누적','1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  labels.forEach((lbl, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'month-btn' + (i === currentMonth ? ' active' : '');
+    btn.textContent = lbl;
+    btn.onclick = () => selectMonth(i);
+    container.appendChild(btn);
+  });
+}
+
+function selectMonth(m) {
+  currentMonth = m;
+  document.querySelectorAll('.month-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', i === m);
+  });
+  render();
 }
 
 function onFilterChange() {
-  currentYear  = parseInt(document.getElementById('yearSel').value);
-  currentMonth = parseInt(document.getElementById('monthSel').value);
+  currentYear = parseInt(document.getElementById('yearSel').value);
   render();
 }
 
@@ -430,7 +472,7 @@ function getAggregatedRecords() {
     target_name: name,
     year: currentYear,
     month: 0,
-    score_teamleader: avgF(recs,'score_teamleader'),
+    score_directive: avgF(recs,'score_directive'),
     score_csm:        avgF(recs,'score_csm'),
     score_deadline:   avgF(recs,'score_deadline'),
     score_meeting:    avgF(recs,'score_meeting'),
@@ -498,7 +540,7 @@ function renderTable(records) {
     const editBtn = isLeader ? `<button onclick="openEditModal('${r.id}')" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:12px;margin-left:6px;" title="수정"><i class="fas fa-pen"></i></button>` : '';
     return `<tr>
       <td class="name-cell">${r.target_name || '-'}${editBtn}</td>
-      <td class="score-cell ${scoreColor(r.score_teamleader)}">${scoreText(r.score_teamleader)}</td>
+      <td class="score-cell ${scoreColor(r.score_directive)}">${scoreText(r.score_directive)}</td>
       <td class="score-cell ${scoreColor(r.score_csm)}">${scoreText(r.score_csm)}</td>
       <td class="score-cell ${scoreColor(r.score_deadline)}">${scoreText(r.score_deadline)}</td>
       <td class="score-cell ${scoreColor(r.score_meeting)}">${scoreText(r.score_meeting)}</td>
@@ -522,8 +564,10 @@ function buildMemberTabs(records) {
   allBtn.textContent = '전체';
   allBtn.onclick = () => { selectedMember = 'all'; render(); };
   tabs.appendChild(allBtn);
-  records.forEach(r => {
-    const name = r.target_name || r.id;
+  const members = isLeader
+    ? TEAM_MEMBERS
+    : (currentUser ? [currentUser.full_name] : []);
+  members.forEach(name => {
     const btn = document.createElement('button');
     btn.className = 'member-tab' + (selectedMember === name ? ' active' : '');
     btn.textContent = name;
@@ -534,22 +578,61 @@ function buildMemberTabs(records) {
 
 function renderCards(records) {
   const container = document.getElementById('perfContainer');
-  let recs = selectedMember === 'all' ? records : records.filter(r => r.target_name === selectedMember);
-  if (!recs.length) {
-    container.innerHTML = '<div class="empty-state"><i class="fas fa-chart-bar"></i>해당 팀원의 성과 기록이 없습니다.</div>';
+  const members = isLeader
+    ? TEAM_MEMBERS
+    : (currentUser ? [currentUser.full_name] : []);
+  const targetMembers = selectedMember === 'all' ? members : [selectedMember];
+  const recMap = {};
+  records.forEach(r => { recMap[r.target_name] = r; });
+  const displayItems = targetMembers.map(name => recMap[name] || { _empty:true, target_name:name });
+  if (!displayItems.length) {
+    container.innerHTML = '<div class="empty-state"><i class="fas fa-chart-bar"></i>표시할 팀원이 없습니다.</div>';
     return;
   }
-  container.innerHTML = recs.map(r => {
-    const s = v => v != null ? v : null;
+  container.innerHTML = displayItems.map(r => {
     const grade = r.grade || '-';
     const gClass = 'grade-' + (grade && 'SABCD'.includes(grade) ? grade : 'D');
     const bonuses = [r.bonus_project && '프로젝트', r.bonus_promotion && '승진대상'].filter(Boolean);
     const hasSelf = r.self_score != null || r.self_comment;
     const hasLeader = r.leader_score != null || r.leader_comment;
+    const dispMonth = currentMonth === 0 ? (r.year || currentYear) : r.month;
+    const dispLabel = currentMonth === 0 ? '년 연간' : '월';
+    const nameKey = (r.target_name||'').replace(/[^a-zA-Z가-힣]/g,'');
+    if (r._empty) {
+      return `<div class="perf-card">
+        <div class="perf-card-header">
+          <div class="perf-header-left">
+            <div class="quarter-badge"><span>${currentMonth===0?currentYear:currentMonth}</span><small>${dispLabel}</small></div>
+            <div class="perf-header-meta">
+              <h3>${r.target_name}</h3>
+              <div class="meta-row">
+                <span class="badge badge-member"><i class="fas fa-user"></i> ${r.target_name}</span>
+                <span style="font-size:12px;color:#9ca3af;">성과 기록 없음</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card-no-record">이번 기간 성과 기록이 없습니다.</div>
+        ${isLeader && currentMonth !== 0 ? `<div class="card-bonus-row">
+          <span class="card-bonus-label"><i class="fas fa-plus-circle" style="color:#4f86f7;"></i> 가산 대상:</span>
+          <label class="bonus-check-label">
+            <input type="checkbox" id="bp_${nameKey}" data-name="${r.target_name}" data-type="project">
+            <span>프로젝트 +10%</span>
+          </label>
+          <label class="bonus-check-label">
+            <input type="checkbox" id="bpr_${nameKey}" data-name="${r.target_name}" data-type="promotion">
+            <span>승진대상 +10%</span>
+          </label>
+          <button class="btn-save-bonus" data-name="${r.target_name}" onclick="saveBonusInline(this)">
+            <i class="fas fa-save"></i> 저장
+          </button>
+        </div>` : ''}
+      </div>`;
+    }
     return `<div class="perf-card">
       <div class="perf-card-header">
         <div class="perf-header-left">
-          <div class="quarter-badge"><span>${currentMonth===0?r.year:r.month}</span><small>${currentMonth===0?'년 연간':'월'}</small></div>
+          <div class="quarter-badge"><span>${dispMonth}</span><small>${dispLabel}</small></div>
           <div class="perf-header-meta">
             <h3>${r.target_name || '-'} · ${r.year}년${currentMonth===0?` 연간${r._months?` (${r._months}개월)`:''}`:(` ${r.month}월`)}</h3>
             <div class="meta-row">
@@ -568,7 +651,7 @@ function renderCards(records) {
       <div class="score-grid">
         <div class="score-item">
           <div class="score-item-label">팀장지시수행 <span style="color:#111827;font-weight:700;font-size:11px;">(5%)</span></div>
-          <div class="score-item-val ${r.score_teamleader == null ? 'null-val' : ''}">${r.score_teamleader ?? '미입력'}</div>
+          <div class="score-item-val ${r.score_directive == null ? 'null-val' : ''}">${r.score_directive ?? '미입력'}</div>
         </div>
         <div class="score-item">
           <div class="score-item-label">CSM기여 <span style="color:#111827;font-weight:700;font-size:11px;">(10%)</span></div>
@@ -621,6 +704,20 @@ function renderCards(records) {
           ` : '<div class="perf-text-empty">팀장 피드백 미작성</div>'}
         </div>
       </div>
+      ${isLeader ? `<div class="card-bonus-row">
+        <span class="card-bonus-label"><i class="fas fa-plus-circle" style="color:#4f86f7;"></i> 가산 대상:</span>
+        <label class="bonus-check-label">
+          <input type="checkbox" id="bp_${nameKey}" data-name="${r.target_name}" data-type="project" ${r.bonus_project?'checked':''}>
+          <span>프로젝트 +10%</span>
+        </label>
+        <label class="bonus-check-label">
+          <input type="checkbox" id="bpr_${nameKey}" data-name="${r.target_name}" data-type="promotion" ${r.bonus_promotion?'checked':''}>
+          <span>승진대상 +10%</span>
+        </label>
+        <button class="btn-save-bonus" data-name="${r.target_name}" onclick="saveBonusInline(this)">
+          <i class="fas fa-save"></i> 저장
+        </button>
+      </div>` : ''}
     </div>`;
   }).join('');
 }
@@ -648,10 +745,12 @@ function openEditModal(id) {
   document.getElementById('fYear').value = r.year || currentYear;
   document.getElementById('fMonth').value = r.month || currentMonth || thisMonth;
   document.getElementById('fTargetName').value = r.target_name || '';
-  document.getElementById('fScoreTeam').value = r.score_teamleader ?? '';
-  document.getElementById('fScoreCsm').value = r.score_csm ?? '';
-  document.getElementById('fScoreDeadline').value = r.score_deadline ?? '';
-  document.getElementById('fScoreMeeting').value = r.score_meeting ?? '';
+  document.getElementById('fScoreDirective').value = r.score_directive ?? '';
+  document.getElementById('fScoreCsm').value       = r.score_csm ?? '';
+  document.getElementById('fScoreDeadline').value  = r.score_deadline ?? '';
+  document.getElementById('fScoreMeeting').value   = r.score_meeting ?? '';
+  populateQuantFromWorkTask(r);
+  fetchWorkTasksForModal();
   document.getElementById('fScoreKpi1').value = r.score_kpi1 ?? '';
   document.getElementById('fScoreKpi2').value = r.score_kpi2 ?? '';
   document.getElementById('fScoreKpi3').value = r.score_kpi3 ?? '';
@@ -675,16 +774,110 @@ function nv(id) {
   return v === '' ? null : Number(v);
 }
 
+function calcDirectiveScore(v) {
+  if (v === '' || v == null) return null;
+  return parseInt(v) === 1 ? 100 : 0;
+}
+function calcCsmScore(v) {
+  if (v === '' || v == null) return null;
+  const n = Number(v);
+  if (n >= 1000) return 100; if (n >= 500) return 90;
+  if (n >= 200)  return 80;  if (n >= 100) return 70; return 0;
+}
+function calcDeadlineScore(v) {
+  if (v === '' || v == null) return null;
+  const n = parseInt(v);
+  if (n >= 2)   return 100; if (n === 1)  return 90;
+  if (n === 0)  return 80;  if (n === -1) return 70;
+  if (n === -2) return 60;  return 0;
+}
+function calcMeetingScore(v) {
+  if (v === '' || v == null) return null;
+  return Number(v) >= 1 ? 100 : 0;
+}
+
+function autoCalcScores() {
+  const s1 = document.getElementById('fScoreDirective').value !== '' ? Number(document.getElementById('fScoreDirective').value) : null;
+  const s2 = document.getElementById('fScoreCsm').value       !== '' ? Number(document.getElementById('fScoreCsm').value)       : null;
+  const s3 = document.getElementById('fScoreDeadline').value  !== '' ? Number(document.getElementById('fScoreDeadline').value)  : null;
+  const s4 = document.getElementById('fScoreMeeting').value   !== '' ? Number(document.getElementById('fScoreMeeting').value)   : null;
+  const k1 = nv('fScoreKpi1'), k2 = nv('fScoreKpi2'), k3 = nv('fScoreKpi3');
+  const weighted = [
+    s1 != null ? s1 * 0.05 : null,
+    s2 != null ? s2 * 0.10 : null,
+    s3 != null ? s3 * 0.20 : null,
+    s4 != null ? s4 * 0.15 : null,
+    k1 != null ? k1 * 0.20 : null,
+    k2 != null ? k2 * 0.20 : null,
+    k3 != null ? k3 * 0.10 : null,
+  ].filter(v => v !== null);
+  if (weighted.length) {
+    const basic = Math.round(weighted.reduce((a,b) => a+b, 0) * 10) / 10;
+    document.getElementById('fBasicScore').value = basic;
+    const bp  = document.getElementById('fBonusProject').value === 'true';
+    const bpr = document.getElementById('fBonusPromotion').value === 'true';
+    const rate = (bp ? 0.1 : 0) + (bpr ? 0.1 : 0);
+    document.getElementById('fFinalScore').value = Math.round(basic * (1 + rate) * 10) / 10;
+  } else {
+    document.getElementById('fBasicScore').value = '';
+    document.getElementById('fFinalScore').value = '';
+  }
+}
+
+function populateQuantFromWorkTask(r) {
+  const s1 = calcDirectiveScore(r.raw_directive);
+  const s2 = calcCsmScore(r.raw_csm_amount);
+  const s3 = calcDeadlineScore(r.raw_deadline_days);
+  const s4 = calcMeetingScore(r.raw_meeting_count);
+  document.getElementById('qDisp_directive').value = r.raw_directive  != null ? (r.raw_directive === 1 ? '이행완료' : '미이행') : '';
+  document.getElementById('qDisp_csm').value       = r.raw_csm_amount  != null ? r.raw_csm_amount + '억원' : '';
+  document.getElementById('qDisp_deadline').value  = r.raw_deadline_days != null ? r.raw_deadline_days + '일' : '';
+  document.getElementById('qDisp_meeting').value   = r.raw_meeting_count != null ? r.raw_meeting_count + '건' : '';
+  document.getElementById('qScore_directive').textContent = s1 != null ? s1 + '점' : '-';
+  document.getElementById('qScore_csm').textContent       = s2 != null ? s2 + '점' : '-';
+  document.getElementById('qScore_deadline').textContent  = s3 != null ? s3 + '점' : '-';
+  document.getElementById('qScore_meeting').textContent   = s4 != null ? s4 + '점' : '-';
+  document.getElementById('fScoreDirective').value = s1 ?? '';
+  document.getElementById('fScoreCsm').value       = s2 ?? '';
+  document.getElementById('fScoreDeadline').value  = s3 ?? '';
+  document.getElementById('fScoreMeeting').value   = s4 ?? '';
+  autoCalcScores();
+}
+
+function clearQuantDisplay() {
+  ['qDisp_directive','qDisp_csm','qDisp_deadline','qDisp_meeting'].forEach(id => document.getElementById(id).value = '');
+  ['qScore_directive','qScore_csm','qScore_deadline','qScore_meeting'].forEach(id => document.getElementById(id).textContent = '-');
+  ['fScoreDirective','fScoreCsm','fScoreDeadline','fScoreMeeting'].forEach(id => document.getElementById(id).value = '');
+  autoCalcScores();
+}
+
+async function fetchWorkTasksForModal() {
+  const name  = document.getElementById('fTargetName').value;
+  const year  = document.getElementById('fYear').value;
+  const month = document.getElementById('fMonth').value;
+  if (!name || !year || !month) return;
+  try {
+    const res  = await fetch('/tables/work_tasks?limit=500');
+    const data = await res.json();
+    const match = (data.rows||[]).find(r =>
+      r.member_name === name &&
+      String(r.year) === String(year) &&
+      String(r.month) === String(month));
+    match ? populateQuantFromWorkTask(match) : clearQuantDisplay();
+  } catch(e) { clearQuantDisplay(); }
+}
+
 async function saveRecord() {
   const id = document.getElementById('editId').value;
   const body = {
     year:  parseInt(document.getElementById('fYear').value),
     month: parseInt(document.getElementById('fMonth').value) || currentMonth || thisMonth,
     target_name: document.getElementById('fTargetName').value.trim(),
-    score_teamleader: nv('fScoreTeam'),
-    score_csm: nv('fScoreCsm'),
-    score_deadline: nv('fScoreDeadline'),
-    score_meeting: nv('fScoreMeeting'),
+    score_directive:  document.getElementById('fScoreDirective').value !== '' ? Number(document.getElementById('fScoreDirective').value) : null,
+    score_csm:        document.getElementById('fScoreCsm').value       !== '' ? Number(document.getElementById('fScoreCsm').value)       : null,
+    score_deadline:   document.getElementById('fScoreDeadline').value  !== '' ? Number(document.getElementById('fScoreDeadline').value)  : null,
+    score_meeting:    document.getElementById('fScoreMeeting').value   !== '' ? Number(document.getElementById('fScoreMeeting').value)   : null,
+    rule_version:     '1.0.0',
     score_kpi1: nv('fScoreKpi1'),
     score_kpi2: nv('fScoreKpi2'),
     score_kpi3: nv('fScoreKpi3'),
@@ -706,6 +899,44 @@ async function saveRecord() {
     if (!res.ok) throw new Error();
     closeModal();
     Portal.showToast('저장되었습니다.', 'success');
+    await loadRecords();
+  } catch(e) { Portal.showToast('저장에 실패했습니다.', 'error'); }
+}
+
+async function saveBonusInline(btn) {
+  const name = btn.dataset.name;
+  const card = btn.closest('.perf-card');
+  const bProject   = card.querySelector('.bonus-check[data-type="project"]').checked;
+  const bPromotion = card.querySelector('.bonus-check[data-type="promotion"]').checked;
+  const rate = (bProject ? 0.1 : 0) + (bPromotion ? 0.1 : 0);
+  function gradeFromScore(s) {
+    if (s >= 100) return 'S'; if (s >= 90) return 'A'; if (s >= 80) return 'B'; if (s >= 70) return 'C'; return 'D';
+  }
+  try {
+    const res  = await fetch('/tables/performance_records?limit=500');
+    const data = await res.json();
+    const match = (data.rows||[]).find(r =>
+      r.target_name === name &&
+      String(r.year) === String(currentYear) &&
+      String(r.month) === String(currentMonth));
+    if (match) {
+      const finalScore = match.basic_score != null
+        ? Math.round(match.basic_score * (1 + rate) * 10) / 10
+        : null;
+      const grade = finalScore != null ? gradeFromScore(finalScore) : match.grade;
+      await fetch('/tables/performance_records/'+match.id, {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({...match, bonus_project:bProject, bonus_promotion:bPromotion, final_score:finalScore, grade})
+      });
+    } else {
+      await fetch('/tables/performance_records', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ year:currentYear, month:currentMonth, target_name:name,
+          bonus_project:bProject, bonus_promotion:bPromotion })
+      });
+    }
+    btn.textContent = '✓ 저장됨';
+    setTimeout(() => { btn.innerHTML = '<i class="fas fa-save"></i> 저장'; }, 1500);
     await loadRecords();
   } catch(e) { Portal.showToast('저장에 실패했습니다.', 'error'); }
 }
