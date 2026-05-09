@@ -380,30 +380,32 @@
 
   // ========== 결산 D+N 영업일 스케줄 ==========
   const SETTLE_SCHEDULE = [
-    { id:'s01', label:'계리계약 마감',                     due:5  },
-    { id:'s02', label:'지급준비금 마감',                   due:7  },
-    { id:'s03', label:'준비금 마감',                       due:8  },
-    { id:'s04', label:'보험료분해 마감',                   due:10 },
-    { id:'s05', label:'재보험 마감 (출재/청구)',           due:12 },
-    { id:'s06', label:'보증준비금 마감',                   due:13 },
-    { id:'s07', label:'결산 모델 배포',                    due:1  },
-    { id:'s08', label:'계리모델 입력데이터 준비',          due:8  },
-    { id:'s09', label:'경제적 가정 산출',                  due:7  },
-    { id:'s10', label:'최초/후속 모델포인트 생성',         due:9  },
-    { id:'s11', label:'최초인식 보험부채 산출',            due:9  },
-    { id:'s12', label:'후속측정 보험부채 산출',            due:12 },
-    { id:'s13', label:'사업비 배부',                       due:12 },
-    { id:'s14', label:'최초인식대상계약 확정',             due:9  },
-    { id:'s15', label:'결산대상계약 확정',                 due:10 },
-    { id:'s16', label:'가중평균할인율 산출',               due:10 },
-    { id:'s17', label:'BEL/RA data 입수 및 계약그룹 작업', due:12 },
-    { id:'s18', label:'결산대상계약 및 실제CF 이관 (ETL)', due:12 },
-    { id:'s19', label:'실제CF Data 이관 (ETL)',            due:13 },
-    { id:'s20', label:'가중평균할인율 산출 (재보험)',      due:14 },
-    { id:'s21', label:'BEL/RA data 입수 (재보험)',         due:15 },
-    { id:'s22', label:'부채결산 무브먼트',                 due:15 },
-    { id:'s23', label:'부채결산 무브먼트 (재보험)',        due:15 },
-    { id:'s24', label:'회계팀 결산Data 전송',              due:15 },
+    { id:'s01', label:'계리계약 마감',                      group:'계약/준비금',    due:5    },
+    { id:'s02', label:'지급준비금 마감',                    group:'계약/준비금',    due:7    },
+    { id:'s03', label:'준비금 마감',                        group:'계약/준비금',    due:8    },
+    { id:'s04', label:'보험료분해 마감',                    group:'계약/준비금',    due:10   },
+    { id:'s05', label:'재보험 마감 (출재/청구)',            group:'계약/준비금',    due:12   },
+    { id:'s06', label:'보증준비금 마감',                    group:'계약/준비금',    due:13   },
+    { id:'s07', label:'잉여금처리 & 계약자배당',           group:'계약/준비금',    due:null },
+    { id:'s08', label:'예금보험료',                         group:'계약/준비금',    due:null },
+    { id:'s09', label:'결산 모델 배포',                     group:'모델/가정',      due:1    },
+    { id:'s10', label:'계리모델 입력데이터 준비',          group:'모델/가정',      due:8    },
+    { id:'s11', label:'경제적 가정 산출',                   group:'모델/가정',      due:7    },
+    { id:'s12', label:'최초/후속 모델포인트 생성',         group:'모델/가정',      due:9    },
+    { id:'s13', label:'최초인식 보험부채 산출',            group:'부채산출',       due:9    },
+    { id:'s14', label:'후속측정 보험부채 산출',            group:'부채산출',       due:12   },
+    { id:'s15', label:'사업비 배부',                        group:'부채산출',       due:12   },
+    { id:'s16', label:'최초인식대상계약 확정',             group:'부채산출',       due:9    },
+    { id:'s17', label:'결산대상계약 확정',                  group:'부채산출',       due:10   },
+    { id:'s18', label:'가중평균할인율 산출',               group:'부채산출',       due:10   },
+    { id:'s19', label:'BEL/RA data 입수 및 계약그룹 작업', group:'ETL/데이터',    due:12   },
+    { id:'s20', label:'결산대상계약 및 실제CF 이관 (ETL)', group:'ETL/데이터',    due:12   },
+    { id:'s21', label:'실제CF Data 이관 (ETL)',             group:'ETL/데이터',    due:13   },
+    { id:'s22', label:'가중평균할인율 산출 (재보험)',       group:'재보험',         due:14   },
+    { id:'s23', label:'BEL/RA data 입수 (재보험)',          group:'재보험',         due:15   },
+    { id:'s24', label:'부채결산 무브먼트',                  group:'무브먼트/전송',  due:15   },
+    { id:'s25', label:'부채결산 무브먼트 (재보험)',         group:'무브먼트/전송',  due:15   },
+    { id:'s26', label:'회계팀 결산Data 전송',               group:'무브먼트/전송',  due:15   },
   ];
 
   const KR_HOLIDAYS = new Set([
@@ -872,34 +874,6 @@
   loadTasks();
 
   // ========== 결산업무 체크리스트 ==========
-  const SETTLE_TASKS = [
-    { id:'s01', label:'계리계약 마감',                      group:'계약/준비금' },
-    { id:'s02', label:'지급준비금 마감',                    group:'계약/준비금' },
-    { id:'s03', label:'준비금 마감',                        group:'계약/준비금' },
-    { id:'s04', label:'보험료분해 마감',                    group:'계약/준비금' },
-    { id:'s05', label:'재보험 마감 (출재/청구)',            group:'계약/준비금' },
-    { id:'s06', label:'보증준비금 마감',                    group:'계약/준비금' },
-    { id:'s07', label:'잉여금처리 & 계약자배당',           group:'계약/준비금' },
-    { id:'s08', label:'예금보험료',                         group:'계약/준비금' },
-    { id:'s09', label:'결산 모델 배포',                     group:'모델/가정' },
-    { id:'s10', label:'계리모델 입력데이터 준비',          group:'모델/가정' },
-    { id:'s11', label:'경제적 가정 산출',                   group:'모델/가정' },
-    { id:'s12', label:'최초/후속 모델포인트 생성',         group:'모델/가정' },
-    { id:'s13', label:'최초인식 보험부채 산출',            group:'부채산출' },
-    { id:'s14', label:'후속측정 보험부채 산출',            group:'부채산출' },
-    { id:'s15', label:'사업비 배부',                        group:'부채산출' },
-    { id:'s16', label:'최초인식대상계약 확정',             group:'부채산출' },
-    { id:'s17', label:'결산대상계약 확정',                  group:'부채산출' },
-    { id:'s18', label:'가중평균할인율 산출',               group:'부채산출' },
-    { id:'s19', label:'BEL/RA data 입수 및 계약그룹 작업', group:'ETL/데이터' },
-    { id:'s20', label:'결산대상계약 및 실제CF 이관 (ETL)', group:'ETL/데이터' },
-    { id:'s21', label:'실제CF Data 이관 (ETL)',             group:'ETL/데이터' },
-    { id:'s22', label:'가중평균할인율 산출 (재보험)',       group:'재보험' },
-    { id:'s23', label:'BEL/RA data 입수 (재보험)',          group:'재보험' },
-    { id:'s24', label:'부채결산 무브먼트',                  group:'무브먼트/전송' },
-    { id:'s25', label:'부채결산 무브먼트 (재보험)',         group:'무브먼트/전송' },
-    { id:'s26', label:'회계팀 결산Data 전송',               group:'무브먼트/전송' },
-  ];
   const SETTLE_GROUPS = ['계약/준비금','모델/가정','부채산출','ETL/데이터','재보험','무브먼트/전송'];
   const MEMBERS = ['한인석','이동민','이상현','마혜원','예대호','이성원','고인수','김예은','강세진','이용우','오정택','김채린','김민국'];
 
@@ -987,7 +961,7 @@
 
   function renderChecklist() {
     const doneCount = chkDone.size;
-    const total = SETTLE_TASKS.length;
+    const total = SETTLE_SCHEDULE.length;
     const pct = Math.round(doneCount / total * 100);
     const totalMin = Object.values(chkTimes).reduce((s, v) => s + (parseInt(v) || 0), 0);
     document.getElementById('chkPct').textContent = pct + '%';
@@ -1004,7 +978,7 @@
       <span style="font-size:11px;font-weight:700;color:#6b7280;text-align:center;">상태</span>
     </div>`;
     container.innerHTML = headerRow + SETTLE_GROUPS.map(grp => {
-      const tasks = SETTLE_TASKS.filter(t => t.group === grp);
+      const tasks = SETTLE_SCHEDULE.filter(t => t.group === grp);
       const grpDone = tasks.filter(t => chkDone.has(t.id)).length;
       return `<div class="chk-group">
         <div class="chk-group-header">
@@ -1043,7 +1017,7 @@
 
   function updateChkStats() {
     const doneCount = chkDone.size;
-    const total = SETTLE_TASKS.length;
+    const total = SETTLE_SCHEDULE.length;
     const pct = Math.round(doneCount / total * 100);
     const totalMin = Object.values(chkTimes).reduce((s, v) => s + (parseInt(v) || 0), 0);
     document.getElementById('chkPct').textContent = pct + '%';
