@@ -899,6 +899,12 @@ async function saveRecord() {
     if (!res.ok) throw new Error();
     closeModal();
     Portal.showToast('저장되었습니다.', 'success');
+    // 카드 체크박스를 모달 저장값과 즉시 동기화
+    const nameKey = (body.target_name||'').replace(/[^a-zA-Z가-힣]/g,'');
+    const bpEl  = document.getElementById('bp_'  + nameKey);
+    const bprEl = document.getElementById('bpr_' + nameKey);
+    if (bpEl)  bpEl.checked  = body.bonus_project;
+    if (bprEl) bprEl.checked = body.bonus_promotion;
     await loadRecords();
   } catch(e) { Portal.showToast('저장에 실패했습니다.', 'error'); }
 }
@@ -906,8 +912,8 @@ async function saveRecord() {
 async function saveBonusInline(btn) {
   const name = btn.dataset.name;
   const card = btn.closest('.perf-card');
-  const bProject   = card.querySelector('.bonus-check[data-type="project"]').checked;
-  const bPromotion = card.querySelector('.bonus-check[data-type="promotion"]').checked;
+  const bProject   = card.querySelector('input[data-type="project"]').checked;
+  const bPromotion = card.querySelector('input[data-type="promotion"]').checked;
   const rate = (bProject ? 0.1 : 0) + (bPromotion ? 0.1 : 0);
   function gradeFromScore(s) {
     if (s >= 100) return 'S'; if (s >= 90) return 'A'; if (s >= 80) return 'B'; if (s >= 70) return 'C'; return 'D';
