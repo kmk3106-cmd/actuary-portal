@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>인사카드 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:24px; }
+    .toolbar-spacer { flex:1; }
+
+    /* 팀 요약 */
+    .team-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:28px; }
+    .summary-card { background:#fff; border-radius:14px; padding:16px 20px; border:1.5px solid #f3f4f6;
+      text-align:center; }
+    .summary-label { font-size:11px; color:#9ca3af; font-weight:500; margin-bottom:6px; }
+    .summary-val { font-size:26px; font-weight:800; color:#111827; }
+
+    /* 카드 그리드 */
+    .card-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:18px; }
+    .person-card { background:#fff; border-radius:16px; border:1.5px solid #e5e7eb;
+      overflow:hidden; transition:box-shadow .2s; }
+    .person-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.1); }
+
+    /* 카드 헤더 */
+    .card-header { padding:20px 20px 14px; display:flex; align-items:center; gap:14px;
+      background:linear-gradient(135deg,#f8faff,#fff); border-bottom:1px solid #f3f4f6; }
+    .avatar { width:52px; height:52px; border-radius:14px; font-size:20px; font-weight:800;
+      color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .avatar-G4 { background:linear-gradient(135deg,#6c5ce7,#a29bfe); }
+    .avatar-G3 { background:linear-gradient(135deg,#0984e3,#74b9ff); }
+    .avatar-G2 { background:linear-gradient(135deg,#00b894,#55efc4); }
+    .avatar-G1 { background:linear-gradient(135deg,#e17055,#fab1a0); }
+    .card-header-info h3 { font-size:16px; font-weight:800; color:#111827; margin:0 0 4px; }
+    .card-badges { display:flex; gap:5px; flex-wrap:wrap; }
+    .badge-grade { font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px; }
+    .bg-G4 { background:#ede9fe; color:#5b21b6; }
+    .bg-G3 { background:#dbeafe; color:#1e40af; }
+    .bg-G2 { background:#dcfce7; color:#166534; }
+    .bg-G1 { background:#fef3c7; color:#92400e; }
+    .badge-leader { background:#fef2f2; color:#991b1b; font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px; }
+    .badge-position { background:#f3f4f6; color:#374151; font-size:11px; font-weight:600; padding:2px 8px; border-radius:6px; }
+
+    /* 카드 바디 */
+    .card-body { padding:14px 20px; }
+    .info-row { display:flex; align-items:center; gap:8px; padding:5px 0;
+      border-bottom:1px solid #f9fafb; font-size:13px; }
+    .info-row:last-child { border-bottom:none; }
+    .info-icon { width:22px; color:#9ca3af; text-align:center; font-size:12px; flex-shrink:0; }
+    .info-label { color:#9ca3af; font-weight:500; min-width:60px; }
+    .info-val { color:#374151; font-weight:600; flex:1; }
+
+    /* 추가정보 섹션 */
+    .card-extra { padding:10px 20px 16px; border-top:1px solid #f3f4f6; background:#fafbfc; }
+    .extra-title { font-size:11px; font-weight:700; color:#9ca3af; margin-bottom:6px;
+      display:flex; align-items:center; gap:6px; }
+    .extra-text { font-size:12px; color:#374151; line-height:1.6; min-height:32px; }
+    .extra-edit { font-size:11px; color:#9ca3af; cursor:pointer; background:none; border:none;
+      padding:0; margin-left:auto; }
+    .extra-edit:hover { color:#4f86f7; }
+
+    /* 카드 푸터 */
+    .card-footer { padding:10px 20px; border-top:1px solid #f3f4f6; display:flex; justify-content:flex-end; gap:6px; }
+    .btn-card-edit { padding:5px 12px; border-radius:7px; border:1.5px solid #e5e7eb; background:#fff;
+      font-size:12px; font-weight:600; color:#374151; cursor:pointer; transition:all .15s; }
+    .btn-card-edit:hover { border-color:#4f86f7; color:#4f86f7; background:#eff6ff; }
+
+    /* 모달 */
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000;
+      align-items:center; justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal-box { background:#fff; border-radius:20px; width:520px; max-width:95vw; max-height:92vh;
+      overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2); }
+    .modal-header { padding:24px 28px 0; display:flex; justify-content:space-between; align-items:center; }
+    .modal-title { font-size:18px; font-weight:700; color:#111827; }
+    .modal-close { width:32px; height:32px; border-radius:8px; border:none; background:#f3f4f6;
+      cursor:pointer; font-size:16px; color:#6b7280; display:flex; align-items:center; justify-content:center; }
+    .modal-body { padding:20px 28px 28px; }
+    .form-group { margin-bottom:14px; }
+    .form-label { font-size:13px; font-weight:600; color:#374151; margin-bottom:5px; display:block; }
+    .form-input, .form-select, .form-textarea {
+      width:100%; padding:9px 13px; border:1.5px solid #e5e7eb; border-radius:9px;
+      font-size:13px; color:#111827; font-family:inherit; background:#fff; box-sizing:border-box; }
+    .form-input:focus, .form-textarea:focus { outline:none; border-color:#4f86f7; }
+    .form-textarea { resize:vertical; min-height:80px; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .modal-footer { display:flex; justify-content:flex-end; gap:10px; padding-top:8px; border-top:1px solid #f3f4f6; margin-top:8px; }
+    .section-divider { font-size:12px; font-weight:700; color:#6b7280; margin:16px 0 10px;
+      padding-bottom:5px; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; gap:6px; }
+
+    @media(max-width:768px) {
+      .team-summary { grid-template-columns:1fr 1fr; }
+      .card-grid { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-id-card"></i> 인사카드</h1>
+      <div id="addBtnWrap"></div>
+    </header>
+    <main class="content-body">
+
+      <div class="team-summary">
+        <div class="summary-card">
+          <div class="summary-label">전체 인원</div>
+          <div class="summary-val" id="totalCount">-</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">G4직급 이상</div>
+          <div class="summary-val" style="color:#6c5ce7" id="g4Count">-</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">G2-G3직급</div>
+          <div class="summary-val" style="color:#0984e3" id="g23Count">-</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">G1직급</div>
+          <div class="summary-val" style="color:#e17055" id="g1Count">-</div>
+        </div>
+      </div>
+
+      <div class="card-grid" id="cardGrid">
+        <div style="grid-column:1/-1;text-align:center;padding:40px;color:#9ca3af;">
+          <i class="fas fa-spinner fa-spin" style="font-size:24px;"></i>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">인사카드 수정</span>
+      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editUserId">
+      <div class="section-divider"><i class="fas fa-user"></i> 기본 정보</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">성명</label>
+          <input type="text" class="form-input" id="fName" readonly style="background:#f9fafb;">
+        </div>
+        <div class="form-group">
+          <label class="form-label">사번</label>
+          <input type="text" class="form-input" id="fEmpId" readonly style="background:#f9fafb;">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">직급</label>
+          <input type="text" class="form-input" id="fGrade">
+        </div>
+        <div class="form-group">
+          <label class="form-label">직위</label>
+          <input type="text" class="form-input" id="fPosition">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">입사일자</label>
+          <input type="date" class="form-input" id="fJoinDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">부서 부임일자</label>
+          <input type="date" class="form-input" id="fDeptDate">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">생년월일</label>
+          <input type="date" class="form-input" id="fBirthDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">연차</label>
+          <input type="number" class="form-input" id="fYears" min="0">
+        </div>
+      </div>
+
+      <div class="section-divider"><i class="fas fa-plus-circle"></i> 추가 정보</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">보유 자격증</label>
+          <input type="text" class="form-input" id="fCert" placeholder="예: 계리사, IFRS17">
+        </div>
+        <div class="form-group">
+          <label class="form-label">전문 분야</label>
+          <input type="text" class="form-input" id="fSpecialty" placeholder="예: BEL 산출, ETL">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">담당 업무</label>
+        <input type="text" class="form-input" id="fTask" placeholder="예: IFRS17 계리결산 모델 운영">
+      </div>
+      <div class="form-group">
+        <label class="form-label">특이사항 / 메모</label>
+        <textarea class="form-textarea" id="fNote" placeholder="특이사항, 주요 프로젝트 등"></textarea>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+        <button class="btn btn-primary" onclick="saveCard()"><i class="fas fa-save"></i> 저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js"></script>
+<script>
+Portal.init();
+
+const isLeader = RBAC.isTeamLeader();
+let allUsers = [];
+
+function gradeColor(grade) {
+  if (grade >= 'G4') return 'G4';
+  if (grade >= 'G3') return 'G3';
+  if (grade >= 'G2') return 'G2';
+  return 'G1';
+}
+
+function calcYears(deptDate) {
+  if (!deptDate) return '-';
+  const start = new Date(String(deptDate).slice(0, 10));
+  if (isNaN(start)) return '-';
+  const now = new Date();
+  let years = now.getFullYear() - start.getFullYear();
+  let months = now.getMonth() - start.getMonth();
+  if (now.getDate() < start.getDate()) months--;
+  if (months < 0) { years--; months += 12; }
+  if (years < 0) return '1개월 미만';
+  if (years === 0) return months + '개월';
+  return years + '년 ' + months + '개월';
+}
+
+function fmtDate(ds) {
+  if (!ds) return '-';
+  return String(ds).slice(0, 10);
+}
+
+async function loadUsers() {
+  const res = await fetch('/tables/users?limit=100');
+  const data = await res.json();
+  allUsers = (data.rows || data.data || []).filter(u => u.is_active !== false && u.employee_id);
+  renderCards();
+}
+
+function renderCards() {
+  const grid = document.getElementById('cardGrid');
+  const g4 = allUsers.filter(u => u.grade >= 'G4').length;
+  const g23 = allUsers.filter(u => u.grade === 'G3직급' || u.grade === 'G2직급').length;
+  const g1 = allUsers.filter(u => u.grade === 'G1직급').length;
+  document.getElementById('totalCount').textContent = allUsers.length + '명';
+  document.getElementById('g4Count').textContent = g4 + '명';
+  document.getElementById('g23Count').textContent = g23 + '명';
+  document.getElementById('g1Count').textContent = g1 + '명';
+
+  if (!allUsers.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#9ca3af;">인사 데이터가 없습니다.</div>';
+    return;
+  }
+
+  grid.innerHTML = allUsers.map(u => {
+    const gKey = (u.grade || 'G1직급').replace('직급','');
+    const isLdr = u.role === 'team_leader';
+    const yrs = u.dept_date ? calcYears(u.dept_date) : (u.years ? u.years + '년' : '-');
+    const initial = (u.full_name || u.username || '?').slice(0, 1);
+
+    return `<div class="person-card">
+      <div class="card-header">
+        <div class="avatar avatar-${gKey}">${initial}</div>
+        <div class="card-header-info">
+          <h3>${u.full_name || u.username}</h3>
+          <div class="card-badges">
+            <span class="badge-grade bg-${gKey}">${u.grade || '-'}</span>
+            ${isLdr ? '<span class="badge-leader"><i class="fas fa-crown"></i> 팀장</span>' : ''}
+            <span class="badge-position">${u.position || '-'}</span>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="info-row">
+          <i class="fas fa-id-badge info-icon"></i>
+          <span class="info-label">사번</span>
+          <span class="info-val">${u.employee_id || '-'}</span>
+        </div>
+        <div class="info-row">
+          <i class="fas fa-building info-icon"></i>
+          <span class="info-label">소속</span>
+          <span class="info-val">${u.division || '계리실'} / ${u.department || '계리결산팀'}</span>
+        </div>
+        <div class="info-row">
+          <i class="fas fa-calendar-plus info-icon"></i>
+          <span class="info-label">부임일</span>
+          <span class="info-val">${fmtDate(u.dept_date)}</span>
+        </div>
+        <div class="info-row">
+          <i class="fas fa-briefcase info-icon"></i>
+          <span class="info-label">연차</span>
+          <span class="info-val">${yrs}</span>
+        </div>
+        ${u.specialty ? `<div class="info-row"><i class="fas fa-star info-icon"></i><span class="info-label">전문분야</span><span class="info-val">${u.specialty}</span></div>` : ''}
+        ${u.certifications ? `<div class="info-row"><i class="fas fa-certificate info-icon"></i><span class="info-label">자격증</span><span class="info-val">${u.certifications}</span></div>` : ''}
+        ${u.task_area ? `<div class="info-row"><i class="fas fa-tasks info-icon"></i><span class="info-label">담당업무</span><span class="info-val">${u.task_area}</span></div>` : ''}
+      </div>
+      ${u.notes ? `<div class="card-extra">
+        <div class="extra-title"><i class="fas fa-sticky-note"></i> 메모</div>
+        <div class="extra-text">${u.notes}</div>
+      </div>` : ''}
+      ${isLeader ? `<div class="card-footer">
+        <button class="btn-card-edit" onclick="openEdit('${u.id}')"><i class="fas fa-pen"></i> 수정</button>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function openEdit(userId) {
+  const u = allUsers.find(x => x.id === userId);
+  if (!u) return;
+  document.getElementById('modalTitle').textContent = (u.full_name || u.username) + ' 인사카드 수정';
+  document.getElementById('editUserId').value = userId;
+  document.getElementById('fName').value = u.full_name || '';
+  document.getElementById('fEmpId').value = u.employee_id || '';
+  document.getElementById('fGrade').value = u.grade || '';
+  document.getElementById('fPosition').value = u.position || '';
+  document.getElementById('fJoinDate').value = fmtDate(u.join_date);
+  document.getElementById('fDeptDate').value = fmtDate(u.dept_date);
+  document.getElementById('fBirthDate').value = fmtDate(u.birth_date);
+  document.getElementById('fYears').value = u.years || '';
+  document.getElementById('fCert').value = u.certifications || '';
+  document.getElementById('fSpecialty').value = u.specialty || '';
+  document.getElementById('fTask').value = u.task_area || '';
+  document.getElementById('fNote').value = u.notes || '';
+  document.getElementById('editModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('editModal').classList.remove('open');
+}
+
+async function saveCard() {
+  const userId = document.getElementById('editUserId').value;
+  const body = {
+    grade:         document.getElementById('fGrade').value.trim(),
+    position:      document.getElementById('fPosition').value.trim(),
+    join_date:     document.getElementById('fJoinDate').value || null,
+    dept_date:     document.getElementById('fDeptDate').value || null,
+    birth_date:    document.getElementById('fBirthDate').value || null,
+    years:         parseInt(document.getElementById('fYears').value) || null,
+    certifications:document.getElementById('fCert').value.trim(),
+    specialty:     document.getElementById('fSpecialty').value.trim(),
+    task_area:     document.getElementById('fTask').value.trim(),
+    notes:         document.getElementById('fNote').value.trim(),
+  };
+  try {
+    const res = await fetch('/tables/users/' + userId, {
+      method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error();
+    closeModal();
+    Portal.showToast('인사카드가 저장되었습니다.', 'success');
+    await loadUsers();
+  } catch(e) {
+    Portal.showToast('저장에 실패했습니다.', 'error');
+  }
+}
+
+document.getElementById('editModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('editModal')) closeModal();
+});
+
+loadUsers();
+</script>
+</body>
+</html>

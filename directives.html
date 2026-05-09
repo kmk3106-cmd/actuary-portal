@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>지시사항 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    /* 툴바 */
+    .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
+    .toolbar-spacer { flex:1; }
+    .yr-sel, .filter-sel {
+      padding:8px 14px; border:1.5px solid #e5e7eb; border-radius:10px;
+      font-size:14px; color:#374151; font-family:inherit; background:#fff; cursor:pointer;
+    }
+
+    /* 카드 목록 */
+    .directive-list { display:flex; flex-direction:column; gap:14px; }
+
+    .directive-card {
+      background:#fff; border-radius:16px; border:1.5px solid #e5e7eb;
+      padding:20px 24px; transition:box-shadow .2s;
+    }
+    .directive-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.08); }
+    .directive-card.done { opacity:.55; }
+
+    .directive-card-top {
+      display:flex; align-items:flex-start; gap:12px; margin-bottom:10px;
+    }
+    .directive-title {
+      font-size:16px; font-weight:800; color:#111827; flex:1; line-height:1.4;
+    }
+    .directive-card.done .directive-title { text-decoration:line-through; color:#9ca3af; }
+
+    /* 우선순위 배지 */
+    .badge-priority {
+      font-size:11px; font-weight:700; padding:3px 10px; border-radius:6px;
+      white-space:nowrap; flex-shrink:0;
+    }
+    .badge-urgent   { background:#fee2e2; color:#991b1b; }
+    .badge-important{ background:#ffedd5; color:#92400e; }
+    .badge-normal   { background:#f3f4f6; color:#374151; }
+
+    .directive-meta {
+      display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#9ca3af;
+      margin-bottom:8px; align-items:center;
+    }
+    .directive-meta i { color:#d1d5db; }
+    .meta-target { font-weight:700; color:#4f86f7; }
+    .meta-target.all { color:#6c5ce7; }
+
+    .directive-content {
+      font-size:14px; color:#374151; line-height:1.7;
+      background:#f9fafb; border-radius:8px; padding:10px 14px;
+      margin-bottom:10px; white-space:pre-wrap;
+    }
+
+    .directive-footer {
+      display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    }
+    .directive-date { font-size:11px; color:#9ca3af; }
+
+    /* 완료 체크 버튼 */
+    .btn-done {
+      display:flex; align-items:center; gap:6px; padding:6px 14px;
+      border-radius:8px; border:1.5px solid #e5e7eb; background:#fff;
+      font-size:12px; font-weight:600; color:#374151; cursor:pointer;
+      transition:all .15s; font-family:inherit;
+    }
+    .btn-done:hover { border-color:#10b981; color:#10b981; background:#f0fdf4; }
+    .btn-done.completed { border-color:#10b981; background:#f0fdf4; color:#10b981; }
+
+    /* 팀장 편집 버튼 */
+    .directive-actions { display:flex; gap:8px; }
+    .btn-edit-small {
+      padding:5px 11px; border-radius:7px; border:1.5px solid #e5e7eb;
+      background:#fff; font-size:12px; font-weight:600; color:#374151;
+      cursor:pointer; transition:all .15s; font-family:inherit;
+    }
+    .btn-edit-small:hover { border-color:#4f86f7; color:#4f86f7; background:#eff6ff; }
+    .btn-del-small {
+      padding:5px 11px; border-radius:7px; border:1.5px solid #fecaca;
+      background:#fff; font-size:12px; font-weight:600; color:#ef4444;
+      cursor:pointer; transition:all .15s; font-family:inherit;
+    }
+    .btn-del-small:hover { background:#fef2f2; }
+
+    /* 빈 상태 */
+    .empty-state {
+      background:#fff; border-radius:16px; border:1.5px solid #e5e7eb;
+      padding:60px 40px; text-align:center; color:#9ca3af;
+    }
+    .empty-state i { font-size:36px; margin-bottom:14px; display:block; opacity:.35; }
+    .empty-state-title { font-size:16px; font-weight:700; color:#374151; margin-bottom:6px; }
+
+    /* 모달 */
+    .modal-overlay {
+      display:none; position:fixed; inset:0; background:rgba(0,0,0,.45);
+      z-index:1000; align-items:center; justify-content:center;
+    }
+    .modal-overlay.open { display:flex; }
+    .modal-box {
+      background:#fff; border-radius:20px; width:560px; max-width:96vw;
+      max-height:92vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2);
+    }
+    .modal-header {
+      padding:24px 28px 0; display:flex; justify-content:space-between; align-items:center;
+    }
+    .modal-title { font-size:18px; font-weight:700; color:#111827; }
+    .modal-close {
+      width:32px; height:32px; border-radius:8px; border:none; background:#f3f4f6;
+      cursor:pointer; font-size:16px; color:#6b7280;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .modal-body { padding:20px 28px 28px; }
+    .form-group { margin-bottom:16px; }
+    .form-label { font-size:13px; font-weight:600; color:#374151; margin-bottom:5px; display:block; }
+    .form-input, .form-select, .form-textarea {
+      width:100%; padding:9px 13px; border:1.5px solid #e5e7eb; border-radius:9px;
+      font-size:13px; color:#111827; font-family:inherit; background:#fff; box-sizing:border-box;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline:none; border-color:#4f86f7; box-shadow:0 0 0 3px rgba(79,134,247,.08);
+    }
+    .form-textarea { resize:vertical; min-height:100px; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .modal-footer {
+      display:flex; justify-content:flex-end; gap:10px;
+      padding-top:8px; border-top:1px solid #f3f4f6; margin-top:8px;
+    }
+
+    @media(max-width:600px) {
+      .form-row { grid-template-columns:1fr; }
+      .directive-card-top { flex-wrap:wrap; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-bullhorn"></i> 지시사항</h1>
+      <div id="addBtnWrap"></div>
+    </header>
+    <main class="content-body">
+
+      <div class="toolbar">
+        <select class="yr-sel" id="yearSel" onchange="applyFilter()"></select>
+        <select class="filter-sel" id="targetSel" onchange="applyFilter()">
+          <option value="">전체 대상</option>
+        </select>
+        <div class="toolbar-spacer"></div>
+        <div style="font-size:13px;color:#9ca3af;" id="countLabel"></div>
+      </div>
+
+      <div class="directive-list" id="directiveList">
+        <div class="empty-state">
+          <i class="fas fa-spinner fa-spin"></i>
+          <div>불러오는 중...</div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- 작성/수정 모달 (팀장 전용) -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">지시사항 작성</span>
+      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-group">
+        <label class="form-label">제목 <span style="color:#ef4444;">*</span></label>
+        <input type="text" class="form-input" id="fTitle" placeholder="지시사항 제목을 입력하세요">
+      </div>
+      <div class="form-group">
+        <label class="form-label">내용 <span style="color:#ef4444;">*</span></label>
+        <textarea class="form-textarea" id="fContent" placeholder="지시사항 내용을 상세히 입력하세요..." style="min-height:130px;"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">대상자</label>
+          <select class="form-select" id="fTarget">
+            <option value="전체">전체</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">우선순위</label>
+          <select class="form-select" id="fPriority">
+            <option value="보통">보통</option>
+            <option value="중요">중요</option>
+            <option value="긴급">긴급</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">연도</label>
+          <select class="form-select" id="fYear"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">월 (선택)</label>
+          <select class="form-select" id="fMonth">
+            <option value="">-- 해당없음 --</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+        <button class="btn btn-primary" onclick="saveDirective()"><i class="fas fa-save"></i> 저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js"></script>
+<script>
+Portal.init();
+
+const isLeader = RBAC.isTeamLeader();
+const currentUser = RBAC.getCurrentUser();
+const thisYear = new Date().getFullYear();
+
+const MEMBERS = ['한인석','이동민','이상현','마혜원','예대호','이성원','고인수','김예은','강세진','이용우','오정택','김채린','김민국'];
+
+let allDirectives = [];
+let filteredDirectives = [];
+let selYear = thisYear;
+let selTarget = '';
+
+// ── 초기화 ───────────────────────────────────────────────
+function init() {
+  buildYearSelect();
+  buildTargetSelect();
+  buildModalSelects();
+
+  if (isLeader) {
+    document.getElementById('addBtnWrap').innerHTML =
+      '<button class="btn btn-primary" onclick="openNew()"><i class="fas fa-plus"></i> 지시사항 작성</button>';
+  }
+
+  loadDirectives();
+}
+
+function buildYearSelect() {
+  const sel = document.getElementById('yearSel');
+  [thisYear - 1, thisYear, thisYear + 1].forEach(y => {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y + '년';
+    if (y === thisYear) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+function buildTargetSelect() {
+  const sel = document.getElementById('targetSel');
+  // 기본 option "전체 대상" 이미 HTML에 있음
+  if (isLeader) {
+    // 팀장: 전원 + 개인별 필터
+    ['전체', ...MEMBERS].forEach(name => {
+      const o = document.createElement('option');
+      o.value = name; o.textContent = name === '전체' ? '🔵 전체 공지' : name;
+      sel.appendChild(o);
+    });
+  } else {
+    // 팀원: 본인 + 전체만
+    const myName = currentUser?.full_name || '';
+    const opt1 = document.createElement('option');
+    opt1.value = '전체'; opt1.textContent = '전체 공지';
+    sel.appendChild(opt1);
+    if (myName) {
+      const opt2 = document.createElement('option');
+      opt2.value = myName; opt2.textContent = myName + ' (내게 온 것)';
+      sel.appendChild(opt2);
+    }
+  }
+}
+
+function buildModalSelects() {
+  // 모달 대상자
+  const tSel = document.getElementById('fTarget');
+  MEMBERS.forEach(name => {
+    const o = document.createElement('option');
+    o.value = name; o.textContent = name;
+    tSel.appendChild(o);
+  });
+
+  // 모달 연도
+  const ySel = document.getElementById('fYear');
+  [thisYear - 1, thisYear, thisYear + 1].forEach(y => {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y + '년';
+    if (y === thisYear) o.selected = true;
+    ySel.appendChild(o);
+  });
+
+  // 모달 월
+  const mSel = document.getElementById('fMonth');
+  for (let m = 1; m <= 12; m++) {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m + '월';
+    mSel.appendChild(o);
+  }
+}
+
+// ── 데이터 로드 ───────────────────────────────────────────
+async function loadDirectives() {
+  try {
+    const res = await fetch('/tables/team_directives?limit=200');
+    const data = await res.json();
+    allDirectives = (data.rows || data.data || []).sort((a, b) =>
+      new Date(b.created_at) - new Date(a.created_at));
+    applyFilter();
+  } catch(e) {
+    renderEmpty('데이터를 불러오는 데 실패했습니다.');
+  }
+}
+
+function applyFilter() {
+  selYear   = parseInt(document.getElementById('yearSel').value) || thisYear;
+  selTarget = document.getElementById('targetSel').value || '';
+
+  let list = allDirectives.filter(d => Number(d.year) === selYear);
+
+  // RBAC 필터: 팀원은 본인 + 전체만
+  if (!isLeader) {
+    const myName = currentUser?.full_name || '';
+    list = list.filter(d => d.target_name === '전체' || d.target_name === myName);
+  }
+
+  // 대상자 필터 (선택 시)
+  if (selTarget) {
+    list = list.filter(d => d.target_name === selTarget);
+  }
+
+  filteredDirectives = list;
+  document.getElementById('countLabel').textContent = `총 ${list.length}건`;
+  renderList(list);
+}
+
+// ── 렌더링 ────────────────────────────────────────────────
+function renderList(list) {
+  const container = document.getElementById('directiveList');
+  if (!list.length) {
+    renderEmpty('해당 조건의 지시사항이 없습니다.');
+    return;
+  }
+
+  container.innerHTML = list.map(d => {
+    const isDone = !!d.is_done;
+    const priClass = d.priority === '긴급' ? 'badge-urgent' : d.priority === '중요' ? 'badge-important' : 'badge-normal';
+    const targetClass = d.target_name === '전체' ? 'all' : '';
+    const targetLabel = d.target_name === '전체' ? '전체 공지' : d.target_name;
+    const createdAt = d.created_at ? new Date(d.created_at).toLocaleDateString('ko-KR') : '-';
+    const monthLabel = d.month ? ` · ${d.month}월` : '';
+    const myName = currentUser?.full_name || '';
+    const canDone = !isLeader && (d.target_name === myName || d.target_name === '전체');
+
+    return `<div class="directive-card${isDone ? ' done' : ''}" id="card-${d.id}">
+      <div class="directive-card-top">
+        <div class="directive-title">${esc(d.title)}</div>
+        <span class="badge-priority ${priClass}">${d.priority || '보통'}</span>
+      </div>
+      <div class="directive-meta">
+        <span><i class="fas fa-user"></i> 대상: <span class="meta-target ${targetClass}">${esc(targetLabel)}</span></span>
+        <span><i class="fas fa-calendar"></i> ${d.year}년${monthLabel}</span>
+        <span><i class="fas fa-user-edit"></i> 작성: ${esc(d.written_by || '-')}</span>
+        ${isDone ? '<span style="color:#10b981;font-weight:700;"><i class="fas fa-check-circle"></i> 완료</span>' : ''}
+      </div>
+      <div class="directive-content">${esc(d.content)}</div>
+      <div class="directive-footer">
+        <span class="directive-date"><i class="fas fa-clock"></i> ${createdAt}</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          ${canDone ? `<button class="btn-done${isDone ? ' completed' : ''}" onclick="toggleDone('${d.id}',${isDone})">
+            <i class="fas fa-${isDone ? 'check-circle' : 'circle'}"></i> ${isDone ? '완료됨' : '완료 처리'}
+          </button>` : ''}
+          ${isLeader ? `<div class="directive-actions">
+            <button class="btn-edit-small" onclick="openEdit('${d.id}')"><i class="fas fa-pen"></i> 수정</button>
+            <button class="btn-del-small" onclick="deleteDirective('${d.id}')"><i class="fas fa-trash"></i></button>
+          </div>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderEmpty(msg) {
+  document.getElementById('directiveList').innerHTML = `
+    <div class="empty-state">
+      <i class="fas fa-inbox"></i>
+      <div class="empty-state-title">${msg}</div>
+      ${isLeader ? '<div style="font-size:13px;margin-top:4px;">우측 상단의 "지시사항 작성" 버튼으로 추가하세요.</div>' : ''}
+    </div>`;
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── 모달 ─────────────────────────────────────────────────
+function openNew() {
+  document.getElementById('editId').value = '';
+  document.getElementById('modalTitle').textContent = '지시사항 작성';
+  document.getElementById('fTitle').value = '';
+  document.getElementById('fContent').value = '';
+  document.getElementById('fTarget').value = '전체';
+  document.getElementById('fPriority').value = '보통';
+  document.getElementById('fYear').value = thisYear;
+  document.getElementById('fMonth').value = '';
+  document.getElementById('editModal').classList.add('open');
+}
+
+function openEdit(id) {
+  const d = allDirectives.find(x => x.id === id || String(x.id) === String(id));
+  if (!d) return;
+  document.getElementById('editId').value = d.id;
+  document.getElementById('modalTitle').textContent = '지시사항 수정';
+  document.getElementById('fTitle').value = d.title || '';
+  document.getElementById('fContent').value = d.content || '';
+  document.getElementById('fTarget').value = d.target_name || '전체';
+  document.getElementById('fPriority').value = d.priority || '보통';
+  document.getElementById('fYear').value = d.year || thisYear;
+  document.getElementById('fMonth').value = d.month || '';
+  document.getElementById('editModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('editModal').classList.remove('open');
+}
+
+// ── CRUD ──────────────────────────────────────────────────
+async function saveDirective() {
+  const id       = document.getElementById('editId').value;
+  const title    = document.getElementById('fTitle').value.trim();
+  const content  = document.getElementById('fContent').value.trim();
+  const target   = document.getElementById('fTarget').value;
+  const priority = document.getElementById('fPriority').value;
+  const year     = parseInt(document.getElementById('fYear').value);
+  const month    = parseInt(document.getElementById('fMonth').value) || null;
+
+  if (!title) { Portal.showToast('제목을 입력하세요.', 'error'); return; }
+  if (!content) { Portal.showToast('내용을 입력하세요.', 'error'); return; }
+
+  const body = {
+    title, content,
+    target_name: target,
+    priority,
+    year,
+    month,
+    written_by: currentUser?.full_name || '',
+    is_done: false,
+    created_at: id ? undefined : new Date().toISOString(),
+  };
+  if (id) delete body.created_at;
+
+  try {
+    let res;
+    if (id) {
+      res = await fetch('/tables/team_directives/' + id, {
+        method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+      });
+    } else {
+      body.created_at = new Date().toISOString();
+      res = await fetch('/tables/team_directives', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+      });
+    }
+    if (!res.ok) throw new Error();
+    closeModal();
+    Portal.showToast(id ? '지시사항이 수정되었습니다.' : '지시사항이 작성되었습니다.', 'success');
+    await loadDirectives();
+  } catch(e) {
+    Portal.showToast('저장에 실패했습니다.', 'error');
+  }
+}
+
+async function deleteDirective(id) {
+  if (!confirm('이 지시사항을 삭제하시겠습니까?')) return;
+  try {
+    const res = await fetch('/tables/team_directives/' + id, { method: 'DELETE' });
+    if (!res.ok) throw new Error();
+    Portal.showToast('삭제되었습니다.', 'success');
+    await loadDirectives();
+  } catch(e) {
+    Portal.showToast('삭제에 실패했습니다.', 'error');
+  }
+}
+
+async function toggleDone(id, currentDone) {
+  try {
+    const newDone = !currentDone;
+    const res = await fetch('/tables/team_directives/' + id, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ is_done: newDone })
+    });
+    if (!res.ok) throw new Error();
+    Portal.showToast(newDone ? '완료 처리되었습니다.' : '완료 취소되었습니다.', 'success');
+    await loadDirectives();
+  } catch(e) {
+    Portal.showToast('처리에 실패했습니다.', 'error');
+  }
+}
+
+// 모달 외부 클릭 시 닫기
+document.getElementById('editModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('editModal')) closeModal();
+});
+
+init();
+</script>
+</body>
+</html>

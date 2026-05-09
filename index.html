@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>대시보드 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<div class="app-layout">
+  <!-- 사이드바: portal.js가 동적 주입 -->
+
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title">대시보드</h1>
+      <div class="header-actions">
+        <span id="dateTimeDisplay" class="text-muted" style="font-size:13px;"></span>
+      </div>
+    </header>
+
+    <main class="content-body">
+
+      <!-- 통계 카드 -->
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+          <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+          <div><div class="stat-value" id="statMembers">-</div><div class="stat-label">팀원 수</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="fas fa-bullseye"></i></div>
+          <div><div class="stat-value" id="statGoals">-</div><div class="stat-label">활성 팀 목표</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon yellow"><i class="fas fa-calendar-check"></i></div>
+          <div><div class="stat-value" id="statTasks">-</div><div class="stat-label">이번 달 결산 일정</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon purple"><i class="fas fa-comments"></i></div>
+          <div><div class="stat-value" id="statInterviews">-</div><div class="stat-label">면담일지 건수</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#fef3c7;color:#d97706;"><i class="fas fa-bullhorn"></i></div>
+          <div><div class="stat-value" id="statDirectives">-</div><div class="stat-label">미완료 지시사항</div></div>
+        </div>
+      </div>
+
+      <!-- 팀 미션 + 오늘의 일정 -->
+      <div class="dashboard-row">
+
+        <div class="card">
+          <div class="card-header">
+            <i class="fas fa-flag" style="color:#4f86f7;"></i>
+            <h2 class="card-title">팀 미션</h2>
+            <a href="identity.html" class="btn btn-secondary btn-sm">자세히 보기</a>
+          </div>
+          <div class="card-body">
+            <p id="missionText" class="mission-text text-muted">로딩 중...</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <i class="fas fa-calendar-day" style="color:#10b981;"></i>
+            <h2 class="card-title">오늘의 결산 일정</h2>
+            <a href="settlement.html" class="btn btn-secondary btn-sm">캘린더</a>
+          </div>
+          <div class="card-body" id="todayTasks">
+            <div class="text-muted text-center" style="padding:20px;">로딩 중...</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 팀장지시사항 -->
+      <div class="card" style="margin-bottom:24px;">
+        <div class="card-header">
+          <i class="fas fa-bullhorn" style="color:#f59e0b;"></i>
+          <h2 class="card-title">팀장지시사항</h2>
+          <a href="directives.html" class="btn btn-secondary btn-sm">전체 보기</a>
+        </div>
+        <div class="card-body" id="directivesWidget">
+          <div class="text-muted text-center" style="padding:20px;">로딩 중...</div>
+        </div>
+      </div>
+
+      <!-- 전체 메뉴 -->
+      <div class="card">
+        <div class="card-header">
+          <i class="fas fa-th" style="color:#6c5ce7;"></i>
+          <h2 class="card-title">전체 메뉴</h2>
+        </div>
+        <div class="card-body">
+          <div class="quick-menu-grid">
+
+            <a href="identity.html" class="quick-menu-item">
+              <div class="qm-icon" style="background:#dbeafe;color:#2563eb;"><i class="fas fa-flag"></i></div>
+              <div class="qm-label">팀 정체성</div>
+              <div class="qm-sub">미션 · 핵심가치</div>
+            </a>
+
+            <a href="goals-team.html" class="quick-menu-item">
+              <div class="qm-icon" style="background:#d1fae5;color:#059669;"><i class="fas fa-bullseye"></i></div>
+              <div class="qm-label">팀 목표</div>
+              <div class="qm-sub">연도별 목표 관리</div>
+            </a>
+
+            <a href="goals-individual.html" class="quick-menu-item">
+              <div class="qm-icon" style="background:#fef3c7;color:#d97706;"><i class="fas fa-user-check"></i></div>
+              <div class="qm-label">개인 목표</div>
+              <div class="qm-sub">SMART 목표 설정</div>
+            </a>
+
+            <a href="performance.html" class="quick-menu-item">
+              <div class="qm-icon" style="background:#ede9fe;color:#7c3aed;"><i class="fas fa-chart-bar"></i></div>
+              <div class="qm-label">성과 관리</div>
+              <div class="qm-sub">분기별 성과 기록</div>
+            </a>
+
+            <a href="interview-list.html" class="quick-menu-item">
+              <div class="qm-icon" style="background:#ccfbf1;color:#0f766e;"><i class="fas fa-comments"></i></div>
+              <div class="qm-label">면담일지</div>
+              <div class="qm-sub">1:1 면담 기록</div>
+            </a>
+
+            <a href="settlement.html" class="quick-menu-item">
+              <div class="qm-icon" style="background:#dbeafe;color:#1d4ed8;"><i class="fas fa-calendar-alt"></i></div>
+              <div class="qm-label">결산 캘린더</div>
+              <div class="qm-sub">월별 결산 모니터링</div>
+            </a>
+
+            <a href="directives.html" class="quick-menu-item">
+              <div class="qm-icon" style="background:#fef3c7;color:#d97706;"><i class="fas fa-bullhorn"></i></div>
+              <div class="qm-label">팀장지시사항</div>
+              <div class="qm-sub">지시 · 완료 관리</div>
+            </a>
+
+            <a href="work-personal.html" class="quick-menu-item">
+              <div class="qm-icon" style="background:#f0fdf4;color:#15803d;"><i class="fas fa-tasks"></i></div>
+              <div class="qm-label">개인별 업무입력</div>
+              <div class="qm-sub">결산외 업무 · KPI 기록</div>
+            </a>
+
+            <a href="automation.html" class="quick-menu-item">
+              <div class="qm-icon" style="background:#ffedd5;color:#c2410c;"><i class="fas fa-robot"></i></div>
+              <div class="qm-label">업무 자동화</div>
+              <div class="qm-sub">공시이율 · 가정 · 사업비</div>
+            </a>
+
+            <a href="reports.html" class="quick-menu-item">
+              <div class="qm-icon" style="background:#fee2e2;color:#b91c1c;"><i class="fas fa-file-word"></i></div>
+              <div class="qm-label">보고서 생성</div>
+              <div class="qm-sub">계리 · 경영 · 재무</div>
+            </a>
+
+            <a href="bot-status.html" class="quick-menu-item">
+              <div class="qm-icon" style="background:#e0e7ff;color:#4338ca;"><i class="fas fa-paper-plane"></i></div>
+              <div class="qm-label">텔레그램 봇</div>
+              <div class="qm-sub">재무수치 조회</div>
+            </a>
+
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js"></script>
+<script>
+  Portal.init();
+
+  const currentUser = RBAC.getCurrentUser();
+
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // 날짜/시간 표시
+  function updateClock() {
+    document.getElementById('dateTimeDisplay').textContent =
+      new Date().toLocaleString('ko-KR', { year:'numeric', month:'long', day:'numeric', weekday:'short', hour:'2-digit', minute:'2-digit' });
+  }
+  updateClock();
+  setInterval(updateClock, 60000);
+
+  // 데이터 로드
+  async function loadDashboard() {
+    try {
+      const [usersRes, goalsRes, tasksRes, interviewsRes, identityRes, directivesRes] = await Promise.all([
+        fetch('tables/users?limit=100'),
+        fetch('tables/team_goals?limit=100'),
+        fetch('tables/settlement_calendar?limit=100'),
+        fetch('tables/interview_logs?limit=100'),
+        fetch('tables/team_identity/default'),
+        fetch('tables/team_directives?limit=200'),
+      ]);
+
+      // 통계
+      if (usersRes.ok) {
+        const d = await usersRes.json();
+        const members = (d.data || []).filter(u => u.is_active !== false && u.role === 'member').length;
+        document.getElementById('statMembers').textContent = members || (d.total || 0);
+      }
+      if (goalsRes.ok) {
+        const d = await goalsRes.json();
+        const active = (d.data || []).filter(g => g.status === '진행중').length;
+        document.getElementById('statGoals').textContent = active;
+      }
+      if (tasksRes.ok) {
+        const d = await tasksRes.json();
+        const ym = Portal.currentYearMonth();
+        const thisMonth = (d.data || []).filter(t => (t.year_month || '').startsWith(ym));
+        document.getElementById('statTasks').textContent = thisMonth.length;
+        renderTodayTasks(d.data || []);
+      }
+      if (interviewsRes.ok) {
+        const d = await interviewsRes.json();
+        document.getElementById('statInterviews').textContent = d.total || 0;
+      }
+
+      // 팀 미션
+      if (identityRes.ok) {
+        const d = await identityRes.json();
+        document.getElementById('missionText').textContent = d.mission || '팀 미션이 설정되지 않았습니다.';
+        document.getElementById('missionText').classList.remove('text-muted');
+      }
+
+      // 팀장지시사항
+      if (directivesRes.ok) {
+        const d = await directivesRes.json();
+        const dirs = d.rows || d.data || [];
+        renderDirectives(dirs);
+      }
+    } catch (e) {
+      console.error('대시보드 로드 실패:', e);
+    }
+  }
+
+  function renderDirectives(dirs) {
+    const isL = RBAC.isTeamLeader();
+    const myName = currentUser?.full_name || '';
+    let list = dirs.filter(d => !d.is_done);
+    if (!isL) {
+      list = list.filter(d => d.target_name === '전체' || d.target_name === myName);
+    }
+    list = list
+      .sort((a, b) => {
+        const po = { '긴급': 0, '중요': 1, '보통': 2 };
+        return (po[a.priority] || 2) - (po[b.priority] || 2);
+      })
+      .slice(0, 5);
+
+    document.getElementById('statDirectives').textContent = list.length + '건';
+
+    const el = document.getElementById('directivesWidget');
+    if (!list.length) {
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:#6b7280;"><i class="fas fa-check-circle" style="font-size:24px;color:#10b981;display:block;margin-bottom:8px;"></i>미완료 지시사항이 없습니다.</div>';
+      return;
+    }
+    const dotColor = p => p === '긴급' ? '#ef4444' : p === '중요' ? '#f59e0b' : '#9ca3af';
+    const priStyle = p => p === '긴급' ? 'background:#fee2e2;color:#991b1b' : p === '중요' ? 'background:#ffedd5;color:#92400e' : 'background:#f3f4f6;color:#374151';
+    el.innerHTML = list.map(d => `
+      <div class="list-item">
+        <div style="width:10px;height:10px;border-radius:50%;background:${dotColor(d.priority)};flex-shrink:0;margin-top:3px;"></div>
+        <div class="list-item-info">
+          <div class="list-item-title">${esc(d.title)}</div>
+          <div class="list-item-meta">
+            <span style="${priStyle(d.priority)};padding:1px 7px;border-radius:6px;font-size:11px;font-weight:700;">${d.priority || '보통'}</span>
+            <span><i class="fas fa-user" style="font-size:10px;"></i> ${d.target_name === '전체' ? '전체 공지' : esc(d.target_name)}</span>
+            <span>${d.year}년${d.month ? ' ' + d.month + '월' : ''}</span>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  function renderTodayTasks(tasks) {
+    const today = Portal.todayStr();
+    const todayTasks = tasks.filter(t => t.date === today);
+    const el = document.getElementById('todayTasks');
+
+    if (!todayTasks.length) {
+      el.innerHTML = `<div class="empty-state" style="padding:20px;">
+        <i class="fas fa-check-circle" style="font-size:32px;color:#10b981;margin-bottom:8px;"></i>
+        <p style="color:#6b7280;">오늘 예정된 결산 일정이 없습니다.</p>
+      </div>`;
+      return;
+    }
+
+    const categoryColors = {
+      '공시이율': '#3b82f6', '가정': '#10b981', '모델': '#f59e0b',
+      '검증': '#8b5cf6', '보고': '#ef4444'
+    };
+    const statusLabels = { '완료': 'status-done', '진행중': 'status-progress', '예정': 'status-draft', '지연': 'status-delay' };
+
+    el.innerHTML = todayTasks.map(t => `
+      <div class="list-item">
+        <div style="width:10px;height:10px;border-radius:50%;background:${categoryColors[t.category]||'#9ca3af'};flex-shrink:0;margin-top:3px;"></div>
+        <div class="list-item-info">
+          <div class="list-item-title">${t.task || '(제목 없음)'}</div>
+          <div class="list-item-meta">
+            <span>${t.category || ''}</span>
+            ${t.assignee_name ? `<span><i class="fas fa-user" style="font-size:10px;"></i> ${t.assignee_name}</span>` : ''}
+          </div>
+        </div>
+        <span class="status-badge ${statusLabels[t.status]||'status-draft'}">${t.status || '예정'}</span>
+      </div>`).join('');
+  }
+
+  loadDashboard();
+</script>
+</body>
+</html>

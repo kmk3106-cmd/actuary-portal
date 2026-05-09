@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>성과 관리 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    /* Toolbar */
+    .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
+    .toolbar-spacer { flex:1; }
+    .sel-group { display:flex; gap:8px; }
+    .year-sel { padding:8px 14px; border:1.5px solid #e5e7eb; border-radius:10px;
+      font-size:14px; color:#374151; font-family:inherit; background:#fff; cursor:pointer; }
+    .weight-label { color:#111827; font-weight:700; font-size:12px; }
+
+    /* View tabs */
+    .view-tabs { display:flex; gap:0; border-bottom:2px solid #e5e7eb; margin-bottom:24px; }
+    .view-tab { padding:10px 24px; font-size:14px; font-weight:600; color:#6b7280; cursor:pointer;
+      border-bottom:3px solid transparent; margin-bottom:-2px; transition:all .2s; display:flex; align-items:center; gap:8px; }
+    .view-tab:hover { color:#374151; }
+    .view-tab.active { color:#4f86f7; border-bottom-color:#4f86f7; }
+
+    /* ── 팀 종합표 ── */
+    .table-card { background:#fff; border-radius:16px; border:1.5px solid #e5e7eb; overflow:hidden; }
+    .table-scroll { overflow-x:auto; }
+    .perf-table { width:100%; border-collapse:collapse; font-size:13px; min-width:1100px; }
+    .perf-table th { background:#f9fafb; font-size:11px; font-weight:700; color:#6b7280;
+      padding:10px 12px; text-align:center; border-bottom:2px solid #e5e7eb;
+      white-space:nowrap; position:sticky; top:0; z-index:1; }
+    .perf-table th.left { text-align:left; }
+    .perf-table td { padding:11px 12px; text-align:center; border-bottom:1px solid #f3f4f6;
+      color:#374151; white-space:nowrap; }
+    .perf-table td.name-cell { text-align:left; font-weight:600; color:#111827; }
+    .perf-table tr:hover td { background:#f9fafb; }
+    .perf-table tr:last-child td { border-bottom:none; }
+    .score-cell { font-weight:700; }
+    .score-high  { color:#10b981; }
+    .score-mid   { color:#3b82f6; }
+    .score-low   { color:#f59e0b; }
+    .score-null  { color:#d1d5db; font-weight:400; font-style:italic; }
+    .bonus-dot { display:inline-block; width:8px; height:8px; border-radius:50%; }
+    .bonus-y { background:#10b981; }
+    .bonus-n { background:#e5e7eb; }
+    .grade-badge { display:inline-block; width:26px; height:26px; border-radius:8px;
+      font-size:13px; font-weight:800; line-height:26px; text-align:center; }
+    .grade-S { background:#fef9c3; color:#854d0e; }
+    .grade-A { background:#dcfce7; color:#166534; }
+    .grade-B { background:#dbeafe; color:#1e40af; }
+    .grade-C { background:#ede9fe; color:#5b21b6; }
+    .grade-D { background:#fee2e2; color:#991b1b; }
+    .col-section { border-left:2px solid #e5e7eb; }
+    .col-section-end { border-right:2px solid #e5e7eb; }
+    .weight-row th { background:#f3f4f6; font-size:10px; color:#9ca3af; padding:5px 12px; }
+    .final-col { background:#fffbeb !important; }
+    .final-col td { background:#fffbeb; }
+    .table-header { display:flex; align-items:center; justify-content:space-between;
+      padding:18px 24px 14px; }
+    .table-title { font-size:15px; font-weight:700; color:#111827; display:flex; align-items:center; gap:10px; }
+    .table-icon { width:32px; height:32px; border-radius:9px; background:#dbeafe;
+      color:#1d4ed8; display:flex; align-items:center; justify-content:center; font-size:14px; }
+    .table-meta { font-size:12px; color:#9ca3af; margin-left:8px; }
+
+    /* ── 개인 카드 뷰 ── */
+    .member-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:20px; }
+    .member-tab { padding:6px 14px; border-radius:16px; border:1.5px solid #e5e7eb; background:#fff;
+      font-size:13px; font-weight:600; color:#6b7280; cursor:pointer; transition:all .2s; }
+    .member-tab.active { border-color:#4f86f7; background:#4f86f7; color:#fff; }
+    .perf-card { background:#fff; border-radius:16px; box-shadow:0 1px 4px rgba(0,0,0,.06);
+      border:1px solid #f3f4f6; margin-bottom:20px; overflow:hidden; }
+    .perf-card-header { padding:18px 24px; display:flex; justify-content:space-between; align-items:center;
+      border-bottom:1px solid #f3f4f6; background:linear-gradient(135deg,#f8faff,#fff); }
+    .perf-header-left { display:flex; align-items:center; gap:14px; }
+    .quarter-badge { width:52px; height:52px; border-radius:14px; background:linear-gradient(135deg,#4f86f7,#6c5ce7);
+      color:#fff; font-size:16px; font-weight:800; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; line-height:1.2; flex-shrink:0; }
+    .quarter-badge small { font-size:10px; font-weight:500; opacity:.8; }
+    .perf-header-meta h3 { font-size:16px; font-weight:700; color:#111827; margin:0 0 4px; }
+    .meta-row { display:flex; gap:8px; flex-wrap:wrap; }
+    .badge { font-size:11px; font-weight:600; padding:3px 10px; border-radius:10px; }
+    .badge-member { background:#eff6ff; color:#3b82f6; }
+    .badge-score  { background:#fef9c3; color:#854d0e; }
+    .badge-bonus  { background:#dcfce7; color:#166534; }
+    .perf-actions { display:flex; gap:6px; }
+    .perf-actions button { padding:6px 14px; border-radius:8px; border:none; cursor:pointer;
+      font-size:12px; font-weight:600; transition:background .15s; display:flex; align-items:center; gap:4px; }
+    .btn-edit-perf { background:#eff6ff; color:#3b82f6; }
+    .btn-edit-perf:hover { background:#dbeafe; }
+    .btn-del-perf { background:#fef2f2; color:#ef4444; }
+    .btn-del-perf:hover { background:#fee2e2; }
+    /* 점수 상세 (카드 내) */
+    .score-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:0;
+      border-top:1px solid #f3f4f6; }
+    .score-item { padding:14px 16px; border-right:1px solid #f3f4f6; border-bottom:1px solid #f3f4f6; }
+    .score-item:nth-child(4n) { border-right:none; }
+    .score-item-label { font-size:11px; color:#9ca3af; font-weight:500; margin-bottom:4px; }
+    .score-item-val { font-size:20px; font-weight:800; color:#111827; }
+    .score-item-weight { font-size:10px; color:#d1d5db; margin-left:2px; }
+    .score-item-val.null-val { font-size:14px; color:#d1d5db; font-style:italic; font-weight:400; }
+    .card-bottom { display:grid; grid-template-columns:1fr 1fr; border-top:1px solid #f3f4f6; }
+    .card-section { padding:16px 20px; }
+    .card-section:first-child { border-right:1px solid #f3f4f6; }
+    .card-section-title { font-size:12px; font-weight:700; color:#6b7280; margin-bottom:10px;
+      text-transform:uppercase; letter-spacing:.5px; display:flex; align-items:center; gap:6px; }
+    .score-display { display:flex; align-items:flex-end; gap:4px; margin-bottom:8px; }
+    .score-num { font-size:36px; font-weight:800; line-height:1; }
+    .score-num.self { color:#6366f1; }
+    .score-num.leader { color:#f59e0b; }
+    .score-unit { font-size:13px; color:#9ca3af; margin-bottom:5px; }
+    .perf-text { font-size:13px; color:#374151; line-height:1.7; white-space:pre-wrap; }
+    .perf-text-empty { font-size:13px; color:#d1d5db; font-style:italic; }
+
+    /* Stats row */
+    .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+    .stat-card { background:#fff; border-radius:14px; padding:18px 20px; border:1.5px solid #f3f4f6; }
+    .stat-label { font-size:12px; color:#9ca3af; font-weight:500; margin-bottom:6px; }
+    .stat-value { font-size:26px; font-weight:800; color:#111827; }
+    .stat-value.blue { color:#3b82f6; }
+    .stat-value.green { color:#10b981; }
+
+    /* Modal */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000;
+      align-items:center; justify-content:center; }
+    .modal-box { background:#fff; border-radius:20px; width:640px; max-width:95vw; max-height:90vh;
+      overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2); }
+    .modal-header { padding:24px 28px 0; display:flex; justify-content:space-between; align-items:center; }
+    .modal-title { font-size:18px; font-weight:700; color:#111827; }
+    .modal-close { width:32px; height:32px; border-radius:8px; border:none; background:#f3f4f6;
+      cursor:pointer; font-size:16px; color:#6b7280; display:flex; align-items:center; justify-content:center; }
+    .modal-body { padding:20px 28px 28px; }
+    .form-group { margin-bottom:14px; }
+    .form-label { font-size:13px; font-weight:600; color:#374151; margin-bottom:5px; display:block; }
+    .form-input, .form-select, .form-textarea {
+      width:100%; padding:9px 12px; border:1.5px solid #e5e7eb; border-radius:10px;
+      font-size:14px; color:#111827; background:#fff; font-family:inherit;
+      transition:border-color .2s; box-sizing:border-box; }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline:none; border-color:#4f86f7; }
+    .form-textarea { resize:vertical; min-height:80px; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .form-row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+    .section-divider { font-size:13px; font-weight:700; color:#4f86f7; margin:18px 0 10px;
+      padding-bottom:6px; border-bottom:2px solid #eff6ff; }
+    .modal-footer { display:flex; justify-content:flex-end; gap:10px; padding-top:8px;
+      border-top:1px solid #f3f4f6; margin-top:8px; }
+    .empty-state { text-align:center; padding:60px 20px; color:#9ca3af; }
+    .empty-state i { font-size:48px; margin-bottom:16px; display:block; opacity:.4; }
+    @media(max-width:768px){
+      .stats-row { grid-template-columns:1fr 1fr; }
+      .score-grid { grid-template-columns:repeat(2,1fr); }
+      .card-bottom { grid-template-columns:1fr; }
+      .form-row,.form-row-3 { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-chart-bar"></i> 성과 관리</h1>
+      <div id="addBtnWrap"></div>
+    </header>
+    <main class="content-body">
+
+      <div class="toolbar">
+        <div class="sel-group">
+          <select class="year-sel" id="yearSel" onchange="onFilterChange()"></select>
+          <select class="year-sel" id="monthSel" onchange="onFilterChange()">
+            <option value="0">연간 집계</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 통계 -->
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-label">평가 인원</div><div class="stat-value" id="statCount">-</div></div>
+        <div class="stat-card"><div class="stat-label">평균 최종점수</div><div class="stat-value blue" id="statAvg">-</div></div>
+        <div class="stat-card"><div class="stat-label">최고 점수</div><div class="stat-value green" id="statMax">-</div></div>
+        <div class="stat-card"><div class="stat-label">가산 대상</div><div class="stat-value" id="statBonus">-</div></div>
+      </div>
+
+      <!-- 뷰 탭 -->
+      <div class="view-tabs">
+        <div class="view-tab active" id="tabTable" onclick="switchView('table')">
+          <i class="fas fa-table"></i> 팀 종합표
+        </div>
+        <div class="view-tab" id="tabCard" onclick="switchView('card')">
+          <i class="fas fa-id-card"></i> 개인 평가 카드
+        </div>
+      </div>
+
+      <!-- 팀 종합표 -->
+      <div id="viewTable">
+        <div class="table-card">
+          <div class="table-header">
+            <div class="table-title">
+              <div class="table-icon"><i class="fas fa-users"></i></div>
+              2026년 팀 성과관리표
+              <span class="table-meta" id="tableSubtitle"></span>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="perf-table" id="perfTable">
+              <thead>
+                <tr>
+                  <th class="left" rowspan="2" style="min-width:80px;">팀원</th>
+                  <th colspan="4" class="col-section" style="background:#eff6ff;color:#3b82f6;">정량평가</th>
+                  <th colspan="3" class="col-section" style="background:#f0fdf4;color:#166534;">정성평가 (KPI)</th>
+                  <th rowspan="2" class="col-section" style="min-width:60px;">기본<br>점수</th>
+                  <th colspan="2" class="col-section" style="background:#fffbeb;color:#854d0e;">가산</th>
+                  <th rowspan="2" style="background:#fffbeb;min-width:60px;">최종<br>점수</th>
+                  <th rowspan="2">등급</th>
+                </tr>
+                <tr>
+                  <th class="col-section">지시수행<br><span class="weight-label">(5%)</span></th>
+                  <th>CSM기여<br><span class="weight-label">(10%)</span></th>
+                  <th>기한준수<br><span class="weight-label">(20%)</span></th>
+                  <th>임원회의<br><span class="weight-label">(15%)</span></th>
+                  <th class="col-section">KPI1<br><span class="weight-label">(20%)</span></th>
+                  <th>KPI2<br><span class="weight-label">(20%)</span></th>
+                  <th>KPI3<br><span class="weight-label">(10%)</span></th>
+                  <th class="col-section">프로젝트</th>
+                  <th>승진</th>
+                </tr>
+              </thead>
+              <tbody id="perfTableBody">
+                <tr><td colspan="13" style="text-align:center;padding:30px;color:#9ca3af;">로딩 중...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 개인 카드 뷰 -->
+      <div id="viewCard" style="display:none;">
+        <div class="member-tabs" id="memberTabs"></div>
+        <div id="perfContainer">
+          <div class="empty-state"><i class="fas fa-chart-bar"></i>팀원을 선택하세요.</div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="perfModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">성과 기록 수정</span>
+      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">연도</label>
+          <select class="form-select" id="fYear"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">월</label>
+          <select class="form-select" id="fMonth"></select>
+        </div>
+      </div>
+      <div class="form-group" id="targetNameRow">
+        <label class="form-label">팀원 이름</label>
+        <input type="text" class="form-input" id="fTargetName">
+      </div>
+
+      <div class="section-divider"><i class="fas fa-calculator"></i> 정량평가</div>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label class="form-label">팀장지시수행 (5%)</label>
+          <input type="number" class="form-input" id="fScoreTeam" min="0" max="100">
+        </div>
+        <div class="form-group">
+          <label class="form-label">CSM기여 (10%)</label>
+          <input type="number" class="form-input" id="fScoreCsm" min="0" max="100">
+        </div>
+        <div class="form-group">
+          <label class="form-label">기한준수 (20%)</label>
+          <input type="number" class="form-input" id="fScoreDeadline" min="0" max="100">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">임원회의 (15%)</label>
+          <input type="number" class="form-input" id="fScoreMeeting" min="0" max="100">
+        </div>
+        <div class="form-group">
+          <label class="form-label">기본평가점수 (자동계산)</label>
+          <input type="number" class="form-input" id="fBasicScore" min="0" max="100">
+        </div>
+      </div>
+
+      <div id="kpiSection">
+        <div class="section-divider"><i class="fas fa-star"></i> 정성평가 (KPI) — 팀장 입력</div>
+        <div class="form-row-3">
+          <div class="form-group">
+            <label class="form-label">KPI1 계리모델AI활용 (20%)</label>
+            <input type="number" class="form-input" id="fScoreKpi1" min="0" max="100" placeholder="미입력">
+          </div>
+          <div class="form-group">
+            <label class="form-label">KPI2 재무수치분석 (20%)</label>
+            <input type="number" class="form-input" id="fScoreKpi2" min="0" max="100" placeholder="미입력">
+          </div>
+          <div class="form-group">
+            <label class="form-label">KPI3 계리지원강화 (10%)</label>
+            <input type="number" class="form-input" id="fScoreKpi3" min="0" max="100" placeholder="미입력">
+          </div>
+        </div>
+      </div>
+
+      <div class="section-divider"><i class="fas fa-plus-circle"></i> 가산</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">프로젝트 가산 (+10%)</label>
+          <select class="form-select" id="fBonusProject">
+            <option value="false">해당없음</option><option value="true">해당 (O)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">승진대상 가산 (+10%)</label>
+          <select class="form-select" id="fBonusPromotion">
+            <option value="false">해당없음</option><option value="true">해당 (O)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">최종평가점수</label>
+          <input type="number" class="form-input" id="fFinalScore" step="0.1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">등급</label>
+          <select class="form-select" id="fGrade">
+            <option value="S">S</option><option value="A">A</option>
+            <option value="B">B</option><option value="C">C</option><option value="D">D</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section-divider"><i class="fas fa-user"></i> 자기평가 / 팀장 피드백</div>
+      <div class="form-group">
+        <label class="form-label">팀장 피드백 점수</label>
+        <input type="number" class="form-input" id="fLeaderScore" min="0" max="100" placeholder="미작성">
+      </div>
+      <div class="form-group">
+        <label class="form-label">주요 기여내용</label>
+        <textarea class="form-textarea" id="fSelfComment" placeholder="이번 분기 주요 성과를 입력하세요."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">팀장 피드백 / 보완사항</label>
+        <textarea class="form-textarea" id="fLeaderComment" placeholder="팀원 성과에 대한 피드백을 입력하세요."></textarea>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+        <button class="btn btn-primary" onclick="saveRecord()"><i class="fas fa-save"></i> 저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js"></script>
+<script>
+Portal.init();
+
+const thisYear = new Date().getFullYear();
+const thisMonth = new Date().getMonth() + 1;
+let currentYear = thisYear;
+let currentMonth = 0; // 0 = 연간 집계
+let selectedMember = 'all';
+let allRecords = [];
+const isLeader = RBAC.isTeamLeader();
+const currentUser = RBAC.getCurrentUser();
+
+function buildSelects() {
+  const ySel = document.getElementById('yearSel');
+  const fySel = document.getElementById('fYear');
+  [thisYear - 1, thisYear, thisYear + 1].forEach(y => {
+    [ySel, fySel].forEach(s => {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y + '년';
+      if (y === currentYear) o.selected = true;
+      s.appendChild(o);
+    });
+  });
+  // Month toolbar selector
+  const mSel = document.getElementById('monthSel');
+  for (let m = 1; m <= 12; m++) {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m + '월';
+    mSel.appendChild(o);
+  }
+  // Month modal selector
+  const fmSel = document.getElementById('fMonth');
+  for (let m = 1; m <= 12; m++) {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m + '월';
+    if (m === thisMonth) o.selected = true;
+    fmSel.appendChild(o);
+  }
+}
+
+function onFilterChange() {
+  currentYear  = parseInt(document.getElementById('yearSel').value);
+  currentMonth = parseInt(document.getElementById('monthSel').value);
+  render();
+}
+
+function getAggregatedRecords() {
+  const monthly = allRecords.filter(r =>
+    String(r.year) === String(currentYear) && r.month && Number(r.month) > 0);
+  const map = {};
+  monthly.forEach(r => { (map[r.target_name] = map[r.target_name] || []).push(r); });
+  const avgF = (recs, f) => {
+    const vals = recs.map(r => r[f]).filter(v => v != null && v !== '').map(Number);
+    return vals.length ? Math.round(vals.reduce((a,b)=>a+b,0) / 12 * 10) / 10 : null;
+  };
+  const lastF = (recs, f) => { const v = recs.map(r=>r[f]).filter(v=>v!=null); return v.length?v[v.length-1]:null; };
+  return Object.entries(map).map(([name, recs]) => ({
+    id: 'agg_' + name,
+    target_name: name,
+    year: currentYear,
+    month: 0,
+    score_teamleader: avgF(recs,'score_teamleader'),
+    score_csm:        avgF(recs,'score_csm'),
+    score_deadline:   avgF(recs,'score_deadline'),
+    score_meeting:    avgF(recs,'score_meeting'),
+    score_kpi1:       avgF(recs,'score_kpi1'),
+    score_kpi2:       avgF(recs,'score_kpi2'),
+    score_kpi3:       avgF(recs,'score_kpi3'),
+    basic_score:      avgF(recs,'basic_score'),
+    final_score:      avgF(recs,'final_score'),
+    grade:            lastF(recs,'grade'),
+    bonus_project:    recs.some(r=>r.bonus_project),
+    bonus_promotion:  recs.some(r=>r.bonus_promotion),
+    self_score:       avgF(recs,'self_score'),
+    self_comment:     lastF(recs,'self_comment'),
+    leader_comment:   lastF(recs,'leader_comment'),
+    _months: recs.length,
+  }));
+}
+
+function filteredRecords() {
+  let r;
+  if (currentMonth === 0) {
+    r = getAggregatedRecords();
+  } else {
+    r = allRecords.filter(x =>
+      String(x.year) === String(currentYear) &&
+      String(x.month) === String(currentMonth));
+  }
+  if (!isLeader && currentUser)
+    r = r.filter(x => x.target_name === currentUser.full_name || x.target_user_id === currentUser.user_id);
+  return r;
+}
+
+function updateStats(records) {
+  document.getElementById('statCount').textContent = records.length + '명';
+  const finals = records.map(r => r.final_score).filter(v => v != null);
+  document.getElementById('statAvg').textContent = finals.length ? (finals.reduce((a,b)=>a+b,0)/finals.length).toFixed(1)+'점' : '-';
+  document.getElementById('statMax').textContent = finals.length ? Math.max(...finals).toFixed(1)+'점' : '-';
+  const bonusCount = records.filter(r => r.bonus_project || r.bonus_promotion).length;
+  document.getElementById('statBonus').textContent = bonusCount + '명';
+  const mLabel = currentMonth === 0 ? '연간 집계' : currentMonth + '월';
+  document.getElementById('tableSubtitle').textContent = `${currentYear}년 ${mLabel} · ${records.length}명`;
+}
+
+function scoreColor(v) {
+  if (v == null) return 'score-null';
+  if (v >= 90) return 'score-high';
+  if (v >= 70) return 'score-mid';
+  return 'score-low';
+}
+function scoreText(v) {
+  return v != null ? v : '<span style="color:#d1d5db;font-size:11px;">-</span>';
+}
+
+function renderTable(records) {
+  const tbody = document.getElementById('perfTableBody');
+  if (!records.length) {
+    tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:40px;color:#9ca3af;">해당 조건의 데이터가 없습니다.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = records.map(r => {
+    const grade = r.grade || '-';
+    const gClass = 'grade-' + (grade && 'SABCD'.includes(grade) ? grade : 'D');
+    const bp = r.bonus_project  ? '<span class="bonus-dot bonus-y" title="프로젝트 가산"></span>' : '<span class="bonus-dot bonus-n"></span>';
+    const bpr = r.bonus_promotion ? '<span class="bonus-dot bonus-y" title="승진대상 가산"></span>' : '<span class="bonus-dot bonus-n"></span>';
+    const editBtn = isLeader ? `<button onclick="openEditModal('${r.id}')" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:12px;margin-left:6px;" title="수정"><i class="fas fa-pen"></i></button>` : '';
+    return `<tr>
+      <td class="name-cell">${r.target_name || '-'}${editBtn}</td>
+      <td class="score-cell ${scoreColor(r.score_teamleader)}">${scoreText(r.score_teamleader)}</td>
+      <td class="score-cell ${scoreColor(r.score_csm)}">${scoreText(r.score_csm)}</td>
+      <td class="score-cell ${scoreColor(r.score_deadline)}">${scoreText(r.score_deadline)}</td>
+      <td class="score-cell ${scoreColor(r.score_meeting)}">${scoreText(r.score_meeting)}</td>
+      <td class="score-cell col-section ${scoreColor(r.score_kpi1)}">${scoreText(r.score_kpi1)}</td>
+      <td class="score-cell ${scoreColor(r.score_kpi2)}">${scoreText(r.score_kpi2)}</td>
+      <td class="score-cell ${scoreColor(r.score_kpi3)}">${scoreText(r.score_kpi3)}</td>
+      <td class="score-cell col-section"><strong>${r.basic_score ?? '-'}</strong></td>
+      <td style="text-align:center;">${bp}</td>
+      <td style="text-align:center;">${bpr}</td>
+      <td class="score-cell" style="background:#fffbeb;font-size:15px;"><strong>${r.final_score != null ? r.final_score.toFixed ? r.final_score.toFixed(1) : r.final_score : '-'}</strong></td>
+      <td><span class="grade-badge ${gClass}">${grade}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function buildMemberTabs(records) {
+  const tabs = document.getElementById('memberTabs');
+  tabs.innerHTML = '';
+  const allBtn = document.createElement('button');
+  allBtn.className = 'member-tab' + (selectedMember === 'all' ? ' active' : '');
+  allBtn.textContent = '전체';
+  allBtn.onclick = () => { selectedMember = 'all'; render(); };
+  tabs.appendChild(allBtn);
+  records.forEach(r => {
+    const name = r.target_name || r.id;
+    const btn = document.createElement('button');
+    btn.className = 'member-tab' + (selectedMember === name ? ' active' : '');
+    btn.textContent = name;
+    btn.onclick = () => { selectedMember = name; render(); };
+    tabs.appendChild(btn);
+  });
+}
+
+function renderCards(records) {
+  const container = document.getElementById('perfContainer');
+  let recs = selectedMember === 'all' ? records : records.filter(r => r.target_name === selectedMember);
+  if (!recs.length) {
+    container.innerHTML = '<div class="empty-state"><i class="fas fa-chart-bar"></i>해당 팀원의 성과 기록이 없습니다.</div>';
+    return;
+  }
+  container.innerHTML = recs.map(r => {
+    const s = v => v != null ? v : null;
+    const grade = r.grade || '-';
+    const gClass = 'grade-' + (grade && 'SABCD'.includes(grade) ? grade : 'D');
+    const bonuses = [r.bonus_project && '프로젝트', r.bonus_promotion && '승진대상'].filter(Boolean);
+    const hasSelf = r.self_score != null || r.self_comment;
+    const hasLeader = r.leader_score != null || r.leader_comment;
+    return `<div class="perf-card">
+      <div class="perf-card-header">
+        <div class="perf-header-left">
+          <div class="quarter-badge"><span>${currentMonth===0?r.year:r.month}</span><small>${currentMonth===0?'년 연간':'월'}</small></div>
+          <div class="perf-header-meta">
+            <h3>${r.target_name || '-'} · ${r.year}년${currentMonth===0?` 연간${r._months?` (${r._months}개월)`:''}`:(` ${r.month}월`)}</h3>
+            <div class="meta-row">
+              <span class="badge badge-member"><i class="fas fa-user"></i> ${r.target_name || '-'}</span>
+              ${r.final_score != null ? `<span class="badge badge-score">최종 ${typeof r.final_score === 'number' ? r.final_score.toFixed(1) : r.final_score}점</span>` : ''}
+              ${bonuses.length ? `<span class="badge badge-bonus"><i class="fas fa-plus"></i> ${bonuses.join(' + ')} 가산</span>` : ''}
+              <span class="grade-badge ${gClass}" style="width:auto;padding:0 8px;font-size:12px;">${grade}등급</span>
+            </div>
+          </div>
+        </div>
+        ${isLeader ? `<div class="perf-actions">
+          <button class="btn-edit-perf" onclick="openEditModal('${r.id}')"><i class="fas fa-pen"></i> 수정</button>
+          <button class="btn-del-perf" onclick="deleteRecord('${r.id}')"><i class="fas fa-trash"></i></button>
+        </div>` : ''}
+      </div>
+      <div class="score-grid">
+        <div class="score-item">
+          <div class="score-item-label">팀장지시수행 <span style="color:#111827;font-weight:700;font-size:11px;">(5%)</span></div>
+          <div class="score-item-val ${r.score_teamleader == null ? 'null-val' : ''}">${r.score_teamleader ?? '미입력'}</div>
+        </div>
+        <div class="score-item">
+          <div class="score-item-label">CSM기여 <span style="color:#111827;font-weight:700;font-size:11px;">(10%)</span></div>
+          <div class="score-item-val ${r.score_csm == null ? 'null-val' : ''}">${r.score_csm ?? '미입력'}</div>
+        </div>
+        <div class="score-item">
+          <div class="score-item-label">기한준수 <span style="color:#111827;font-weight:700;font-size:11px;">(20%)</span></div>
+          <div class="score-item-val ${r.score_deadline == null ? 'null-val' : ''}">${r.score_deadline ?? '미입력'}</div>
+        </div>
+        <div class="score-item">
+          <div class="score-item-label">임원회의 <span style="color:#111827;font-weight:700;font-size:11px;">(15%)</span></div>
+          <div class="score-item-val ${r.score_meeting == null ? 'null-val' : ''}">${r.score_meeting ?? '미입력'}</div>
+        </div>
+        <div class="score-item">
+          <div class="score-item-label">KPI1 계리모델AI <span style="color:#111827;font-weight:700;font-size:11px;">(20%)</span></div>
+          <div class="score-item-val ${r.score_kpi1 == null ? 'null-val' : ''}">${r.score_kpi1 ?? '미입력'}</div>
+        </div>
+        <div class="score-item">
+          <div class="score-item-label">KPI2 재무수치분석 <span style="color:#111827;font-weight:700;font-size:11px;">(20%)</span></div>
+          <div class="score-item-val ${r.score_kpi2 == null ? 'null-val' : ''}">${r.score_kpi2 ?? '미입력'}</div>
+        </div>
+        <div class="score-item">
+          <div class="score-item-label">KPI3 계리지원강화 <span style="color:#111827;font-weight:700;font-size:11px;">(10%)</span></div>
+          <div class="score-item-val ${r.score_kpi3 == null ? 'null-val' : ''}">${r.score_kpi3 ?? '미입력'}</div>
+        </div>
+        <div class="score-item" style="background:#fffbeb;">
+          <div class="score-item-label">최종평가점수</div>
+          <div class="score-item-val" style="color:#854d0e;">${r.final_score != null ? (typeof r.final_score === 'number' ? r.final_score.toFixed(1) : r.final_score) : '-'}</div>
+        </div>
+      </div>
+      <div class="card-bottom">
+        <div class="card-section">
+          <div class="card-section-title"><i class="fas fa-user"></i> 자기평가</div>
+          ${hasSelf ? `
+            <div class="score-display">
+              <span class="score-num self">${r.self_score ?? '-'}</span>
+              <span class="score-unit">점</span>
+            </div>
+            <div class="perf-text">${(r.self_comment||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>
+          ` : '<div class="perf-text-empty">자기평가 미작성</div>'}
+        </div>
+        <div class="card-section">
+          <div class="card-section-title"><i class="fas fa-user-tie"></i> 팀장 피드백</div>
+          ${hasLeader ? `
+            <div class="score-display">
+              <span class="score-num leader">${r.leader_score ?? '-'}</span>
+              <span class="score-unit">점</span>
+            </div>
+            <div class="perf-text">${(r.leader_comment||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>
+          ` : '<div class="perf-text-empty">팀장 피드백 미작성</div>'}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function render() {
+  const records = filteredRecords();
+  updateStats(records);
+  renderTable(records);
+  buildMemberTabs(records);
+  renderCards(records);
+}
+
+function switchView(view) {
+  document.getElementById('viewTable').style.display = view === 'table' ? 'block' : 'none';
+  document.getElementById('viewCard').style.display = view === 'card' ? 'block' : 'none';
+  document.getElementById('tabTable').classList.toggle('active', view === 'table');
+  document.getElementById('tabCard').classList.toggle('active', view === 'card');
+}
+
+function openEditModal(id) {
+  const r = allRecords.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('modalTitle').textContent = (r.target_name || '') + ' 성과 수정';
+  document.getElementById('editId').value = id;
+  document.getElementById('fYear').value = r.year || currentYear;
+  document.getElementById('fMonth').value = r.month || currentMonth || thisMonth;
+  document.getElementById('fTargetName').value = r.target_name || '';
+  document.getElementById('fScoreTeam').value = r.score_teamleader ?? '';
+  document.getElementById('fScoreCsm').value = r.score_csm ?? '';
+  document.getElementById('fScoreDeadline').value = r.score_deadline ?? '';
+  document.getElementById('fScoreMeeting').value = r.score_meeting ?? '';
+  document.getElementById('fScoreKpi1').value = r.score_kpi1 ?? '';
+  document.getElementById('fScoreKpi2').value = r.score_kpi2 ?? '';
+  document.getElementById('fScoreKpi3').value = r.score_kpi3 ?? '';
+  document.getElementById('fBasicScore').value = r.basic_score ?? '';
+  document.getElementById('fBonusProject').value = String(!!r.bonus_project);
+  document.getElementById('fBonusPromotion').value = String(!!r.bonus_promotion);
+  document.getElementById('fFinalScore').value = r.final_score ?? '';
+  document.getElementById('fGrade').value = r.grade || 'D';
+  document.getElementById('fLeaderScore').value = r.leader_score ?? '';
+  document.getElementById('fSelfComment').value = r.self_comment || '';
+  document.getElementById('fLeaderComment').value = r.leader_comment || '';
+  document.getElementById('targetNameRow').style.display = isLeader ? 'block' : 'none';
+  document.getElementById('kpiSection').style.display = isLeader ? 'block' : 'none';
+  document.getElementById('perfModal').classList.add('show');
+}
+
+function closeModal() { document.getElementById('perfModal').classList.remove('show'); }
+
+function nv(id) {
+  const v = document.getElementById(id).value;
+  return v === '' ? null : Number(v);
+}
+
+async function saveRecord() {
+  const id = document.getElementById('editId').value;
+  const body = {
+    year:  parseInt(document.getElementById('fYear').value),
+    month: parseInt(document.getElementById('fMonth').value) || currentMonth || thisMonth,
+    target_name: document.getElementById('fTargetName').value.trim(),
+    score_teamleader: nv('fScoreTeam'),
+    score_csm: nv('fScoreCsm'),
+    score_deadline: nv('fScoreDeadline'),
+    score_meeting: nv('fScoreMeeting'),
+    score_kpi1: nv('fScoreKpi1'),
+    score_kpi2: nv('fScoreKpi2'),
+    score_kpi3: nv('fScoreKpi3'),
+    basic_score: nv('fBasicScore'),
+    bonus_project: document.getElementById('fBonusProject').value === 'true',
+    bonus_promotion: document.getElementById('fBonusPromotion').value === 'true',
+    bonus_rate: (document.getElementById('fBonusProject').value === 'true' ? 0.1 : 0) +
+                (document.getElementById('fBonusPromotion').value === 'true' ? 0.1 : 0),
+    final_score: nv('fFinalScore'),
+    grade: document.getElementById('fGrade').value,
+    self_comment: document.getElementById('fSelfComment').value.trim(),
+    leader_score: nv('fLeaderScore'),
+    leader_comment: document.getElementById('fLeaderComment').value.trim(),
+  };
+  try {
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? '/tables/performance_records/' + id : '/tables/performance_records';
+    const res = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    if (!res.ok) throw new Error();
+    closeModal();
+    Portal.showToast('저장되었습니다.', 'success');
+    await loadRecords();
+  } catch(e) { Portal.showToast('저장에 실패했습니다.', 'error'); }
+}
+
+async function deleteRecord(id) {
+  Portal.confirm('이 성과 기록을 삭제하시겠습니까?', async () => {
+    await fetch('/tables/performance_records/' + id, { method:'DELETE' });
+    Portal.showToast('삭제되었습니다.', 'success');
+    await loadRecords();
+  });
+}
+
+async function loadRecords() {
+  try {
+    const res = await fetch('/tables/performance_records?limit=200');
+    const data = await res.json();
+    allRecords = data.rows || data.data || [];
+    render();
+  } catch(e) {
+    document.getElementById('perfContainer').innerHTML =
+      '<div class="empty-state"><i class="fas fa-exclamation-circle"></i>데이터를 불러오지 못했습니다.</div>';
+  }
+}
+
+if (isLeader) {
+  document.getElementById('addBtnWrap').innerHTML =
+    '<button class="btn btn-primary" onclick="openEditModal(\'\')"><i class="fas fa-plus"></i> 기록 추가</button>';
+}
+
+document.getElementById('perfModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('perfModal')) closeModal();
+});
+
+buildSelects();
+loadRecords();
+</script>
+</body>
+</html>

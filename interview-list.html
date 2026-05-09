@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>면담일지 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    .iv-card {
+      background: white; border: 1px solid var(--gray-200); border-radius: 14px;
+      padding: 18px 22px; margin-bottom: 10px;
+      display: flex; gap: 16px; align-items: flex-start;
+      transition: box-shadow 0.15s, border-color 0.15s; cursor: pointer;
+    }
+    .iv-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-color: #c7d7fe; }
+    .iv-card.iv-confidential { border-left: 4px solid #ef4444; }
+    .iv-icon {
+      width: 44px; height: 44px; border-radius: 11px;
+      display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;
+    }
+    .iv-icon.blue   { background:#dbeafe; color:#1d4ed8; }
+    .iv-icon.green  { background:#d1fae5; color:#065f46; }
+    .iv-icon.red    { background:#fee2e2; color:#b91c1c; }
+    .iv-icon.purple { background:#ede9fe; color:#6c5ce7; }
+    .iv-icon.yellow { background:#fef3c7; color:#92400e; }
+    .iv-body { flex:1; min-width:0; }
+    .iv-title { font-size:15px; font-weight:700; color:var(--gray-900); margin-bottom:6px;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .iv-meta { display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:var(--gray-400); }
+    .iv-meta span { display:flex; align-items:center; gap:5px; }
+    .iv-actions { display:flex; gap:6px; flex-shrink:0; align-items:center; }
+    .cat-badge {
+      display:inline-flex; align-items:center; gap:4px;
+      padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700;
+    }
+    .cat-performance { background:#dbeafe; color:#1d4ed8; }
+    .cat-career      { background:#d1fae5; color:#065f46; }
+    .cat-complaint   { background:#fee2e2; color:#b91c1c; }
+    .cat-general     { background:#f3f4f6; color:#4b5563; }
+    .cat-disciplinary{ background:#fef3c7; color:#92400e; }
+    .confirm-badge {
+      display:inline-flex; align-items:center; gap:4px;
+      padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600;
+    }
+    .confirm-done    { background:#d1fae5; color:#065f46; }
+    .confirm-pending { background:#f3f4f6; color:#6b7280; }
+    .quarter-tag {
+      display:inline-flex; align-items:center;
+      padding:2px 7px; border-radius:6px; font-size:11px; font-weight:700;
+      background:#ede9fe; color:#6c5ce7;
+    }
+    .group-header {
+      font-size:13px; font-weight:700; color:var(--gray-500);
+      padding:12px 0 6px; border-bottom:2px solid var(--gray-200);
+      margin-bottom:8px; margin-top:16px; display:flex; align-items:center; gap:8px;
+    }
+    .group-header:first-child { margin-top:0; }
+    @media (max-width:768px) {
+      .iv-card { padding:14px; gap:12px; }
+      .iv-actions .btn-sm span { display:none; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title">면담일지 <small id="pageSubtitle"></small></h1>
+      <div class="header-actions" id="headerActions"></div>
+    </header>
+    <main class="content-body">
+
+      <!-- 통계 -->
+      <div class="stats-grid" style="margin-bottom:20px;" id="statsGrid">
+        <div class="stat-card">
+          <div class="stat-icon purple"><i class="fas fa-comments"></i></div>
+          <div><div class="stat-value" id="statTotal">-</div><div class="stat-label">전체 면담일지</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+          <div><div class="stat-value" id="statConfirmed">-</div><div class="stat-label">직원 확인 완료</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon yellow"><i class="fas fa-clock"></i></div>
+          <div><div class="stat-value" id="statPending">-</div><div class="stat-label">확인 대기</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+          <div><div class="stat-value" id="statMembers">-</div><div class="stat-label">면담 인원</div></div>
+        </div>
+      </div>
+
+      <!-- 필터 바 -->
+      <div class="filter-bar" style="flex-wrap:wrap; gap:8px; margin-bottom:16px;">
+        <select class="filter-select" id="yearFilter" style="min-width:100px;"></select>
+        <select class="filter-select" id="quarterFilter">
+          <option value="">전체 분기</option>
+          <option value="1">1분기</option>
+          <option value="2">2분기</option>
+          <option value="3">3분기</option>
+          <option value="4">4분기</option>
+        </select>
+        <select class="filter-select" id="memberFilter" style="min-width:120px;"></select>
+        <select class="filter-select" id="categoryFilter">
+          <option value="">전체 유형</option>
+          <option value="performance">성과면담</option>
+          <option value="career">경력개발</option>
+          <option value="complaint">고충처리</option>
+          <option value="general">일반면담</option>
+          <option value="disciplinary">징계면담</option>
+        </select>
+        <select class="filter-select" id="confirmFilter">
+          <option value="">확인 상태 전체</option>
+          <option value="confirmed">확인 완료</option>
+          <option value="pending">확인 대기</option>
+        </select>
+        <div class="search-input-wrapper" style="flex:1; min-width:160px;">
+          <i class="fas fa-search"></i>
+          <input type="text" class="search-input" id="searchInput" placeholder="이름, 제목 검색...">
+        </div>
+      </div>
+
+      <!-- 목록 -->
+      <div id="ivList">
+        <div class="loading-overlay"><div class="spinner-lg"></div> 면담일지를 불러오는 중...</div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- 삭제 확인 모달 -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-exclamation-triangle" style="color:#ef4444;margin-right:8px;"></i>면담일지 삭제</span>
+      <button class="modal-close" onclick="closeDeleteModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="color:#374151; line-height:1.6;">
+        <strong id="deleteTitle"></strong> 면담일지를 삭제합니까?<br>
+        <span style="color:#ef4444; font-size:13px;">삭제 후 복구가 불가능합니다.</span>
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeDeleteModal()">취소</button>
+      <button class="btn btn-danger" id="deleteConfirmBtn"><i class="fas fa-trash"></i> 삭제</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js"></script>
+<script>
+  if (!Portal.init()) throw 'AUTH';
+
+  const user = RBAC.getCurrentUser();
+  const MEMBERS = ['한인석','이동민','이상현','마혜원','예대호','이성원','고인수','김예은','강세진','이용우','오정택','김채린','김민국'];
+  const CAT_LABEL = { performance:'성과면담', career:'경력개발', complaint:'고충처리', general:'일반면담', disciplinary:'징계면담' };
+  const CAT_ICON  = { performance:'chart-line', career:'road', complaint:'exclamation-circle', general:'comments', disciplinary:'gavel' };
+  const CAT_COLOR = { performance:'blue', career:'green', complaint:'red', general:'purple', disciplinary:'yellow' };
+
+  let allLogs = [];
+  let deleteTargetId = null;
+
+  // 팀장만 작성 버튼
+  if (user.role === 'team_leader') {
+    document.getElementById('headerActions').innerHTML = `
+      <button class="btn btn-primary" onclick="location.href='interview-editor.html'">
+        <i class="fas fa-plus"></i> <span>면담일지 작성</span>
+      </button>`;
+  }
+
+  // 연도 필터 구성
+  const curYear = new Date().getFullYear();
+  let yearOpts = '<option value="">전체 연도</option>';
+  for (let y = curYear; y >= curYear - 4; y--) yearOpts += `<option value="${y}">${y}년</option>`;
+  document.getElementById('yearFilter').innerHTML = yearOpts;
+
+  // 인원 필터 구성
+  let memberOpts = '<option value="">전체 인원</option>';
+  MEMBERS.forEach(m => memberOpts += `<option value="${m}">${m}</option>`);
+  document.getElementById('memberFilter').innerHTML = memberOpts;
+
+  // 면담일지 로드
+  async function loadLogs() {
+    const r = await fetch('/tables/interview_logs?limit=500');
+    const data = await r.json();
+    allLogs = (data.rows || data.data || []).sort((a,b) => (b.created_at||0)-(a.created_at||0));
+
+    // RBAC 필터
+    if (user.role === 'employee') {
+      allLogs = allLogs.filter(l => l.interviewee_name === user.full_name && !l.is_confidential);
+    } else if (user.role === 'section_chief') {
+      allLogs = allLogs.filter(l => !l.is_confidential);
+    }
+
+    updateStats(allLogs);
+    renderList();
+  }
+
+  function getFiltered() {
+    const year    = document.getElementById('yearFilter').value;
+    const quarter = document.getElementById('quarterFilter').value;
+    const member  = document.getElementById('memberFilter').value;
+    const cat     = document.getElementById('categoryFilter').value;
+    const conf    = document.getElementById('confirmFilter').value;
+    const search  = document.getElementById('searchInput').value.toLowerCase();
+
+    return allLogs.filter(l => {
+      if (year    && String(l.year)    !== year)   return false;
+      if (quarter && String(l.quarter) !== quarter) return false;
+      if (member  && l.interviewee_name !== member) return false;
+      if (cat     && l.category !== cat)            return false;
+      if (conf === 'confirmed' && !l.is_confirmed_by_employee) return false;
+      if (conf === 'pending'   &&  l.is_confirmed_by_employee) return false;
+      if (search) {
+        const s = search;
+        if (!((l.title||'').toLowerCase().includes(s) ||
+              (l.interviewee_name||'').toLowerCase().includes(s) ||
+              (l.interviewer_name||'').toLowerCase().includes(s))) return false;
+      }
+      return true;
+    });
+  }
+
+  function updateStats(logs) {
+    document.getElementById('statTotal').textContent = logs.length;
+    document.getElementById('statConfirmed').textContent = logs.filter(l => l.is_confirmed_by_employee).length;
+    document.getElementById('statPending').textContent   = logs.filter(l => !l.is_confirmed_by_employee).length;
+    const uniqueMembers = new Set(logs.map(l => l.interviewee_name).filter(Boolean));
+    document.getElementById('statMembers').textContent = uniqueMembers.size;
+  }
+
+  function renderList() {
+    const logs = getFiltered();
+    updateStats(logs);
+    const container = document.getElementById('ivList');
+
+    if (logs.length === 0) {
+      container.innerHTML = `<div class="empty-state">
+        <i class="fas fa-comments"></i>
+        <h3>면담일지가 없습니다</h3>
+        <p>조건에 맞는 면담일지가 없습니다.</p>
+      </div>`;
+      return;
+    }
+
+    // 연도/분기별 그룹핑
+    const grouped = {};
+    logs.forEach(l => {
+      const key = `${l.year||'미지정'}년_${l.quarter||'?'}분기`;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(l);
+    });
+
+    const canEdit = user.role === 'team_leader';
+
+    let html = '';
+    Object.entries(grouped).forEach(([key, group]) => {
+      const [yearPart, qPart] = key.split('_');
+      html += `<div class="group-header">
+        <i class="fas fa-folder-open" style="color:var(--primary);"></i>
+        ${yearPart} · ${qPart} <span style="font-size:12px; color:var(--gray-400); font-weight:400;">(${group.length}건)</span>
+      </div>`;
+
+      group.forEach(log => {
+        const catKey = log.category || 'general';
+        const isConfirmed    = !!log.is_confirmed_by_employee;
+        const isConfidential = !!log.is_confidential;
+        const iconColor = CAT_COLOR[catKey] || 'purple';
+
+        html += `<div class="iv-card ${isConfidential ? 'iv-confidential' : ''}"
+            onclick="location.href='interview.html?id=${log.id}'">
+          <div class="iv-icon ${iconColor}">
+            <i class="fas fa-${CAT_ICON[catKey]||'comments'}"></i>
+          </div>
+          <div class="iv-body">
+            <div class="iv-title">
+              ${isConfidential ? '<i class="fas fa-lock" style="color:#ef4444;font-size:11px;margin-right:4px;"></i>' : ''}
+              ${esc(log.title || '제목 없음')}
+            </div>
+            <div class="iv-meta">
+              <span><i class="fas fa-user-tie"></i> ${esc(log.interviewee_name||'-')}</span>
+              <span><i class="fas fa-calendar"></i> ${esc(log.interview_date||'-')}</span>
+              <span class="cat-badge cat-${catKey}">${CAT_LABEL[catKey]||catKey}</span>
+              <span class="confirm-badge ${isConfirmed ? 'confirm-done' : 'confirm-pending'}">
+                <i class="fas fa-${isConfirmed ? 'check-circle' : 'clock'}"></i>
+                ${isConfirmed ? '확인 완료' : '확인 대기'}
+              </span>
+            </div>
+          </div>
+          <div class="iv-actions" onclick="event.stopPropagation()">
+            <button class="btn btn-secondary btn-sm" title="보기"
+              onclick="location.href='interview.html?id=${log.id}'">
+              <i class="fas fa-eye"></i>
+            </button>
+            ${canEdit ? `
+            <button class="btn btn-secondary btn-sm" title="편집"
+              onclick="location.href='interview-editor.html?id=${log.id}'">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-danger btn-sm" title="삭제"
+              onclick="openDeleteModal('${log.id}','${esc(log.title||'')}')">
+              <i class="fas fa-trash"></i>
+            </button>` : ''}
+          </div>
+        </div>`;
+      });
+    });
+
+    container.innerHTML = html;
+  }
+
+  function esc(str) {
+    const d = document.createElement('div');
+    d.textContent = String(str || '');
+    return d.innerHTML;
+  }
+
+  function openDeleteModal(id, title) {
+    deleteTargetId = id;
+    document.getElementById('deleteTitle').textContent = title;
+    document.getElementById('deleteModal').classList.add('show');
+  }
+
+  function closeDeleteModal() {
+    deleteTargetId = null;
+    document.getElementById('deleteModal').classList.remove('show');
+  }
+
+  document.getElementById('deleteConfirmBtn').onclick = async () => {
+    if (!deleteTargetId) return;
+    const r = await fetch(`/tables/interview_logs/${deleteTargetId}`, {method:'DELETE'});
+    if (r.ok) {
+      Portal.showToast('삭제되었습니다.', 'success');
+      allLogs = allLogs.filter(l => l.id !== deleteTargetId);
+      renderList();
+    } else {
+      Portal.showToast('삭제 실패', 'error');
+    }
+    closeDeleteModal();
+  };
+
+  document.getElementById('deleteModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeDeleteModal();
+  });
+
+  ['yearFilter','quarterFilter','memberFilter','categoryFilter','confirmFilter'].forEach(id => {
+    document.getElementById(id).addEventListener('change', renderList);
+  });
+  document.getElementById('searchInput').addEventListener('input', renderList);
+
+  loadLogs();
+</script>
+</body>
+</html>

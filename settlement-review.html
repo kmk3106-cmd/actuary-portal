@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>결산 리뷰 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    /* Layout */
+    .review-layout { display:grid; grid-template-columns:1fr 320px; gap:24px; align-items:start; }
+    @media(max-width:1000px) { .review-layout { grid-template-columns:1fr; } }
+
+    /* Toolbar */
+    .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
+    .toolbar-spacer { flex:1; }
+    .yr-sel, .mo-sel { padding:8px 14px; border:1.5px solid #e5e7eb; border-radius:10px;
+      font-size:14px; color:#374151; font-family:inherit; background:#fff; cursor:pointer; }
+
+    /* 리뷰 폼 */
+    .review-form { background:#fff; border-radius:16px; border:1.5px solid #e5e7eb; overflow:hidden; }
+    .review-form-header { padding:18px 24px; border-bottom:1px solid #f3f4f6;
+      display:flex; align-items:center; justify-content:space-between; }
+    .review-form-title { font-size:16px; font-weight:800; color:#111827; display:flex; align-items:center; gap:10px; }
+    .review-form-body { padding:24px; }
+    .form-group { margin-bottom:18px; }
+    .form-label { font-size:13px; font-weight:700; color:#374151; margin-bottom:6px; display:flex; align-items:center; gap:6px; }
+    .form-label i { color:#9ca3af; }
+    .form-input, .form-textarea, .form-select {
+      width:100%; padding:10px 14px; border:1.5px solid #e5e7eb; border-radius:10px;
+      font-size:14px; color:#111827; font-family:inherit; background:#fff;
+      transition:border-color .2s; box-sizing:border-box; }
+    .form-input:focus, .form-textarea:focus, .form-select:focus {
+      outline:none; border-color:#4f86f7; box-shadow:0 0 0 3px rgba(79,134,247,.08); }
+    .form-textarea { resize:vertical; min-height:90px; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+
+    /* 손익 입력 */
+    .pnl-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+    .pnl-card { background:#f8faff; border-radius:10px; padding:12px 14px; border:1.5px solid #e5e7eb; }
+    .pnl-label { font-size:11px; font-weight:700; color:#6b7280; margin-bottom:6px; }
+    .pnl-input-wrap { display:flex; align-items:center; gap:5px; }
+    .pnl-input { flex:1; padding:7px 10px; border:1.5px solid #e5e7eb; border-radius:8px;
+      font-size:14px; font-weight:700; color:#111827; font-family:inherit; background:#fff; text-align:right; }
+    .pnl-input:focus { outline:none; border-color:#4f86f7; }
+    .pnl-unit { font-size:12px; color:#6b7280; white-space:nowrap; }
+
+    /* 이슈 태그 */
+    .issue-list { display:flex; flex-direction:column; gap:6px; }
+    .issue-item { display:flex; gap:8px; align-items:flex-start; }
+    .issue-item textarea { flex:1; padding:8px 10px; border:1.5px solid #e5e7eb; border-radius:8px;
+      font-size:13px; font-family:inherit; resize:none; min-height:52px; }
+    .issue-item textarea:focus { outline:none; border-color:#4f86f7; }
+    .btn-del-issue { width:28px; height:28px; border-radius:7px; border:none; background:#fef2f2;
+      color:#ef4444; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .btn-add-issue { display:flex; align-items:center; gap:5px; padding:7px 14px; border-radius:8px;
+      border:1.5px dashed #d1d5db; background:transparent; color:#6b7280; font-size:13px;
+      cursor:pointer; transition:all .15s; margin-top:4px; }
+    .btn-add-issue:hover { border-color:#4f86f7; color:#4f86f7; }
+
+    /* 저장/반영 버튼 */
+    .form-actions { display:flex; gap:10px; justify-content:flex-end; padding:16px 24px;
+      border-top:1px solid #f3f4f6; }
+
+    /* 결산 요약 사이드바 */
+    .review-sidebar { display:flex; flex-direction:column; gap:16px; }
+    .sidebar-card { background:#fff; border-radius:14px; border:1.5px solid #e5e7eb; overflow:hidden; }
+    .sidebar-card-header { padding:14px 18px; border-bottom:1px solid #f3f4f6; font-size:14px; font-weight:700; color:#111827; display:flex; align-items:center; gap:8px; }
+    .sidebar-card-body { padding:14px 18px; }
+
+    /* 체크리스트 진행상황 */
+    .chk-summary-row { display:flex; align-items:center; justify-content:space-between;
+      padding:6px 0; border-bottom:1px solid #f9fafb; font-size:13px; }
+    .chk-summary-row:last-child { border-bottom:none; }
+    .chk-group-name { color:#374151; font-weight:500; }
+    .chk-prog-bar-wrap { flex:1; margin:0 10px; height:6px; background:#f3f4f6; border-radius:3px; overflow:hidden; }
+    .chk-prog-bar { height:100%; background:linear-gradient(90deg,#4f86f7,#6c5ce7); border-radius:3px; }
+    .chk-prog-text { font-size:11px; font-weight:700; color:#374151; min-width:32px; text-align:right; }
+
+    /* 과거 리뷰 목록 */
+    .past-review-item { padding:10px 0; border-bottom:1px solid #f3f4f6; cursor:pointer; }
+    .past-review-item:last-child { border-bottom:none; }
+    .past-review-item:hover { background:#f9fafb; margin:0 -18px; padding:10px 18px; border-radius:6px; }
+    .pri-date { font-size:13px; font-weight:700; color:#111827; }
+    .pri-sub { font-size:11px; color:#9ca3af; margin-top:2px; }
+    .pri-badges { display:flex; gap:5px; margin-top:5px; flex-wrap:wrap; }
+    .pri-badge { font-size:10px; font-weight:600; padding:2px 7px; border-radius:5px; }
+    .pri-badge-ok { background:#dcfce7; color:#166534; }
+    .pri-badge-issue { background:#fee2e2; color:#991b1b; }
+
+    /* Read-only view */
+    .review-readonly { padding:0 24px 24px; }
+    .ro-section { margin-bottom:20px; }
+    .ro-label { font-size:12px; font-weight:700; color:#9ca3af; margin-bottom:5px; display:flex; align-items:center; gap:5px; }
+    .ro-content { font-size:14px; color:#111827; line-height:1.7; padding:10px 14px; background:#f9fafb; border-radius:8px; }
+    .pnl-display { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+    .pnl-item { background:#f8faff; border-radius:10px; padding:10px 14px; text-align:center; }
+    .pnl-item-label { font-size:11px; color:#9ca3af; margin-bottom:3px; }
+    .pnl-item-val { font-size:18px; font-weight:800; color:#111827; }
+
+    @media(max-width:600px) {
+      .pnl-row { grid-template-columns:1fr; }
+      .form-row { grid-template-columns:1fr; }
+      .pnl-display { grid-template-columns:1fr; }
+    }
+
+    /* 탭 전환 */
+    .view-tabs { display:flex; gap:0; margin-bottom:20px; background:#f3f4f6; border-radius:12px; padding:4px; width:fit-content; }
+    .view-tab { padding:8px 20px; border-radius:9px; border:none; background:transparent; font-size:14px;
+      font-weight:600; color:#6b7280; cursor:pointer; transition:all .15s; font-family:inherit; }
+    .view-tab.active { background:#fff; color:#111827; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+    .view-tab:hover:not(.active) { color:#374151; }
+
+    /* 캘린더 뷰 */
+    .cal-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+    @media(max-width:900px) { .cal-grid { grid-template-columns:repeat(3,1fr); } }
+    @media(max-width:600px) { .cal-grid { grid-template-columns:repeat(2,1fr); } }
+    .cal-month { border-radius:14px; border:1.5px solid #e5e7eb; padding:18px 16px; cursor:pointer;
+      transition:all .18s; min-height:110px; display:flex; flex-direction:column; justify-content:space-between; }
+    .cal-month:hover { box-shadow:0 4px 16px rgba(0,0,0,.1); transform:translateY(-2px); }
+    .cal-month.has-review { background:linear-gradient(135deg,#eff6ff,#f0fdf4); border-color:#bfdbfe; }
+    .cal-month.no-review { background:#f9fafb; }
+    .cal-month.current-month { border-color:#4f86f7; }
+    .cal-month-label { font-size:15px; font-weight:800; color:#111827; margin-bottom:6px; }
+    .cal-month.no-review .cal-month-label { color:#9ca3af; }
+    .cal-status-badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 8px;
+      border-radius:5px; margin-bottom:8px; }
+    .cal-status-badge.written { background:#dcfce7; color:#166534; }
+    .cal-status-badge.empty { background:#f3f4f6; color:#9ca3af; }
+    .cal-pnl { font-size:13px; font-weight:700; }
+    .cal-pnl.pos { color:#10b981; }
+    .cal-pnl.neg { color:#ef4444; }
+    .cal-issue { font-size:11px; color:#ef4444; margin-top:3px; }
+    .cal-month-num { font-size:28px; font-weight:900; color:#e5e7eb; text-align:right; line-height:1; }
+    .cal-month.has-review .cal-month-num { color:#bfdbfe; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-clipboard-list"></i> 결산 리뷰</h1>
+    </header>
+    <main class="content-body">
+
+      <!-- 뷰 탭 -->
+      <div class="view-tabs">
+        <button class="view-tab active" id="tabList" onclick="switchView('list')">📋 목록</button>
+        <button class="view-tab" id="tabCal" onclick="switchView('cal')">📅 캘린더</button>
+      </div>
+
+      <!-- 목록뷰 영역 -->
+      <div id="listView">
+      <div class="toolbar">
+        <select class="yr-sel" id="yearSel" onchange="onFilterChange()"></select>
+        <select class="mo-sel" id="monthSel" onchange="onFilterChange()">
+          <option value="">-- 월 선택 --</option>
+        </select>
+        <div class="toolbar-spacer"></div>
+        <div id="newBtnWrap"></div>
+      </div>
+
+      <div class="review-layout">
+        <!-- 왼쪽: 리뷰 폼/뷰 -->
+        <div id="mainPanel">
+          <div style="background:#fff;border-radius:16px;border:1.5px solid #e5e7eb;padding:40px;text-align:center;color:#9ca3af;">
+            <i class="fas fa-calendar-alt" style="font-size:32px;margin-bottom:12px;display:block;opacity:.4;"></i>
+            연도와 월을 선택하세요
+          </div>
+        </div>
+
+        <!-- 오른쪽: 사이드바 -->
+        <div class="review-sidebar">
+          <!-- 결산 체크리스트 현황 -->
+          <div class="sidebar-card">
+            <div class="sidebar-card-header"><i class="fas fa-clipboard-check" style="color:#4f86f7;"></i> 결산업무 진행현황</div>
+            <div class="sidebar-card-body" id="chkSummary">
+              <div style="text-align:center;color:#9ca3af;padding:16px 0;font-size:13px;">월을 선택하세요</div>
+            </div>
+          </div>
+
+          <!-- 과거 리뷰 -->
+          <div class="sidebar-card">
+            <div class="sidebar-card-header"><i class="fas fa-history" style="color:#6c5ce7;"></i> 리뷰 이력</div>
+            <div class="sidebar-card-body" id="pastReviews">
+              <div style="text-align:center;color:#9ca3af;padding:16px 0;font-size:13px;">로딩 중...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div><!-- /listView -->
+
+      <!-- 캘린더뷰 영역 -->
+      <div id="calView" style="display:none;">
+        <div class="toolbar">
+          <select class="yr-sel" id="yearSelCal" onchange="renderCalView()"></select>
+          <div class="toolbar-spacer"></div>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js"></script>
+<script>
+try {
+Portal.init();
+
+// 팀장 전용 접근 제한
+if (!RBAC.isTeamLeader()) {
+  document.querySelector('.main-content').innerHTML = `
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-clipboard-list"></i> 결산 리뷰</h1>
+    </header>
+    <main class="content-body">
+      <div style="background:#fff;border-radius:16px;border:1.5px solid #e5e7eb;padding:48px;text-align:center;color:#6b7280;">
+        <i class="fas fa-lock" style="font-size:36px;color:#f59e0b;margin-bottom:16px;display:block;"></i>
+        <div style="font-size:16px;font-weight:700;color:#111827;margin-bottom:8px;">팀장 전용 페이지입니다.</div>
+        <div style="font-size:14px;">결산 리뷰는 팀장만 조회 및 작성할 수 있습니다.</div>
+      </div>
+    </main>`;
+  throw new Error('RBAC_BLOCK');
+}
+
+const isLeader = RBAC.isTeamLeader();
+const currentUser = RBAC.getCurrentUser();
+const thisYear = new Date().getFullYear();
+const thisMonth = new Date().getMonth() + 1;
+let selYear = thisYear, selMonth = thisMonth;
+let allReviews = [], currentReview = null;
+
+// 이슈 배열 (현재/향후)
+let currentIssues = [''], futureIssues = [''];
+
+function buildSelects() {
+  const ySel = document.getElementById('yearSel');
+  [thisYear - 1, thisYear, thisYear + 1].forEach(y => {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y + '년';
+    if (y === selYear) o.selected = true;
+    ySel.appendChild(o);
+  });
+  const mSel = document.getElementById('monthSel');
+  for (let m = 1; m <= 12; m++) {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m + '월';
+    if (m === selMonth) o.selected = true;
+    mSel.appendChild(o);
+  }
+  if (isLeader) {
+    document.getElementById('newBtnWrap').innerHTML =
+      '<button class="btn btn-primary" onclick="openNewReview()"><i class="fas fa-plus"></i> 신규 리뷰 작성</button>';
+  }
+}
+
+function onFilterChange() {
+  selYear  = parseInt(document.getElementById('yearSel').value);
+  selMonth = parseInt(document.getElementById('monthSel').value) || thisMonth;
+  loadReview();
+  loadChkSummary();
+}
+
+async function loadAllReviews() {
+  const res = await fetch('/tables/settlement_reviews?limit=100');
+  const data = await res.json();
+  allReviews = (data.rows || data.data || []).sort((a, b) =>
+    (b.year * 100 + b.month) - (a.year * 100 + a.month));
+  renderPastReviews();
+}
+
+function renderPastReviews() {
+  const container = document.getElementById('pastReviews');
+  if (!allReviews.length) {
+    container.innerHTML = '<div style="text-align:center;color:#9ca3af;padding:12px 0;font-size:13px;">작성된 리뷰가 없습니다.</div>';
+    return;
+  }
+  container.innerHTML = allReviews.slice(0, 8).map(r => {
+    const hasIssue = r.current_issues?.length > 0;
+    return `<div class="past-review-item" onclick="loadReviewById('${r.id}')">
+      <div class="pri-date">${r.year}년 ${r.month}월 결산 리뷰</div>
+      <div class="pri-sub">${r.created_by || ''}${r.updated_at ? ' · ' + new Date(r.updated_at).toLocaleDateString() : ''}</div>
+      <div class="pri-badges">
+        ${r.pnl_result != null ? `<span class="pri-badge" style="background:#eff6ff;color:#1d4ed8;">손익 ${Number(r.pnl_result).toLocaleString()}억</span>` : ''}
+        ${hasIssue ? `<span class="pri-badge pri-badge-issue">이슈 ${r.current_issues.length}건</span>` : '<span class="pri-badge pri-badge-ok">특이사항 없음</span>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadReview() {
+  const match = allReviews.find(r => String(r.year) === String(selYear) && String(r.month) === String(selMonth));
+  if (match) {
+    currentReview = match;
+    renderReadView(match);
+  } else {
+    currentReview = null;
+    renderEmptyView();
+  }
+}
+
+async function loadReviewById(id) {
+  const r = allReviews.find(x => x.id === id);
+  if (!r) return;
+  selYear = r.year; selMonth = r.month;
+  document.getElementById('yearSel').value = r.year;
+  document.getElementById('monthSel').value = r.month;
+  currentReview = r;
+  renderReadView(r);
+  loadChkSummary();
+}
+
+function renderEmptyView() {
+  const main = document.getElementById('mainPanel');
+  if (isLeader) {
+    main.innerHTML = `<div style="background:#fff;border-radius:16px;border:1.5px solid #e5e7eb;padding:40px;text-align:center;color:#9ca3af;">
+      <i class="fas fa-plus-circle" style="font-size:32px;margin-bottom:12px;display:block;opacity:.4;"></i>
+      ${selYear}년 ${selMonth}월 결산 리뷰가 없습니다.<br>
+      <button class="btn btn-primary" style="margin-top:16px;" onclick="openNewReview()"><i class="fas fa-plus"></i> 리뷰 작성</button>
+    </div>`;
+  } else {
+    main.innerHTML = `<div style="background:#fff;border-radius:16px;border:1.5px solid #e5e7eb;padding:40px;text-align:center;color:#9ca3af;">
+      <i class="fas fa-calendar-times" style="font-size:32px;margin-bottom:12px;display:block;opacity:.4;"></i>
+      ${selYear}년 ${selMonth}월 결산 리뷰가 아직 작성되지 않았습니다.
+    </div>`;
+  }
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>'); }
+
+function renderReadView(r) {
+  const issues = Array.isArray(r.current_issues) ? r.current_issues.filter(Boolean) : (r.current_issues ? [r.current_issues] : []);
+  const futureIss = Array.isArray(r.future_issues) ? r.future_issues.filter(Boolean) : (r.future_issues ? [r.future_issues] : []);
+  const main = document.getElementById('mainPanel');
+  main.innerHTML = `
+    <div class="review-form">
+      <div class="review-form-header">
+        <div class="review-form-title">
+          <i class="fas fa-clipboard-list" style="color:#4f86f7;"></i>
+          ${r.year}년 ${r.month}월 결산 리뷰
+        </div>
+        ${isLeader ? `<button class="btn btn-secondary" onclick="openEditReview()"><i class="fas fa-pen"></i> 수정</button>` : ''}
+      </div>
+      <div class="review-readonly">
+        <div class="ro-section">
+          <div class="ro-label"><i class="fas fa-exclamation-triangle"></i> 결산 특이사항</div>
+          <div class="ro-content">${esc(r.special_note) || '<span style="color:#9ca3af;">특이사항 없음</span>'}</div>
+        </div>
+        <div class="ro-section">
+          <div class="ro-label"><i class="fas fa-chart-line"></i> 손익 현황</div>
+          <div class="pnl-display">
+            <div class="pnl-item"><div class="pnl-item-label">당기손익</div><div class="pnl-item-val" style="color:${r.pnl_result >= 0 ? '#10b981' : '#ef4444'}">${r.pnl_result != null ? Number(r.pnl_result).toLocaleString()+'억' : '-'}</div></div>
+            <div class="pnl-item"><div class="pnl-item-label">전월대비</div><div class="pnl-item-val" style="color:${r.pnl_mom >= 0 ? '#10b981' : '#ef4444'}">${r.pnl_mom != null ? (r.pnl_mom >= 0 ? '+' : '')+Number(r.pnl_mom).toLocaleString()+'억' : '-'}</div></div>
+            <div class="pnl-item"><div class="pnl-item-label">전년동기대비</div><div class="pnl-item-val" style="color:${r.pnl_yoy >= 0 ? '#10b981' : '#ef4444'}">${r.pnl_yoy != null ? (r.pnl_yoy >= 0 ? '+' : '')+Number(r.pnl_yoy).toLocaleString()+'억' : '-'}</div></div>
+          </div>
+        </div>
+        ${issues.length ? `<div class="ro-section">
+          <div class="ro-label"><i class="fas fa-bug"></i> 주요 이슈</div>
+          ${issues.map((iss, i) => `<div class="ro-content" style="margin-bottom:6px;">${i+1}. ${esc(iss)}</div>`).join('')}
+        </div>` : ''}
+        ${futureIss.length ? `<div class="ro-section">
+          <div class="ro-label"><i class="fas fa-binoculars"></i> 향후 이슈/예상사항</div>
+          ${futureIss.map((iss, i) => `<div class="ro-content" style="margin-bottom:6px;">${i+1}. ${esc(iss)}</div>`).join('')}
+        </div>` : ''}
+        ${r.team_memo ? `<div class="ro-section">
+          <div class="ro-label"><i class="fas fa-users"></i> 팀 리뷰 메모</div>
+          <div class="ro-content">${esc(r.team_memo)}</div>
+        </div>` : ''}
+        <div style="font-size:11px;color:#9ca3af;text-align:right;margin-top:8px;">
+          작성: ${r.created_by || '-'} · 수정: ${r.updated_at ? new Date(r.updated_at).toLocaleString() : '-'}
+        </div>
+      </div>
+    </div>`;
+}
+
+function openNewReview() {
+  currentIssues = [''];
+  futureIssues = [''];
+  renderEditForm(null);
+}
+
+function openEditReview() {
+  if (!currentReview) return;
+  currentIssues = Array.isArray(currentReview.current_issues) && currentReview.current_issues.length
+    ? [...currentReview.current_issues] : [''];
+  futureIssues = Array.isArray(currentReview.future_issues) && currentReview.future_issues.length
+    ? [...currentReview.future_issues] : [''];
+  renderEditForm(currentReview);
+}
+
+function renderEditForm(r) {
+  const main = document.getElementById('mainPanel');
+  main.innerHTML = `
+    <div class="review-form">
+      <div class="review-form-header">
+        <div class="review-form-title">
+          <i class="fas fa-edit" style="color:#4f86f7;"></i>
+          ${selYear}년 ${selMonth}월 결산 리뷰 ${r ? '수정' : '작성'}
+        </div>
+      </div>
+      <div class="review-form-body">
+        <div class="form-group">
+          <label class="form-label"><i class="fas fa-exclamation-triangle"></i> 결산 특이사항</label>
+          <textarea class="form-textarea" id="fSpecialNote" placeholder="이번 결산에서의 특이사항을 입력하세요...">${r?.special_note || ''}</textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label"><i class="fas fa-chart-line"></i> 손익 현황 (억원)</label>
+          <div class="pnl-row">
+            <div class="pnl-card">
+              <div class="pnl-label">당기손익</div>
+              <div class="pnl-input-wrap">
+                <input type="number" class="pnl-input" id="fPnlResult" value="${r?.pnl_result ?? ''}" placeholder="0">
+                <span class="pnl-unit">억</span>
+              </div>
+            </div>
+            <div class="pnl-card">
+              <div class="pnl-label">전월대비</div>
+              <div class="pnl-input-wrap">
+                <input type="number" class="pnl-input" id="fPnlMom" value="${r?.pnl_mom ?? ''}" placeholder="+/-">
+                <span class="pnl-unit">억</span>
+              </div>
+            </div>
+            <div class="pnl-card">
+              <div class="pnl-label">전년동기대비</div>
+              <div class="pnl-input-wrap">
+                <input type="number" class="pnl-input" id="fPnlYoy" value="${r?.pnl_yoy ?? ''}" placeholder="+/-">
+                <span class="pnl-unit">억</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label"><i class="fas fa-bug"></i> 주요 이슈</label>
+          <div class="issue-list" id="currentIssueList"></div>
+          <button class="btn-add-issue" onclick="addIssue('current')"><i class="fas fa-plus"></i> 이슈 추가</button>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label"><i class="fas fa-binoculars"></i> 향후 이슈 / 예상사항</label>
+          <div class="issue-list" id="futureIssueList"></div>
+          <button class="btn-add-issue" onclick="addIssue('future')"><i class="fas fa-plus"></i> 향후 이슈 추가</button>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label"><i class="fas fa-users"></i> 팀 리뷰 메모</label>
+          <textarea class="form-textarea" id="fTeamMemo" placeholder="팀 리뷰 회의 내용, 액션 아이템 등...">${r?.team_memo || ''}</textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" onclick="cancelEdit()">취소</button>
+        <button class="btn btn-primary" onclick="saveReview()"><i class="fas fa-save"></i> 저장</button>
+      </div>
+    </div>`;
+
+  renderIssueList('current');
+  renderIssueList('future');
+}
+
+function renderIssueList(type) {
+  const arr = type === 'current' ? currentIssues : futureIssues;
+  const listId = type === 'current' ? 'currentIssueList' : 'futureIssueList';
+  const list = document.getElementById(listId);
+  if (!list) return;
+  list.innerHTML = arr.map((iss, i) => `
+    <div class="issue-item">
+      <textarea placeholder="이슈 내용 입력..." oninput="updateIssue('${type}',${i},this.value)">${esc(iss)}</textarea>
+      ${arr.length > 1 ? `<button class="btn-del-issue" onclick="removeIssue('${type}',${i})"><i class="fas fa-times"></i></button>` : ''}
+    </div>`).join('');
+}
+
+function updateIssue(type, idx, val) {
+  if (type === 'current') currentIssues[idx] = val;
+  else futureIssues[idx] = val;
+}
+
+function addIssue(type) {
+  if (type === 'current') currentIssues.push('');
+  else futureIssues.push('');
+  renderIssueList(type);
+}
+
+function removeIssue(type, idx) {
+  if (type === 'current') currentIssues.splice(idx, 1);
+  else futureIssues.splice(idx, 1);
+  renderIssueList(type);
+}
+
+function cancelEdit() {
+  if (currentReview) renderReadView(currentReview);
+  else renderEmptyView();
+}
+
+async function saveReview() {
+  const body = {
+    year: selYear,
+    month: selMonth,
+    special_note:   document.getElementById('fSpecialNote')?.value?.trim() || '',
+    pnl_result:     parseFloat(document.getElementById('fPnlResult')?.value) || null,
+    pnl_mom:        parseFloat(document.getElementById('fPnlMom')?.value) || null,
+    pnl_yoy:        parseFloat(document.getElementById('fPnlYoy')?.value) || null,
+    current_issues: currentIssues.filter(Boolean),
+    future_issues:  futureIssues.filter(Boolean),
+    team_memo:      document.getElementById('fTeamMemo')?.value?.trim() || '',
+    created_by:     currentUser?.full_name || '',
+    updated_at:     Date.now(),
+  };
+  try {
+    let res;
+    if (currentReview) {
+      res = await fetch('/tables/settlement_reviews/' + currentReview.id, {
+        method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+      });
+    } else {
+      res = await fetch('/tables/settlement_reviews', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+      });
+    }
+    if (!res.ok) throw new Error();
+    Portal.showToast('결산 리뷰가 저장되었습니다.', 'success');
+    await loadAllReviews();
+    loadReview();
+  } catch(e) {
+    Portal.showToast('저장에 실패했습니다.', 'error');
+  }
+}
+
+async function loadChkSummary() {
+  try {
+    const res = await fetch('/tables/work_tasks?limit=500');
+    const data = await res.json();
+    const records = (data.rows || []).filter(r =>
+      String(r.year) === String(selYear) && String(r.month) === String(selMonth));
+
+    const GROUPS = ['계약/준비금','모델/가정','부채산출','ETL/데이터','재보험','무브먼트/전송'];
+    const SETTLE_TASKS_BY_GROUP = {
+      '계약/준비금': ['s01','s02','s03','s04','s05','s06','s07','s08'],
+      '모델/가정':   ['s09','s10','s11','s12'],
+      '부채산출':    ['s13','s14','s15','s16','s17','s18'],
+      'ETL/데이터':  ['s19','s20','s21'],
+      '재보험':      ['s22','s23'],
+      '무브먼트/전송':['s24','s25','s26'],
+    };
+
+    // Aggregate all done tasks across records
+    const allDone = new Set();
+    records.forEach(r => (r.settlement_done || []).forEach(id => allDone.add(id)));
+    const totalTasks = 26;
+    const totalDone = allDone.size;
+    const pct = Math.round(totalDone / totalTasks * 100);
+
+    let html = `<div style="font-size:12px;font-weight:600;color:#6b7280;margin-bottom:8px;display:flex;justify-content:space-between;">
+      <span>전체 진행률</span><span style="color:#4f86f7;">${pct}% (${totalDone}/${totalTasks})</span>
+    </div>
+    <div style="height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden;margin-bottom:12px;">
+      <div style="height:100%;background:linear-gradient(90deg,#4f86f7,#6c5ce7);width:${pct}%;border-radius:4px;transition:width .4s;"></div>
+    </div>`;
+
+    html += GROUPS.map(grp => {
+      const ids = SETTLE_TASKS_BY_GROUP[grp] || [];
+      const done = ids.filter(id => allDone.has(id)).length;
+      const gpct = Math.round(done / ids.length * 100);
+      return `<div class="chk-summary-row">
+        <span class="chk-group-name">${grp}</span>
+        <div class="chk-prog-bar-wrap"><div class="chk-prog-bar" style="width:${gpct}%"></div></div>
+        <span class="chk-prog-text">${done}/${ids.length}</span>
+      </div>`;
+    }).join('');
+
+    if (records.length === 0) {
+      html += `<div style="text-align:center;color:#9ca3af;font-size:12px;margin-top:8px;">체크리스트 데이터 없음</div>`;
+    }
+    document.getElementById('chkSummary').innerHTML = html;
+  } catch(e) {
+    document.getElementById('chkSummary').innerHTML = '<div style="color:#9ca3af;font-size:12px;text-align:center;">불러오기 실패</div>';
+  }
+}
+
+// ── 탭 전환 ──────────────────────────────────────────────
+let currentView = 'list';
+
+function switchView(view) {
+  currentView = view;
+  document.getElementById('listView').style.display = view === 'list' ? '' : 'none';
+  document.getElementById('calView').style.display  = view === 'cal'  ? '' : 'none';
+  document.getElementById('tabList').classList.toggle('active', view === 'list');
+  document.getElementById('tabCal').classList.toggle('active',  view === 'cal');
+  if (view === 'cal') renderCalView();
+}
+
+// ── 캘린더뷰 ─────────────────────────────────────────────
+function buildCalYearSelect() {
+  const sel = document.getElementById('yearSelCal');
+  if (sel.options.length) return;
+  [thisYear - 1, thisYear, thisYear + 1].forEach(y => {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y + '년';
+    if (y === thisYear) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+function renderCalView() {
+  buildCalYearSelect();
+  const calYear = parseInt(document.getElementById('yearSelCal').value) || thisYear;
+  const grid = document.getElementById('calGrid');
+  const now = new Date();
+  const nowY = now.getFullYear(), nowM = now.getMonth() + 1;
+
+  const months = Array.from({length: 12}, (_, i) => i + 1);
+  grid.innerHTML = months.map(m => {
+    const rev = allReviews.find(r => Number(r.year) === calYear && Number(r.month) === m);
+    const isCur = (calYear === nowY && m === nowM);
+    const monthNames = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+    if (rev) {
+      const pnlVal = rev.pnl_result != null ? Number(rev.pnl_result) : null;
+      const pnlClass = pnlVal != null ? (pnlVal >= 0 ? 'pos' : 'neg') : '';
+      const pnlText = pnlVal != null ? (pnlVal >= 0 ? '+' : '') + pnlVal.toLocaleString() + '억' : '';
+      const issueCount = Array.isArray(rev.current_issues) ? rev.current_issues.filter(Boolean).length : 0;
+      return `<div class="cal-month has-review${isCur ? ' current-month' : ''}" onclick="goToMonth(${calYear},${m})">
+        <div>
+          <div class="cal-month-label">${monthNames[m-1]}</div>
+          <span class="cal-status-badge written">작성완료</span>
+          ${pnlText ? `<div class="cal-pnl ${pnlClass}">손익 ${pnlText}</div>` : ''}
+          ${issueCount ? `<div class="cal-issue"><i class="fas fa-exclamation-circle"></i> 이슈 ${issueCount}건</div>` : ''}
+        </div>
+        <div class="cal-month-num">${m}</div>
+      </div>`;
+    } else {
+      return `<div class="cal-month no-review${isCur ? ' current-month' : ''}" onclick="goToMonth(${calYear},${m})">
+        <div>
+          <div class="cal-month-label">${monthNames[m-1]}</div>
+          <span class="cal-status-badge empty">미작성</span>
+        </div>
+        <div class="cal-month-num">${m}</div>
+      </div>`;
+    }
+  }).join('');
+}
+
+function goToMonth(year, month) {
+  // 목록뷰로 전환 후 해당 연/월 선택
+  switchView('list');
+  document.getElementById('yearSel').value = year;
+  document.getElementById('monthSel').value = month;
+  selYear = year; selMonth = month;
+  loadReview();
+  loadChkSummary();
+}
+
+// ── 초기화 ────────────────────────────────────────────────
+buildSelects();
+loadAllReviews().then(() => { loadReview(); loadChkSummary(); });
+
+} catch(e) {
+  if (e.message !== 'RBAC_BLOCK') throw e;
+}
+</script>
+</body>
+</html>

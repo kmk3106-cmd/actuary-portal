@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>개인별 업무입력 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
+    .yr-sel, .month-sel, .member-sel {
+      padding:8px 14px; border:1.5px solid #e5e7eb; border-radius:10px;
+      font-size:14px; color:#374151; font-family:inherit; background:#fff; cursor:pointer; }
+
+    .score-bar { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+    .score-card { background:#fff; border-radius:14px; padding:16px 20px; border:1.5px solid #f3f4f6; text-align:center; }
+    .score-card-label { font-size:11px; color:#9ca3af; font-weight:500; margin-bottom:6px; }
+    .score-card-value { font-size:28px; font-weight:800; color:#111827; }
+    .score-card-value.blue   { color:#3b82f6; }
+    .score-card-value.green  { color:#10b981; }
+    .score-card-value.orange { color:#f59e0b; }
+    .score-card-value.purple { color:#7c3aed; }
+
+    .section-card { background:#fff; border-radius:16px; border:1.5px solid #e5e7eb; margin-bottom:24px; overflow:hidden; }
+    .section-header { padding:18px 24px; border-bottom:1px solid #f3f4f6;
+      display:flex; align-items:center; justify-content:space-between; }
+    .section-title { font-size:15px; font-weight:700; color:#111827; display:flex; align-items:center; gap:10px; }
+    .section-icon  { width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:14px; }
+    .icon-green  { background:#dcfce7; color:#166534; }
+    .section-badge { font-size:12px; font-weight:600; padding:3px 10px; border-radius:10px; background:#eff6ff; color:#3b82f6; }
+
+    /* 결산외 업무 행 - 5컬럼 */
+    .other-task-list { padding:0 24px 16px; }
+    .other-task-row {
+      display:grid;
+      grid-template-columns:150px 1fr 70px 80px 36px;
+      gap:8px; align-items:center; margin-bottom:8px;
+    }
+    .other-task-row input, .other-task-row select {
+      padding:8px 10px; border:1.5px solid #e5e7eb; border-radius:8px;
+      font-size:13px; color:#111827; font-family:inherit; background:#fff;
+      transition:border-color .2s; box-sizing:border-box; width:100%; }
+    .other-task-row input:focus, .other-task-row select:focus {
+      outline:none; border-color:#4f86f7; }
+    .col-header {
+      padding:12px 24px 4px;
+      display:grid;
+      grid-template-columns:150px 1fr 70px 80px 36px;
+      gap:8px;
+    }
+    .col-header > div { font-size:11px; font-weight:700; color:#9ca3af; text-transform:uppercase; }
+    .btn-del-row { width:32px; height:32px; border-radius:8px; border:none; background:#fef2f2;
+      color:#ef4444; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0; }
+    .btn-del-row:hover { background:#fee2e2; }
+    .btn-add-row { display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px;
+      border:1.5px dashed #d1d5db; background:transparent; color:#6b7280; font-size:13px;
+      cursor:pointer; transition:all .15s; margin:0 24px 16px; }
+    .btn-add-row:hover { border-color:#4f86f7; color:#4f86f7; background:#eff6ff; }
+
+    .action-row { display:flex; gap:10px; justify-content:flex-end; padding:16px 24px; border-top:1px solid #f3f4f6; }
+
+    /* KPI 성과목표업무 */
+    .kpi-block { border:1.5px solid #e0e7ff; border-radius:12px; padding:14px 18px; margin-bottom:12px; background:#f8faff; }
+    .kpi-block-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:8px; }
+    .kpi-block-title { font-size:13px; font-weight:700; color:#1d4ed8; display:flex; align-items:center; gap:6px; }
+    .kpi-score-wrap { display:flex; align-items:center; gap:6px; }
+    .kpi-score-label { font-size:11px; color:#6b7280; font-weight:500; white-space:nowrap; }
+    .kpi-score-input { width:64px; padding:5px 8px; border:1.5px solid #bfdbfe; border-radius:7px;
+      font-size:13px; font-weight:700; text-align:center; font-family:inherit; }
+    .kpi-score-input:focus { outline:none; border-color:#4f86f7; }
+    .kpi-task-row { display:grid; grid-template-columns:1fr 64px 32px; gap:6px; align-items:center; margin-bottom:5px; }
+    .kpi-task-row input[type="text"] { padding:6px 9px; border:1.5px solid #e5e7eb; border-radius:7px;
+      font-size:12px; font-family:inherit; width:100%; box-sizing:border-box; }
+    .kpi-task-row input[type="number"] { padding:6px 8px; border:1.5px solid #e5e7eb; border-radius:7px;
+      font-size:12px; font-family:inherit; text-align:center; width:100%; box-sizing:border-box; }
+    .kpi-task-row input:focus { outline:none; border-color:#4f86f7; }
+    .btn-add-kpi { display:flex; align-items:center; gap:4px; padding:5px 12px; border-radius:7px;
+      border:1.5px dashed #bfdbfe; background:transparent; color:#3b82f6; font-size:12px;
+      cursor:pointer; transition:all .15s; margin-top:4px; }
+    .btn-add-kpi:hover { border-color:#4f86f7; background:#eff6ff; }
+    .kpi-comment-wrap { padding:12px 0 0; }
+    .btn-reflect { background:linear-gradient(135deg,#4f86f7,#6c5ce7); color:#fff; border:none;
+      padding:10px 24px; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer;
+      display:flex; align-items:center; gap:8px; transition:opacity .2s; }
+    .btn-reflect:hover { opacity:.88; }
+    .btn-save { background:#f3f4f6; color:#374151; border:none;
+      padding:10px 20px; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer;
+      display:flex; align-items:center; gap:8px; transition:background .15s; }
+    .btn-save:hover { background:#e5e7eb; }
+    .btn-cancel { background:#fff; color:#6b7280; border:1.5px solid #e5e7eb;
+      padding:10px 18px; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer;
+      display:flex; align-items:center; gap:8px; transition:all .15s; }
+    .btn-cancel:hover { border-color:#ef4444; color:#ef4444; }
+
+    .history-list { padding:0 24px 20px; }
+    .history-item { display:flex; align-items:center; justify-content:space-between;
+      padding:12px 0; border-bottom:1px solid #f3f4f6; }
+    .history-item:last-child { border-bottom:none; }
+    .history-meta { font-size:13px; color:#374151; font-weight:600; }
+    .history-sub  { font-size:12px; color:#9ca3af; margin-top:2px; }
+    .history-score{ font-size:16px; font-weight:800; color:#3b82f6; }
+    .empty-state  { text-align:center; padding:40px 20px; color:#9ca3af; }
+    .empty-state i { font-size:36px; margin-bottom:12px; display:block; opacity:.4; }
+
+    @media(max-width:900px) {
+      .score-bar { grid-template-columns:1fr 1fr; }
+      .other-task-row { grid-template-columns:130px 1fr 60px 72px 32px; }
+      .col-header    { grid-template-columns:130px 1fr 60px 72px 32px; }
+    }
+    @media(max-width:600px) {
+      .other-task-row { grid-template-columns:1fr 1fr; }
+      .col-header    { display:none; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-tasks"></i> 개인별 업무입력</h1>
+      <div id="addBtnWrap"></div>
+    </header>
+    <main class="content-body">
+
+      <!-- 필터 -->
+      <div class="toolbar">
+        <select class="yr-sel"     id="yearSel"   onchange="onFilterChange()"></select>
+        <select class="month-sel"  id="monthSel"  onchange="onFilterChange()">
+          <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option>
+          <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
+          <option value="7">7월</option><option value="8">8월</option><option value="9">9월</option>
+          <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+        </select>
+        <select class="member-sel" id="memberSel" onchange="onFilterChange()"></select>
+      </div>
+
+      <!-- 점수 요약 -->
+      <div class="score-bar">
+        <div class="score-card">
+          <div class="score-card-label">결산외업무 건수</div>
+          <div class="score-card-value blue" id="otherCount">0건</div>
+        </div>
+        <div class="score-card">
+          <div class="score-card-label">총 소요시간</div>
+          <div class="score-card-value purple" id="totalTime">0분</div>
+        </div>
+        <div class="score-card">
+          <div class="score-card-label">난이도 합계점수</div>
+          <div class="score-card-value orange" id="diffScore">0점</div>
+        </div>
+        <div class="score-card">
+          <div class="score-card-label">시간가중 점수</div>
+          <div class="score-card-value green" id="calcScore">0점</div>
+        </div>
+      </div>
+
+      <!-- 성과목표업무 입력 -->
+      <div class="section-card" id="kpiSection">
+        <div class="section-header">
+          <div class="section-title">
+            <div class="section-icon" style="background:#ede9fe;color:#5b21b6;"><i class="fas fa-star"></i></div>
+            성과목표업무 입력
+          </div>
+          <span class="section-badge" style="background:#ede9fe;color:#5b21b6;" id="kpiBadge">미입력</span>
+        </div>
+
+        <div style="padding:16px 24px 0;">
+          <!-- KPI1 -->
+          <div class="kpi-block" id="kpiBlock_kpi1">
+            <div class="kpi-block-header">
+              <div class="kpi-block-title"><i class="fas fa-robot"></i> KPI1 계리모델AI활용</div>
+              <div class="kpi-score-wrap">
+                <span class="kpi-score-label">자기평가</span>
+                <input type="number" class="kpi-score-input" id="kpiScore_kpi1" min="0" max="100" placeholder="-"
+                  oninput="kpiScores.kpi1=parseInt(this.value)||null;updateKpiBadge()">
+                <span style="font-size:11px;color:#6b7280;">점</span>
+              </div>
+            </div>
+            <div id="kpiList_kpi1"></div>
+            <button class="btn-add-kpi" onclick="addKpiTask('kpi1')"><i class="fas fa-plus"></i> 업무 추가</button>
+          </div>
+
+          <!-- KPI2 -->
+          <div class="kpi-block" id="kpiBlock_kpi2">
+            <div class="kpi-block-header">
+              <div class="kpi-block-title"><i class="fas fa-chart-line"></i> KPI2 재무수치분석</div>
+              <div class="kpi-score-wrap">
+                <span class="kpi-score-label">자기평가</span>
+                <input type="number" class="kpi-score-input" id="kpiScore_kpi2" min="0" max="100" placeholder="-"
+                  oninput="kpiScores.kpi2=parseInt(this.value)||null;updateKpiBadge()">
+                <span style="font-size:11px;color:#6b7280;">점</span>
+              </div>
+            </div>
+            <div id="kpiList_kpi2"></div>
+            <button class="btn-add-kpi" onclick="addKpiTask('kpi2')"><i class="fas fa-plus"></i> 업무 추가</button>
+          </div>
+
+          <!-- KPI3 -->
+          <div class="kpi-block" id="kpiBlock_kpi3">
+            <div class="kpi-block-header">
+              <div class="kpi-block-title"><i class="fas fa-hands-helping"></i> KPI3 계리지원강화</div>
+              <div class="kpi-score-wrap">
+                <span class="kpi-score-label">자기평가</span>
+                <input type="number" class="kpi-score-input" id="kpiScore_kpi3" min="0" max="100" placeholder="-"
+                  oninput="kpiScores.kpi3=parseInt(this.value)||null;updateKpiBadge()">
+                <span style="font-size:11px;color:#6b7280;">점</span>
+              </div>
+            </div>
+            <div id="kpiList_kpi3"></div>
+            <button class="btn-add-kpi" onclick="addKpiTask('kpi3')"><i class="fas fa-plus"></i> 업무 추가</button>
+          </div>
+
+          <!-- 자기평가 총평 -->
+          <div class="kpi-comment-wrap">
+            <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:5px;">자기평가 총평</div>
+            <textarea class="form-control" id="kpiComment" rows="3" placeholder="이번 달 성과 및 기여 내용을 간략히 기술하세요..."
+              style="width:100%;padding:9px 13px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box;"
+              oninput="kpiCommentVal=this.value"></textarea>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button class="btn-cancel" onclick="loadCurrentRecord()">
+            <i class="fas fa-undo"></i> 취소
+          </button>
+          <button class="btn-save" onclick="saveKpiSection()">
+            <i class="fas fa-save"></i> 저장
+          </button>
+          <button class="btn-reflect" onclick="saveKpiSection(true)">
+            <i class="fas fa-sync-alt"></i> 성과관리에 반영
+          </button>
+        </div>
+      </div>
+
+      <!-- 결산외 업무 입력 -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <div class="section-icon icon-green"><i class="fas fa-clipboard-list"></i></div>
+            결산외 업무 입력
+          </div>
+          <span class="section-badge" id="otherBadge">0건</span>
+        </div>
+        <div class="col-header">
+          <div>구분</div>
+          <div>업무 내용</div>
+          <div>난이도(1-5)</div>
+          <div>소요시간(분)</div>
+          <div></div>
+        </div>
+        <div class="other-task-list" id="otherTaskList"></div>
+        <button class="btn-add-row" onclick="addOtherTask()">
+          <i class="fas fa-plus"></i> 항목 추가
+        </button>
+        <div class="action-row">
+          <button class="btn-cancel" onclick="loadCurrentRecord()">
+            <i class="fas fa-undo"></i> 취소
+          </button>
+          <button class="btn-save" onclick="saveWorkTask()">
+            <i class="fas fa-save"></i> 저장
+          </button>
+          <button class="btn-reflect" onclick="reflectToPerformance()">
+            <i class="fas fa-sync-alt"></i> 팀 성과에 반영
+          </button>
+        </div>
+      </div>
+
+      <!-- 입력 이력 -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <div class="section-icon" style="background:#f3e8ff;color:#7c3aed;"><i class="fas fa-history"></i></div>
+            입력 이력
+          </div>
+        </div>
+        <div class="history-list" id="historyList">
+          <div class="empty-state"><i class="fas fa-history"></i>저장된 이력이 없습니다.</div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js"></script>
+<script>
+Portal.init();
+
+
+const OTHER_CATEGORIES = [
+  '보고서 작성','회의/협의','데이터 분석','시스템 작업',
+  'KPI1 관련','KPI2 관련','KPI3 관련','교육/연수',
+  '프로젝트','타부서업무협조','금감원CPC','예보산출','내부통제','외부감사','기타'
+];
+
+const MEMBERS = ['한인석','이동민','이상현','마혜원','예대호','이성원','고인수','김예은','강세진','이용우','오정택','김채린'];
+const thisYear  = new Date().getFullYear();
+const thisMonth = new Date().getMonth() + 1;
+let currentYear   = thisYear;
+let currentMonth  = thisMonth;
+let currentMember = '';
+let otherTasks    = [];
+let allRecords    = [];
+let currentRecordId = null;
+const isLeader   = RBAC.isTeamLeader();
+const currentUser = RBAC.getCurrentUser();
+
+// ── KPI 성과목표업무 ──
+let kpiTasks    = { kpi1:[], kpi2:[], kpi3:[] };
+let kpiScores   = { kpi1:null, kpi2:null, kpi3:null };
+let kpiCommentVal = '';
+
+function updateKpiBadge() {
+  const total = Object.values(kpiTasks).reduce((s,arr)=>s+(arr||[]).filter(t=>t.desc).length,0);
+  const scored = Object.values(kpiScores).filter(v=>v!=null).length;
+  document.getElementById('kpiBadge').textContent =
+    total > 0 || scored > 0 ? `${total}건 / ${scored}개 평가` : '미입력';
+}
+
+function renderKpiSection() {
+  ['kpi1','kpi2','kpi3'].forEach(kId => {
+    const list = document.getElementById('kpiList_' + kId);
+    if (!list) return;
+    const tasks = kpiTasks[kId] || [];
+    if (!tasks.length) {
+      list.innerHTML = '';
+      return;
+    }
+    list.innerHTML = tasks.map((t,i) => `
+      <div class="kpi-task-row">
+        <input type="text" placeholder="업무 내용" value="${esc(t.desc||'')}"
+          oninput="kpiTasks['${kId}'][${i}].desc=this.value;updateKpiBadge()">
+        <input type="number" min="0" max="100" placeholder="달성%" value="${t.pct??''}"
+          oninput="kpiTasks['${kId}'][${i}].pct=parseInt(this.value)||0">
+        <button class="btn-del-row" onclick="removeKpiTask('${kId}',${i})">
+          <i class="fas fa-times"></i></button>
+      </div>`).join('');
+  });
+  updateKpiBadge();
+}
+
+function addKpiTask(kId) {
+  if (!kpiTasks[kId]) kpiTasks[kId] = [];
+  kpiTasks[kId].push({ desc:'', pct:0 });
+  renderKpiSection();
+}
+
+function removeKpiTask(kId, idx) {
+  kpiTasks[kId].splice(idx,1);
+  renderKpiSection();
+}
+
+async function saveKpiSection(pushPerf = false) {
+  const body = {
+    year: currentYear, month: currentMonth, member_name: currentMember,
+    kpi_tasks:   kpiTasks,
+    kpi_scores:  kpiScores,
+    kpi_comment: kpiCommentVal,
+  };
+  try {
+    let res;
+    if (currentRecordId) {
+      res = await fetch('/tables/work_tasks/' + currentRecordId, {
+        method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+      });
+    } else {
+      res = await fetch('/tables/work_tasks', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+      });
+      if (res.ok) { const d = await res.json(); currentRecordId = d.id; }
+    }
+    if (!res.ok) throw new Error();
+    if (pushPerf) await pushKpiToPerf();
+    Portal.showToast(pushPerf ? 'KPI 성과관리에 반영되었습니다.' : '저장되었습니다.', 'success');
+    await loadHistory();
+  } catch(e) { Portal.showToast('저장에 실패했습니다.', 'error'); }
+}
+
+async function pushKpiToPerf() {
+  const perfBody = {
+    year: currentYear, month: currentMonth, target_name: currentMember,
+    score_kpi1:    kpiScores.kpi1,
+    score_kpi2:    kpiScores.kpi2,
+    score_kpi3:    kpiScores.kpi3,
+    self_comment:  kpiCommentVal,
+  };
+  const res = await fetch('/tables/performance_records?limit=500');
+  const data = await res.json();
+  const match = (data.rows||[]).find(r =>
+    r.target_name === currentMember &&
+    String(r.year) === String(currentYear) &&
+    String(r.month) === String(currentMonth));
+  if (match) {
+    await fetch('/tables/performance_records/'+match.id, {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(perfBody)
+    });
+  } else {
+    await fetch('/tables/performance_records', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(perfBody)
+    });
+  }
+}
+
+function buildSelects() {
+  const ySel = document.getElementById('yearSel');
+  [thisYear - 1, thisYear].forEach(y => {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y + '년';
+    if (y === currentYear) o.selected = true;
+    ySel.appendChild(o);
+  });
+  document.getElementById('monthSel').value = currentMonth;
+  const mSel = document.getElementById('memberSel');
+  if (isLeader) {
+    MEMBERS.forEach(name => {
+      const o = document.createElement('option');
+      o.value = name; o.textContent = name;
+      mSel.appendChild(o);
+    });
+    currentMember = MEMBERS[0];
+    mSel.value = currentMember;
+  } else {
+    const name = currentUser?.full_name || '';
+    const o = document.createElement('option');
+    o.value = name; o.textContent = name;
+    mSel.appendChild(o);
+    mSel.disabled = true;
+    currentMember = name;
+  }
+}
+
+function onFilterChange() {
+  currentYear   = parseInt(document.getElementById('yearSel').value);
+  currentMonth  = parseInt(document.getElementById('monthSel').value);
+  currentMember = document.getElementById('memberSel').value;
+  loadCurrentRecord();
+}
+
+function updateScores() {
+  const valid = otherTasks.filter(t => t.desc);
+  const count    = valid.length;
+  const totalMin = valid.reduce((s, t) => s + (parseInt(t.minutes) || 0), 0);
+  const diffSum  = valid.reduce((s, t) => s + (parseInt(t.diff) || 1) * 2, 0);
+  // 시간가중 점수: 난이도점수 + 시간점수(60분=1점, max 30점)
+  const timeScore = Math.min(30, Math.round(totalMin / 60));
+  const calcScore = Math.min(100, diffSum + timeScore);
+
+  document.getElementById('otherCount').textContent  = count + '건';
+  document.getElementById('otherBadge').textContent  = count + '건';
+  document.getElementById('totalTime').textContent   = totalMin + '분';
+  document.getElementById('diffScore').textContent   = diffSum + '점';
+  document.getElementById('calcScore').textContent   = calcScore + '점';
+}
+
+function renderOtherTasks() {
+  const catOptions = OTHER_CATEGORIES.map(c =>
+    `<option value="${c}">${c}</option>`
+  ).join('');
+
+  const container = document.getElementById('otherTaskList');
+  if (otherTasks.length === 0) {
+    container.innerHTML = '<div class="empty-state" style="padding:20px;"><i class="fas fa-plus-circle"></i>항목을 추가해주세요.</div>';
+    updateScores();
+    return;
+  }
+  container.innerHTML = otherTasks.map((t, i) => {
+    const opts = OTHER_CATEGORIES.map(c =>
+      `<option value="${c}"${t.cat === c ? ' selected' : ''}>${c}</option>`
+    ).join('');
+    return `<div class="other-task-row">
+      <select onchange="otherTasks[${i}].cat=this.value;updateScores()">${opts}</select>
+      <input type="text" placeholder="업무 내용 입력" value="${esc(t.desc || '')}"
+        oninput="otherTasks[${i}].desc=this.value;updateScores()">
+      <input type="number" min="1" max="5" placeholder="난이도" value="${t.diff || 3}"
+        oninput="otherTasks[${i}].diff=this.value;updateScores()">
+      <input type="number" min="0" placeholder="분" value="${t.minutes || ''}"
+        oninput="otherTasks[${i}].minutes=this.value;updateScores()">
+      <button class="btn-del-row" onclick="removeOtherTask(${i})"><i class="fas fa-times"></i></button>
+    </div>`;
+  }).join('');
+  updateScores();
+}
+
+function addOtherTask() {
+  otherTasks.push({ cat: OTHER_CATEGORIES[0], desc: '', diff: 3, minutes: 0 });
+  renderOtherTasks();
+}
+
+function removeOtherTask(i) {
+  otherTasks.splice(i, 1);
+  renderOtherTasks();
+}
+
+function esc(str) {
+  return String(str || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function saveWorkTask() {
+  const valid      = otherTasks.filter(t => t.desc);
+  const totalMin   = valid.reduce((s, t) => s + (parseInt(t.minutes) || 0), 0);
+  const diffSum    = valid.reduce((s, t) => s + (parseInt(t.diff) || 1) * 2, 0);
+  const timeScore  = Math.min(30, Math.round(totalMin / 60));
+  const calcScore  = Math.min(100, diffSum + timeScore);
+
+  const body = {
+    year: currentYear,
+    month: currentMonth,
+    member_name: currentMember,
+    other_tasks: valid,
+    total_minutes: totalMin,
+    calc_score: calcScore,
+  };
+  try {
+    let res;
+    if (currentRecordId) {
+      // 기존 레코드에 other_tasks만 업데이트 (settlement 필드 유지)
+      res = await fetch('/tables/work_tasks/' + currentRecordId, {
+        method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+      });
+    } else {
+      res = await fetch('/tables/work_tasks', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      currentRecordId = data.id;
+    }
+    if (!res.ok) throw new Error();
+    Portal.showToast('저장되었습니다.', 'success');
+    await loadHistory();
+  } catch(e) { Portal.showToast('저장에 실패했습니다.', 'error'); }
+}
+
+async function reflectToPerformance() {
+  const valid     = otherTasks.filter(t => t.desc);
+  const totalMin  = valid.reduce((s, t) => s + (parseInt(t.minutes) || 0), 0);
+  const diffSum   = valid.reduce((s, t) => s + (parseInt(t.diff) || 1) * 2, 0);
+  const timeScore = Math.min(30, Math.round(totalMin / 60));
+  const calcScore = Math.min(100, diffSum + timeScore);
+
+  try {
+    const res = await fetch('/tables/performance_records?limit=200');
+    const data = await res.json();
+    const match = (data.rows || []).find(r =>
+      r.target_name === currentMember &&
+      String(r.year) === String(currentYear) &&
+      String(r.month) === String(currentMonth)
+    );
+    if (!match) {
+      Portal.showToast('해당 팀원의 성과 기록이 없습니다. 성과 관리 페이지에서 먼저 기록을 생성해주세요.', 'error');
+      return;
+    }
+    await saveWorkTask();
+    await fetch('/tables/performance_records/' + match.id, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ score_teamleader: calcScore })
+    });
+    Portal.showToast(`${currentMember}의 팀장지시수행 점수가 ${calcScore}점으로 반영되었습니다.`, 'success');
+  } catch(e) { Portal.showToast('반영에 실패했습니다.', 'error'); }
+}
+
+async function loadCurrentRecord() {
+  try {
+    const res  = await fetch('/tables/work_tasks?limit=500');
+    const data = await res.json();
+    allRecords = data.rows || [];
+    const match = allRecords.find(r =>
+      r.member_name === currentMember &&
+      String(r.year) === String(currentYear) &&
+      String(r.month) === String(currentMonth)
+    );
+    if (match) {
+      currentRecordId = match.id;
+      otherTasks = (match.other_tasks || []).map(t => ({
+        cat: t.cat || OTHER_CATEGORIES[0],
+        desc: t.desc || '',
+        diff: t.diff || 3,
+        minutes: t.minutes || 0
+      }));
+      kpiTasks      = match.kpi_tasks   || { kpi1:[], kpi2:[], kpi3:[] };
+      kpiScores     = match.kpi_scores  || { kpi1:null, kpi2:null, kpi3:null };
+      kpiCommentVal = match.kpi_comment || '';
+    } else {
+      currentRecordId = null;
+      otherTasks    = [];
+      kpiTasks      = { kpi1:[], kpi2:[], kpi3:[] };
+      kpiScores     = { kpi1:null, kpi2:null, kpi3:null };
+      kpiCommentVal = '';
+    }
+    // Populate KPI UI
+    document.getElementById('kpiScore_kpi1').value = kpiScores.kpi1 ?? '';
+    document.getElementById('kpiScore_kpi2').value = kpiScores.kpi2 ?? '';
+    document.getElementById('kpiScore_kpi3').value = kpiScores.kpi3 ?? '';
+    document.getElementById('kpiComment').value    = kpiCommentVal;
+    renderKpiSection();
+    renderOtherTasks();
+    loadHistory();
+  } catch(e) {
+    renderOtherTasks();
+  }
+}
+
+async function loadHistory() {
+  try {
+    const res  = await fetch('/tables/work_tasks?limit=500');
+    const data = await res.json();
+    const records = (data.rows || [])
+      .filter(r => r.member_name === currentMember)
+      .sort((a, b) => (b.year * 100 + b.month) - (a.year * 100 + a.month));
+    const container = document.getElementById('historyList');
+    if (!records.length) {
+      container.innerHTML = '<div class="empty-state"><i class="fas fa-history"></i>저장된 이력이 없습니다.</div>';
+      return;
+    }
+    container.innerHTML = records.map(r => {
+      const otherCnt = (r.other_tasks || []).filter(t => t.desc).length;
+      const mins     = r.total_minutes || (r.other_tasks || []).reduce((s, t) => s + (parseInt(t.minutes) || 0), 0);
+      return `<div class="history-item">
+        <div>
+          <div class="history-meta">${r.year}년 ${r.month}월 · ${r.member_name}</div>
+          <div class="history-sub">결산외업무 ${otherCnt}건 · 소요시간 ${mins}분</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="history-score">${r.calc_score || 0}점</div>
+          <div style="font-size:11px;color:#9ca3af;">시간가중점수</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {}
+}
+
+buildSelects();
+loadCurrentRecord();
+</script>
+</body>
+</html>

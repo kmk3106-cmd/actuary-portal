@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>개인 목표 (SMART) - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    .toolbar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:24px; }
+    .toolbar-spacer { flex:1; }
+    .member-tabs { display:flex; gap:8px; flex-wrap:wrap; }
+    .member-tab { padding:7px 16px; border-radius:20px; border:2px solid #e5e7eb; background:#fff;
+      font-size:13px; font-weight:600; color:#6b7280; cursor:pointer; transition:all .2s; }
+    .member-tab.active { border-color:#4f86f7; background:#4f86f7; color:#fff; }
+    .year-sel { padding:8px 14px; border:1.5px solid #e5e7eb; border-radius:10px;
+      font-size:14px; color:#374151; font-family:inherit; background:#fff; cursor:pointer; }
+    /* SMART card */
+    .smart-card { background:#fff; border-radius:16px; box-shadow:0 1px 4px rgba(0,0,0,.06);
+      border:1px solid #f3f4f6; margin-bottom:20px; overflow:hidden; }
+    .smart-card-header { padding:20px 24px 16px; display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid #f3f4f6; }
+    .smart-card-meta { display:flex; flex-direction:column; gap:6px; flex:1; }
+    .smart-card-title-row { display:flex; align-items:center; gap:10px; }
+    .smart-card-num { width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg,#4f86f7,#6c5ce7);
+      color:#fff; font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .smart-card-title { font-size:16px; font-weight:700; color:#111827; line-height:1.4; }
+    .smart-badge-row { display:flex; gap:8px; flex-wrap:wrap; }
+    .badge { font-size:11px; font-weight:600; padding:3px 10px; border-radius:10px; }
+    .badge-owner { background:#eff6ff; color:#3b82f6; }
+    .badge-year { background:#f3f4f6; color:#6b7280; }
+    .badge-status-in_progress { background:#dbeafe; color:#1e40af; }
+    .badge-status-completed { background:#d1fae5; color:#065f46; }
+    .badge-status-delayed { background:#fee2e2; color:#991b1b; }
+    .badge-status-planned { background:#ede9fe; color:#5b21b6; }
+    .smart-actions { display:flex; gap:6px; }
+    .smart-actions button { padding:6px 14px; border-radius:8px; border:none; cursor:pointer;
+      font-size:12px; font-weight:600; transition:background .15s; }
+    .btn-edit-smart { background:#eff6ff; color:#3b82f6; }
+    .btn-edit-smart:hover { background:#dbeafe; }
+    .btn-del-smart { background:#fef2f2; color:#ef4444; }
+    .btn-del-smart:hover { background:#fee2e2; }
+    .smart-body { padding:0 24px; }
+    .smart-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:0; }
+    .smart-cell { padding:16px 12px; border-right:1px solid #f3f4f6; }
+    .smart-cell:last-child { border-right:none; }
+    .smart-cell-label { display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+    .smart-letter { width:22px; height:22px; border-radius:6px; font-size:11px; font-weight:800;
+      display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .letter-s { background:#dbeafe; color:#1d4ed8; }
+    .letter-m { background:#d1fae5; color:#065f46; }
+    .letter-a { background:#fef3c7; color:#92400e; }
+    .letter-r { background:#ede9fe; color:#5b21b6; }
+    .letter-t { background:#fee2e2; color:#991b1b; }
+    .smart-cell-name { font-size:11px; font-weight:600; color:#9ca3af; }
+    .smart-cell-content { font-size:13px; color:#374151; line-height:1.6; }
+    .smart-footer { padding:14px 24px; border-top:1px solid #f3f4f6; background:#fafafa; }
+    .progress-label-row { display:flex; justify-content:space-between; font-size:12px; color:#6b7280; margin-bottom:6px; }
+    .progress-pct { font-weight:700; color:#111827; }
+    .progress-track { height:7px; background:#f3f4f6; border-radius:4px; overflow:hidden; }
+    .progress-fill { height:100%; border-radius:4px; }
+    .fill-completed { background:linear-gradient(90deg,#10b981,#34d399); }
+    .fill-in_progress { background:linear-gradient(90deg,#3b82f6,#60a5fa); }
+    .fill-delayed { background:linear-gradient(90deg,#ef4444,#f87171); }
+    .fill-planned { background:linear-gradient(90deg,#8b5cf6,#a78bfa); }
+    .empty-state { text-align:center; padding:60px 20px; color:#9ca3af; }
+    .empty-state i { font-size:48px; margin-bottom:16px; display:block; opacity:.4; }
+    /* Modal */
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000;
+      align-items:center; justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal-box { background:#fff; border-radius:20px; width:580px; max-width:95vw; max-height:90vh;
+      overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2); }
+    .modal-header { padding:24px 28px 0; display:flex; justify-content:space-between; align-items:center; }
+    .modal-title { font-size:18px; font-weight:700; color:#111827; }
+    .modal-close { width:32px; height:32px; border-radius:8px; border:none; background:#f3f4f6;
+      cursor:pointer; font-size:16px; color:#6b7280; display:flex; align-items:center; justify-content:center; }
+    .modal-body { padding:20px 28px 28px; }
+    .form-group { margin-bottom:16px; }
+    .form-label { font-size:13px; font-weight:600; color:#374151; margin-bottom:6px; display:block; }
+    .form-label small { font-weight:400; color:#9ca3af; margin-left:6px; }
+    .form-input, .form-select, .form-textarea {
+      width:100%; padding:10px 14px; border:1.5px solid #e5e7eb; border-radius:10px;
+      font-size:14px; color:#111827; background:#fff; font-family:inherit;
+      transition:border-color .2s; box-sizing:border-box; }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline:none; border-color:#4f86f7; box-shadow:0 0 0 3px rgba(79,134,247,.1); }
+    .form-textarea { resize:vertical; min-height:72px; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .smart-section-title { font-size:13px; font-weight:700; color:#4f86f7; margin:20px 0 12px;
+      padding-bottom:8px; border-bottom:2px solid #eff6ff; }
+    .range-wrapper { display:flex; align-items:center; gap:12px; }
+    .range-input { flex:1; }
+    .modal-footer { display:flex; justify-content:flex-end; gap:10px; padding-top:8px;
+      border-top:1px solid #f3f4f6; margin-top:8px; }
+    @media (max-width: 900px) {
+      .smart-grid { grid-template-columns:1fr 1fr; }
+    }
+    @media (max-width: 600px) {
+      .smart-grid { grid-template-columns:1fr; }
+      .form-row { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-user-check"></i> 개인 목표 (SMART)</h1>
+      <div id="addBtnWrap"></div>
+    </header>
+    <main class="content-body">
+
+      <div class="toolbar">
+        <select class="year-sel" id="yearSel" onchange="onYearChange()"></select>
+        <div class="member-tabs" id="memberTabs"></div>
+        <div class="toolbar-spacer"></div>
+      </div>
+
+      <div id="goalsContainer">
+        <div class="empty-state"><i class="fas fa-user-check"></i>데이터를 불러오는 중...</div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="smartModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">개인 목표 추가</span>
+      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">연도 *</label>
+          <select class="form-select" id="fYear"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">상태</label>
+          <select class="form-select" id="fStatus">
+            <option value="planned">계획중</option>
+            <option value="in_progress" selected>진행중</option>
+            <option value="completed">완료</option>
+            <option value="delayed">지연</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row" id="targetUserRow" style="display:none">
+        <div class="form-group">
+          <label class="form-label">대상 팀원</label>
+          <input type="text" class="form-input" id="fTargetName" placeholder="팀원 이름">
+        </div>
+        <div class="form-group">
+          <label class="form-label">팀원 ID</label>
+          <input type="text" class="form-input" id="fTargetId" placeholder="예: u_member1">
+        </div>
+      </div>
+      <div class="smart-section-title"><i class="fas fa-star"></i> SMART 목표 설정</div>
+      <div class="form-group">
+        <label class="form-label">S — Specific <small>구체적으로 무엇을 달성할 것인가?</small></label>
+        <textarea class="form-textarea" id="fSpecific" placeholder="예: IFRS17 결산 자동화 스크립트를 작성하여 수작업 항목을 5개 이하로 줄인다."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">M — Measurable <small>어떻게 측정할 것인가?</small></label>
+        <textarea class="form-textarea" id="fMeasurable" placeholder="예: 자동화된 항목 수 / 전체 결산 항목 수 (%), 오류 발생 건수 0건"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">A — Achievable <small>실현 가능한 목표인가?</small></label>
+        <textarea class="form-textarea" id="fAchievable" placeholder="예: Python 기초 교육 2회 수강 후 기존 엑셀 매크로를 참고하여 구현한다."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">R — Relevant <small>팀/조직 목표와 어떻게 연결되는가?</small></label>
+        <textarea class="form-textarea" id="fRelevant" placeholder="예: 팀 목표 '결산 자동화율 80% 달성'에 직접 기여한다."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">T — Time-bound <small>언제까지 달성할 것인가?</small></label>
+        <textarea class="form-textarea" id="fTimeBound" placeholder="예: 2026년 6월 30일까지 1차 배포, 9월 말까지 안정화"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">진행률: <span id="progressDisplay">0</span>%</label>
+        <div class="range-wrapper">
+          <input type="range" class="range-input" id="fProgress" min="0" max="100" step="5" value="0"
+            oninput="document.getElementById('progressDisplay').textContent=this.value">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+        <button class="btn btn-primary" onclick="saveGoal()"><i class="fas fa-save"></i> 저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js"></script>
+<script>
+  Portal.init();
+
+  const thisYear = new Date().getFullYear();
+  let currentYear = thisYear;
+  let selectedMember = 'all';
+  let allGoals = [];
+  const isLeader = RBAC.isTeamLeader();
+  const currentUser = RBAC.getCurrentUser();
+
+  function buildYearSel() {
+    const sel = document.getElementById('yearSel');
+    const fSel = document.getElementById('fYear');
+    [thisYear - 1, thisYear, thisYear + 1].forEach(y => {
+      [sel, fSel].forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = y; opt.textContent = y + '년';
+        if (y === currentYear) opt.selected = true;
+        s.appendChild(opt);
+      });
+    });
+  }
+
+  function onYearChange() {
+    currentYear = parseInt(document.getElementById('yearSel').value);
+    renderGoals();
+  }
+
+  function buildMemberTabs() {
+    const tabs = document.getElementById('memberTabs');
+    if (!isLeader) { tabs.style.display = 'none'; return; }
+    const members = [...new Set(allGoals.map(g => g.target_name || g.target_user_id).filter(Boolean))];
+    tabs.innerHTML = '';
+    const allBtn = document.createElement('button');
+    allBtn.className = 'member-tab' + (selectedMember === 'all' ? ' active' : '');
+    allBtn.textContent = '전체';
+    allBtn.onclick = () => { selectedMember = 'all'; buildMemberTabs(); renderGoals(); };
+    tabs.appendChild(allBtn);
+    members.forEach(name => {
+      const btn = document.createElement('button');
+      btn.className = 'member-tab' + (selectedMember === name ? ' active' : '');
+      btn.textContent = name;
+      btn.onclick = () => { selectedMember = name; buildMemberTabs(); renderGoals(); };
+      tabs.appendChild(btn);
+    });
+  }
+
+  const STATUS_LABEL = { in_progress:'진행중', completed:'완료', delayed:'지연', planned:'계획중' };
+  const SMART_ITEMS = [
+    { key:'specific', letter:'S', name:'Specific', cls:'letter-s' },
+    { key:'measurable', letter:'M', name:'Measurable', cls:'letter-m' },
+    { key:'achievable', letter:'A', name:'Achievable', cls:'letter-a' },
+    { key:'relevant', letter:'R', name:'Relevant', cls:'letter-r' },
+    { key:'time_bound', letter:'T', name:'Time-bound', cls:'letter-t' },
+  ];
+
+  function renderGoals() {
+    const container = document.getElementById('goalsContainer');
+    let goals = allGoals.filter(g => String(g.year) === String(currentYear));
+    if (!isLeader) {
+      goals = goals.filter(g => g.target_user_id === currentUser?.user_id);
+    } else if (selectedMember !== 'all') {
+      goals = goals.filter(g => (g.target_name || g.target_user_id) === selectedMember);
+    }
+    if (!goals.length) {
+      container.innerHTML = '<div class="empty-state"><i class="fas fa-user-check"></i>해당 조건의 목표가 없습니다.</div>';
+      return;
+    }
+    container.innerHTML = goals.map((g, i) => {
+      const pct = g.progress || 0;
+      const fillClass = 'fill-' + (g.status || 'planned');
+      const smartCells = SMART_ITEMS.map(item => `
+        <div class="smart-cell">
+          <div class="smart-cell-label">
+            <span class="smart-letter ${item.cls}">${item.letter}</span>
+            <span class="smart-cell-name">${item.name}</span>
+          </div>
+          <div class="smart-cell-content">${(g[item.key] || '—').replace(/\n/g,'<br>')}</div>
+        </div>`).join('');
+      return `
+      <div class="smart-card">
+        <div class="smart-card-header">
+          <div class="smart-card-meta">
+            <div class="smart-card-title-row">
+              <span class="smart-card-num">${i + 1}</span>
+              <span class="smart-card-title">${g.specific ? g.specific.split('\n')[0].slice(0,60) + (g.specific.length > 60 ? '...' : '') : '(목표 제목 없음)'}</span>
+            </div>
+            <div class="smart-badge-row">
+              <span class="badge badge-owner"><i class="fas fa-user"></i> ${g.target_name || g.target_user_id || '-'}</span>
+              <span class="badge badge-year">${g.year}년</span>
+              <span class="badge badge-status-${g.status || 'planned'}">${STATUS_LABEL[g.status] || '계획중'}</span>
+            </div>
+          </div>
+          ${isLeader ? `<div class="smart-actions">
+            <button class="btn-edit-smart" onclick="openEditModal('${g.id}')"><i class="fas fa-pen"></i> 수정</button>
+            <button class="btn-del-smart" onclick="deleteGoal('${g.id}')"><i class="fas fa-trash"></i></button>
+          </div>` : ''}
+        </div>
+        <div class="smart-body">
+          <div class="smart-grid">${smartCells}</div>
+        </div>
+        <div class="smart-footer">
+          <div class="progress-label-row">
+            <span>진행률</span><span class="progress-pct">${pct}%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill ${fillClass}" style="width:${pct}%"></div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function openAddModal() {
+    document.getElementById('modalTitle').textContent = '개인 목표 추가';
+    document.getElementById('editId').value = '';
+    document.getElementById('fYear').value = currentYear;
+    document.getElementById('fStatus').value = 'in_progress';
+    document.getElementById('fTargetName').value = '';
+    document.getElementById('fTargetId').value = '';
+    document.getElementById('fSpecific').value = '';
+    document.getElementById('fMeasurable').value = '';
+    document.getElementById('fAchievable').value = '';
+    document.getElementById('fRelevant').value = '';
+    document.getElementById('fTimeBound').value = '';
+    document.getElementById('fProgress').value = 0;
+    document.getElementById('progressDisplay').textContent = '0';
+    document.getElementById('targetUserRow').style.display = isLeader ? 'grid' : 'none';
+    document.getElementById('smartModal').classList.add('open');
+  }
+
+  function openEditModal(id) {
+    const g = allGoals.find(x => x.id === id);
+    if (!g) return;
+    document.getElementById('modalTitle').textContent = '개인 목표 수정';
+    document.getElementById('editId').value = id;
+    document.getElementById('fYear').value = g.year || currentYear;
+    document.getElementById('fStatus').value = g.status || 'in_progress';
+    document.getElementById('fTargetName').value = g.target_name || '';
+    document.getElementById('fTargetId').value = g.target_user_id || '';
+    document.getElementById('fSpecific').value = g.specific || '';
+    document.getElementById('fMeasurable').value = g.measurable || '';
+    document.getElementById('fAchievable').value = g.achievable || '';
+    document.getElementById('fRelevant').value = g.relevant || '';
+    document.getElementById('fTimeBound').value = g.time_bound || '';
+    document.getElementById('fProgress').value = g.progress || 0;
+    document.getElementById('progressDisplay').textContent = g.progress || 0;
+    document.getElementById('targetUserRow').style.display = isLeader ? 'grid' : 'none';
+    document.getElementById('smartModal').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('smartModal').classList.remove('open');
+  }
+
+  async function saveGoal() {
+    const specific = document.getElementById('fSpecific').value.trim();
+    if (!specific) { showToast('S(Specific) 목표를 입력하세요', 'error'); return; }
+    const id = document.getElementById('editId').value;
+    const body = {
+      year: parseInt(document.getElementById('fYear').value),
+      status: document.getElementById('fStatus').value,
+      target_user_id: isLeader ? document.getElementById('fTargetId').value.trim() : currentUser?.user_id,
+      target_name: isLeader ? document.getElementById('fTargetName').value.trim() : currentUser?.full_name,
+      specific,
+      measurable: document.getElementById('fMeasurable').value.trim(),
+      achievable: document.getElementById('fAchievable').value.trim(),
+      relevant: document.getElementById('fRelevant').value.trim(),
+      time_bound: document.getElementById('fTimeBound').value.trim(),
+      progress: parseInt(document.getElementById('fProgress').value),
+      created_by: currentUser?.user_id
+    };
+    try {
+      let res;
+      if (id) {
+        res = await fetch('/tables/individual_goals/' + id, {
+          method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+        });
+      } else {
+        res = await fetch('/tables/individual_goals', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+        });
+      }
+      if (!res.ok) throw new Error();
+      closeModal();
+      showToast(id ? '목표가 수정되었습니다.' : '목표가 추가되었습니다.', 'success');
+      await loadGoals();
+    } catch(e) {
+      showToast('저장에 실패했습니다.', 'error');
+    }
+  }
+
+  async function deleteGoal(id) {
+    Portal.confirm('이 목표를 삭제하시겠습니까?', async () => {
+      try {
+        await fetch('/tables/individual_goals/' + id, { method:'DELETE' });
+        showToast('삭제되었습니다.', 'success');
+        await loadGoals();
+      } catch(e) {
+        showToast('삭제 실패', 'error');
+      }
+    });
+  }
+
+  async function loadGoals() {
+    try {
+      const res = await fetch('/tables/individual_goals');
+      const data = await res.json();
+      allGoals = data.rows || data.data || [];
+      buildMemberTabs();
+      renderGoals();
+    } catch(e) {
+      document.getElementById('goalsContainer').innerHTML =
+        '<div class="empty-state"><i class="fas fa-exclamation-circle"></i>데이터를 불러오지 못했습니다.</div>';
+    }
+  }
+
+  if (isLeader) {
+    document.getElementById('addBtnWrap').innerHTML =
+      '<button class="btn btn-primary" onclick="openAddModal()"><i class="fas fa-plus"></i> 목표 추가</button>';
+  }
+
+  document.getElementById('smartModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('smartModal')) closeModal();
+  });
+
+  buildYearSel();
+  loadGoals();
+</script>
+</body>
+</html>

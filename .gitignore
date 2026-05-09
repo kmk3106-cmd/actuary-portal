@@ -1,0 +1,37 @@
+# 환경변수 / 인증정보
+bot/.env
+.env
+
+# 데이터베이스 / 런타임 데이터
+bot/data/actuarial.db
+server/data/portal-db.json
+server/data/bot-heartbeat.json
+
+# 로그
+bot/logs/
+bot/data/bot.log
+server.log
+server.err
+
+# Python 캐시
+__pycache__/
+*.py[cod]
+*.pyo
+
+# 임시 Office 잠금 파일
+~$*
+
+# Excel 데이터 파일 (개인정보 포함)
+*.xlsx
+
+# 사용자 데이터 스냅샷
+users_new.json
+
+# Node 모듈
+node_modules/
+
+# Claude 세션 파일 (CLAUDE.md / settings 는 유지)
+.claude/*
+!.claude/CLAUDE.md
+!.claude/settings.json
+!.claude/settings.local.json

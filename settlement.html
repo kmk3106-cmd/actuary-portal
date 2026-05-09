@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>결산 캘린더 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    /* Layout */
+    .cal-wrapper { display:grid; grid-template-columns:1fr 300px; gap:24px; align-items:start; }
+    @media(max-width:1100px){ .cal-wrapper{grid-template-columns:1fr;} }
+
+    /* Toolbar */
+    .cal-toolbar { display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+    .month-nav { display:flex; align-items:center; gap:8px; }
+    .nav-btn { width:36px; height:36px; border-radius:10px; border:1.5px solid #e5e7eb; background:#fff;
+      cursor:pointer; font-size:14px; color:#374151; display:flex; align-items:center; justify-content:center;
+      transition:all .2s; }
+    .nav-btn:hover { border-color:#4f86f7; color:#4f86f7; }
+    .month-label { font-size:20px; font-weight:800; color:#111827; min-width:120px; text-align:center; }
+    .today-btn { padding:7px 14px; border-radius:10px; border:1.5px solid #e5e7eb; background:#fff;
+      font-size:13px; font-weight:600; color:#374151; cursor:pointer; transition:all .2s; }
+    .today-btn:hover { border-color:#4f86f7; color:#4f86f7; }
+    .toolbar-spacer { flex:1; }
+
+    /* Category filter */
+    .cat-filters { display:flex; gap:6px; flex-wrap:wrap; }
+    .cat-chip { display:flex; align-items:center; gap:5px; padding:5px 12px; border-radius:16px;
+      border:2px solid transparent; font-size:12px; font-weight:600; cursor:pointer;
+      transition:all .2s; opacity:.5; }
+    .cat-chip.active { opacity:1; }
+    .cat-dot { width:8px; height:8px; border-radius:50%; }
+    .cat-공시이율 { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+    .cat-공시이율 .cat-dot { background:#3b82f6; }
+    .cat-가정 { background:#f0fdf4; color:#166534; border-color:#bbf7d0; }
+    .cat-가정 .cat-dot { background:#22c55e; }
+    .cat-모델 { background:#fff7ed; color:#9a3412; border-color:#fed7aa; }
+    .cat-모델 .cat-dot { background:#f97316; }
+    .cat-검증 { background:#faf5ff; color:#6b21a8; border-color:#e9d5ff; }
+    .cat-검증 .cat-dot { background:#a855f7; }
+    .cat-보고 { background:#fef2f2; color:#991b1b; border-color:#fecaca; }
+    .cat-보고 .cat-dot { background:#ef4444; }
+    .cat-기타 { background:#f9fafb; color:#374151; border-color:#e5e7eb; }
+    .cat-기타 .cat-dot { background:#9ca3af; }
+
+    /* Calendar grid */
+    .cal-grid { background:#fff; border-radius:16px; box-shadow:0 1px 4px rgba(0,0,0,.06);
+      border:1px solid #f3f4f6; overflow:hidden; }
+    .cal-weekdays { display:grid; grid-template-columns:repeat(7,1fr);
+      background:#f8faff; border-bottom:1px solid #f3f4f6; }
+    .cal-weekday { padding:10px 0; text-align:center; font-size:12px; font-weight:700; color:#6b7280; }
+    .cal-weekday:first-child { color:#ef4444; }
+    .cal-weekday:last-child { color:#3b82f6; }
+    .cal-days { display:grid; grid-template-columns:repeat(7,1fr); }
+    .cal-day { min-height:100px; border-right:1px solid #f3f4f6; border-bottom:1px solid #f3f4f6;
+      padding:8px 6px; cursor:pointer; transition:background .15s; position:relative; }
+    .cal-day:hover { background:#f8faff; }
+    .cal-day:nth-child(7n) { border-right:none; }
+    .cal-day.other-month { background:#fafafa; }
+    .cal-day.today { background:#f0f6ff; }
+    .cal-day.today .day-num { background:#4f86f7; color:#fff; border-radius:50%; }
+    .cal-day.sunday .day-num { color:#ef4444; }
+    .cal-day.saturday .day-num { color:#3b82f6; }
+    .day-num { width:24px; height:24px; display:flex; align-items:center; justify-content:center;
+      font-size:13px; font-weight:600; color:#374151; margin-bottom:4px; }
+    .day-num.other { color:#d1d5db; }
+    .day-tasks { display:flex; flex-direction:column; gap:2px; }
+    .day-task-chip { font-size:11px; font-weight:600; padding:2px 6px; border-radius:4px;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.5; cursor:pointer; }
+    .day-task-chip:hover { filter:brightness(.92); }
+    .chip-공시이율 { background:#dbeafe; color:#1e40af; }
+    .chip-가정 { background:#dcfce7; color:#166534; }
+    .chip-모델 { background:#ffedd5; color:#9a3412; }
+    .chip-검증 { background:#f3e8ff; color:#6b21a8; }
+    .chip-보고 { background:#fee2e2; color:#991b1b; }
+    .chip-기타 { background:#f3f4f6; color:#374151; }
+    .chip-done { opacity:.55; text-decoration:line-through; }
+    .chip-delayed { outline:2px solid #ef4444; outline-offset:-1px; }
+    .chip-마감 { background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; }
+    .chip-조기완료 { background:#dbeafe; color:#1e40af; }
+    .chip-기한준수 { background:#dcfce7; color:#166534; }
+    .chip-지연완료 { background:#fee2e2; color:#991b1b; outline:2px solid #ef4444; outline-offset:-1px; }
+    .more-tasks { font-size:10px; color:#9ca3af; font-weight:600; padding:1px 4px; }
+
+    /* Sidebar panel */
+    .sidebar-panel { background:#fff; border-radius:16px; box-shadow:0 1px 4px rgba(0,0,0,.06);
+      border:1px solid #f3f4f6; overflow:hidden; }
+    .panel-header { padding:18px 20px; border-bottom:1px solid #f3f4f6;
+      display:flex; justify-content:space-between; align-items:center; }
+    .panel-title { font-size:15px; font-weight:700; color:#111827; }
+    .panel-date { font-size:13px; color:#6b7280; }
+    .panel-body { padding:16px 20px; max-height:500px; overflow-y:auto; }
+    .panel-task-item { padding:12px; border-radius:10px; background:#f9fafb; margin-bottom:10px;
+      border-left:3px solid #e5e7eb; transition:all .2s; }
+    .panel-task-item:hover { background:#f3f4f6; }
+    .panel-task-cat { font-size:11px; font-weight:700; margin-bottom:4px; }
+    .panel-task-title { font-size:14px; font-weight:600; color:#111827; margin-bottom:6px; }
+    .panel-task-row { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px; }
+    .panel-task-assignee { font-size:12px; color:#6b7280; }
+    .status-badge { font-size:11px; font-weight:600; padding:2px 8px; border-radius:8px; }
+    .st-completed { background:#d1fae5; color:#065f46; }
+    .st-in_progress { background:#dbeafe; color:#1e40af; }
+    .st-planned { background:#f3f4f6; color:#6b7280; }
+    .st-delayed { background:#fee2e2; color:#991b1b; }
+    .panel-task-actions { display:flex; gap:6px; margin-top:8px; }
+    .panel-task-actions button { padding:4px 10px; border-radius:6px; border:none; cursor:pointer;
+      font-size:11px; font-weight:600; }
+    .btn-edit-task { background:#eff6ff; color:#3b82f6; }
+    .btn-done-task { background:#d1fae5; color:#065f46; }
+    .btn-del-task { background:#fef2f2; color:#ef4444; }
+    .panel-empty { text-align:center; padding:32px 0; color:#d1d5db; font-size:13px; }
+
+    /* Checklist calendar chips */
+    .chip-chkl-완   { background:#d1fae5 !important; color:#065f46 !important; font-weight:700; }
+    .chip-chkl-개선 { background:#dbeafe !important; color:#1e40af !important; font-weight:700; }
+    .chip-chkl-지연 { background:#fee2e2 !important; color:#991b1b !important; font-weight:700; }
+    .panel-chkl-section { margin-bottom:12px; }
+    .panel-chkl-title { font-size:11px; font-weight:700; color:#7c3aed; margin-bottom:6px;
+      display:flex; align-items:center; gap:6px; }
+    .panel-chkl-item { display:flex; align-items:center; justify-content:space-between;
+      padding:5px 10px; border-radius:8px; margin-bottom:4px; font-size:12px; }
+    .panel-chkl-item.st-완   { background:#d1fae5; color:#065f46; }
+    .panel-chkl-item.st-개선 { background:#dbeafe; color:#1e40af; }
+    .panel-chkl-item.st-지연 { background:#fee2e2; color:#991b1b; }
+
+    /* Checklist section */
+    .settle-chk { margin-top:32px; background:#fff; border-radius:16px; border:1.5px solid #e5e7eb; overflow:hidden; }
+    .settle-chk-header { padding:18px 24px; border-bottom:1px solid #f3f4f6;
+      display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+    .settle-chk-title { font-size:16px; font-weight:800; color:#111827; display:flex; align-items:center; gap:10px; }
+    .chk-selects { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .chk-sel { padding:7px 12px; border:1.5px solid #e5e7eb; border-radius:10px;
+      font-size:13px; color:#374151; font-family:inherit; background:#fff; cursor:pointer; }
+
+    .chk-progress-outer { height:10px; background:#f3f4f6; border-radius:5px; margin:0 24px 0; overflow:hidden; }
+    .chk-progress-fill  { height:100%; background:linear-gradient(90deg,#4f86f7,#6c5ce7); border-radius:5px; transition:width .4s ease; }
+
+    .chk-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; padding:16px 24px 12px; }
+    .chk-stat  { background:#f8faff; border-radius:10px; padding:12px 16px; text-align:center; }
+    .chk-stat-label { font-size:11px; color:#9ca3af; font-weight:500; margin-bottom:4px; }
+    .chk-stat-val { font-size:20px; font-weight:800; }
+
+    .chk-group { border-top:1px solid #f3f4f6; }
+    .chk-group-header { padding:10px 24px; background:#f8faff; font-size:12px; font-weight:700;
+      color:#6b7280; display:flex; align-items:center; gap:8px; }
+    .chk-task-row { display:grid; grid-template-columns:auto 1fr 75px 100px 56px;
+      gap:10px; align-items:center; padding:10px 24px; border-bottom:1px solid #f3f4f6; }
+    .chk-task-row:last-child { border-bottom:none; }
+    .chk-task-row:hover { background:#f9fafb; }
+    .chk-checkbox { width:18px; height:18px; cursor:pointer; accent-color:#4f86f7; flex-shrink:0; }
+    .chk-label { font-size:13px; color:#374151; font-weight:500; }
+    .chk-label.done { color:#9ca3af; text-decoration:line-through; }
+    .chk-min-input { padding:6px 10px; border:1.5px solid #e5e7eb; border-radius:8px;
+      font-size:13px; color:#111827; font-family:inherit; width:100%; box-sizing:border-box;
+      transition:border-color .2s; text-align:center; }
+    .chk-min-input:focus { outline:none; border-color:#4f86f7; }
+    .chk-date-input { padding:5px 8px; border:1.5px solid #e5e7eb; border-radius:8px; font-size:12px; font-family:inherit; width:100%; box-sizing:border-box; }
+    .chk-date-input:focus { outline:none; border-color:#4f86f7; }
+    .chk-st { font-size:10px; font-weight:700; padding:2px 5px; border-radius:5px; text-align:center; white-space:nowrap; display:block; }
+    .chk-st-조기 { background:#dbeafe; color:#1e40af; }
+    .chk-st-준수 { background:#dcfce7; color:#166534; }
+    .chk-st-지연 { background:#fee2e2; color:#991b1b; }
+    .chk-st-미완 { background:#f3f4f6; color:#9ca3af; }
+    .chk-action-row { padding:16px 24px; border-top:1px solid #f3f4f6; display:flex; justify-content:flex-end; gap:10px; }
+
+    @media(max-width:600px){
+      .chk-stats { grid-template-columns:1fr 1fr; }
+      .chk-task-row { grid-template-columns:auto 1fr 60px 80px 50px; gap:6px; padding:10px 14px; }
+      .settle-chk-header { padding:14px 16px; }
+      .chk-progress-outer { margin:0 16px; }
+      .chk-stats { padding:12px 16px 8px; }
+      .chk-group-header { padding:8px 16px; }
+    }
+
+    /* Stats strip */
+    .stats-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+    .stat-mini { background:#fff; border-radius:12px; padding:14px 16px; border:1px solid #f3f4f6;
+      box-shadow:0 1px 4px rgba(0,0,0,.04); }
+    .stat-mini-label { font-size:11px; color:#9ca3af; font-weight:500; margin-bottom:4px; }
+    .stat-mini-val { font-size:22px; font-weight:800; }
+    .val-total { color:#374151; }
+    .val-prog { color:#3b82f6; }
+    .val-done { color:#10b981; }
+    .val-late { color:#ef4444; }
+
+    /* Modal — settlement modal uses same show/hide as main.css (.show class) */
+    .modal-box { /* box styles below */ }
+    .modal-box { background:#fff; border-radius:20px; width:500px; max-width:95vw; max-height:90vh;
+      overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2); }
+    .modal-header { padding:24px 28px 0; display:flex; justify-content:space-between; align-items:center; }
+    .modal-title { font-size:18px; font-weight:700; color:#111827; }
+    .modal-close { width:32px; height:32px; border-radius:8px; border:none; background:#f3f4f6;
+      cursor:pointer; font-size:16px; color:#6b7280; display:flex; align-items:center; justify-content:center; }
+    .modal-body { padding:20px 28px 28px; }
+    .form-group { margin-bottom:16px; }
+    .form-label { font-size:13px; font-weight:600; color:#374151; margin-bottom:6px; display:block; }
+    .form-input, .form-select, .form-textarea {
+      width:100%; padding:10px 14px; border:1.5px solid #e5e7eb; border-radius:10px;
+      font-size:14px; color:#111827; background:#fff; font-family:inherit;
+      transition:border-color .2s; box-sizing:border-box; }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline:none; border-color:#4f86f7; box-shadow:0 0 0 3px rgba(79,134,247,.1); }
+    .form-textarea { resize:vertical; min-height:72px; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .modal-footer { display:flex; justify-content:flex-end; gap:10px; padding-top:8px;
+      border-top:1px solid #f3f4f6; margin-top:8px; }
+    @media(max-width:600px){
+      .stats-strip { grid-template-columns:1fr 1fr; }
+      .form-row { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-calendar-alt"></i> 결산 캘린더</h1>
+      <div id="addBtnWrap"></div>
+    </header>
+    <main class="content-body">
+
+      <div class="stats-strip">
+        <div class="stat-mini"><div class="stat-mini-label">이번달 전체</div><div class="stat-mini-val val-total" id="stTotal">0</div></div>
+        <div class="stat-mini"><div class="stat-mini-label">진행중</div><div class="stat-mini-val val-prog" id="stProg">0</div></div>
+        <div class="stat-mini"><div class="stat-mini-label">완료</div><div class="stat-mini-val val-done" id="stDone">0</div></div>
+        <div class="stat-mini"><div class="stat-mini-label">지연</div><div class="stat-mini-val val-late" id="stLate">0</div></div>
+      </div>
+
+      <div class="cal-toolbar">
+        <div class="month-nav">
+          <button class="nav-btn" onclick="changeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
+          <span class="month-label" id="monthLabel"></span>
+          <button class="nav-btn" onclick="changeMonth(1)"><i class="fas fa-chevron-right"></i></button>
+        </div>
+        <button class="today-btn" onclick="goToday()">오늘</button>
+        <div class="toolbar-spacer"></div>
+        <div class="cat-filters" id="catFilters"></div>
+      </div>
+
+      <div class="cal-wrapper">
+        <div>
+          <div class="cal-grid">
+            <div class="cal-weekdays">
+              <div class="cal-weekday">일</div>
+              <div class="cal-weekday">월</div>
+              <div class="cal-weekday">화</div>
+              <div class="cal-weekday">수</div>
+              <div class="cal-weekday">목</div>
+              <div class="cal-weekday">금</div>
+              <div class="cal-weekday">토</div>
+            </div>
+            <div class="cal-days" id="calDays"></div>
+          </div>
+        </div>
+        <div class="sidebar-panel">
+          <div class="panel-header">
+            <span class="panel-title" id="panelTitle">날짜 선택</span>
+            <span class="panel-date" id="panelDateLabel"></span>
+          </div>
+          <div class="panel-body" id="panelBody">
+            <div class="panel-empty"><i class="fas fa-mouse-pointer" style="font-size:24px;display:block;margin-bottom:8px;"></i>캘린더에서 날짜를 클릭하세요</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 결산업무 체크리스트 -->
+      <div class="settle-chk">
+        <div class="settle-chk-header">
+          <div class="settle-chk-title">
+            <i class="fas fa-clipboard-check" style="color:#4f86f7"></i>
+            결산업무 체크리스트
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <div class="chk-selects" id="chkSelWrap"></div>
+            <button class="btn btn-primary" onclick="saveChecklist()"><i class="fas fa-save"></i> 저장</button>
+          </div>
+        </div>
+
+        <div class="chk-stats" id="chkStats">
+          <div class="chk-stat"><div class="chk-stat-label">완료율</div><div class="chk-stat-val" id="chkPct" style="color:#4f86f7">0%</div></div>
+          <div class="chk-stat"><div class="chk-stat-label">완료항목수</div><div class="chk-stat-val" id="chkDoneCount" style="color:#10b981">0 / 26</div></div>
+          <div class="chk-stat"><div class="chk-stat-label">총 소요시간</div><div class="chk-stat-val" id="chkTotalMin" style="color:#f59e0b">0분</div></div>
+        </div>
+        <div class="chk-progress-outer"><div class="chk-progress-fill" id="chkProgressFill" style="width:0%"></div></div>
+
+        <div id="chkTaskList" style="margin-top:8px"></div>
+
+        <div class="chk-action-row">
+          <button class="btn btn-secondary" onclick="cancelChecklist()"><i class="fas fa-times-circle"></i> 취소</button>
+          <button class="btn btn-secondary" onclick="resetChecklist()"><i class="fas fa-undo"></i> 초기화</button>
+          <button class="btn btn-primary" onclick="saveChecklist()"><i class="fas fa-save"></i> 저장</button>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="taskModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">일정 추가</span>
+      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-group">
+        <label class="form-label">업무명 *</label>
+        <input type="text" class="form-input" id="fTask" placeholder="예: 공시이율 확인 및 시스템 입력">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">날짜 *</label>
+          <input type="date" class="form-input" id="fDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">카테고리</label>
+          <select class="form-select" id="fCategory">
+            <option value="공시이율">공시이율</option>
+            <option value="가정">가정</option>
+            <option value="모델">모델</option>
+            <option value="검증">검증</option>
+            <option value="보고">보고</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">상태</label>
+          <select class="form-select" id="fStatus">
+            <option value="planned">예정</option>
+            <option value="in_progress">진행중</option>
+            <option value="completed">완료</option>
+            <option value="delayed">지연</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">담당자</label>
+          <input type="text" class="form-input" id="fAssignee" placeholder="예: 김팀장">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">메모</label>
+        <textarea class="form-textarea" id="fNote" placeholder="추가 설명이 있으면 입력하세요"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+        <button id="modalDelBtn" class="btn btn-danger" style="display:none;margin-right:auto" onclick="deleteModalTask()"><i class="fas fa-trash"></i> 삭제</button>
+        <button class="btn btn-primary" onclick="saveTask()"><i class="fas fa-save"></i> 저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js"></script>
+<script>
+  Portal.init();
+
+  const CATS = ['공시이율','가정','모델','검증','보고','기타'];
+  const STATUS_LABEL = { planned:'예정', in_progress:'진행중', completed:'완료', delayed:'지연' };
+  const CAT_COLORS = {
+    '공시이율':'#3b82f6','가정':'#22c55e','모델':'#f97316','검증':'#a855f7','보고':'#ef4444','기타':'#9ca3af'
+  };
+
+  let currentYear, currentMonth, allTasks = [], activeCats = new Set(CATS), selectedDate = null;
+  const isLeader = RBAC.isTeamLeader();
+  const currentUser = RBAC.getCurrentUser();
+
+  const today = new Date();
+  currentYear = today.getFullYear();
+  currentMonth = today.getMonth(); // 0-indexed
+
+  // ========== 결산 D+N 영업일 스케줄 ==========
+  const SETTLE_SCHEDULE = [
+    { id:'s01', label:'계리계약 마감',                     due:5  },
+    { id:'s02', label:'지급준비금 마감',                   due:7  },
+    { id:'s03', label:'준비금 마감',                       due:8  },
+    { id:'s04', label:'보험료분해 마감',                   due:10 },
+    { id:'s05', label:'재보험 마감 (출재/청구)',           due:12 },
+    { id:'s06', label:'보증준비금 마감',                   due:13 },
+    { id:'s07', label:'결산 모델 배포',                    due:1  },
+    { id:'s08', label:'계리모델 입력데이터 준비',          due:8  },
+    { id:'s09', label:'경제적 가정 산출',                  due:7  },
+    { id:'s10', label:'최초/후속 모델포인트 생성',         due:9  },
+    { id:'s11', label:'최초인식 보험부채 산출',            due:9  },
+    { id:'s12', label:'후속측정 보험부채 산출',            due:12 },
+    { id:'s13', label:'사업비 배부',                       due:12 },
+    { id:'s14', label:'최초인식대상계약 확정',             due:9  },
+    { id:'s15', label:'결산대상계약 확정',                 due:10 },
+    { id:'s16', label:'가중평균할인율 산출',               due:10 },
+    { id:'s17', label:'BEL/RA data 입수 및 계약그룹 작업', due:12 },
+    { id:'s18', label:'결산대상계약 및 실제CF 이관 (ETL)', due:12 },
+    { id:'s19', label:'실제CF Data 이관 (ETL)',            due:13 },
+    { id:'s20', label:'가중평균할인율 산출 (재보험)',      due:14 },
+    { id:'s21', label:'BEL/RA data 입수 (재보험)',         due:15 },
+    { id:'s22', label:'부채결산 무브먼트',                 due:15 },
+    { id:'s23', label:'부채결산 무브먼트 (재보험)',        due:15 },
+    { id:'s24', label:'회계팀 결산Data 전송',              due:15 },
+  ];
+
+  const KR_HOLIDAYS = new Set([
+    // ── 2025년 ──────────────────────────────────────────────────────────
+    '2025-01-01',                                        // 신정
+    '2025-01-28','2025-01-29','2025-01-30',              // 설날 연휴
+    '2025-03-01',                                        // 삼일절 (토, 대체공휴일 없음)
+    '2025-05-01',                                        // 근로자의날
+    '2025-05-05',                                        // 어린이날 (석가탄신일 겹침)
+    '2025-05-06',                                        // 어린이날/석가탄신일 대체공휴일
+    '2025-06-06',                                        // 현충일
+    '2025-08-15',                                        // 광복절
+    '2025-10-03',                                        // 개천절
+    '2025-10-05','2025-10-06','2025-10-07',              // 추석 연휴
+    '2025-10-08',                                        // 추석 대체공휴일 (10/5 일요일)
+    '2025-10-09',                                        // 한글날
+    '2025-12-25',                                        // 크리스마스
+
+    // ── 2026년 ──────────────────────────────────────────────────────────
+    '2026-01-01',                                        // 신정
+    '2026-02-16','2026-02-17','2026-02-18',              // 설날 연휴
+    '2026-03-01',                                        // 삼일절 (일요일)
+    '2026-03-02',                                        // 삼일절 대체공휴일
+    '2026-05-01',                                        // 근로자의날
+    '2026-05-05',                                        // 어린이날
+    '2026-05-24',                                        // 석가탄신일 (일요일)
+    '2026-05-25',                                        // 석가탄신일 대체공휴일
+    '2026-06-06',                                        // 현충일 (토, 대체공휴일 없음)
+    '2026-08-15',                                        // 광복절 (토, 대체공휴일 없음)
+    '2026-09-24','2026-09-25','2026-09-26',              // 추석 연휴
+    '2026-09-28',                                        // 추석 대체공휴일 (9/26 토요일)
+    '2026-10-03',                                        // 개천절 (토, 대체공휴일 없음)
+    '2026-10-09',                                        // 한글날
+    '2026-12-25',                                        // 크리스마스
+
+    // ── 2027년 ──────────────────────────────────────────────────────────
+    '2027-01-01',                                        // 신정
+    '2027-01-25','2027-01-26','2027-01-27',              // 설날 연휴
+    '2027-03-01',                                        // 삼일절
+    '2027-05-01',                                        // 근로자의날 (토요일)
+    '2027-05-05',                                        // 어린이날
+    '2027-05-13',                                        // 석가탄신일
+    '2027-06-06',                                        // 현충일 (일요일)
+    '2027-06-07',                                        // 현충일 대체공휴일
+    '2027-08-15',                                        // 광복절 (일요일)
+    '2027-08-16',                                        // 광복절 대체공휴일
+    '2027-10-03',                                        // 개천절 (일요일)
+    '2027-10-04',                                        // 개천절 대체공휴일
+    '2027-10-09',                                        // 한글날 (토, 대체공휴일 없음)
+    '2027-10-14','2027-10-15','2027-10-16',              // 추석 연휴
+    '2027-10-18',                                        // 추석 대체공휴일 (10/16 토요일)
+    '2027-12-25',                                        // 크리스마스 (토, 대체공휴일 없음)
+  ]);
+
+  function isBusinessDay(ds) {
+    const d = new Date(ds + 'T00:00:00');
+    const dow = d.getDay();
+    return dow !== 0 && dow !== 6 && !KR_HOLIDAYS.has(ds);
+  }
+
+  function getNthBizDay(year, month, n) {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    let count = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const ds = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      if (isBusinessDay(ds) && ++count === n) return ds;
+    }
+    return null;
+  }
+
+  function getBizDayNum(year, month, ds) {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    let count = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const s = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      if (isBusinessDay(s)) {
+        count++;
+        if (s === ds) return count;
+      }
+      if (s > ds) break;
+    }
+    return null;
+  }
+
+  function buildScheduleDueDates(year, month) {
+    const map = {};
+    SETTLE_SCHEDULE.forEach(t => {
+      const ds = getNthBizDay(year, month, t.due);
+      if (ds) { (map[ds] = map[ds] || []).push(t); }
+    });
+    return map;
+  }
+
+  let scheduleDueDates = {};
+
+  // Category filter chips
+  function buildCatFilters() {
+    const wrap = document.getElementById('catFilters');
+    wrap.innerHTML = CATS.map(cat => `
+      <div class="cat-chip cat-${cat} active" data-cat="${cat}" onclick="toggleCat('${cat}',this)">
+        <span class="cat-dot"></span>${cat}
+      </div>`).join('');
+  }
+
+  function toggleCat(cat, el) {
+    if (activeCats.has(cat)) { activeCats.delete(cat); el.classList.remove('active'); }
+    else { activeCats.add(cat); el.classList.add('active'); }
+    renderCalendar();
+    if (selectedDate) showDayPanel(selectedDate);
+  }
+
+  function changeMonth(delta) {
+    currentMonth += delta;
+    if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+    if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+    renderCalendar();
+    clearPanel();
+  }
+
+  function goToday() {
+    currentYear = today.getFullYear();
+    currentMonth = today.getMonth();
+    renderCalendar();
+    showDayPanel(todayDateStr());
+  }
+
+  function todayDateStr() {
+    return today.toISOString().slice(0,10);
+  }
+
+  async function loadTasks() {
+    try {
+      const res = await fetch('/tables/settlement_calendar');
+      const data = await res.json();
+      allTasks = data.rows || data.data || [];
+      renderCalendar();
+    } catch(e) {
+      console.error(e);
+    }
+  }
+
+  function monthTasks() {
+    const ym = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
+    return allTasks.filter(t => t.date && t.date.startsWith(ym) && activeCats.has(t.category || '기타'));
+  }
+
+  function updateStats() {
+    const tasks = monthTasks();
+    document.getElementById('stTotal').textContent = tasks.length;
+    document.getElementById('stProg').textContent = tasks.filter(t => t.status === 'in_progress').length;
+    document.getElementById('stDone').textContent = tasks.filter(t => t.status === 'completed').length;
+    document.getElementById('stLate').textContent = tasks.filter(t => t.status === 'delayed').length;
+  }
+
+  function renderCalendar() {
+    scheduleDueDates = buildScheduleDueDates(currentYear, currentMonth + 1);
+    const MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+    document.getElementById('monthLabel').textContent = `${currentYear}년 ${MONTHS[currentMonth]}`;
+    updateStats();
+
+    const firstDay = new Date(currentYear, currentMonth, 1).getDay(); // 0=Sun
+    const daysInMonth = new Date(currentYear, currentMonth+1, 0).getDate();
+    const prevDays = new Date(currentYear, currentMonth, 0).getDate();
+    const todayStr = todayDateStr();
+    const visibleTasks = monthTasks();
+
+    // Build task map by date
+    const taskMap = {};
+    visibleTasks.forEach(t => {
+      if (!taskMap[t.date]) taskMap[t.date] = [];
+      taskMap[t.date].push(t);
+    });
+
+    const container = document.getElementById('calDays');
+    container.innerHTML = '';
+
+    const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+
+    for (let i = 0; i < totalCells; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'cal-day';
+      let dateStr, dayNum, isOther = false;
+
+      if (i < firstDay) {
+        dayNum = prevDays - firstDay + i + 1;
+        const m = String(currentMonth).padStart(2,'0') || '12';
+        const yr = currentMonth === 0 ? currentYear - 1 : currentYear;
+        const mo = currentMonth === 0 ? 12 : currentMonth;
+        dateStr = `${yr}-${String(mo).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+        isOther = true;
+        cell.classList.add('other-month');
+      } else if (i >= firstDay + daysInMonth) {
+        dayNum = i - firstDay - daysInMonth + 1;
+        const yr = currentMonth === 11 ? currentYear + 1 : currentYear;
+        const mo = currentMonth === 11 ? 1 : currentMonth + 2;
+        dateStr = `${yr}-${String(mo).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+        isOther = true;
+        cell.classList.add('other-month');
+      } else {
+        dayNum = i - firstDay + 1;
+        dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+      }
+
+      if (dateStr === todayStr) cell.classList.add('today');
+      const dow = i % 7;
+      if (dow === 0) cell.classList.add('sunday');
+      if (dow === 6) cell.classList.add('saturday');
+
+      const numEl = document.createElement('div');
+      numEl.className = 'day-num' + (isOther ? ' other' : '');
+      numEl.textContent = dayNum;
+      cell.appendChild(numEl);
+
+      const tasksForDay = taskMap[dateStr] || [];
+      const taskWrap = document.createElement('div');
+      taskWrap.className = 'day-tasks';
+      const maxShow = 3;
+      tasksForDay.slice(0, maxShow).forEach(t => {
+        const chip = document.createElement('div');
+        const catKey = t.category || '기타';
+        chip.className = `day-task-chip chip-${catKey}${t.status==='completed'?' chip-done':''}${t.status==='delayed'?' chip-delayed':''}`;
+        chip.textContent = t.task || '';
+        chip.title = t.task || '';
+        chip.onclick = (e) => { e.stopPropagation(); openEditModal(t.id); };
+        taskWrap.appendChild(chip);
+      });
+      if (tasksForDay.length > maxShow) {
+        const more = document.createElement('div');
+        more.className = 'more-tasks';
+        more.textContent = `+${tasksForDay.length - maxShow}개 더`;
+        taskWrap.appendChild(more);
+      }
+      // Add due date chips
+      const dueTasks = scheduleDueDates[dateStr] || [];
+      if (dueTasks.length > 0 && !isOther) {
+        const chip = document.createElement('div');
+        chip.className = 'day-task-chip chip-마감';
+        chip.textContent = dueTasks.length === 1 ? `D+${dueTasks[0].due} ${dueTasks[0].label}` : `마감 ${dueTasks.length}건`;
+        chip.title = dueTasks.map(t => `D+${t.due} ${t.label}`).join('\n');
+        taskWrap.appendChild(chip);
+      }
+      // Add checklist completion chips
+      if (!isOther) {
+        (chklChipMap[dateStr] || []).forEach(ct => {
+          const chip = document.createElement('div');
+          chip.className = `day-task-chip chip-chkl-${ct.status}`;
+          chip.textContent = `(${ct.status}) ${ct.taskLabel}`;
+          chip.title = `결산업무 완료: ${ct.taskLabel}`;
+          taskWrap.appendChild(chip);
+        });
+      }
+      cell.appendChild(taskWrap);
+
+      cell.onclick = () => { selectedDate = dateStr; showDayPanel(dateStr); };
+      container.appendChild(cell);
+    }
+  }
+
+  function showDayPanel(dateStr) {
+    const [y, m, d] = dateStr.split('-');
+    document.getElementById('panelTitle').textContent = `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
+    document.getElementById('panelDateLabel').textContent = dateStr;
+    const tasks = allTasks.filter(t => t.date === dateStr && activeCats.has(t.category || '기타'));
+    const body = document.getElementById('panelBody');
+    const dueTasks = scheduleDueDates[dateStr] || [];
+    if (!tasks.length && !dueTasks.length) {
+      body.innerHTML = `<div class="panel-empty"><i class="fas fa-calendar-day" style="font-size:24px;display:block;margin-bottom:8px;"></i>이 날 일정이 없습니다.${isLeader?'<br><small>아래 버튼으로 추가하세요</small>':''}</div>`;
+      if (isLeader) {
+        body.innerHTML += `<div style="text-align:center;margin-top:12px"><button class="btn btn-primary" onclick="openAddModal('${dateStr}')"><i class="fas fa-plus"></i> 일정 추가</button></div>`;
+      }
+      return;
+    }
+    const chklItems = chklChipMap[dateStr] || [];
+    let chklHtml = '';
+    if (chklItems.length > 0) {
+      const STATUS_COLOR = { '완': '#065f46', '개선': '#1e40af', '지연': '#991b1b' };
+      const STATUS_BG    = { '완': '#d1fae5', '개선': '#dbeafe', '지연': '#fee2e2' };
+      chklHtml = `<div class="panel-chkl-section">
+        <div class="panel-chkl-title"><i class="fas fa-clipboard-check"></i> 결산업무 완료 현황${chkMember ? ' — ' + chkMember : ''}</div>
+        ${chklItems.map(ct => `
+          <div class="panel-chkl-item st-${ct.status}">
+            <span>${ct.taskLabel}</span>
+            <span style="font-weight:700;">(${ct.status})</span>
+          </div>`).join('')}
+      </div>`;
+    }
+
+    let dueHtml = '';
+    if (dueTasks.length > 0) {
+      dueHtml = `<div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:#c2410c;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+          <i class="fas fa-flag"></i> 결산 마감 업무
+        </div>
+        ${dueTasks.map(t => `
+          <div class="panel-task-item" style="border-left-color:#c2410c;background:#fff7ed;">
+            <div class="panel-task-cat" style="color:#c2410c;">D+${t.due} 영업일</div>
+            <div class="panel-task-title">${t.label}</div>
+          </div>`).join('')}
+      </div>`;
+    }
+    body.innerHTML = chklHtml + dueHtml + tasks.map(t => {
+      const catColor = CAT_COLORS[t.category] || CAT_COLORS['기타'];
+      return `
+      <div class="panel-task-item" style="border-left-color:${catColor}">
+        <div class="panel-task-cat" style="color:${catColor}">${t.category || '기타'}</div>
+        <div class="panel-task-title">${t.task || ''}</div>
+        ${t.note ? `<div style="font-size:12px;color:#6b7280;margin-bottom:6px">${t.note}</div>` : ''}
+        <div class="panel-task-row">
+          <span class="panel-task-assignee"><i class="fas fa-user"></i> ${t.assignee || '-'}</span>
+          <span class="status-badge st-${t.status||'planned'}">${STATUS_LABEL[t.status||'planned']}</span>
+        </div>
+        ${isLeader ? `<div class="panel-task-actions">
+          <button class="btn-edit-task" onclick="openEditModal('${t.id}')"><i class="fas fa-pen"></i> 수정</button>
+          ${t.status !== 'completed' ? `<button class="btn-done-task" onclick="markDone('${t.id}')"><i class="fas fa-check"></i> 완료</button>` : ''}
+          <button class="btn-del-task" onclick="deleteTask('${t.id}')"><i class="fas fa-trash"></i></button>
+        </div>` : ''}
+      </div>`;
+    }).join('');
+    if (isLeader) {
+      body.innerHTML += `<div style="text-align:center;margin-top:4px"><button class="btn btn-secondary" style="width:100%" onclick="openAddModal('${dateStr}')"><i class="fas fa-plus"></i> 이 날 일정 추가</button></div>`;
+    }
+  }
+
+  function clearPanel() {
+    selectedDate = null;
+    document.getElementById('panelTitle').textContent = '날짜 선택';
+    document.getElementById('panelDateLabel').textContent = '';
+    document.getElementById('panelBody').innerHTML = '<div class="panel-empty"><i class="fas fa-mouse-pointer" style="font-size:24px;display:block;margin-bottom:8px;"></i>캘린더에서 날짜를 클릭하세요</div>';
+  }
+
+  function openAddModal(dateStr) {
+    document.getElementById('modalTitle').textContent = '일정 추가';
+    document.getElementById('editId').value = '';
+    document.getElementById('fTask').value = '';
+    document.getElementById('fDate').value = dateStr || todayDateStr();
+    document.getElementById('fCategory').value = '공시이율';
+    document.getElementById('fStatus').value = 'planned';
+    document.getElementById('fAssignee').value = currentUser?.full_name || '';
+    document.getElementById('fNote').value = '';
+    document.getElementById('modalDelBtn').style.display = 'none';
+    document.getElementById('taskModal').classList.add('show');
+  }
+
+  function openEditModal(id) {
+    const t = allTasks.find(x => x.id === id);
+    if (!t) return;
+    document.getElementById('modalTitle').textContent = '일정 수정';
+    document.getElementById('editId').value = id;
+    document.getElementById('fTask').value = t.task || '';
+    document.getElementById('fDate').value = t.date || '';
+    document.getElementById('fCategory').value = t.category || '기타';
+    document.getElementById('fStatus').value = t.status || 'planned';
+    document.getElementById('fAssignee').value = t.assignee || '';
+    document.getElementById('fNote').value = t.note || '';
+    document.getElementById('modalDelBtn').style.display = isLeader ? 'inline-flex' : 'none';
+    document.getElementById('taskModal').classList.add('show');
+  }
+
+  async function deleteModalTask() {
+    const id = document.getElementById('editId').value;
+    if (!id) return;
+    Portal.confirm('이 일정을 삭제하시겠습니까?', async () => {
+      try {
+        await fetch('/tables/settlement_calendar/' + id, { method: 'DELETE' });
+        closeModal();
+        Portal.showToast('삭제되었습니다.', 'success');
+        await loadTasks();
+        if (selectedDate) showDayPanel(selectedDate);
+      } catch (e) {
+        Portal.showToast('삭제 실패', 'error');
+      }
+    });
+  }
+
+  function closeModal() {
+    document.getElementById('taskModal').classList.remove('show');
+  }
+
+  async function saveTask() {
+    const task = document.getElementById('fTask').value.trim();
+    const date = document.getElementById('fDate').value;
+    if (!task) { Portal.showToast('업무명을 입력하세요', 'error'); return; }
+    if (!date) { Portal.showToast('날짜를 선택하세요', 'error'); return; }
+    const id = document.getElementById('editId').value;
+    const body = {
+      task, date,
+      category: document.getElementById('fCategory').value,
+      status: document.getElementById('fStatus').value,
+      assignee: document.getElementById('fAssignee').value.trim(),
+      note: document.getElementById('fNote').value.trim(),
+      created_by: currentUser?.user_id
+    };
+    try {
+      let res;
+      if (id) {
+        res = await fetch('/tables/settlement_calendar/' + id, {
+          method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+        });
+      } else {
+        res = await fetch('/tables/settlement_calendar', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+        });
+      }
+      if (!res.ok) throw new Error();
+      closeModal();
+      Portal.showToast(id ? '일정이 수정되었습니다.' : '일정이 추가되었습니다.', 'success');
+      await loadTasks();
+      if (selectedDate) showDayPanel(selectedDate);
+      else if (date) { selectedDate = date; showDayPanel(date); }
+    } catch(e) {
+      Portal.showToast('저장에 실패했습니다.', 'error');
+    }
+  }
+
+  async function markDone(id) {
+    try {
+      const t = allTasks.find(x => x.id === id);
+      if (!t) return;
+      await fetch('/tables/settlement_calendar/' + id, {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({...t, status:'completed'})
+      });
+      Portal.showToast('완료 처리되었습니다.', 'success');
+      await loadTasks();
+      if (selectedDate) showDayPanel(selectedDate);
+    } catch(e) {
+      Portal.showToast('처리 실패', 'error');
+    }
+  }
+
+  async function deleteTask(id) {
+    Portal.confirm('이 일정을 삭제하시겠습니까?', async () => {
+      try {
+        await fetch('/tables/settlement_calendar/' + id, { method:'DELETE' });
+        Portal.showToast('삭제되었습니다.', 'success');
+        await loadTasks();
+        if (selectedDate) showDayPanel(selectedDate);
+      } catch(e) {
+        Portal.showToast('삭제 실패', 'error');
+      }
+    });
+  }
+
+  if (isLeader) {
+    document.getElementById('addBtnWrap').innerHTML =
+      '<button class="btn btn-primary" onclick="openAddModal()"><i class="fas fa-plus"></i> 일정 추가</button>';
+  }
+
+  document.getElementById('taskModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('taskModal')) closeModal();
+  });
+
+  // inline onclick 에서 호출 가능하도록 전역 노출
+  window.openAddModal    = openAddModal;
+  window.openEditModal   = openEditModal;
+  window.closeModal      = closeModal;
+  window.saveTask        = saveTask;
+  window.markDone        = markDone;
+  window.deleteTask      = deleteTask;
+  window.deleteModalTask = deleteModalTask;
+  window.toggleCat       = toggleCat;
+  window.changeMonth     = changeMonth;
+  window.goToday         = goToday;
+
+  buildCatFilters();
+  loadTasks();
+
+  // ========== 결산업무 체크리스트 ==========
+  const SETTLE_TASKS = [
+    { id:'s01', label:'계리계약 마감',                      group:'계약/준비금' },
+    { id:'s02', label:'지급준비금 마감',                    group:'계약/준비금' },
+    { id:'s03', label:'준비금 마감',                        group:'계약/준비금' },
+    { id:'s04', label:'보험료분해 마감',                    group:'계약/준비금' },
+    { id:'s05', label:'재보험 마감 (출재/청구)',            group:'계약/준비금' },
+    { id:'s06', label:'보증준비금 마감',                    group:'계약/준비금' },
+    { id:'s07', label:'잉여금처리 & 계약자배당',           group:'계약/준비금' },
+    { id:'s08', label:'예금보험료',                         group:'계약/준비금' },
+    { id:'s09', label:'결산 모델 배포',                     group:'모델/가정' },
+    { id:'s10', label:'계리모델 입력데이터 준비',          group:'모델/가정' },
+    { id:'s11', label:'경제적 가정 산출',                   group:'모델/가정' },
+    { id:'s12', label:'최초/후속 모델포인트 생성',         group:'모델/가정' },
+    { id:'s13', label:'최초인식 보험부채 산출',            group:'부채산출' },
+    { id:'s14', label:'후속측정 보험부채 산출',            group:'부채산출' },
+    { id:'s15', label:'사업비 배부',                        group:'부채산출' },
+    { id:'s16', label:'최초인식대상계약 확정',             group:'부채산출' },
+    { id:'s17', label:'결산대상계약 확정',                  group:'부채산출' },
+    { id:'s18', label:'가중평균할인율 산출',               group:'부채산출' },
+    { id:'s19', label:'BEL/RA data 입수 및 계약그룹 작업', group:'ETL/데이터' },
+    { id:'s20', label:'결산대상계약 및 실제CF 이관 (ETL)', group:'ETL/데이터' },
+    { id:'s21', label:'실제CF Data 이관 (ETL)',             group:'ETL/데이터' },
+    { id:'s22', label:'가중평균할인율 산출 (재보험)',       group:'재보험' },
+    { id:'s23', label:'BEL/RA data 입수 (재보험)',          group:'재보험' },
+    { id:'s24', label:'부채결산 무브먼트',                  group:'무브먼트/전송' },
+    { id:'s25', label:'부채결산 무브먼트 (재보험)',         group:'무브먼트/전송' },
+    { id:'s26', label:'회계팀 결산Data 전송',               group:'무브먼트/전송' },
+  ];
+  const SETTLE_GROUPS = ['계약/준비금','모델/가정','부채산출','ETL/데이터','재보험','무브먼트/전송'];
+  const MEMBERS = ['한인석','이동민','이상현','마혜원','예대호','이성원','고인수','김예은','강세진','이용우','오정택','김채린','김민국'];
+
+  const thisYearC = new Date().getFullYear();
+  const thisMonthC = new Date().getMonth() + 1;
+  let chkYear = thisYearC, chkMonth = thisMonthC, chkMember = '';
+  let chkDone = new Set(), chkTimes = {}, chkRecordId = null;
+  let chkDates = {}; // taskId -> completionDateStr
+  let chklChipMap = {}; // completionDateStr -> [{taskLabel, status}]
+
+  function buildChklChipMap() {
+    chklChipMap = {};
+    SETTLE_SCHEDULE.forEach(t => {
+      if (!chkDone.has(t.id)) return;
+      const completionDate = chkDates[t.id];
+      if (!completionDate) return;
+      const dueDate = getNthBizDay(chkYear, chkMonth, t.due);
+      let status;
+      if (!dueDate || completionDate === dueDate) {
+        status = '완';
+      } else if (completionDate < dueDate) {
+        status = '개선';
+      } else {
+        status = '지연';
+      }
+      if (!chklChipMap[completionDate]) chklChipMap[completionDate] = [];
+      chklChipMap[completionDate].push({ taskLabel: t.label, status });
+    });
+  }
+
+  function buildChkSelects() {
+    const wrap = document.getElementById('chkSelWrap');
+    const ySel = document.createElement('select'); ySel.className = 'chk-sel'; ySel.id = 'chkYearSel';
+    [thisYearC - 1, thisYearC].forEach(y => {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y + '년';
+      if (y === chkYear) o.selected = true;
+      ySel.appendChild(o);
+    });
+    ySel.onchange = () => { chkYear = parseInt(ySel.value); loadChecklist(); };
+    wrap.appendChild(ySel);
+
+    const mSel = document.createElement('select'); mSel.className = 'chk-sel'; mSel.id = 'chkMonthSel';
+    for (let m = 1; m <= 12; m++) {
+      const o = document.createElement('option');
+      o.value = m; o.textContent = m + '월';
+      if (m === chkMonth) o.selected = true;
+      mSel.appendChild(o);
+    }
+    mSel.onchange = () => { chkMonth = parseInt(mSel.value); loadChecklist(); };
+    wrap.appendChild(mSel);
+
+    const mbSel = document.createElement('select'); mbSel.className = 'chk-sel'; mbSel.id = 'chkMemberSel';
+    if (isLeader) {
+      MEMBERS.forEach(name => {
+        const o = document.createElement('option');
+        o.value = name; o.textContent = name; mbSel.appendChild(o);
+      });
+      chkMember = MEMBERS[0]; mbSel.value = chkMember;
+    } else {
+      const name = currentUser?.full_name || '';
+      const o = document.createElement('option'); o.value = name; o.textContent = name;
+      mbSel.appendChild(o); mbSel.disabled = true; chkMember = name;
+    }
+    mbSel.onchange = () => { chkMember = mbSel.value; loadChecklist(); };
+    wrap.appendChild(mbSel);
+  }
+
+  function getTaskStatus(taskId) {
+    if (!chkDone.has(taskId)) return null; // not done
+    const completionDate = chkDates[taskId];
+    if (!completionDate) return '완료'; // done but no date
+    const schedTask = SETTLE_SCHEDULE.find(t => t.id === taskId);
+    if (!schedTask) return '완료';
+    const dueDateStr = getNthBizDay(chkYear, chkMonth, schedTask.due);
+    if (!dueDateStr) return '완료';
+    if (completionDate <= dueDateStr) {
+      const bizDue = getBizDayNum(chkYear, chkMonth, dueDateStr) || schedTask.due;
+      const bizComp = getBizDayNum(chkYear, chkMonth, completionDate);
+      if (bizComp && bizComp < bizDue) return '조기';
+      return '준수';
+    }
+    return '지연';
+  }
+
+  function renderChecklist() {
+    const doneCount = chkDone.size;
+    const total = SETTLE_TASKS.length;
+    const pct = Math.round(doneCount / total * 100);
+    const totalMin = Object.values(chkTimes).reduce((s, v) => s + (parseInt(v) || 0), 0);
+    document.getElementById('chkPct').textContent = pct + '%';
+    document.getElementById('chkDoneCount').textContent = doneCount + ' / ' + total;
+    document.getElementById('chkTotalMin').textContent = totalMin + '분';
+    document.getElementById('chkProgressFill').style.width = pct + '%';
+
+    const container = document.getElementById('chkTaskList');
+    const headerRow = `<div style="display:grid;grid-template-columns:auto 1fr 75px 100px 56px;gap:10px;padding:6px 24px;background:#f8faff;border-top:1px solid #f3f4f6;border-bottom:1px solid #f3f4f6;">
+      <span></span>
+      <span style="font-size:11px;font-weight:700;color:#6b7280;">업무명</span>
+      <span style="font-size:11px;font-weight:700;color:#6b7280;text-align:center;">소요시간</span>
+      <span style="font-size:11px;font-weight:700;color:#6b7280;text-align:center;">완료일</span>
+      <span style="font-size:11px;font-weight:700;color:#6b7280;text-align:center;">상태</span>
+    </div>`;
+    container.innerHTML = headerRow + SETTLE_GROUPS.map(grp => {
+      const tasks = SETTLE_TASKS.filter(t => t.group === grp);
+      const grpDone = tasks.filter(t => chkDone.has(t.id)).length;
+      return `<div class="chk-group">
+        <div class="chk-group-header">
+          <i class="fas fa-layer-group"></i> ${grp}
+          <span style="margin-left:auto;font-size:11px;color:#9ca3af;">${grpDone}/${tasks.length}</span>
+        </div>
+        ${tasks.map(t => {
+          const status = getTaskStatus(t.id);
+          const stClass = status === '조기' ? 'chk-st-조기' : status === '준수' ? 'chk-st-준수' : status === '지연' ? 'chk-st-지연' : 'chk-st-미완';
+          const stText = status || '미완';
+          return `
+          <div class="chk-task-row">
+            <input type="checkbox" class="chk-checkbox" id="chk_${t.id}"
+              ${chkDone.has(t.id) ? 'checked' : ''}
+              onchange="toggleChkTask('${t.id}',this.checked)">
+            <label for="chk_${t.id}" class="chk-label${chkDone.has(t.id) ? ' done' : ''}">${t.label}</label>
+            <input type="number" class="chk-min-input" min="0" placeholder="분"
+              value="${chkTimes[t.id] || ''}"
+              oninput="chkTimes['${t.id}']=parseInt(this.value)||0;updateChkStats()">
+            <input type="date" class="chk-date-input" id="chkdate_${t.id}"
+              value="${chkDates[t.id] || ''}"
+              onchange="chkDates['${t.id}']=this.value;renderChecklist();buildChklChipMap();renderCalendar();if(selectedDate)showDayPanel(selectedDate)">
+            <span class="chk-st ${stClass}">${stText}</span>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }).join('');
+  }
+
+  function toggleChkTask(id, checked) {
+    if (checked) chkDone.add(id); else chkDone.delete(id);
+    const label = document.querySelector(`label[for="chk_${id}"]`);
+    if (label) label.className = 'chk-label' + (checked ? ' done' : '');
+    updateChkStats();
+  }
+
+  function updateChkStats() {
+    const doneCount = chkDone.size;
+    const total = SETTLE_TASKS.length;
+    const pct = Math.round(doneCount / total * 100);
+    const totalMin = Object.values(chkTimes).reduce((s, v) => s + (parseInt(v) || 0), 0);
+    document.getElementById('chkPct').textContent = pct + '%';
+    document.getElementById('chkDoneCount').textContent = doneCount + ' / ' + total;
+    document.getElementById('chkTotalMin').textContent = totalMin + '분';
+    document.getElementById('chkProgressFill').style.width = pct + '%';
+  }
+
+  async function loadChecklist() {
+    try {
+      const res  = await fetch('/tables/work_tasks?limit=500');
+      const data = await res.json();
+      const match = (data.rows || []).find(r =>
+        r.member_name === chkMember &&
+        String(r.year) === String(chkYear) &&
+        String(r.month) === String(chkMonth)
+      );
+      chkDone = new Set(match?.settlement_done || []);
+      chkTimes = match?.settlement_times || {};
+      chkDates = match?.settlement_dates || {};
+      chkRecordId = match?.id || null;
+    } catch(e) {
+      chkDone = new Set(); chkTimes = {}; chkDates = {}; chkRecordId = null;
+    }
+    renderChecklist();
+    buildChklChipMap();
+    renderCalendar();
+  }
+
+  async function saveChecklist() {
+    if (!chkMember) { Portal.showToast('팀원을 선택하세요.', 'error'); return; }
+    const body = {
+      year: chkYear, month: chkMonth, member_name: chkMember,
+      settlement_done: [...chkDone],
+      settlement_times: chkTimes,
+      settlement_dates: chkDates,
+    };
+    try {
+      let res;
+      if (chkRecordId) {
+        res = await fetch('/tables/work_tasks/' + chkRecordId, {
+          method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+        });
+      } else {
+        res = await fetch('/tables/work_tasks', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+        });
+        if (res.ok) { const d = await res.json(); chkRecordId = d.id; }
+      }
+      if (!res.ok) throw new Error();
+      Portal.showToast('체크리스트가 저장되었습니다.', 'success');
+      buildChklChipMap();
+      renderCalendar();
+      if (selectedDate) showDayPanel(selectedDate);
+      await pushDeadlineScore();
+    } catch(e) { Portal.showToast('저장에 실패했습니다.', 'error'); }
+  }
+
+  async function pushDeadlineScore() {
+    let onTime = 0, late = 0, early = 0, notDone = 0;
+    SETTLE_SCHEDULE.forEach(t => {
+      if (!chkDone.has(t.id)) { notDone++; return; }
+      const completionDate = chkDates[t.id];
+      if (!completionDate) { onTime++; return; }
+      const dueDateStr = getNthBizDay(chkYear, chkMonth, t.due);
+      if (!dueDateStr) { onTime++; return; }
+      if (completionDate < dueDateStr) early++;
+      else if (completionDate === dueDateStr) onTime++;
+      else late++;
+    });
+    const total = SETTLE_SCHEDULE.length;
+    const score = Math.round((early + onTime) / total * 100);
+
+    try {
+      const res = await fetch('/tables/performance_records?limit=500');
+      const data = await res.json();
+      const match = (data.rows || []).find(r =>
+        r.target_name === chkMember &&
+        String(r.year) === String(chkYear) &&
+        String(r.month) === String(chkMonth)
+      );
+      const perfBody = { year: chkYear, month: chkMonth, target_name: chkMember, score_deadline: score };
+      if (match) {
+        await fetch('/tables/performance_records/' + match.id, {
+          method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(perfBody)
+        });
+      } else {
+        await fetch('/tables/performance_records', {
+          method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(perfBody)
+        });
+      }
+      Portal.showToast(`기한준수 점수 ${score}점이 성과관리에 반영되었습니다.`, 'success');
+    } catch(e) {
+      console.error('Failed to push deadline score', e);
+    }
+  }
+
+  function cancelChecklist() {
+    Portal.confirm('저장하지 않고 마지막 저장 상태로 되돌리겠습니까?', () => {
+      loadChecklist();
+    });
+  }
+
+  function resetChecklist() {
+    Portal.confirm('체크리스트를 초기화하시겠습니까?', () => {
+      chkDone = new Set(); chkTimes = {}; chkDates = {};
+      renderChecklist();
+    });
+  }
+
+  buildChkSelects();
+  loadChecklist();
+</script>
+</body>
+</html>

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>봇 상태 모니터링 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    .status-hero { display:flex; align-items:center; gap:20px; padding:28px 32px; border-radius:20px; margin-bottom:24px; }
+    .status-hero.ok { background:linear-gradient(135deg,#d1fae5,#a7f3d0); border:2px solid #34d399; }
+    .status-hero.warn { background:linear-gradient(135deg,#fef3c7,#fde68a); border:2px solid #f59e0b; }
+    .status-hero.dead { background:linear-gradient(135deg,#fee2e2,#fecaca); border:2px solid #f87171; }
+    .status-hero.unknown { background:linear-gradient(135deg,#f3f4f6,#e5e7eb); border:2px solid #9ca3af; }
+    .status-icon { font-size:48px; line-height:1; }
+    .status-hero.ok .status-icon { color:#059669; }
+    .status-hero.warn .status-icon { color:#d97706; }
+    .status-hero.dead .status-icon { color:#dc2626; }
+    .status-hero.unknown .status-icon { color:#6b7280; }
+    .status-main-title { font-size:22px; font-weight:800; margin-bottom:4px; }
+    .status-sub { font-size:14px; color:#374151; }
+    .status-sub span { font-weight:600; }
+    .stat-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:16px; margin-bottom:24px; }
+    .stat-card { background:#fff; border-radius:16px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,.06); text-align:center; }
+    .stat-card .val { font-size:28px; font-weight:800; color:#1e40af; }
+    .stat-card .lbl { font-size:12px; color:#6b7280; margin-top:4px; }
+    .log-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .log-table th { background:#f8fafc; padding:10px 12px; text-align:left; font-weight:600; color:#374151; border-bottom:2px solid #e5e7eb; }
+    .log-table td { padding:9px 12px; border-bottom:1px solid #f1f5f9; color:#374151; }
+    .log-table tr:hover td { background:#f8fafc; }
+    .badge-success { background:#d1fae5; color:#065f46; padding:2px 8px; border-radius:8px; font-size:11px; font-weight:600; }
+    .badge-error { background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:8px; font-size:11px; font-weight:600; }
+    .refresh-bar { display:flex; align-items:center; gap:12px; }
+    .refresh-bar small { color:#9ca3af; font-size:12px; }
+    .warn-banner { background:#fef3c7; border:1.5px solid #f59e0b; border-radius:12px; padding:14px 18px;
+      display:flex; align-items:center; gap:12px; margin-bottom:20px; font-size:14px; color:#92400e; font-weight:500; }
+    .warn-banner i { font-size:20px; color:#d97706; flex-shrink:0; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <nav class="sidebar" id="sidebar"></nav>
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <button class="menu-toggle" onclick="Portal.toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <div>
+          <div class="page-title"><i class="fas fa-robot"></i> 봇 상태 모니터링</div>
+          <div class="page-subtitle">텔레그램 결산조회봇 헬스체크</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="warnBanner" style="display:none" class="warn-banner">
+      <i class="fas fa-exclamation-triangle"></i>
+      <span id="warnText"></span>
+    </div>
+
+    <div id="statusHero" class="status-hero unknown">
+      <div class="status-icon"><i class="fas fa-circle-notch fa-spin"></i></div>
+      <div>
+        <div class="status-main-title">확인 중...</div>
+        <div class="status-sub">봇 상태를 불러오는 중입니다.</div>
+      </div>
+    </div>
+
+    <div class="stat-cards">
+      <div class="stat-card"><div class="val" id="stTotal">-</div><div class="lbl">전체 쿼리</div></div>
+      <div class="stat-card"><div class="val" id="stToday">-</div><div class="lbl">오늘 쿼리</div></div>
+      <div class="stat-card"><div class="val" id="stPid">-</div><div class="lbl">프로세스 ID</div></div>
+      <div class="stat-card"><div class="val" id="stAlive">-</div><div class="lbl">마지막 응답</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div class="card-title"><i class="fas fa-list"></i> 최근 쿼리 로그</div>
+        <div class="refresh-bar">
+          <small id="lastRefresh">-</small>
+          <button class="btn btn-secondary" onclick="loadAll()"><i class="fas fa-sync-alt"></i> 새로고침</button>
+        </div>
+      </div>
+      <div class="card-body" style="overflow-x:auto;">
+        <table class="log-table">
+          <thead>
+            <tr>
+              <th>시각</th>
+              <th>사용자</th>
+              <th>쿼리</th>
+              <th>인텐트</th>
+              <th>기간</th>
+              <th>상태</th>
+            </tr>
+          </thead>
+          <tbody id="logBody">
+            <tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:24px">로딩 중...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js"></script>
+<script>
+  Portal.init();
+
+  function fmtTime(isoStr) {
+    if (!isoStr) return '-';
+    const d = new Date(isoStr);
+    if (isNaN(d)) return isoStr;
+    return d.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul',
+      month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  function minutesAgo(isoStr) {
+    if (!isoStr) return null;
+    const d = new Date(isoStr);
+    if (isNaN(d)) return null;
+    return Math.floor((Date.now() - d.getTime()) / 60000);
+  }
+
+  function renderHero(hb) {
+    const hero = document.getElementById('statusHero');
+    const warnBanner = document.getElementById('warnBanner');
+    const warnText = document.getElementById('warnText');
+
+    const ago = minutesAgo(hb?.last_alive);
+    let cls, icon, title, sub;
+
+    if (!hb?.last_alive) {
+      cls = 'unknown'; icon = 'fa-question-circle';
+      title = '봇 상태 미확인';
+      sub = '하트비트 기록이 없습니다. 봇을 시작한 적이 없거나 구버전입니다.';
+      warnBanner.style.display = 'none';
+    } else if (ago > 60) {
+      cls = 'dead'; icon = 'fa-times-circle';
+      title = '봇 응답 없음 (중단 추정)';
+      sub = `마지막 응답: <span>${fmtTime(hb.last_alive)}</span> (${ago}분 전)`;
+      warnBanner.style.display = 'flex';
+      warnText.textContent = `봇이 ${ago}분째 응답하지 않습니다. PM2 상태를 확인하거나 재시작하세요.`;
+    } else if (ago > 30) {
+      cls = 'warn'; icon = 'fa-exclamation-circle';
+      title = '봇 응답 지연 (확인 권장)';
+      sub = `마지막 응답: <span>${fmtTime(hb.last_alive)}</span> (${ago}분 전)`;
+      warnBanner.style.display = 'none';
+    } else {
+      cls = 'ok'; icon = 'fa-check-circle';
+      title = '봇 정상 동작 중';
+      sub = `마지막 응답: <span>${fmtTime(hb.last_alive)}</span> (${ago}분 전)`;
+      warnBanner.style.display = 'none';
+    }
+
+    hero.className = `status-hero ${cls}`;
+    hero.innerHTML = `
+      <div class="status-icon"><i class="fas ${icon}"></i></div>
+      <div>
+        <div class="status-main-title">${title}</div>
+        <div class="status-sub">${sub}</div>
+      </div>`;
+
+    document.getElementById('stPid').textContent = hb?.pid ?? '-';
+    document.getElementById('stAlive').textContent = ago != null ? `${ago}분 전` : '-';
+  }
+
+  function renderStats(qs) {
+    document.getElementById('stTotal').textContent = qs?.total ?? '-';
+    document.getElementById('stToday').textContent = qs?.today ?? '-';
+  }
+
+  function renderLogs(logs) {
+    const tbody = document.getElementById('logBody');
+    if (!logs || !logs.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:24px">쿼리 로그 없음</td></tr>';
+      return;
+    }
+    tbody.innerHTML = logs.map(r => `
+      <tr>
+        <td style="white-space:nowrap">${fmtTime(r.logged_at_utc)}</td>
+        <td>${r.username || r.user_id || '-'}</td>
+        <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.raw_query || ''}">${r.raw_query || '-'}</td>
+        <td>${r.parsed_intent || '-'}</td>
+        <td>${r.parsed_period || '-'}</td>
+        <td><span class="badge-${r.status === 'success' ? 'success' : 'error'}">${r.status || '-'}</span></td>
+      </tr>`).join('');
+  }
+
+  async function loadAll() {
+    try {
+      const [hbRes, qsRes] = await Promise.all([
+        fetch('/api/bot-heartbeat'),
+        fetch('/api/bot-status'),
+      ]);
+      const hb = hbRes.ok ? await hbRes.json() : {};
+      const qs = qsRes.ok ? await qsRes.json() : {};
+
+      renderHero(hb);
+      renderStats(qs);
+      renderLogs(qs.logs || []);
+      document.getElementById('lastRefresh').textContent = '갱신: ' + new Date().toLocaleTimeString('ko-KR');
+    } catch (e) {
+      document.getElementById('statusHero').className = 'status-hero unknown';
+      document.getElementById('statusHero').innerHTML = `
+        <div class="status-icon"><i class="fas fa-exclamation-triangle"></i></div>
+        <div>
+          <div class="status-main-title">서버 연결 오류</div>
+          <div class="status-sub">포탈 서버에 접근할 수 없습니다.</div>
+        </div>`;
+    }
+  }
+
+  loadAll();
+  setInterval(loadAll, 60000);
+</script>
+</body>
+</html>

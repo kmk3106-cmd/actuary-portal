@@ -1,0 +1,40 @@
+module.exports = {
+  apps: [
+    {
+      name: 'actuary-portal',
+      script: 'server/server.js',
+      interpreter: 'node',
+      cwd: '.',
+      watch: false,
+      autorestart: true,
+      restart_delay: 3000,
+      max_restarts: 50,
+      min_uptime: '10s',
+      out_file: 'logs/pm2-portal-out.log',
+      error_file: 'logs/pm2-portal-error.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      env: {
+        NODE_ENV: 'production',
+        PORT: '8888',
+      },
+    },
+    {
+      name: 'actuary-bot',
+      script: 'app.py',
+      interpreter: 'python',
+      cwd: './bot',
+      watch: false,
+      autorestart: true,
+      restart_delay: 5000,
+      max_restarts: 50,
+      min_uptime: '10s',
+      out_file: '../logs/pm2-bot-out.log',
+      error_file: '../logs/pm2-bot-error.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      env: {
+        PYTHONIOENCODING: 'utf-8',
+        PYTHONUTF8: '1',
+      },
+    },
+  ],
+};

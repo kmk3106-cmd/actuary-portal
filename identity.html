@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>팀 정체성·핵심가치 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    /* ════════════════════════════════════════════════════
+       히어로 배너
+       ════════════════════════════════════════════════════ */
+    .identity-hero {
+      background:
+        /* 최상단 미묘한 노이즈 텍스처 대용 — 대각선 하이라이트 선 */
+        repeating-linear-gradient(
+          -45deg,
+          transparent,
+          transparent 40px,
+          rgba(79,134,247,0.025) 40px,
+          rgba(79,134,247,0.025) 41px
+        ),
+        /* dot-grid 패턴 */
+        radial-gradient(circle, rgba(79,134,247,0.18) 1px, transparent 1px),
+        /* 메인 그라데이션 */
+        linear-gradient(135deg, #080e1f 0%, #0e1d44 38%, #121a3e 62%, #0b1528 100%);
+      background-size: auto, 28px 28px, 100% 100%;
+      border-radius: 20px;
+      padding: 60px 72px 52px;
+      margin-bottom: 32px;
+      position: relative;
+      overflow: hidden;
+      box-shadow:
+        0 4px 6px rgba(0,0,0,0.3),
+        0 20px 60px rgba(0,0,0,0.45),
+        inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+
+    /* 우상단 대형 글로우 오브 */
+    .identity-hero::before {
+      content: '';
+      position: absolute;
+      top: -120px; right: -100px;
+      width: 480px; height: 480px;
+      background: radial-gradient(circle,
+        rgba(79,134,247,0.28) 0%,
+        rgba(79,134,247,0.10) 35%,
+        transparent 70%);
+      pointer-events: none;
+      animation: heroGlowPulse 6s ease-in-out infinite alternate;
+    }
+
+    /* 좌하단 보조 글로우 오브 */
+    .identity-hero::after {
+      content: '';
+      position: absolute;
+      bottom: -80px; left: -20px;
+      width: 360px; height: 360px;
+      background: radial-gradient(circle,
+        rgba(108,92,231,0.22) 0%,
+        rgba(79,134,247,0.08) 40%,
+        transparent 70%);
+      pointer-events: none;
+      animation: heroGlowPulse 6s ease-in-out 3s infinite alternate;
+    }
+
+    @keyframes heroGlowPulse {
+      from { opacity: 0.7; transform: scale(1); }
+      to   { opacity: 1;   transform: scale(1.08); }
+    }
+
+    /* ── 계리결산팀 대형 타이틀 ── */
+    .hero-team-name {
+      font-size: 54px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      margin-bottom: 20px;
+      position: relative; z-index: 1;
+      /* 화이트 → 스카이블루 그라데이션 텍스트 */
+      color: transparent;
+      background: linear-gradient(130deg, #ffffff 0%, #bfdbfe 45%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      /* 다층 음영: 글로우 + 깊이감 */
+      filter:
+        drop-shadow(0 0 28px rgba(79,134,247,0.65))
+        drop-shadow(0 4px 12px rgba(0,0,0,0.55));
+    }
+    /* 영문 서브텍스트 */
+    .hero-team-sub {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(147,197,253,0.65);
+      margin-top: 6px;
+      margin-bottom: 32px;
+      position: relative; z-index: 1;
+      text-shadow: 0 0 12px rgba(79,134,247,0.4);
+    }
+
+    /* 히어로 내부 중앙 미세 글로우 라인 (상단 테두리 빛) */
+    .identity-hero .hero-inner-border {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(79,134,247,0.6) 30%,
+        rgba(160,210,255,0.8) 50%,
+        rgba(79,134,247,0.6) 70%,
+        transparent 100%);
+      pointer-events: none;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #93c5fd;
+      background: rgba(79,134,247,0.14);
+      border: 1px solid rgba(79,134,247,0.35);
+      padding: 6px 16px; border-radius: 20px;
+      margin-bottom: 32px;
+      position: relative; z-index: 1;
+      box-shadow: 0 0 12px rgba(79,134,247,0.18);
+    }
+    .hero-eyebrow i { color: #60a5fa; }
+
+    .hero-quote-mark {
+      font-size: 140px; line-height: 0.55;
+      /* 쿼트 마크 자체에도 글로우 */
+      color: transparent;
+      background: linear-gradient(160deg, rgba(79,134,247,0.55) 0%, rgba(108,92,231,0.30) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      font-family: Georgia, 'Times New Roman', serif;
+      display: block;
+      margin-bottom: 24px;
+      user-select: none;
+      position: relative; z-index: 1;
+      filter: drop-shadow(0 0 18px rgba(79,134,247,0.35));
+    }
+
+    .hero-mission {
+      /* 핵심: 30~34px, 넉넉한 행간, 살짝 좁힌 자간 */
+      font-size: 32px;
+      font-weight: 400;
+      line-height: 2.0;
+      letter-spacing: -0.005em;
+      color: rgba(255,255,255,0.93);
+      position: relative; z-index: 1;
+      max-width: 860px;
+      word-break: keep-all;
+      text-shadow: 0 2px 20px rgba(0,0,0,0.4);
+    }
+
+    /* 강조 키워드: 밝은 배지 스타일 */
+    .hero-mission strong {
+      display: inline-block;
+      color: #ffffff;
+      font-weight: 800;
+      background: linear-gradient(135deg, rgba(79,134,247,0.55) 0%, rgba(99,102,241,0.45) 100%);
+      border: 1px solid rgba(147,197,253,0.40);
+      padding: 1px 9px 2px;
+      border-radius: 6px;
+      box-shadow:
+        0 0 0 1px rgba(79,134,247,0.15),
+        0 2px 10px rgba(79,134,247,0.30),
+        inset 0 1px 0 rgba(255,255,255,0.12);
+      text-shadow: 0 0 14px rgba(147,197,253,0.6);
+      letter-spacing: 0.01em;
+      line-height: 1.5;
+      /* 살짝 올라가 보이는 효과 */
+      vertical-align: baseline;
+      position: relative;
+      top: -1px;
+    }
+
+    .hero-vision-wrap {
+      margin-top: 32px;
+      padding-top: 28px;
+      border-top: 1px solid rgba(255,255,255,0.09);
+      position: relative; z-index: 1;
+    }
+    .hero-vision-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(147,197,253,0.55);
+      margin-bottom: 10px;
+    }
+    .hero-vision-text {
+      font-size: 17px;
+      color: rgba(255,255,255,0.62);
+      line-height: 1.9;
+    }
+
+    .hero-meta {
+      margin-top: 28px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.22);
+      position: relative; z-index: 1;
+      letter-spacing: 0.03em;
+    }
+
+    .hero-actions {
+      position: absolute; top: 24px; right: 28px; z-index: 3;
+    }
+    .btn-hero-edit {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 8px;
+      font-size: 12px; font-weight: 600;
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.65);
+      border: 1px solid rgba(255,255,255,0.14);
+      cursor: pointer;
+      transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+      font-family: inherit;
+      backdrop-filter: blur(4px);
+    }
+    .btn-hero-edit:hover {
+      background: rgba(79,134,247,0.22);
+      color: #ffffff;
+      border-color: rgba(79,134,247,0.45);
+      box-shadow: 0 0 12px rgba(79,134,247,0.25);
+    }
+
+    /* ════════════════════════════════════════════════════
+       핵심가치 섹션 헤더
+       ════════════════════════════════════════════════════ */
+    .cv-section-header {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-bottom: 28px; padding-bottom: 20px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    .cv-section-title {
+      font-size: 32px; font-weight: 900; color: #0f172a; line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+    .cv-section-sub {
+      font-size: 15px; color: #6b7280; margin-top: 8px; font-weight: 400;
+    }
+    .cv-count-badge {
+      font-size: 13px; font-weight: 700;
+      color: #4f86f7; background: #eff6ff;
+      padding: 5px 16px; border-radius: 20px;
+      border: 1px solid #bfdbfe; flex-shrink: 0;
+    }
+
+    /* ════════════════════════════════════════════════════
+       핵심가치 대형 카드
+       ════════════════════════════════════════════════════ */
+    .cv-big-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .cv-big-card {
+      display: flex; align-items: stretch;
+      background: #ffffff;
+      border: 1px solid #e9ecef;
+      border-radius: 16px;
+      overflow: hidden;
+      transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+      cursor: default;
+      border-left: 4px solid transparent;
+      position: relative;
+    }
+    .cv-big-card.clickable { cursor: pointer; }
+    .cv-big-card:hover {
+      box-shadow: 0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06);
+      transform: translateX(4px) translateY(-1px);
+    }
+
+    /* 호버 시 왼쪽 테두리 색상 강조 (이미 있는 클래스 활용) */
+    .cv-big-card.color-blue  { border-left-color: #3b82f6; }
+    .cv-big-card.color-green { border-left-color: #10b981; }
+    .cv-big-card.color-yellow{ border-left-color: #f59e0b; }
+    .cv-big-card.color-purple{ border-left-color: #8b5cf6; }
+    .cv-big-card.color-red   { border-left-color: #ef4444; }
+
+    /* 호버 시 배경 틴트 */
+    .cv-big-card.color-blue:hover  { border-color: #bfdbfe; background: #fafcff; }
+    .cv-big-card.color-green:hover { border-color: #a7f3d0; background: #fafffe; }
+    .cv-big-card.color-yellow:hover{ border-color: #fde68a; background: #fffef5; }
+    .cv-big-card.color-purple:hover{ border-color: #ddd6fe; background: #fdfaff; }
+    .cv-big-card.color-red:hover   { border-color: #fecaca; background: #fffafa; }
+
+    /* ── 번호: 대형 워터마크 스타일 ── */
+    .cv-num {
+      width: 100px;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      /* 워터마크처럼 매우 크게 + 반투명 */
+      font-size: 72px;
+      font-weight: 900;
+      font-family: 'Noto Sans KR', sans-serif;
+      letter-spacing: -0.05em;
+      padding: 0;
+      position: relative;
+      /* 번호가 카드 내용 아래로 살짝 배어나오는 효과 */
+      overflow: visible;
+      user-select: none;
+    }
+
+    /* 각 색상별 워터마크 번호 */
+    .cv-num.color-blue {
+      background: linear-gradient(160deg, #eef4ff 0%, #dbeafe 100%);
+      color: rgba(59,130,246,0.30);
+    }
+    .cv-num.color-green {
+      background: linear-gradient(160deg, #edfdf5 0%, #d1fae5 100%);
+      color: rgba(16,185,129,0.30);
+    }
+    .cv-num.color-yellow {
+      background: linear-gradient(160deg, #fffef0 0%, #fef3c7 100%);
+      color: rgba(245,158,11,0.30);
+    }
+    .cv-num.color-purple {
+      background: linear-gradient(160deg, #f8f5ff 0%, #ede9fe 100%);
+      color: rgba(139,92,246,0.30);
+    }
+    .cv-num.color-red {
+      background: linear-gradient(160deg, #fff8f8 0%, #fee2e2 100%);
+      color: rgba(239,68,68,0.30);
+    }
+
+    /* ── 아이콘 영역 ── */
+    .cv-icon-wrap {
+      width: 72px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cv-icon-circle {
+      width: 54px; height: 54px; border-radius: 15px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+    .cv-icon-circle.color-blue   { background: linear-gradient(135deg,#dbeafe,#bfdbfe); color: #2563eb; }
+    .cv-icon-circle.color-green  { background: linear-gradient(135deg,#d1fae5,#a7f3d0); color: #059669; }
+    .cv-icon-circle.color-yellow { background: linear-gradient(135deg,#fef3c7,#fde68a); color: #d97706; }
+    .cv-icon-circle.color-purple { background: linear-gradient(135deg,#ede9fe,#ddd6fe); color: #7c3aed; }
+    .cv-icon-circle.color-red    { background: linear-gradient(135deg,#fee2e2,#fecaca); color: #dc2626; }
+
+    /* ── 카드 본문 ── */
+    .cv-body {
+      flex: 1; padding: 30px 36px 30px 16px;
+      display: flex; flex-direction: column; justify-content: center;
+    }
+    .cv-big-title {
+      /* 요청: 24px 이상 */
+      font-size: 24px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 10px;
+      letter-spacing: -0.025em;
+      line-height: 1.3;
+    }
+    .cv-big-desc {
+      /* 요청: 16px */
+      font-size: 16px;
+      color: #374151;
+      line-height: 1.85;
+    }
+
+    .cv-edit-hint {
+      flex-shrink: 0; display: flex; align-items: center;
+      padding-right: 22px;
+      color: #d1d5db; font-size: 14px;
+      transition: color 0.18s;
+    }
+    .cv-big-card.clickable:hover .cv-edit-hint { color: #9ca3af; }
+
+    /* ════════════════════════════════════════════════════
+       반응형 — 태블릿 (≤ 900px)
+       ════════════════════════════════════════════════════ */
+    @media (max-width: 900px) {
+      .identity-hero { padding: 44px 48px 40px; }
+      .hero-team-name { font-size: 46px; }
+      .hero-mission   { font-size: 26px; line-height: 1.95; }
+    }
+
+    /* ════════════════════════════════════════════════════
+       반응형 — 모바일 (≤ 768px)
+       ════════════════════════════════════════════════════ */
+    @media (max-width: 768px) {
+      /* 히어로 */
+      .identity-hero {
+        padding: 32px 22px 28px;
+        border-radius: 14px;
+        margin-bottom: 20px;
+      }
+      .hero-team-name { font-size: 38px; margin-bottom: 14px; }
+      .hero-team-sub  { font-size: 11px; margin-bottom: 22px; }
+      .hero-quote-mark { font-size: 72px; margin-bottom: 16px; }
+      .hero-mission   { font-size: 18px; line-height: 1.9; max-width: 100%; }
+      .hero-mission strong { font-size: 17px; padding: 1px 6px 2px; }
+      .hero-eyebrow   { font-size: 10px; padding: 5px 12px; margin-bottom: 20px; }
+      .hero-actions   { top: 14px; right: 14px; }
+
+      /* 섹션 헤더 */
+      .cv-section-header {
+        flex-direction: column; align-items: flex-start;
+        gap: 12px; padding-bottom: 16px; margin-bottom: 20px;
+      }
+      .cv-section-title { font-size: 24px; }
+      .cv-section-sub   { font-size: 14px; }
+
+      /* 핵심가치 카드 — 번호 숨기고 컴팩트하게 */
+      .cv-num     { display: none; }
+      .cv-icon-wrap { width: 56px; }
+      .cv-icon-circle { width: 42px; height: 42px; font-size: 18px; border-radius: 11px; }
+      .cv-body    { padding: 18px 16px 18px 4px; }
+      .cv-big-title { font-size: 17px; margin-bottom: 6px; }
+      .cv-big-desc  { font-size: 14px; line-height: 1.75; }
+      .cv-edit-hint { padding-right: 14px; font-size: 12px; }
+      .cv-big-card  { border-radius: 12px; }
+    }
+
+    /* ════════════════════════════════════════════════════
+       반응형 — 소형 모바일 (≤ 480px)
+       ════════════════════════════════════════════════════ */
+    @media (max-width: 480px) {
+      .identity-hero  { padding: 24px 16px 22px; border-radius: 12px; }
+      .hero-team-name { font-size: 30px; margin-bottom: 10px; }
+      .hero-team-sub  { font-size: 10px; letter-spacing: 0.16em; }
+      .hero-quote-mark { font-size: 56px; margin-bottom: 12px; }
+      .hero-mission   { font-size: 15px; line-height: 1.85; }
+      .hero-mission strong { font-size: 14px; padding: 1px 5px; border-radius: 4px; }
+      .hero-eyebrow   { font-size: 9px; padding: 4px 10px; }
+      .cv-section-title { font-size: 20px; }
+      .cv-icon-wrap { width: 48px; }
+      .cv-icon-circle { width: 36px; height: 36px; font-size: 16px; border-radius: 9px; }
+      .cv-big-title { font-size: 15px; }
+      .cv-big-desc  { font-size: 13px; }
+      .cv-body { padding: 14px 12px 14px 2px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title">팀 정체성 &amp; 핵심가치</h1>
+      <div class="header-actions" id="headerActions"></div>
+    </header>
+
+    <main class="content-body">
+
+      <!-- ── 히어로: 팀 정체성 ── -->
+      <div class="identity-hero">
+        <!-- 상단 빛 테두리 라인 -->
+        <div class="hero-inner-border"></div>
+        <div class="hero-actions">
+          <button id="editIdentityBtn" class="btn-hero-edit hidden" onclick="openIdentityModal()">
+            <i class="fas fa-edit"></i> 수정
+          </button>
+        </div>
+        <div class="hero-eyebrow">
+          <i class="fas fa-calculator"></i>
+          팀 정체성 &amp; 핵심가치
+        </div>
+        <div class="hero-team-name">
+          계리결산팀
+          <span class="hero-team-sub">Actuarial Settlement Team</span>
+        </div>
+        <span class="hero-quote-mark">"</span>
+        <p id="missionDisplay" class="hero-mission">로딩 중...</p>
+        <div id="visionWrap" class="hero-vision-wrap hidden">
+          <div class="hero-vision-label">Vision</div>
+          <p id="visionDisplay" class="hero-vision-text"></p>
+        </div>
+        <div class="hero-meta" id="identityMeta"></div>
+      </div>
+
+      <!-- ── 핵심가치 ── -->
+      <div style="margin-bottom: 32px;">
+        <div class="cv-section-header">
+          <div>
+            <div class="cv-section-title">핵심가치 &amp; 행동규범</div>
+            <div class="cv-section-sub">우리 팀이 매일의 업무에서 실천하는 다섯 가지 원칙</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="cv-count-badge" id="cvCountBadge">5개 가치</span>
+            <button id="addValueBtn" class="btn btn-primary btn-sm hidden" onclick="openAddCvModal()">
+              <i class="fas fa-plus"></i> 추가
+            </button>
+          </div>
+        </div>
+        <div id="coreValuesGrid" class="cv-big-list">
+          <div class="text-muted text-center" style="padding:40px;">로딩 중...</div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- 팀 정체성 편집 모달 -->
+<div id="identityModal" class="modal-overlay">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-header">
+      <h3 class="modal-title"><i class="fas fa-flag" style="color:#4f86f7;margin-right:8px;"></i>팀 정체성 수정</h3>
+      <button class="modal-close" onclick="closeModal('identityModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">팀 정체성 (미션) <span class="required">*</span></label>
+        <textarea id="missionInput" class="form-control" style="min-height:140px;" placeholder="계리결산팀의 존재 이유와 역할을 입력하세요."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">비전 (선택)</label>
+        <textarea id="visionInput" class="form-control" style="min-height:80px;" placeholder="팀이 지향하는 미래 모습을 입력하세요."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('identityModal')">취소</button>
+      <button class="btn btn-primary" onclick="saveIdentity()"><i class="fas fa-save"></i> 저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 핵심가치 편집 모달 -->
+<div id="cvModal" class="modal-overlay">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <h3 class="modal-title" id="cvModalTitle"><i class="fas fa-star" style="color:#f59e0b;margin-right:8px;"></i>핵심가치 수정</h3>
+      <button class="modal-close" onclick="closeModal('cvModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cvId">
+      <div class="form-group">
+        <label class="form-label">핵심가치 제목 <span class="required">*</span></label>
+        <input type="text" id="cvTitle" class="form-control" placeholder="예: 책임 있게 완수한다">
+      </div>
+      <div class="form-group">
+        <label class="form-label">행동규범 설명 <span class="required">*</span></label>
+        <textarea id="cvDesc" class="form-control" style="min-height:100px;" placeholder="이 핵심가치의 구체적 행동 방식을 설명하세요."></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="form-group">
+          <label class="form-label">아이콘</label>
+          <select id="cvIcon" class="form-control">
+            <option value="fa-shield-alt">방패 (책임)</option>
+            <option value="fa-search">검색 (정확성)</option>
+            <option value="fa-graduation-cap">학업 (성장)</option>
+            <option value="fa-cogs">설정 (개선)</option>
+            <option value="fa-comments">대화 (소통)</option>
+            <option value="fa-chart-line">차트 (성과)</option>
+            <option value="fa-lightbulb">아이디어</option>
+            <option value="fa-handshake">협업</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">색상</label>
+          <select id="cvColor" class="form-control">
+            <option value="blue">파랑</option>
+            <option value="green">초록</option>
+            <option value="yellow">노랑</option>
+            <option value="purple">보라</option>
+            <option value="red">빨강</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="cvDeleteBtn" onclick="deleteCv()" style="margin-right:auto;">
+        <i class="fas fa-trash"></i> 삭제
+      </button>
+      <button class="btn btn-secondary" onclick="closeModal('cvModal')">취소</button>
+      <button class="btn btn-primary" onclick="saveCv()"><i class="fas fa-save"></i> 저장</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js"></script>
+<script>
+  Portal.init();
+
+  const isLeader = RBAC.isTeamLeader();
+
+  if (isLeader) {
+    document.getElementById('editIdentityBtn').classList.remove('hidden');
+    document.getElementById('addValueBtn').classList.remove('hidden');
+    document.getElementById('headerActions').innerHTML =
+      `<span class="text-muted" style="font-size:12px;"><i class="fas fa-lock-open" style="color:#10b981;"></i> 편집 가능 (팀장)</span>`;
+  }
+
+  // ── 데이터 로드 ──────────────────────────────────────
+
+  async function loadPage() {
+    try {
+      const [identRes, cvRes] = await Promise.all([
+        fetch('tables/team_identity/default'),
+        fetch('tables/core_values?sort=order&limit=20')
+      ]);
+
+      if (identRes.ok) {
+        const d = await identRes.json();
+        // 키워드 강조: 재무건전성, 리스크, 의사결정, AI 등을 bold 처리
+        const highlights = ['계리결산팀', '재무건전성', '의사결정', 'AI', '결산', '재무수치'];
+        let mission = d.mission || '팀 미션이 설정되지 않았습니다.';
+        highlights.forEach(kw => {
+          if (kw === '결산') {
+            // '계리결산팀' 안의 '결산'이 중복 처리되지 않도록 lookbehind 사용
+            mission = mission.replace(/(?<!계리)결산(?!팀)/g, '<strong>결산</strong>');
+          } else {
+            mission = mission.replaceAll(kw, `<strong>${kw}</strong>`);
+          }
+        });
+        document.getElementById('missionDisplay').innerHTML = mission;
+        if (d.vision) {
+          document.getElementById('visionDisplay').textContent = d.vision;
+          document.getElementById('visionWrap').classList.remove('hidden');
+        }
+        if (d.updated_at) {
+          document.getElementById('identityMeta').textContent =
+            `Last updated · ${Portal.formatDateTime(d.updated_at)}`;
+        }
+      }
+
+      if (cvRes.ok) {
+        const d = await cvRes.json();
+        renderCoreValues(d.data || []);
+      }
+    } catch (e) {
+      Portal.showToast('데이터 로드에 실패했습니다.', 'error');
+    }
+  }
+
+  function renderCoreValues(values) {
+    const grid = document.getElementById('coreValuesGrid');
+    const countBadge = document.getElementById('cvCountBadge');
+
+    if (!values.length) {
+      grid.innerHTML = `<div class="empty-state">
+        <i class="fas fa-star"></i>
+        <h3>핵심가치가 없습니다</h3>
+        <p>팀장만 핵심가치를 추가할 수 있습니다.</p>
+      </div>`;
+      return;
+    }
+
+    const sorted = [...values].sort((a, b) => (a.order || 0) - (b.order || 0));
+    if (countBadge) countBadge.textContent = `${sorted.length}개 가치`;
+
+    grid.innerHTML = sorted.map((cv, i) => {
+      const color = cv.color || 'blue';
+      const num   = String(i + 1).padStart(2, '0');
+      const clickAttr = isLeader ? `onclick="openEditCvModal('${cv.id}')"` : '';
+      return `
+        <div class="cv-big-card color-${color} ${isLeader ? 'clickable' : ''}" ${clickAttr}>
+          <div class="cv-num color-${color}" data-num="${num}">${num}</div>
+          <div class="cv-icon-wrap">
+            <div class="cv-icon-circle color-${color}">
+              <i class="fas ${cv.icon || 'fa-star'}"></i>
+            </div>
+          </div>
+          <div class="cv-body">
+            <div class="cv-big-title">${cv.title}</div>
+            <div class="cv-big-desc">${cv.description}</div>
+          </div>
+          ${isLeader ? `<div class="cv-edit-hint"><i class="fas fa-pen"></i></div>` : ''}
+        </div>`;
+    }).join('');
+  }
+
+  // ── 팀 정체성 편집 ──────────────────────────────────
+
+  function openIdentityModal() {
+    document.getElementById('missionInput').value = document.getElementById('missionDisplay').textContent;
+    document.getElementById('visionInput').value = document.getElementById('visionDisplay').textContent;
+    openModal('identityModal');
+  }
+
+  async function saveIdentity() {
+    const mission = document.getElementById('missionInput').value.trim();
+    const vision  = document.getElementById('visionInput').value.trim();
+    if (!mission) { Portal.showToast('팀 정체성을 입력해주세요.', 'warning'); return; }
+
+    const user = RBAC.getCurrentUser();
+    const res = await fetch('tables/team_identity/default', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mission, vision, updated_by: user?.user_id || '' })
+    });
+
+    if (res.ok) {
+      closeModal('identityModal');
+      Portal.showToast('팀 정체성이 저장되었습니다.', 'success');
+      loadPage();
+    } else {
+      Portal.showToast('저장에 실패했습니다.', 'error');
+    }
+  }
+
+  // ── 핵심가치 편집 ────────────────────────────────────
+
+  let _cvCache = {};
+
+  async function openEditCvModal(id) {
+    if (!isLeader) return;
+    const res = await fetch(`tables/core_values/${id}`);
+    if (!res.ok) return;
+    const cv = await res.json();
+    _cvCache[id] = cv;
+
+    document.getElementById('cvModalTitle').innerHTML =
+      `<i class="fas fa-star" style="color:#f59e0b;margin-right:8px;"></i>핵심가치 수정`;
+    document.getElementById('cvId').value = id;
+    document.getElementById('cvTitle').value = cv.title || '';
+    document.getElementById('cvDesc').value  = cv.description || '';
+    document.getElementById('cvIcon').value  = cv.icon  || 'fa-shield-alt';
+    document.getElementById('cvColor').value = cv.color || 'blue';
+    document.getElementById('cvDeleteBtn').classList.remove('hidden');
+    openModal('cvModal');
+  }
+
+  function openAddCvModal() {
+    document.getElementById('cvModalTitle').innerHTML =
+      `<i class="fas fa-plus" style="color:#4f86f7;margin-right:8px;"></i>핵심가치 추가`;
+    document.getElementById('cvId').value = '';
+    document.getElementById('cvTitle').value = '';
+    document.getElementById('cvDesc').value  = '';
+    document.getElementById('cvIcon').value  = 'fa-shield-alt';
+    document.getElementById('cvColor').value = 'blue';
+    document.getElementById('cvDeleteBtn').classList.add('hidden');
+    openModal('cvModal');
+  }
+
+  async function saveCv() {
+    const id    = document.getElementById('cvId').value;
+    const title = document.getElementById('cvTitle').value.trim();
+    const desc  = document.getElementById('cvDesc').value.trim();
+    const icon  = document.getElementById('cvIcon').value;
+    const color = document.getElementById('cvColor').value;
+
+    if (!title || !desc) { Portal.showToast('제목과 설명을 모두 입력해주세요.', 'warning'); return; }
+
+    const payload = { title, description: desc, icon, color };
+    const url     = id ? `tables/core_values/${id}` : 'tables/core_values';
+    const method  = id ? 'PATCH' : 'POST';
+
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      closeModal('cvModal');
+      Portal.showToast(id ? '핵심가치가 수정되었습니다.' : '핵심가치가 추가되었습니다.', 'success');
+      loadPage();
+    } else {
+      Portal.showToast('저장에 실패했습니다.', 'error');
+    }
+  }
+
+  async function deleteCv() {
+    const id = document.getElementById('cvId').value;
+    if (!id) return;
+    Portal.confirm('이 핵심가치를 삭제하시겠습니까?', async () => {
+      const res = await fetch(`tables/core_values/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        closeModal('cvModal');
+        Portal.showToast('삭제되었습니다.', 'success');
+        loadPage();
+      } else {
+        Portal.showToast('삭제에 실패했습니다.', 'error');
+      }
+    });
+  }
+
+  // ── 모달 유틸 ────────────────────────────────────────
+
+  function openModal(id)  { document.getElementById(id).classList.add('show'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+  // 오버레이 클릭으로 닫기
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) overlay.classList.remove('show');
+    });
+  });
+
+  loadPage();
+</script>
+</body>
+</html>

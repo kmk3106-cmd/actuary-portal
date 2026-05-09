@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>면담일지 작성 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    .ctrl-bar {
+      position: sticky; top: 0;
+      background: rgba(255,255,255,0.97);
+      border-bottom: 1px solid #ddd; padding: 10px 24px;
+      z-index: 200; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+    }
+    .ctrl-bar .bar-title { font-weight:700; color:var(--primary); font-size:14px; flex:1; }
+    .editor-wrap { max-width:860px; margin:0 auto; padding:24px 0 80px; }
+    .sec-title {
+      font-size:14pt; font-weight:700; color:#111;
+      border-bottom:2px solid #333; padding-bottom:7px;
+      margin-top:36px; margin-bottom:16px;
+    }
+    .sec-title:first-child { margin-top:0; }
+    .sub-title {
+      font-size:11.5pt; font-weight:700; color:#333;
+      border-left:4px solid var(--primary); padding-left:8px;
+      margin-top:22px; margin-bottom:10px;
+    }
+    .grid-2col { display:grid; grid-template-columns:1fr 1fr; gap:0 20px; }
+    .form-group { margin-bottom:16px; }
+    .form-label { display:block; font-size:10.5pt; font-weight:600; color:#444; margin-bottom:5px; }
+    .form-control {
+      width:100%; padding:9px 12px; border:1.5px solid var(--gray-200);
+      border-radius:8px; font-size:14px; font-family:inherit; color:var(--gray-800);
+      background:var(--gray-50); transition:border-color 0.2s;
+    }
+    .form-control:focus { outline:none; border-color:var(--primary); background:white; box-shadow:0 0 0 3px rgba(79,134,247,0.1); }
+    textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
+    select.form-control { cursor:pointer; }
+    .action-block {
+      border:1px solid #e0e0e0; border-radius:8px;
+      padding:16px 20px; margin-bottom:14px; background:#fafafa;
+    }
+    .action-block h4 { margin:0 0 14px; color:var(--primary); font-size:11pt; border-bottom:1px dashed #ccc; padding-bottom:7px; }
+    .chk-group { display:flex; flex-direction:column; gap:10px; }
+    .chk-item-edit { display:flex; align-items:center; gap:10px; font-size:10.5pt; color:#333; cursor:pointer; }
+    .chk-item-edit input[type=checkbox] { width:16px; height:16px; cursor:pointer; }
+    .meta-row {
+      display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr));
+      gap:12px; background:#f8f9ff; border:1px solid #dbeafe;
+      border-radius:10px; padding:16px 20px; margin-bottom:24px;
+    }
+    .required { color:var(--danger); margin-left:3px; }
+    @media (max-width:768px) {
+      .grid-2col { grid-template-columns:1fr; }
+      .meta-row { grid-template-columns:1fr 1fr; }
+      .ctrl-bar { padding:8px 12px; }
+    }
+    @media (max-width:480px) {
+      .meta-row { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+
+    <!-- 컨트롤 바 -->
+    <div class="ctrl-bar">
+      <button class="btn btn-secondary btn-sm" onclick="location.href='interview-list.html'">
+        <i class="fas fa-arrow-left"></i> 목록
+      </button>
+      <span class="bar-title" id="barTitle">면담일지 작성</span>
+      <button class="btn btn-secondary btn-sm" onclick="saveDraft()">
+        <i class="fas fa-save"></i> 임시저장
+      </button>
+      <button class="btn btn-primary" onclick="saveLog()">
+        <i class="fas fa-check"></i> 저장 완료
+      </button>
+    </div>
+
+    <div class="content-body">
+      <div class="editor-wrap" id="editorWrap">
+
+        <!-- ── 메타 정보 ─────────────────────────────── -->
+        <div class="meta-row">
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">연도 <span class="required">*</span></label>
+            <select class="form-control" id="f_year"></select>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">분기 <span class="required">*</span></label>
+            <select class="form-control" id="f_quarter">
+              <option value="1">1분기</option>
+              <option value="2">2분기</option>
+              <option value="3">3분기</option>
+              <option value="4">4분기</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">면담 유형 <span class="required">*</span></label>
+            <select class="form-control" id="f_category">
+              <option value="performance">성과면담</option>
+              <option value="career">경력개발</option>
+              <option value="complaint">고충처리</option>
+              <option value="general">일반면담</option>
+              <option value="disciplinary">징계면담</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">기밀 여부</label>
+            <select class="form-control" id="f_confidential">
+              <option value="0">일반</option>
+              <option value="1">기밀 (팀장만 열람)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 1. 기본 정보 -->
+        <div class="sec-title">1. 기본 정보</div>
+        <div class="grid-2col">
+          <div class="form-group">
+            <label class="form-label">문서명</label>
+            <input type="text" class="form-control" id="f_doc_name" placeholder="예) 2025년 1분기 한인석 면담일지">
+          </div>
+          <div class="form-group">
+            <label class="form-label">작성목적(면담유형)</label>
+            <input type="text" class="form-control" id="f_doc_purpose" placeholder="예) 성과면담 / 경력개발">
+          </div>
+          <div class="form-group">
+            <label class="form-label">면담자 <span class="required">*</span></label>
+            <input type="text" class="form-control" id="f_interviewer" readonly>
+          </div>
+          <div class="form-group">
+            <label class="form-label">면담대상자 <span class="required">*</span></label>
+            <select class="form-control" id="f_interviewee" onchange="onIntervieweeChange()"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">직책/직급</label>
+            <input type="text" class="form-control" id="f_position" placeholder="예) 대리, 과장">
+          </div>
+          <div class="form-group">
+            <label class="form-label">면담일시 <span class="required">*</span></label>
+            <input type="date" class="form-control" id="f_meet_date" onchange="onDateChange()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">면담장소</label>
+            <input type="text" class="form-control" id="f_meet_place" placeholder="예) 회의실 A, 팀장실">
+          </div>
+          <div class="form-group">
+            <label class="form-label">차수</label>
+            <input type="text" class="form-control" id="f_round" placeholder="예) 1차, 2차">
+          </div>
+        </div>
+
+        <!-- 2. 면담 전 사전 파악 -->
+        <div class="sec-title">2. 면담 전 사전 파악</div>
+        <div class="form-group">
+          <label class="form-label">최근 3~6개월 주요 업무 및 결산/보고 일정 수행 현황</label>
+          <textarea class="form-control" id="f_work_status" placeholder="최근 업무 수행 현황을 기록하세요"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">담당 보유 영역 (해당 항목 입력)</label>
+          <input type="text" class="form-control" id="f_work_areas" placeholder="예) IFRS17 부채평가, 재보험 결산, K-ICS">
+        </div>
+        <div class="form-group">
+          <label class="form-label">직전 평가/피드백, 업무 과부하 가능성, 조직 내 협업 포지션</label>
+          <textarea class="form-control" id="f_feedback"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">이번 면담에서 중점 확인할 항목 2~3개</label>
+          <textarea class="form-control" id="f_focus" style="min-height:60px;"></textarea>
+        </div>
+
+        <!-- 3. 기본 정보 및 현재 역할 인식 -->
+        <div class="sec-title">3. 기본 정보 및 현재 역할 인식</div>
+        <div class="grid-2col">
+          <div class="form-group">
+            <label class="form-label">소속/담당</label>
+            <input type="text" class="form-control" id="f_dept" placeholder="계리결산팀">
+          </div>
+          <div class="form-group">
+            <label class="form-label">입사/부서경력</label>
+            <input type="text" class="form-control" id="f_exp" placeholder="예) 입사 5년 / 본 팀 3년">
+          </div>
+          <div class="form-group">
+            <label class="form-label">주요 담당업무</label>
+            <input type="text" class="form-control" id="f_main_work">
+          </div>
+          <div class="form-group">
+            <label class="form-label">핵심 이해관계자</label>
+            <input type="text" class="form-control" id="f_stakeholders" placeholder="예) ALM팀, 상품팀, 경영기획">
+          </div>
+          <div class="form-group">
+            <label class="form-label">현재 가장 중요한 KPI/과제</label>
+            <input type="text" class="form-control" id="f_kpi">
+          </div>
+          <div class="form-group">
+            <label class="form-label">최근 성과/기여</label>
+            <input type="text" class="form-control" id="f_achieve">
+          </div>
+          <div class="form-group">
+            <label class="form-label">본인이 인식하는 강점</label>
+            <input type="text" class="form-control" id="f_strength">
+          </div>
+          <div class="form-group">
+            <label class="form-label">현재 어려운 점</label>
+            <input type="text" class="form-control" id="f_hardship">
+          </div>
+          <div class="form-group">
+            <label class="form-label">업무량 체감</label>
+            <select class="form-control" id="f_workload">
+              <option value="">선택</option>
+              <option>매우 과중</option>
+              <option>과중</option>
+              <option>적정</option>
+              <option>여유</option>
+              <option>매우 여유</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">스트레스 수준</label>
+            <select class="form-control" id="f_stress">
+              <option value="">선택</option>
+              <option>매우 높음</option>
+              <option>높음</option>
+              <option>보통</option>
+              <option>낮음</option>
+              <option>매우 낮음</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">근무/협업 선호</label>
+            <input type="text" class="form-control" id="f_pref" placeholder="예) 자율적 업무 선호, 협업 중심">
+          </div>
+          <div class="form-group">
+            <label class="form-label">향후 희망 역할</label>
+            <input type="text" class="form-control" id="f_future">
+          </div>
+        </div>
+
+        <!-- 4. 최근 업무 수행 및 성과 진단 -->
+        <div class="sec-title">4. 최근 업무 수행 및 성과 진단</div>
+        <div class="grid-2col">
+          <div>
+            <div class="form-group">
+              <label class="form-label">주요 업무/성과 1 (사실 기록)</label>
+              <textarea class="form-control" id="f_perf1_fact"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">면담자 관찰 및 확인 포인트</label>
+              <textarea class="form-control" id="f_perf1_obs"></textarea>
+            </div>
+          </div>
+          <div>
+            <div class="form-group">
+              <label class="form-label">주요 업무/성과 2 (사실 기록)</label>
+              <textarea class="form-control" id="f_perf2_fact"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">면담자 관찰 및 확인 포인트</label>
+              <textarea class="form-control" id="f_perf2_obs"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. 계리결산 업무 특화 확인사항 -->
+        <div class="sec-title">5. 계리결산 업무 특화 확인사항</div>
+        <div class="form-group">
+          <label class="form-label">월/분기/연 결산 일정 대응력</label>
+          <textarea class="form-control" id="f_schedule"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">IFRS17, K-ICS, 준비금 등 핵심 제도 이해도</label>
+          <textarea class="form-control" id="f_system"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">데이터 품질/시스템 이슈 대응 경험</label>
+          <textarea class="form-control" id="f_data"></textarea>
+        </div>
+        <div class="grid-2col">
+          <div class="form-group">
+            <label class="form-label">타부서 협업 난이도</label>
+            <select class="form-control" id="f_collab_depts">
+              <option value="">선택</option>
+              <option>매우 어려움</option>
+              <option>어려움</option>
+              <option>보통</option>
+              <option>원활</option>
+              <option>매우 원활</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">반복작업/비효율/자동화 필요 우선순위</label>
+            <select class="form-control" id="f_auto_priority">
+              <option value="">선택</option>
+              <option value="1">1순위</option>
+              <option value="2">2순위</option>
+              <option value="3">3순위</option>
+              <option value="4">4순위</option>
+              <option value="5">5순위</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">타부서 협업 세부 내용 및 개선 아이디어</label>
+          <textarea class="form-control" id="f_collab_detail"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">자동화 필요 세부 영역 및 아이디어</label>
+          <textarea class="form-control" id="f_auto_detail"></textarea>
+        </div>
+
+        <!-- 6. 강점, 협업 스타일, 조직 기여 -->
+        <div class="sec-title">6. 강점, 협업 스타일, 조직 기여</div>
+        <div class="form-group">
+          <label class="form-label">구성원의 강점 및 팀 차원 활용 방안</label>
+          <textarea class="form-control" id="f_strength6"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">협업 스타일 및 조직 긍정 자산</label>
+          <textarea class="form-control" id="f_collab6"></textarea>
+        </div>
+
+        <!-- 7. 애로사항, 리스크, 지원 필요사항 -->
+        <div class="sec-title">7. 애로사항, 리스크, 지원 필요사항</div>
+        <div class="form-group">
+          <label class="form-label">리스크 요약</label>
+          <select class="form-control" id="f_risks">
+            <option value="">선택</option>
+            <option>높음 (즉시 대응 필요)</option>
+            <option>중간 (모니터링 필요)</option>
+            <option>낮음 (지속 관찰)</option>
+            <option>없음</option>
+          </select>
+        </div>
+        <div class="grid-2col">
+          <div>
+            <div class="form-group">
+              <label class="form-label">애로사항 / 갈등 요소 1</label>
+              <textarea class="form-control" id="f_issue1"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">지원방안 / 즉시 조치 필요사항</label>
+              <textarea class="form-control" id="f_support1"></textarea>
+            </div>
+          </div>
+          <div>
+            <div class="form-group">
+              <label class="form-label">애로사항 / 갈등 요소 2</label>
+              <textarea class="form-control" id="f_issue2"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">지원방안 / 즉시 조치 필요사항</label>
+              <textarea class="form-control" id="f_support2"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- 8. 동기부여, 경력개발, 육성 계획 -->
+        <div class="sec-title">8. 동기부여, 경력개발, 육성 계획</div>
+        <div class="grid-2col">
+          <div class="form-group">
+            <label class="form-label">현재 일에서 보람을 느끼는 요소</label>
+            <input type="text" class="form-control" id="f_reward">
+          </div>
+          <div class="form-group">
+            <label class="form-label">향후 1년 내 성장 희망 영역</label>
+            <input type="text" class="form-control" id="f_hope">
+          </div>
+          <div class="form-group">
+            <label class="form-label">필요 교육/코칭/멘토링</label>
+            <input type="text" class="form-control" id="f_edu">
+          </div>
+          <div class="form-group">
+            <label class="form-label">직무확장 또는 순환 필요성</label>
+            <input type="text" class="form-control" id="f_rotation">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">승진/평가 관련 기대 및 우려</label>
+          <textarea class="form-control" id="f_eval"></textarea>
+        </div>
+        <div class="grid-2col">
+          <div class="form-group">
+            <label class="form-label">단기 육성 방향</label>
+            <input type="text" class="form-control" id="f_dev_short">
+          </div>
+          <div class="form-group">
+            <label class="form-label">중장기 육성 방향</label>
+            <input type="text" class="form-control" id="f_dev_long">
+          </div>
+        </div>
+
+        <!-- 9. 팀장/조직에 대한 피드백 -->
+        <div class="sec-title">9. 팀장/조직에 대한 피드백</div>
+        <div class="form-group">
+          <label class="form-label">현재 팀 운영 유지/개선 필요 사항</label>
+          <textarea class="form-control" id="f_team_feedback"></textarea>
+        </div>
+        <div class="grid-2col">
+          <div class="form-group">
+            <label class="form-label">피드백 빈도</label>
+            <select class="form-control" id="f_fb_freq">
+              <option value="">선택</option>
+              <option>충분함</option>
+              <option>적절함</option>
+              <option>부족함</option>
+              <option>매우 부족함</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">보고 방식</label>
+            <input type="text" class="form-control" id="f_report_ways" placeholder="예) 주간 보고, 이메일 공유">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">리더에게 바라는 지원 세부 제안</label>
+          <textarea class="form-control" id="f_leader_request"></textarea>
+        </div>
+
+        <!-- 10. 종합 진단 -->
+        <div class="sec-title">10. 종합 진단</div>
+        <div class="form-group">
+          <label class="form-label">종합 판단 및 즉시 대응 필요 이슈</label>
+          <textarea class="form-control" id="f_total" style="min-height:100px;"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">중장기 육성 포인트</label>
+          <textarea class="form-control" id="f_dev_point"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">비고 (민감/보안 유의)</label>
+          <textarea class="form-control" id="f_note"></textarea>
+        </div>
+
+        <!-- 11. 후속 실행계획 -->
+        <div class="sec-title">11. 후속 실행계획 (Action Plan)</div>
+
+        <div class="action-block">
+          <h4>[1] 업무</h4>
+          <div class="form-group"><label class="form-label">주요 실행과제</label><textarea class="form-control" id="f_work_task"></textarea></div>
+          <div class="form-group"><label class="form-label">지원 필요사항</label><textarea class="form-control" id="f_work_support" style="min-height:60px;"></textarea></div>
+          <div class="grid-2col">
+            <div class="form-group"><label class="form-label">완료예정일</label><input type="date" class="form-control" id="f_work_due"></div>
+            <div class="form-group"><label class="form-label">추적 결과</label><input type="text" class="form-control" id="f_work_result"></div>
+          </div>
+        </div>
+
+        <div class="action-block">
+          <h4>[2] 역량</h4>
+          <div class="form-group"><label class="form-label">주요 실행과제</label><textarea class="form-control" id="f_skill_task"></textarea></div>
+          <div class="form-group"><label class="form-label">지원 필요사항</label><textarea class="form-control" id="f_skill_support" style="min-height:60px;"></textarea></div>
+          <div class="grid-2col">
+            <div class="form-group"><label class="form-label">완료예정일</label><input type="date" class="form-control" id="f_skill_due"></div>
+            <div class="form-group"><label class="form-label">추적 결과</label><input type="text" class="form-control" id="f_skill_result"></div>
+          </div>
+        </div>
+
+        <div class="action-block">
+          <h4>[3] 협업</h4>
+          <div class="form-group"><label class="form-label">주요 실행과제</label><textarea class="form-control" id="f_collab_task"></textarea></div>
+          <div class="form-group"><label class="form-label">지원 필요사항</label><textarea class="form-control" id="f_collab_support" style="min-height:60px;"></textarea></div>
+          <div class="grid-2col">
+            <div class="form-group"><label class="form-label">완료예정일</label><input type="date" class="form-control" id="f_collab_due"></div>
+            <div class="form-group"><label class="form-label">추적 결과</label><input type="text" class="form-control" id="f_collab_result"></div>
+          </div>
+        </div>
+
+        <div class="action-block">
+          <h4>[4] 조직·환경</h4>
+          <div class="form-group"><label class="form-label">주요 실행과제</label><textarea class="form-control" id="f_env_task"></textarea></div>
+          <div class="grid-2col">
+            <div class="form-group"><label class="form-label">완료예정일</label><input type="date" class="form-control" id="f_env_due"></div>
+            <div class="form-group"><label class="form-label">추적 결과</label><input type="text" class="form-control" id="f_env_result"></div>
+          </div>
+        </div>
+
+        <div class="action-block">
+          <h4>[5] 기타</h4>
+          <div class="form-group"><label class="form-label">주요 실행과제</label><textarea class="form-control" id="f_etc_task"></textarea></div>
+          <div class="grid-2col">
+            <div class="form-group"><label class="form-label">완료예정일</label><input type="date" class="form-control" id="f_etc_due"></div>
+            <div class="form-group"><label class="form-label">추적 결과</label><input type="text" class="form-control" id="f_etc_result"></div>
+          </div>
+        </div>
+
+        <!-- 12. 면담 마무리 확인 -->
+        <div class="sec-title">12. 면담 마무리 확인</div>
+        <div class="form-group">
+          <label class="form-label">당사자와 합의된 사항 및 추가 확인 필요사항</label>
+          <textarea class="form-control" id="f_agree"></textarea>
+        </div>
+        <div class="grid-2col">
+          <div class="form-group">
+            <label class="form-label">차기 면담 예정일</label>
+            <input type="date" class="form-control" id="f_next_date">
+          </div>
+          <div class="form-group">
+            <label class="form-label">중간 점검 방식</label>
+            <input type="text" class="form-control" id="f_check_method" placeholder="예) 주간 체크인, 월 1회 보고">
+          </div>
+          <div class="form-group">
+            <label class="form-label">면담자 서명 / 확인일</label>
+            <input type="text" class="form-control" id="f_sign1">
+          </div>
+          <div class="form-group">
+            <label class="form-label">면담대상자 서명 / 확인일</label>
+            <input type="text" class="form-control" id="f_sign2">
+          </div>
+        </div>
+
+        <div class="sub-title">최종 체크</div>
+        <div class="chk-group">
+          <label class="chk-item-edit">
+            <input type="checkbox" id="f_chk_fact">
+            사실과 의견이 명확히 구분되어 기록되었는가?
+          </label>
+          <label class="chk-item-edit">
+            <input type="checkbox" id="f_chk_action">
+            후속조치의 책임자와 일정이 구체적으로 작성되었는가?
+          </label>
+          <label class="chk-item-edit">
+            <input type="checkbox" id="f_chk_security">
+            민감정보를 불필요하게 과도하게 기록하지 않았는가?
+          </label>
+          <label class="chk-item-edit">
+            <input type="checkbox" id="f_chk_next">
+            차기 면담 및 점검 방식이 당사자와 합의되었는가?
+          </label>
+        </div>
+
+        <!-- 저장 버튼 (하단) -->
+        <div style="margin-top:40px; display:flex; gap:12px; justify-content:flex-end; padding-bottom:20px;">
+          <button class="btn btn-secondary" onclick="location.href='interview-list.html'">취소</button>
+          <button class="btn btn-secondary" onclick="saveDraft()"><i class="fas fa-save"></i> 임시저장</button>
+          <button class="btn btn-primary" onclick="saveLog()"><i class="fas fa-check"></i> 저장 완료</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js"></script>
+<script>
+  if (!Portal.init()) throw 'AUTH';
+
+  const user = RBAC.getCurrentUser();
+  if (user.role !== 'team_leader') {
+    Portal.showToast('면담일지 작성은 팀장만 가능합니다.', 'error');
+    setTimeout(() => location.href = 'interview-list.html', 1500);
+    throw 'ACCESS_DENIED';
+  }
+
+  const MEMBERS = ['한인석','이동민','이상현','마혜원','예대호','이성원','고인수','김예은','강세진','이용우','오정택','김채린','김민국'];
+  const params = new URLSearchParams(location.search);
+  const editId = params.get('id');
+
+  // 연도 옵션
+  const curYear = new Date().getFullYear();
+  const curQ    = Math.ceil((new Date().getMonth() + 1) / 3);
+  let yearOpts  = '';
+  for (let y = curYear; y >= curYear - 4; y++) {
+    yearOpts += `<option value="${y}" ${y === curYear ? 'selected' : ''}>${y}년</option>`;
+    if (y === curYear - 4) break;
+  }
+  document.getElementById('f_year').innerHTML = yearOpts;
+  document.getElementById('f_quarter').value = String(curQ);
+
+  // 면담자 자동 설정
+  document.getElementById('f_interviewer').value = user.full_name || user.username;
+
+  // 서명란 자동 설정
+  document.getElementById('f_sign1').value = `${user.full_name || user.username} / ${new Date().toLocaleDateString('ko-KR')}`;
+
+  // 면담대상자 옵션
+  let memberOpts = '<option value="">-- 선택 --</option>';
+  MEMBERS.forEach(m => memberOpts += `<option value="${m}">${m}</option>`);
+  document.getElementById('f_interviewee').innerHTML = memberOpts;
+
+  function onIntervieweeChange() {
+    const name = document.getElementById('f_interviewee').value;
+    document.getElementById('f_sign2').value = name ? `${name} / ` : '';
+    autoTitle();
+  }
+
+  function onDateChange() {
+    autoTitle();
+  }
+
+  function autoTitle() {
+    const name = document.getElementById('f_interviewee').value;
+    const date = document.getElementById('f_meet_date').value;
+    const year = document.getElementById('f_year').value;
+    const q    = document.getElementById('f_quarter').value;
+    if (name && date) {
+      const d = new Date(date);
+      document.getElementById('f_doc_name').value = `${year}년 ${q}분기 ${name} 1:1 면담일지`;
+    }
+  }
+
+  function gv(id) {
+    const el = document.getElementById(id);
+    if (!el) return '';
+    if (el.type === 'checkbox') return el.checked;
+    return el.value.trim();
+  }
+
+  function sv(id, val) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.type === 'checkbox') { el.checked = !!val; return; }
+    el.value = val || '';
+  }
+
+  function buildPayload() {
+    const interviewee = gv('f_interviewee');
+    const year  = gv('f_year');
+    const q     = gv('f_quarter');
+    return {
+      title:              gv('f_doc_name') || `${year}년 ${q}분기 ${interviewee} 면담일지`,
+      category:           gv('f_category'),
+      year:               Number(year),
+      quarter:            Number(q),
+      is_confidential:    gv('f_confidential') === '1',
+      interviewer_name:   user.full_name || user.username,
+      interviewer_id:     user.user_id || user.id || '',
+      interviewee_name:   interviewee,
+      interview_date:     gv('f_meet_date'),
+
+      sec1_doc_name:      gv('f_doc_name'),
+      sec1_doc_purpose:   gv('f_doc_purpose'),
+      sec1_position:      gv('f_position'),
+      sec1_meet_date:     gv('f_meet_date'),
+      sec1_meet_place:    gv('f_meet_place'),
+      sec1_round:         gv('f_round'),
+
+      sec2_work_status:   gv('f_work_status'),
+      sec2_work_areas:    gv('f_work_areas').split(/[,，、]/).map(s=>s.trim()).filter(Boolean),
+      sec2_feedback:      gv('f_feedback'),
+      sec2_focus:         gv('f_focus'),
+
+      sec3_dept:          gv('f_dept'),
+      sec3_exp:           gv('f_exp'),
+      sec3_main_work:     gv('f_main_work'),
+      sec3_stakeholders:  gv('f_stakeholders'),
+      sec3_kpi:           gv('f_kpi'),
+      sec3_achieve:       gv('f_achieve'),
+      sec3_strength:      gv('f_strength'),
+      sec3_hardship:      gv('f_hardship'),
+      sec3_workload:      gv('f_workload'),
+      sec3_stress:        gv('f_stress'),
+      sec3_pref:          gv('f_pref'),
+      sec3_future:        gv('f_future'),
+
+      sec4_perf1_fact:    gv('f_perf1_fact'),
+      sec4_perf1_obs:     gv('f_perf1_obs'),
+      sec4_perf2_fact:    gv('f_perf2_fact'),
+      sec4_perf2_obs:     gv('f_perf2_obs'),
+
+      sec5_schedule:      gv('f_schedule'),
+      sec5_system:        gv('f_system'),
+      sec5_data:          gv('f_data'),
+      sec5_collab_depts:  gv('f_collab_depts'),
+      sec5_collab_detail: gv('f_collab_detail'),
+      sec5_auto_priority: gv('f_auto_priority'),
+      sec5_auto_detail:   gv('f_auto_detail'),
+
+      sec6_strength:      gv('f_strength6'),
+      sec6_collab:        gv('f_collab6'),
+
+      sec7_risks:         gv('f_risks'),
+      sec7_issue1:        gv('f_issue1'),
+      sec7_support1:      gv('f_support1'),
+      sec7_issue2:        gv('f_issue2'),
+      sec7_support2:      gv('f_support2'),
+
+      sec8_reward:        gv('f_reward'),
+      sec8_hope:          gv('f_hope'),
+      sec8_edu:           gv('f_edu'),
+      sec8_rotation:      gv('f_rotation'),
+      sec8_eval:          gv('f_eval'),
+      sec8_dev_short:     gv('f_dev_short'),
+      sec8_dev_long:      gv('f_dev_long'),
+
+      sec9_team_feedback: gv('f_team_feedback'),
+      sec9_fb_freq:       gv('f_fb_freq'),
+      sec9_report_ways:   gv('f_report_ways'),
+      sec9_leader_request:gv('f_leader_request'),
+
+      sec10_total:        gv('f_total'),
+      sec10_dev_point:    gv('f_dev_point'),
+      sec10_note:         gv('f_note'),
+
+      sec11_work_task:    gv('f_work_task'),
+      sec11_work_support: gv('f_work_support'),
+      sec11_work_due:     gv('f_work_due'),
+      sec11_work_result:  gv('f_work_result'),
+      sec11_skill_task:    gv('f_skill_task'),
+      sec11_skill_support: gv('f_skill_support'),
+      sec11_skill_due:     gv('f_skill_due'),
+      sec11_skill_result:  gv('f_skill_result'),
+      sec11_collab_task:    gv('f_collab_task'),
+      sec11_collab_support: gv('f_collab_support'),
+      sec11_collab_due:     gv('f_collab_due'),
+      sec11_collab_result:  gv('f_collab_result'),
+      sec11_env_task:     gv('f_env_task'),
+      sec11_env_due:      gv('f_env_due'),
+      sec11_env_result:   gv('f_env_result'),
+      sec11_etc_task:     gv('f_etc_task'),
+      sec11_etc_due:      gv('f_etc_due'),
+      sec11_etc_result:   gv('f_etc_result'),
+
+      sec12_agree:        gv('f_agree'),
+      sec12_next_date:    gv('f_next_date'),
+      sec12_check_method: gv('f_check_method'),
+      sec12_sign1:        gv('f_sign1'),
+      sec12_sign2:        gv('f_sign2'),
+      sec12_chk_fact:     gv('f_chk_fact'),
+      sec12_chk_action:   gv('f_chk_action'),
+      sec12_chk_security: gv('f_chk_security'),
+      sec12_chk_next:     gv('f_chk_next'),
+    };
+  }
+
+  function populateForm(log) {
+    sv('f_year',      String(log.year  || curYear));
+    sv('f_quarter',   String(log.quarter || curQ));
+    sv('f_category',  log.category || 'general');
+    sv('f_confidential', log.is_confidential ? '1' : '0');
+
+    sv('f_doc_name',    log.sec1_doc_name);
+    sv('f_doc_purpose', log.sec1_doc_purpose);
+    sv('f_interviewee', log.interviewee_name);
+    sv('f_position',    log.sec1_position);
+    sv('f_meet_date',   log.sec1_meet_date || log.interview_date);
+    sv('f_meet_place',  log.sec1_meet_place);
+    sv('f_round',       log.sec1_round);
+
+    sv('f_work_status', log.sec2_work_status);
+    sv('f_work_areas',  Array.isArray(log.sec2_work_areas) ? log.sec2_work_areas.join(', ') : (log.sec2_work_areas||''));
+    sv('f_feedback',    log.sec2_feedback);
+    sv('f_focus',       log.sec2_focus);
+
+    sv('f_dept',         log.sec3_dept);
+    sv('f_exp',          log.sec3_exp);
+    sv('f_main_work',    log.sec3_main_work);
+    sv('f_stakeholders', log.sec3_stakeholders);
+    sv('f_kpi',          log.sec3_kpi);
+    sv('f_achieve',      log.sec3_achieve);
+    sv('f_strength',     log.sec3_strength);
+    sv('f_hardship',     log.sec3_hardship);
+    sv('f_workload',     log.sec3_workload);
+    sv('f_stress',       log.sec3_stress);
+    sv('f_pref',         log.sec3_pref);
+    sv('f_future',       log.sec3_future);
+
+    sv('f_perf1_fact', log.sec4_perf1_fact);
+    sv('f_perf1_obs',  log.sec4_perf1_obs);
+    sv('f_perf2_fact', log.sec4_perf2_fact);
+    sv('f_perf2_obs',  log.sec4_perf2_obs);
+
+    sv('f_schedule',      log.sec5_schedule);
+    sv('f_system',        log.sec5_system);
+    sv('f_data',          log.sec5_data);
+    sv('f_collab_depts',  log.sec5_collab_depts);
+    sv('f_collab_detail', log.sec5_collab_detail);
+    sv('f_auto_priority', String(log.sec5_auto_priority||''));
+    sv('f_auto_detail',   log.sec5_auto_detail);
+
+    sv('f_strength6', log.sec6_strength);
+    sv('f_collab6',   log.sec6_collab);
+
+    sv('f_risks',    log.sec7_risks);
+    sv('f_issue1',   log.sec7_issue1);
+    sv('f_support1', log.sec7_support1);
+    sv('f_issue2',   log.sec7_issue2);
+    sv('f_support2', log.sec7_support2);
+
+    sv('f_reward',    log.sec8_reward);
+    sv('f_hope',      log.sec8_hope);
+    sv('f_edu',       log.sec8_edu);
+    sv('f_rotation',  log.sec8_rotation);
+    sv('f_eval',      log.sec8_eval);
+    sv('f_dev_short', log.sec8_dev_short);
+    sv('f_dev_long',  log.sec8_dev_long);
+
+    sv('f_team_feedback',  log.sec9_team_feedback);
+    sv('f_fb_freq',        log.sec9_fb_freq);
+    sv('f_report_ways',    log.sec9_report_ways);
+    sv('f_leader_request', log.sec9_leader_request);
+
+    sv('f_total',     log.sec10_total);
+    sv('f_dev_point', log.sec10_dev_point);
+    sv('f_note',      log.sec10_note);
+
+    sv('f_work_task',    log.sec11_work_task);
+    sv('f_work_support', log.sec11_work_support);
+    sv('f_work_due',     log.sec11_work_due);
+    sv('f_work_result',  log.sec11_work_result);
+    sv('f_skill_task',    log.sec11_skill_task);
+    sv('f_skill_support', log.sec11_skill_support);
+    sv('f_skill_due',     log.sec11_skill_due);
+    sv('f_skill_result',  log.sec11_skill_result);
+    sv('f_collab_task',    log.sec11_collab_task);
+    sv('f_collab_support', log.sec11_collab_support);
+    sv('f_collab_due',     log.sec11_collab_due);
+    sv('f_collab_result',  log.sec11_collab_result);
+    sv('f_env_task',   log.sec11_env_task);
+    sv('f_env_due',    log.sec11_env_due);
+    sv('f_env_result', log.sec11_env_result);
+    sv('f_etc_task',   log.sec11_etc_task);
+    sv('f_etc_due',    log.sec11_etc_due);
+    sv('f_etc_result', log.sec11_etc_result);
+
+    sv('f_agree',        log.sec12_agree);
+    sv('f_next_date',    log.sec12_next_date);
+    sv('f_check_method', log.sec12_check_method);
+    sv('f_sign1',        log.sec12_sign1);
+    sv('f_sign2',        log.sec12_sign2);
+    sv('f_chk_fact',     log.sec12_chk_fact);
+    sv('f_chk_action',   log.sec12_chk_action);
+    sv('f_chk_security', log.sec12_chk_security);
+    sv('f_chk_next',     log.sec12_chk_next);
+  }
+
+  async function saveDraft() {
+    await doSave(true);
+  }
+
+  async function saveLog() {
+    const interviewee = gv('f_interviewee');
+    const meetDate    = gv('f_meet_date');
+    if (!interviewee) { Portal.showToast('면담대상자를 선택해주세요.', 'warning'); return; }
+    if (!meetDate)    { Portal.showToast('면담일시를 입력해주세요.', 'warning'); return; }
+    await doSave(false);
+  }
+
+  async function doSave(isDraft) {
+    const payload = buildPayload();
+    payload.is_draft = isDraft;
+
+    const url    = editId ? `/tables/interview_logs/${editId}` : '/tables/interview_logs';
+    const method = editId ? 'PUT' : 'POST';
+
+    const r = await fetch(url, {
+      method,
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+
+    if (r.ok) {
+      const saved = await r.json();
+      Portal.showToast(isDraft ? '임시저장 완료' : '면담일지 저장 완료', 'success');
+      if (!isDraft) {
+        setTimeout(() => location.href = `interview.html?id=${saved.id || editId}`, 1000);
+      }
+    } else {
+      Portal.showToast('저장 실패', 'error');
+    }
+  }
+
+  // 수정 모드: 기존 데이터 로드
+  async function init() {
+    if (editId) {
+      document.getElementById('barTitle').textContent = '면담일지 수정';
+      const r = await fetch(`/tables/interview_logs/${editId}`);
+      if (r.ok) {
+        const log = await r.json();
+        populateForm(log);
+      }
+    } else {
+      // 신규 작성: 오늘 날짜 기본값
+      document.getElementById('f_meet_date').value = new Date().toISOString().split('T')[0];
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

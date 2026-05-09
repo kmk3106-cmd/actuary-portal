@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>업무 자동화 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    /* Tabs */
+    .auto-tabs { display:flex; gap:0; border-bottom:2px solid #e5e7eb; margin-bottom:28px; }
+    .auto-tab { padding:12px 24px; font-size:14px; font-weight:600; color:#6b7280; cursor:pointer;
+      border-bottom:3px solid transparent; margin-bottom:-2px; transition:all .2s; display:flex; align-items:center; gap:8px; }
+    .auto-tab:hover { color:#374151; }
+    .auto-tab.active { color:#4f86f7; border-bottom-color:#4f86f7; }
+    .auto-tab-icon { width:28px; height:28px; border-radius:8px; display:flex; align-items:center;
+      justify-content:center; font-size:13px; }
+    .tab-blue { background:#dbeafe; color:#1d4ed8; }
+    .tab-green { background:#dcfce7; color:#166534; }
+    .tab-orange { background:#ffedd5; color:#9a3412; }
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+
+    /* Info card */
+    .info-card { border-radius:14px; padding:18px 22px; margin-bottom:24px; display:flex; gap:16px; align-items:flex-start; }
+    .info-card-blue { background:#eff6ff; border:1px solid #bfdbfe; }
+    .info-card-green { background:#f0fdf4; border:1px solid #bbf7d0; }
+    .info-card-orange { background:#fff7ed; border:1px solid #fed7aa; }
+    .info-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center;
+      justify-content:center; font-size:18px; flex-shrink:0; }
+    .icon-blue { background:#dbeafe; color:#1d4ed8; }
+    .icon-green { background:#dcfce7; color:#166534; }
+    .icon-orange { background:#ffedd5; color:#9a3412; }
+    .info-title { font-size:14px; font-weight:700; margin-bottom:4px; }
+    .info-desc { font-size:13px; color:#6b7280; line-height:1.6; }
+    .info-cols { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+    .col-badge { font-size:11px; font-weight:600; padding:3px 10px; border-radius:8px; background:#fff; border:1px solid #e5e7eb; color:#374151; }
+    .col-badge.required { border-color:#4f86f7; color:#4f86f7; background:#eff6ff; }
+
+    /* Upload area */
+    .upload-section { display:grid; grid-template-columns:1fr auto; gap:16px; align-items:start; margin-bottom:20px; }
+    @media(max-width:700px){ .upload-section{grid-template-columns:1fr;} }
+    .ym-group { display:flex; flex-direction:column; gap:6px; }
+    .form-label { font-size:13px; font-weight:600; color:#374151; }
+    .form-select { padding:10px 14px; border:1.5px solid #e5e7eb; border-radius:10px;
+      font-size:14px; color:#111827; font-family:inherit; background:#fff; min-width:140px; }
+    .dropzone { border:2px dashed #cbd5e1; border-radius:14px; padding:36px 24px; text-align:center;
+      cursor:pointer; transition:all .2s; background:#fafafa; }
+    .dropzone:hover, .dropzone.dragover { border-color:#4f86f7; background:#f0f6ff; }
+    .dropzone.has-file { border-color:#10b981; background:#f0fdf4; border-style:solid; }
+    .dropzone-icon { font-size:36px; margin-bottom:12px; color:#9ca3af; }
+    .dropzone.has-file .dropzone-icon { color:#10b981; }
+    .dropzone-text { font-size:14px; color:#6b7280; margin-bottom:4px; }
+    .dropzone.has-file .dropzone-text { color:#065f46; font-weight:600; }
+    .dropzone-hint { font-size:12px; color:#9ca3af; }
+    .dropzone input[type=file] { display:none; }
+
+    /* Run button + status */
+    .run-row { display:flex; gap:12px; align-items:center; margin-bottom:20px; }
+    .run-spinner { display:none; width:20px; height:20px; border:3px solid #e5e7eb;
+      border-top-color:#4f86f7; border-radius:50%; animation:spin .8s linear infinite; }
+    .run-spinner.visible { display:inline-block; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* Console output */
+    .console-box { background:#0f172a; border-radius:12px; padding:20px; min-height:140px; max-height:300px;
+      overflow-y:auto; font-family:'Courier New',monospace; font-size:13px; color:#94a3b8;
+      display:none; margin-bottom:24px; }
+    .console-box.visible { display:block; }
+    .console-line { margin-bottom:3px; line-height:1.5; }
+    .console-success { color:#34d399; }
+    .console-error { color:#f87171; }
+    .console-info { color:#60a5fa; }
+    .console-warn { color:#fbbf24; }
+
+    /* History table */
+    .history-section { background:#fff; border-radius:16px; border:1px solid #f3f4f6;
+      box-shadow:0 1px 4px rgba(0,0,0,.05); overflow:hidden; }
+    .history-header { padding:18px 22px; border-bottom:1px solid #f3f4f6; display:flex; justify-content:space-between; align-items:center; }
+    .history-title { font-size:15px; font-weight:700; color:#111827; }
+    .history-table { width:100%; border-collapse:collapse; }
+    .history-table th { padding:11px 16px; font-size:12px; font-weight:600; color:#9ca3af;
+      text-align:left; border-bottom:1px solid #f3f4f6; background:#fafafa; }
+    .history-table td { padding:12px 16px; font-size:13px; color:#374151; border-bottom:1px solid #f9fafb; vertical-align:middle; }
+    .history-table tr:hover td { background:#f9fafb; }
+    .history-table tr:last-child td { border-bottom:none; }
+    .type-badge { font-size:11px; font-weight:600; padding:3px 10px; border-radius:8px; }
+    .type-public_rate { background:#dbeafe; color:#1e40af; }
+    .type-assumption { background:#dcfce7; color:#166534; }
+    .type-expense_ratio { background:#ffedd5; color:#9a3412; }
+    .run-status { font-size:11px; font-weight:600; padding:3px 10px; border-radius:8px; }
+    .run-success { background:#d1fae5; color:#065f46; }
+    .run-error { background:#fee2e2; color:#991b1b; }
+    .history-empty { padding:40px; text-align:center; color:#d1d5db; }
+    .output-toggle { font-size:11px; color:#4f86f7; cursor:pointer; text-decoration:underline; }
+    .output-detail { display:none; background:#f8faff; border-radius:8px; padding:10px 12px;
+      font-family:'Courier New',monospace; font-size:12px; color:#475569; margin-top:6px;
+      white-space:pre-wrap; max-height:120px; overflow-y:auto; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-robot"></i> 업무 자동화</h1>
+    </header>
+    <main class="content-body">
+
+      <div class="auto-tabs">
+        <div class="auto-tab active" onclick="switchTab('public_rate',this)">
+          <span class="auto-tab-icon tab-blue"><i class="fas fa-percentage"></i></span>공시이율
+        </div>
+        <div class="auto-tab" onclick="switchTab('assumption',this)">
+          <span class="auto-tab-icon tab-green"><i class="fas fa-sliders-h"></i></span>가정 키인
+        </div>
+        <div class="auto-tab" onclick="switchTab('expense_ratio',this)">
+          <span class="auto-tab-icon tab-orange"><i class="fas fa-receipt"></i></span>예정사업비율
+        </div>
+      </div>
+
+      <!-- 공시이율 -->
+      <div class="tab-content active" id="tab-public_rate">
+        <div class="info-card info-card-blue">
+          <div class="info-icon icon-blue"><i class="fas fa-percentage"></i></div>
+          <div>
+            <div class="info-title" style="color:#1d4ed8">공시이율 엑셀 자동 입력</div>
+            <div class="info-desc">공시이율 엑셀 파일을 업로드하면 자동으로 DB에 저장됩니다.<br>첫 번째 시트 기준으로 읽습니다. 헤더행이 포함된 표 형식이어야 합니다.</div>
+            <div class="info-cols">
+              <span class="col-badge required">기준월 *</span>
+              <span class="col-badge required">상품유형 *</span>
+              <span class="col-badge required">이율 *</span>
+              <span class="col-badge">비고</span>
+            </div>
+          </div>
+        </div>
+        <div id="upload-public_rate"></div>
+        <div class="console-box" id="console-public_rate"></div>
+      </div>
+
+      <!-- 가정 키인 -->
+      <div class="tab-content" id="tab-assumption">
+        <div class="info-card info-card-green">
+          <div class="info-icon icon-green"><i class="fas fa-sliders-h"></i></div>
+          <div>
+            <div class="info-title" style="color:#166534">가정 키인 엑셀 자동 처리</div>
+            <div class="info-desc">NP/IDP/VFA 모형별 가정값 엑셀을 업로드하면 자동으로 DB에 저장됩니다.</div>
+            <div class="info-cols">
+              <span class="col-badge required">기준월 *</span>
+              <span class="col-badge required">모형구분 *</span>
+              <span class="col-badge required">가정항목 *</span>
+              <span class="col-badge required">가정값 *</span>
+              <span class="col-badge">단위</span>
+            </div>
+          </div>
+        </div>
+        <div id="upload-assumption"></div>
+        <div class="console-box" id="console-assumption"></div>
+      </div>
+
+      <!-- 예정사업비율 -->
+      <div class="tab-content" id="tab-expense_ratio">
+        <div class="info-card info-card-orange">
+          <div class="info-icon icon-orange"><i class="fas fa-receipt"></i></div>
+          <div>
+            <div class="info-title" style="color:#9a3412">예정사업비율 엑셀 자동 처리</div>
+            <div class="info-desc">상품군별 예정사업비율 엑셀을 업로드하면 자동으로 DB에 저장됩니다.</div>
+            <div class="info-cols">
+              <span class="col-badge required">기준월 *</span>
+              <span class="col-badge required">상품군 *</span>
+              <span class="col-badge required">예정사업비율 *</span>
+              <span class="col-badge">비고</span>
+            </div>
+          </div>
+        </div>
+        <div id="upload-expense_ratio"></div>
+        <div class="console-box" id="console-expense_ratio"></div>
+      </div>
+
+      <!-- 실행 이력 -->
+      <div class="history-section">
+        <div class="history-header">
+          <span class="history-title"><i class="fas fa-history"></i> 최근 실행 이력</span>
+          <button class="btn btn-secondary" style="font-size:12px;padding:6px 14px" onclick="loadHistory()">
+            <i class="fas fa-sync-alt"></i> 새로고침
+          </button>
+        </div>
+        <div id="historyContainer">
+          <div class="history-empty">이력을 불러오는 중...</div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js"></script>
+<script>
+  Portal.init();
+
+  const isLeader = RBAC.isTeamLeader();
+  const YM_OPTIONS = (() => {
+    const opts = [];
+    const now = new Date();
+    for (let i = -12; i <= 3; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const ym = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}`;
+      opts.push({ value: ym, label: `${d.getFullYear()}년 ${d.getMonth()+1}월` });
+    }
+    return opts;
+  })();
+
+  const TYPE_LABEL = { public_rate:'공시이율', assumption:'가정 키인', expense_ratio:'예정사업비율' };
+  const TYPES = ['public_rate', 'assumption', 'expense_ratio'];
+
+  let fileMap = {}; // type -> File
+
+  // Build upload UI for each type
+  TYPES.forEach(type => {
+    const wrap = document.getElementById(`upload-${type}`);
+    const ymOpts = YM_OPTIONS.map(o => `<option value="${o.value}"${o.value===YM_OPTIONS[12].value?' selected':''}>${o.label}</option>`).join('');
+    wrap.innerHTML = `
+      <div class="upload-section">
+        <div>
+          <label class="form-label" style="margin-bottom:8px;display:block">파일 업로드 (.xlsx)</label>
+          <div class="dropzone" id="dz-${type}" onclick="document.getElementById('fi-${type}').click()">
+            <input type="file" id="fi-${type}" accept=".xlsx,.xls" onchange="onFileSelect('${type}',this)">
+            <div class="dropzone-icon"><i class="fas fa-file-excel"></i></div>
+            <div class="dropzone-text" id="dz-text-${type}">파일을 드래그하거나 클릭하여 선택</div>
+            <div class="dropzone-hint">.xlsx 또는 .xls 파일만 가능합니다</div>
+          </div>
+        </div>
+        <div class="ym-group">
+          <label class="form-label">기준월</label>
+          <select class="form-select" id="ym-${type}">
+            ${ymOpts}
+          </select>
+          ${isLeader ? `<button class="btn btn-primary" style="margin-top:8px" id="run-btn-${type}" onclick="runAutomation('${type}')" disabled>
+            <i class="fas fa-play"></i> 실행
+          </button>
+          <div class="run-spinner" id="spin-${type}"></div>` : '<div style="font-size:12px;color:#9ca3af;margin-top:8px">팀장만 실행 가능</div>'}
+        </div>
+      </div>`;
+
+    // Drag and drop
+    const dz = document.getElementById(`dz-${type}`);
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+    dz.addEventListener('drop', e => {
+      e.preventDefault();
+      dz.classList.remove('dragover');
+      const f = e.dataTransfer.files[0];
+      if (f) setFile(type, f);
+    });
+  });
+
+  function onFileSelect(type, input) {
+    if (input.files[0]) setFile(type, input.files[0]);
+  }
+
+  function setFile(type, file) {
+    fileMap[type] = file;
+    const dz = document.getElementById(`dz-${type}`);
+    const txt = document.getElementById(`dz-text-${type}`);
+    dz.classList.add('has-file');
+    txt.textContent = file.name;
+    if (isLeader) document.getElementById(`run-btn-${type}`).disabled = false;
+  }
+
+  function switchTab(type, el) {
+    document.querySelectorAll('.auto-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById(`tab-${type}`).classList.add('active');
+  }
+
+  function writeConsole(type, lines) {
+    const box = document.getElementById(`console-${type}`);
+    box.classList.add('visible');
+    box.innerHTML = lines.map(line => {
+      if (!line.trim()) return '';
+      let cls = 'console-line';
+      const l = line.toLowerCase();
+      if (l.includes('오류') || l.includes('error') || l.includes('실패') || line.startsWith('{"status":"error')) cls += ' console-error';
+      else if (l.includes('완료') || l.includes('success') || l.includes('성공')) cls += ' console-success';
+      else if (l.includes('처리중') || l.includes('읽는중') || l.includes('연결')) cls += ' console-info';
+      else if (l.includes('경고') || l.includes('warn') || l.includes('skip')) cls += ' console-warn';
+      return `<div class="${cls}">${escapeHtml(line)}</div>`;
+    }).filter(Boolean).join('');
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  async function runAutomation(type) {
+    const file = fileMap[type];
+    if (!file) { showToast('파일을 먼저 선택하세요', 'error'); return; }
+    const ym = document.getElementById(`ym-${type}`).value;
+    const btn = document.getElementById(`run-btn-${type}`);
+    const spin = document.getElementById(`spin-${type}`);
+
+    btn.disabled = true;
+    spin.classList.add('visible');
+    writeConsole(type, ['⟳ 파일 읽는 중...']);
+
+    try {
+      const content = await readFileAsBase64(file);
+      writeConsole(type, ['⟳ 파일 읽는 중...', `▶ ${file.name} (${(file.size/1024).toFixed(1)}KB) 업로드 중...`]);
+
+      const res = await fetch(`/api/automate/${type}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: file.name, content, ym })
+      });
+      const data = await res.json();
+      const lines = (data.output || '').split('\n').filter(l => l.trim());
+      writeConsole(type, lines);
+      if (data.status === 'success') {
+        showToast(`처리 완료 — 입력 ${data.rows_inserted||0}건, 업데이트 ${data.rows_updated||0}건`, 'success');
+      } else {
+        showToast('처리 중 오류가 발생했습니다.', 'error');
+      }
+      loadHistory();
+    } catch(e) {
+      writeConsole(type, [`✗ 오류: ${e.message}`]);
+      showToast('실행 실패: ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
+      spin.classList.remove('visible');
+    }
+  }
+
+  function readFileAsBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function loadHistory() {
+    try {
+      const res = await fetch('/tables/automation_logs?sort=created_at&limit=30');
+      const data = await res.json();
+      const logs = (data.rows || data.data || []).slice().reverse();
+      const container = document.getElementById('historyContainer');
+      if (!logs.length) {
+        container.innerHTML = '<div class="history-empty"><i class="fas fa-inbox" style="font-size:24px;display:block;margin-bottom:8px;opacity:.3"></i>실행 이력이 없습니다</div>';
+        return;
+      }
+      container.innerHTML = `<table class="history-table">
+        <thead><tr>
+          <th>유형</th><th>기준월</th><th>파일명</th>
+          <th>상태</th><th>입력</th><th>업데이트</th><th>실패</th><th>실행시각</th><th>결과</th>
+        </tr></thead>
+        <tbody>
+        ${logs.map(l => `<tr>
+          <td><span class="type-badge type-${l.type}">${TYPE_LABEL[l.type]||l.type}</span></td>
+          <td>${l.ym||'-'}</td>
+          <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(l.filename||'')}">${escapeHtml(l.filename||'-')}</td>
+          <td><span class="run-status run-${l.status||'error'}">${l.status==='success'?'성공':'실패'}</span></td>
+          <td>${l.rows_inserted||0}</td>
+          <td>${l.rows_updated||0}</td>
+          <td>${l.rows_failed||0}</td>
+          <td>${formatDateTime(l.created_at)}</td>
+          <td><span class="output-toggle" onclick="toggleOutput(this)">보기</span>
+            <div class="output-detail">${escapeHtml(l.output||'')}</div></td>
+        </tr>`).join('')}
+        </tbody>
+      </table>`;
+    } catch(e) {
+      document.getElementById('historyContainer').innerHTML = '<div class="history-empty">이력을 불러오지 못했습니다.</div>';
+    }
+  }
+
+  function toggleOutput(el) {
+    const detail = el.nextElementSibling;
+    if (detail.style.display === 'block') { detail.style.display='none'; el.textContent='보기'; }
+    else { detail.style.display='block'; el.textContent='닫기'; }
+  }
+
+  loadHistory();
+</script>
+</body>
+</html>

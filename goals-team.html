@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>팀 목표 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    .year-tabs { display:flex; gap:8px; margin-bottom:20px; }
+    .year-tab { padding:8px 20px; border-radius:20px; border:2px solid #e5e7eb; background:#fff;
+      font-size:14px; font-weight:600; color:#6b7280; cursor:pointer; transition:all .2s; }
+    .year-tab.active { border-color:#4f86f7; background:#4f86f7; color:#fff; }
+    .filter-row { display:flex; gap:8px; margin-bottom:24px; flex-wrap:wrap; align-items:center; }
+    .filter-btn { padding:6px 14px; border-radius:16px; border:1.5px solid #e5e7eb; background:#fff;
+      font-size:13px; font-weight:500; color:#6b7280; cursor:pointer; transition:all .2s; }
+    .filter-btn.active { color:#fff; border-color:transparent; }
+    .filter-btn[data-status="all"].active { background:#374151; }
+    .filter-btn[data-status="in_progress"].active { background:#3b82f6; }
+    .filter-btn[data-status="completed"].active { background:#10b981; }
+    .filter-btn[data-status="delayed"].active { background:#ef4444; }
+    .filter-btn[data-status="planned"].active { background:#8b5cf6; }
+    .goals-grid { display:flex; flex-direction:column; gap:20px; }
+    .goal-card { background:#fff; border-radius:16px; box-shadow:0 1px 4px rgba(0,0,0,.06);
+      border:1px solid #f3f4f6; overflow:hidden; transition:box-shadow .2s; }
+    .goal-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.1); }
+    .goal-card-top { height:6px; }
+    .goal-card-top.high { background:linear-gradient(90deg,#ef4444,#f97316); }
+    .goal-card-top.medium { background:linear-gradient(90deg,#3b82f6,#6366f1); }
+    .goal-card-top.low { background:linear-gradient(90deg,#10b981,#14b8a6); }
+    .goal-card-body { padding:20px; }
+    .goal-card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+    .goal-priority { font-size:11px; font-weight:700; padding:3px 10px; border-radius:12px; }
+    .priority-high { background:#fef2f2; color:#ef4444; }
+    .priority-medium { background:#eff6ff; color:#3b82f6; }
+    .priority-low { background:#f0fdf4; color:#10b981; }
+    .goal-actions { display:flex; gap:6px; opacity:0; transition:opacity .2s; }
+    .goal-card:hover .goal-actions { opacity:1; }
+    .goal-actions button { width:28px; height:28px; border-radius:8px; border:none; cursor:pointer;
+      font-size:12px; display:flex; align-items:center; justify-content:center; transition:background .15s; }
+    .btn-edit-goal { background:#eff6ff; color:#3b82f6; }
+    .btn-edit-goal:hover { background:#dbeafe; }
+    .btn-del-goal { background:#fef2f2; color:#ef4444; }
+    .btn-del-goal:hover { background:#fee2e2; }
+    .goal-title { font-size:16px; font-weight:700; color:#111827; margin-bottom:8px; line-height:1.4; }
+    .goal-desc { font-size:13px; color:#6b7280; line-height:1.7; margin-bottom:16px; white-space:pre-line; }
+    .kpi-badge { display:inline-flex; align-items:center; padding:4px 12px; border-radius:8px;
+      font-size:13px; font-weight:700; margin-bottom:10px; }
+    .kpi-1 { background:#dbeafe; color:#1e40af; }
+    .kpi-2 { background:#dcfce7; color:#166534; }
+    .kpi-3 { background:#fef9c3; color:#854d0e; }
+    .progress-section { margin-bottom:14px; }
+    .progress-label-row { display:flex; justify-content:space-between; font-size:12px; color:#6b7280; margin-bottom:6px; }
+    .progress-pct { font-weight:700; color:#111827; }
+    .progress-track { height:8px; background:#f3f4f6; border-radius:4px; overflow:hidden; }
+    .progress-fill { height:100%; border-radius:4px; transition:width .4s; }
+    .fill-completed { background:linear-gradient(90deg,#10b981,#34d399); }
+    .fill-in_progress { background:linear-gradient(90deg,#3b82f6,#60a5fa); }
+    .fill-delayed { background:linear-gradient(90deg,#ef4444,#f87171); }
+    .fill-planned { background:linear-gradient(90deg,#8b5cf6,#a78bfa); }
+    .goal-meta { display:flex; justify-content:space-between; align-items:center; }
+    .goal-status { font-size:11px; font-weight:600; padding:3px 10px; border-radius:10px; }
+    .status-completed { background:#d1fae5; color:#065f46; }
+    .status-in_progress { background:#dbeafe; color:#1e40af; }
+    .status-delayed { background:#fee2e2; color:#991b1b; }
+    .status-planned { background:#ede9fe; color:#5b21b6; }
+    .goal-owner { font-size:12px; color:#9ca3af; }
+    .goal-due { font-size:12px; color:#9ca3af; }
+    .empty-state { text-align:center; padding:60px 20px; color:#9ca3af; }
+    .empty-state i { font-size:48px; margin-bottom:16px; display:block; opacity:.4; }
+    /* Stats */
+    .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px; }
+    .stat-card { background:#fff; border-radius:14px; padding:20px; border:1px solid #f3f4f6;
+      box-shadow:0 1px 4px rgba(0,0,0,.04); }
+    .stat-label { font-size:12px; color:#9ca3af; font-weight:500; margin-bottom:8px; }
+    .stat-value { font-size:28px; font-weight:800; color:#111827; }
+    .stat-value.blue { color:#3b82f6; }
+    .stat-value.green { color:#10b981; }
+    .stat-value.red { color:#ef4444; }
+    /* Modal */
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000;
+      align-items:center; justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal-box { background:#fff; border-radius:20px; width:520px; max-width:95vw; max-height:90vh;
+      overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2); }
+    .modal-header { padding:24px 28px 0; display:flex; justify-content:space-between; align-items:center; }
+    .modal-title { font-size:18px; font-weight:700; color:#111827; }
+    .modal-close { width:32px; height:32px; border-radius:8px; border:none; background:#f3f4f6;
+      cursor:pointer; font-size:16px; color:#6b7280; display:flex; align-items:center; justify-content:center; }
+    .modal-body { padding:20px 28px 28px; }
+    .form-group { margin-bottom:16px; }
+    .form-label { font-size:13px; font-weight:600; color:#374151; margin-bottom:6px; display:block; }
+    .form-input, .form-select, .form-textarea {
+      width:100%; padding:10px 14px; border:1.5px solid #e5e7eb; border-radius:10px;
+      font-size:14px; color:#111827; background:#fff; font-family:inherit;
+      transition:border-color .2s; box-sizing:border-box; }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline:none; border-color:#4f86f7; box-shadow:0 0 0 3px rgba(79,134,247,.1); }
+    .form-textarea { resize:vertical; min-height:80px; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .range-wrapper { display:flex; align-items:center; gap:12px; }
+    .range-input { flex:1; }
+    .range-value { font-size:16px; font-weight:700; color:#4f86f7; min-width:40px; text-align:right; }
+    .modal-footer { display:flex; justify-content:flex-end; gap:10px; padding-top:8px; border-top:1px solid #f3f4f6; margin-top:8px; }
+    @media (max-width: 768px) {
+      .stats-row { grid-template-columns:1fr 1fr; }
+      .goals-grid { grid-template-columns:1fr; }
+      .form-row { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-bullseye"></i> 팀 목표</h1>
+      <div id="addBtnWrap"></div>
+    </header>
+    <main class="content-body">
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">전체 목표</div>
+          <div class="stat-value" id="statTotal">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">진행중</div>
+          <div class="stat-value blue" id="statProgress">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">완료</div>
+          <div class="stat-value green" id="statDone">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">지연</div>
+          <div class="stat-value red" id="statDelayed">0</div>
+        </div>
+      </div>
+
+      <div class="year-tabs" id="yearTabs"></div>
+
+      <div class="goals-grid" id="goalsGrid">
+        <div class="empty-state"><i class="fas fa-bullseye"></i>목표를 불러오는 중...</div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="goalModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">팀 목표 추가</span>
+      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-group">
+        <label class="form-label">목표 제목 *</label>
+        <input type="text" class="form-input" id="fTitle" placeholder="예: IFRS17 결산 자동화율 80% 달성">
+      </div>
+      <div class="form-group">
+        <label class="form-label">상세 설명</label>
+        <textarea class="form-textarea" id="fDesc" placeholder="목표의 배경, 기대효과 등을 입력하세요"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">연도 *</label>
+          <select class="form-select" id="fYear"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">우선순위</label>
+          <select class="form-select" id="fPriority">
+            <option value="high">높음</option>
+            <option value="medium" selected>보통</option>
+            <option value="low">낮음</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">상태</label>
+          <select class="form-select" id="fStatus">
+            <option value="planned">계획중</option>
+            <option value="in_progress" selected>진행중</option>
+            <option value="completed">완료</option>
+            <option value="delayed">지연</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">목표 완료일</label>
+          <input type="date" class="form-input" id="fDueDate">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">담당자</label>
+        <input type="text" class="form-input" id="fOwner" placeholder="예: 김팀장 / 팀 전체">
+      </div>
+      <div class="form-group">
+        <label class="form-label">진행률: <span id="progressDisplay">0</span>%</label>
+        <div class="range-wrapper">
+          <input type="range" class="range-input" id="fProgress" min="0" max="100" step="5" value="0"
+            oninput="document.getElementById('progressDisplay').textContent=this.value">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+        <button class="btn btn-primary" onclick="saveGoal()"><i class="fas fa-save"></i> 저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js"></script>
+<script>
+  Portal.init();
+
+  const thisYear = new Date().getFullYear();
+  let currentYear = thisYear;
+  let allGoals = [];
+
+  function buildYearTabs() {
+    const tabs = document.getElementById('yearTabs');
+    tabs.innerHTML = '';
+    [thisYear - 1, thisYear, thisYear + 1].forEach(y => {
+      const btn = document.createElement('button');
+      btn.className = 'year-tab' + (y === currentYear ? ' active' : '');
+      btn.textContent = y + '년';
+      btn.onclick = () => { currentYear = y; buildYearTabs(); renderGoals(); };
+      tabs.appendChild(btn);
+    });
+    // year select in modal
+    const sel = document.getElementById('fYear');
+    sel.innerHTML = '';
+    [thisYear - 1, thisYear, thisYear + 1].forEach(y => {
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = y + '년';
+      if (y === currentYear) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
+  async function loadGoals() {
+    try {
+      const res = await fetch('/tables/team_goals');
+      const data = await res.json();
+      allGoals = data.rows || data.data || [];
+      updateStats();
+      renderGoals();
+    } catch(e) {
+      document.getElementById('goalsGrid').innerHTML =
+        '<div class="empty-state"><i class="fas fa-exclamation-circle"></i>데이터를 불러오지 못했습니다.</div>';
+    }
+  }
+
+  function updateStats() {
+    const yearGoals = allGoals.filter(g => g.year == currentYear || !currentYear);
+    document.getElementById('statTotal').textContent = yearGoals.length;
+    document.getElementById('statProgress').textContent = yearGoals.filter(g => g.status === 'in_progress').length;
+    document.getElementById('statDone').textContent = yearGoals.filter(g => g.status === 'completed').length;
+    document.getElementById('statDelayed').textContent = yearGoals.filter(g => g.status === 'delayed').length;
+  }
+
+  const PRIORITY_LABEL = { high:'높음', medium:'보통', low:'낮음' };
+  const STATUS_LABEL = { in_progress:'진행중', completed:'완료', delayed:'지연', planned:'계획중' };
+
+  const KPI_CLASS = ['kpi-1','kpi-2','kpi-3'];
+
+  function renderGoals() {
+    updateStats();
+    const grid = document.getElementById('goalsGrid');
+    let goals = allGoals.filter(g => String(g.year) === String(currentYear));
+    if (!goals.length) {
+      grid.innerHTML = '<div class="empty-state"><i class="fas fa-bullseye"></i>해당 연도의 목표가 없습니다.<br><small>위 버튼으로 새 목표를 추가하세요.</small></div>';
+      return;
+    }
+    const isLeader = RBAC.isTeamLeader();
+    grid.innerHTML = goals.map((g, idx) => {
+      const pct = g.progress || 0;
+      const fillClass = 'fill-' + (g.status || 'planned');
+      const kpiClass = KPI_CLASS[idx] || 'kpi-1';
+      const kpiNum = idx + 1;
+      return `
+      <div class="goal-card">
+        <div class="goal-card-top ${g.priority || 'medium'}"></div>
+        <div class="goal-card-body">
+          <div class="goal-card-header">
+            <span class="kpi-badge ${kpiClass}"><i class="fas fa-bullseye" style="margin-right:6px;"></i>KPI${kpiNum}</span>
+            <div class="goal-actions">
+              ${isLeader ? `<button class="btn-edit-goal" onclick="openEditModal('${g.id}')"><i class="fas fa-pen"></i></button>
+              <button class="btn-del-goal" onclick="deleteGoal('${g.id}')"><i class="fas fa-trash"></i></button>` : ''}
+            </div>
+          </div>
+          <div class="goal-title">${g.title || ''}</div>
+          <div class="goal-desc">${g.description || ''}</div>
+          <div class="progress-section">
+            <div class="progress-label-row">
+              <span>진행률</span>
+              <span class="progress-pct">${pct}%</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill ${fillClass}" style="width:${pct}%"></div>
+            </div>
+          </div>
+          <div class="goal-meta">
+            <span class="goal-owner"><i class="fas fa-user"></i> ${g.owner || '-'}</span>
+            <span class="goal-due"><i class="fas fa-calendar"></i> ${g.due_date || '-'}</span>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function openAddModal() {
+    document.getElementById('modalTitle').textContent = '팀 목표 추가';
+    document.getElementById('editId').value = '';
+    document.getElementById('fTitle').value = '';
+    document.getElementById('fDesc').value = '';
+    document.getElementById('fYear').value = currentYear;
+    document.getElementById('fPriority').value = 'medium';
+    document.getElementById('fStatus').value = 'in_progress';
+    document.getElementById('fDueDate').value = '';
+    document.getElementById('fOwner').value = '';
+    document.getElementById('fProgress').value = 0;
+    document.getElementById('progressDisplay').textContent = '0';
+    document.getElementById('goalModal').classList.add('open');
+  }
+
+  function openEditModal(id) {
+    const g = allGoals.find(x => x.id === id);
+    if (!g) return;
+    document.getElementById('modalTitle').textContent = '팀 목표 수정';
+    document.getElementById('editId').value = id;
+    document.getElementById('fTitle').value = g.title || '';
+    document.getElementById('fDesc').value = g.description || '';
+    document.getElementById('fYear').value = g.year || currentYear;
+    document.getElementById('fPriority').value = g.priority || 'medium';
+    document.getElementById('fStatus').value = g.status || 'in_progress';
+    document.getElementById('fDueDate').value = g.due_date || '';
+    document.getElementById('fOwner').value = g.owner || '';
+    document.getElementById('fProgress').value = g.progress || 0;
+    document.getElementById('progressDisplay').textContent = g.progress || 0;
+    document.getElementById('goalModal').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('goalModal').classList.remove('open');
+  }
+
+  async function saveGoal() {
+    const title = document.getElementById('fTitle').value.trim();
+    if (!title) { showToast('목표 제목을 입력하세요', 'error'); return; }
+    const id = document.getElementById('editId').value;
+    const body = {
+      title,
+      description: document.getElementById('fDesc').value.trim(),
+      year: parseInt(document.getElementById('fYear').value),
+      priority: document.getElementById('fPriority').value,
+      status: document.getElementById('fStatus').value,
+      due_date: document.getElementById('fDueDate').value,
+      owner: document.getElementById('fOwner').value.trim(),
+      progress: parseInt(document.getElementById('fProgress').value)
+    };
+    const user = RBAC.getCurrentUser();
+    if (user) { body.created_by = user.user_id; }
+    try {
+      let res;
+      if (id) {
+        res = await fetch('/tables/team_goals/' + id, {
+          method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+        });
+      } else {
+        res = await fetch('/tables/team_goals', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+        });
+      }
+      if (!res.ok) throw new Error();
+      closeModal();
+      showToast(id ? '목표가 수정되었습니다.' : '목표가 추가되었습니다.', 'success');
+      await loadGoals();
+    } catch(e) {
+      showToast('저장에 실패했습니다.', 'error');
+    }
+  }
+
+  async function deleteGoal(id) {
+    Portal.confirm('이 목표를 삭제하시겠습니까?', async () => {
+      try {
+        const res = await fetch('/tables/team_goals/' + id, { method:'DELETE' });
+        if (!res.ok) throw new Error();
+        showToast('목표가 삭제되었습니다.', 'success');
+        await loadGoals();
+      } catch(e) {
+        showToast('삭제에 실패했습니다.', 'error');
+      }
+    });
+  }
+
+  // Add button for team leader only
+  if (RBAC.isTeamLeader()) {
+    document.getElementById('addBtnWrap').innerHTML =
+      '<button class="btn btn-primary" onclick="openAddModal()"><i class="fas fa-plus"></i> 목표 추가</button>';
+  }
+
+  document.getElementById('goalModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('goalModal')) closeModal();
+  });
+
+  buildYearTabs();
+  loadGoals();
+</script>
+</body>
+</html>

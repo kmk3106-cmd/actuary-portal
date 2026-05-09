@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>면담일지 상세 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    .ctrl-bar {
+      position: sticky; top: 0;
+      background: rgba(255,255,255,0.97);
+      border-bottom: 1px solid #ddd; padding: 10px 24px;
+      z-index: 200; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+    }
+    .ctrl-bar .bar-title { font-weight:700; color:var(--primary); font-size:14px; flex:1; }
+    .form-doc { max-width:860px; margin:0 auto; padding:24px 0 60px; }
+    .form-doc h1 { font-size:20pt; text-align:center; margin-bottom:8px; color:#111; font-weight:700; }
+    .form-doc .doc-sub { text-align:center; font-size:10pt; color:#666; margin-bottom:28px; }
+    .form-doc h2 {
+      font-size:14pt; border-bottom:2px solid #333;
+      padding-bottom:7px; margin-top:36px; margin-bottom:16px;
+      color:#111; font-weight:700;
+    }
+    .form-doc h3 {
+      font-size:11.5pt; margin-top:22px; margin-bottom:10px;
+      color:#333; border-left:4px solid var(--primary); padding-left:8px;
+    }
+    .fv-field { margin-bottom:14px; }
+    .fv-label { display:block; font-weight:600; color:#444; font-size:10.5pt; margin-bottom:4px; }
+    .fv-value {
+      display:block; padding:8px 12px; background:#f9fafb;
+      border:1px solid #e5e7eb; border-radius:4px; font-size:10.5pt;
+      color:#222; min-height:36px; white-space:pre-wrap; word-break:break-word;
+    }
+    .fv-value.empty { color:#9ca3af; font-style:italic; }
+    .fv-value.multiline { min-height:76px; }
+    .grid-2col { display:grid; grid-template-columns:1fr 1fr; gap:0 20px; }
+    .confidential-badge {
+      display:inline-flex; align-items:center; gap:6px;
+      padding:8px 16px; background:#fef2f2; border:1px solid #fca5a5;
+      border-radius:8px; color:#b91c1c; font-weight:700; font-size:13px; margin-bottom:20px;
+    }
+    .chk-list { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+    .chk-item { display:flex; align-items:center; gap:8px; font-size:10.5pt; color:#333; }
+    .chk-icon {
+      width:18px; height:18px; border-radius:3px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:11px; flex-shrink:0;
+    }
+    .chk-icon.on  { background:var(--primary); color:white; }
+    .chk-icon.off { background:#e5e7eb; color:#9ca3af; border:1px solid #d1d5db; }
+    .action-card {
+      border:1px solid #e0e0e0; border-radius:6px;
+      padding:16px 20px 4px; margin-bottom:14px; background:#fafafa;
+    }
+    .action-card h4 { margin:0 0 14px; color:var(--primary); font-size:11pt; border-bottom:1px dashed #ccc; padding-bottom:7px; }
+    .confirm-section {
+      margin-top:36px; padding:20px 24px;
+      background:linear-gradient(135deg,#f0fdf4,#dcfce7);
+      border:1px solid #86efac; border-radius:12px;
+    }
+    .confirm-section h3 { color:#15803d; border-left-color:#22c55e; margin-top:0; }
+    .confirm-done-box {
+      display:flex; align-items:center; gap:12px; padding:12px 16px;
+      background:#dcfce7; border:1px solid #86efac; border-radius:8px;
+      color:#15803d; font-weight:600; font-size:14px;
+    }
+    .confirm-pending-box {
+      display:flex; align-items:center; gap:12px; padding:12px 16px;
+      background:#f3f4f6; border:1px solid #d1d5db; border-radius:8px;
+      color:#6b7280; font-size:14px;
+    }
+    .appendix-box {
+      background:#f5f5f5; padding:18px 20px; border-radius:6px;
+      font-size:10pt; margin-bottom:16px; color:#333;
+    }
+    .appendix-box h4 { margin-top:0; color:var(--primary); }
+    @media print {
+      .ctrl-bar, .sidebar, .main-content > header { display:none !important; }
+      .main-content { margin-left:0 !important; }
+      .form-doc { padding:0; }
+    }
+    @media (max-width:768px) {
+      .grid-2col { grid-template-columns:1fr; }
+      .ctrl-bar { padding:8px 12px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+
+    <!-- 컨트롤 바 -->
+    <div class="ctrl-bar">
+      <button class="btn btn-secondary btn-sm" onclick="location.href='interview-list.html'">
+        <i class="fas fa-arrow-left"></i> 목록
+      </button>
+      <span class="bar-title" id="barTitle">면담일지 상세</span>
+      <button class="btn btn-secondary btn-sm" onclick="window.print()">
+        <i class="fas fa-print"></i> 인쇄
+      </button>
+      <button class="btn btn-secondary btn-sm hidden" id="editBtn"
+        onclick="location.href='interview-editor.html?id='+logId">
+        <i class="fas fa-edit"></i> 편집
+      </button>
+      <button class="btn btn-danger btn-sm hidden" id="deleteBtn" onclick="openDeleteModal()">
+        <i class="fas fa-trash"></i> 삭제
+      </button>
+    </div>
+
+    <div class="content-body">
+
+      <div class="loading-overlay" id="pageLoading">
+        <div class="spinner-lg"></div> 면담일지를 불러오는 중...
+      </div>
+
+      <div class="access-denied-banner hidden" id="accessBanner">
+        <i class="fas fa-ban"></i>
+        <div>
+          <strong>접근 거부</strong>
+          <p id="accessMsg"></p>
+          <a href="interview-list.html" style="font-size:13px; color:#b91c1c;">← 목록으로</a>
+        </div>
+      </div>
+
+      <div class="form-doc hidden" id="formDoc">
+
+        <h1>계리결산팀 원온원(1:1) 면담일지</h1>
+        <p class="doc-sub" id="docSub"></p>
+
+        <div class="confidential-badge hidden" id="confBadge">
+          <i class="fas fa-lock"></i> 기밀 면담일지 — 팀장만 열람 가능
+        </div>
+
+        <!-- 1. 기본 정보 -->
+        <h2>1. 기본 정보</h2>
+        <div class="grid-2col">
+          <div class="fv-field"><span class="fv-label">문서명</span><span class="fv-value" id="v_doc_name"></span></div>
+          <div class="fv-field"><span class="fv-label">작성목적(면담유형)</span><span class="fv-value" id="v_doc_purpose"></span></div>
+          <div class="fv-field"><span class="fv-label">면담자</span><span class="fv-value" id="v_interviewer"></span></div>
+          <div class="fv-field"><span class="fv-label">면담대상자</span><span class="fv-value" id="v_interviewee"></span></div>
+          <div class="fv-field"><span class="fv-label">직책/직급</span><span class="fv-value" id="v_position"></span></div>
+          <div class="fv-field"><span class="fv-label">면담일시</span><span class="fv-value" id="v_meet_date"></span></div>
+          <div class="fv-field"><span class="fv-label">면담장소</span><span class="fv-value" id="v_meet_place"></span></div>
+          <div class="fv-field"><span class="fv-label">차수</span><span class="fv-value" id="v_round"></span></div>
+        </div>
+
+        <!-- 2. 면담 전 사전 파악 -->
+        <h2>2. 면담 전 사전 파악</h2>
+        <div class="fv-field"><span class="fv-label">최근 3~6개월 주요 업무 및 결산/보고 일정 수행 현황</span><span class="fv-value multiline" id="v_work_status"></span></div>
+        <div class="fv-field"><span class="fv-label">담당 보유 영역</span><span class="fv-value" id="v_work_areas"></span></div>
+        <div class="fv-field"><span class="fv-label">직전 평가/피드백, 업무 과부하 가능성, 조직 내 협업 포지션</span><span class="fv-value multiline" id="v_feedback"></span></div>
+        <div class="fv-field"><span class="fv-label">이번 면담에서 중점 확인할 항목 2~3개</span><span class="fv-value multiline" id="v_focus"></span></div>
+
+        <!-- 3. 기본 정보 및 현재 역할 인식 -->
+        <h2>3. 기본 정보 및 현재 역할 인식</h2>
+        <div class="grid-2col">
+          <div class="fv-field"><span class="fv-label">소속/담당</span><span class="fv-value" id="v_dept"></span></div>
+          <div class="fv-field"><span class="fv-label">입사/부서경력</span><span class="fv-value" id="v_exp"></span></div>
+          <div class="fv-field"><span class="fv-label">주요 담당업무</span><span class="fv-value" id="v_main_work"></span></div>
+          <div class="fv-field"><span class="fv-label">핵심 이해관계자</span><span class="fv-value" id="v_stakeholders"></span></div>
+          <div class="fv-field"><span class="fv-label">현재 가장 중요한 KPI/과제</span><span class="fv-value" id="v_kpi"></span></div>
+          <div class="fv-field"><span class="fv-label">최근 성과/기여</span><span class="fv-value" id="v_achieve"></span></div>
+          <div class="fv-field"><span class="fv-label">본인이 인식하는 강점</span><span class="fv-value" id="v_strength"></span></div>
+          <div class="fv-field"><span class="fv-label">현재 어려운 점</span><span class="fv-value" id="v_hardship"></span></div>
+          <div class="fv-field"><span class="fv-label">업무량 체감</span><span class="fv-value" id="v_workload"></span></div>
+          <div class="fv-field"><span class="fv-label">스트레스 수준</span><span class="fv-value" id="v_stress"></span></div>
+          <div class="fv-field"><span class="fv-label">근무/협업 선호</span><span class="fv-value" id="v_pref"></span></div>
+          <div class="fv-field"><span class="fv-label">향후 희망 역할</span><span class="fv-value" id="v_future"></span></div>
+        </div>
+
+        <!-- 4. 최근 업무 수행 및 성과 진단 -->
+        <h2>4. 최근 업무 수행 및 성과 진단</h2>
+        <div class="grid-2col">
+          <div>
+            <div class="fv-field"><span class="fv-label">주요 업무/성과 1 (사실 기록)</span><span class="fv-value multiline" id="v_perf1_fact"></span></div>
+            <div class="fv-field"><span class="fv-label">면담자 관찰 및 확인 포인트</span><span class="fv-value multiline" id="v_perf1_obs"></span></div>
+          </div>
+          <div>
+            <div class="fv-field"><span class="fv-label">주요 업무/성과 2 (사실 기록)</span><span class="fv-value multiline" id="v_perf2_fact"></span></div>
+            <div class="fv-field"><span class="fv-label">면담자 관찰 및 확인 포인트</span><span class="fv-value multiline" id="v_perf2_obs"></span></div>
+          </div>
+        </div>
+
+        <!-- 5. 계리결산 업무 특화 확인사항 -->
+        <h2>5. 계리결산 업무 특화 확인사항</h2>
+        <div class="fv-field"><span class="fv-label">월/분기/연 결산 일정 대응력</span><span class="fv-value multiline" id="v_schedule"></span></div>
+        <div class="fv-field"><span class="fv-label">IFRS17, K-ICS, 준비금 등 핵심 제도 이해도</span><span class="fv-value multiline" id="v_system"></span></div>
+        <div class="fv-field"><span class="fv-label">데이터 품질/시스템 이슈 대응 경험</span><span class="fv-value multiline" id="v_data"></span></div>
+        <div class="fv-field"><span class="fv-label">타부서 협업 난이도</span><span class="fv-value" id="v_collab_depts"></span></div>
+        <div class="fv-field"><span class="fv-label">세부 내용 및 개선 아이디어</span><span class="fv-value multiline" id="v_collab_detail"></span></div>
+        <div class="fv-field"><span class="fv-label">반복작업/비효율/자동화 필요 영역 (우선순위)</span><span class="fv-value" id="v_auto_priority"></span></div>
+        <div class="fv-field"><span class="fv-label">세부 영역 및 아이디어</span><span class="fv-value multiline" id="v_auto_detail"></span></div>
+
+        <!-- 6. 강점, 협업 스타일, 조직 기여 -->
+        <h2>6. 강점, 협업 스타일, 조직 기여</h2>
+        <div class="fv-field"><span class="fv-label">구성원의 강점 및 팀 차원 활용 방안</span><span class="fv-value multiline" id="v_strength6"></span></div>
+        <div class="fv-field"><span class="fv-label">협업 스타일 및 조직 긍정 자산</span><span class="fv-value multiline" id="v_collab6"></span></div>
+
+        <!-- 7. 애로사항, 리스크, 지원 필요사항 -->
+        <h2>7. 애로사항, 리스크, 지원 필요사항</h2>
+        <div class="fv-field"><span class="fv-label">리스크 요약</span><span class="fv-value" id="v_risks"></span></div>
+        <div class="grid-2col">
+          <div>
+            <div class="fv-field"><span class="fv-label">애로사항 / 갈등 요소 1</span><span class="fv-value multiline" id="v_issue1"></span></div>
+            <div class="fv-field"><span class="fv-label">지원방안 / 즉시 조치 필요사항</span><span class="fv-value multiline" id="v_support1"></span></div>
+          </div>
+          <div>
+            <div class="fv-field"><span class="fv-label">애로사항 / 갈등 요소 2</span><span class="fv-value multiline" id="v_issue2"></span></div>
+            <div class="fv-field"><span class="fv-label">지원방안 / 즉시 조치 필요사항</span><span class="fv-value multiline" id="v_support2"></span></div>
+          </div>
+        </div>
+
+        <!-- 8. 동기부여, 경력개발, 육성 계획 -->
+        <h2>8. 동기부여, 경력개발, 육성 계획</h2>
+        <div class="grid-2col">
+          <div class="fv-field"><span class="fv-label">현재 일에서 보람을 느끼는 요소</span><span class="fv-value" id="v_reward"></span></div>
+          <div class="fv-field"><span class="fv-label">향후 1년 내 성장 희망 영역</span><span class="fv-value" id="v_hope"></span></div>
+          <div class="fv-field"><span class="fv-label">필요 교육/코칭/멘토링</span><span class="fv-value" id="v_edu"></span></div>
+          <div class="fv-field"><span class="fv-label">직무확장 또는 순환 필요성</span><span class="fv-value" id="v_rotation"></span></div>
+        </div>
+        <div class="fv-field"><span class="fv-label">승진/평가 관련 기대 및 우려</span><span class="fv-value multiline" id="v_eval"></span></div>
+        <div class="grid-2col">
+          <div class="fv-field"><span class="fv-label">단기 육성 방향</span><span class="fv-value" id="v_dev_short"></span></div>
+          <div class="fv-field"><span class="fv-label">중장기 육성 방향</span><span class="fv-value" id="v_dev_long"></span></div>
+        </div>
+
+        <!-- 9. 팀장/조직에 대한 피드백 -->
+        <h2>9. 팀장/조직에 대한 피드백</h2>
+        <div class="fv-field"><span class="fv-label">현재 팀 운영 유지/개선 필요 사항</span><span class="fv-value multiline" id="v_team_feedback"></span></div>
+        <div class="grid-2col">
+          <div class="fv-field"><span class="fv-label">피드백 빈도</span><span class="fv-value" id="v_fb_freq"></span></div>
+          <div class="fv-field"><span class="fv-label">보고 방식</span><span class="fv-value" id="v_report_ways"></span></div>
+        </div>
+        <div class="fv-field"><span class="fv-label">리더에게 바라는 지원 세부 제안</span><span class="fv-value multiline" id="v_leader_request"></span></div>
+
+        <!-- 10. 종합 진단 -->
+        <h2>10. 종합 진단</h2>
+        <div class="fv-field"><span class="fv-label">종합 판단 및 즉시 대응 필요 이슈</span><span class="fv-value multiline" id="v_total"></span></div>
+        <div class="fv-field"><span class="fv-label">중장기 육성 포인트</span><span class="fv-value multiline" id="v_dev_point"></span></div>
+        <div class="fv-field"><span class="fv-label">비고 (민감/보안 유의)</span><span class="fv-value multiline" id="v_note"></span></div>
+
+        <!-- 11. 후속 실행계획 -->
+        <h2>11. 후속 실행계획 (Action Plan)</h2>
+        <div class="action-card">
+          <h4>[1] 업무</h4>
+          <div class="fv-field"><span class="fv-label">주요 실행과제</span><span class="fv-value multiline" id="v_work_task"></span></div>
+          <div class="fv-field"><span class="fv-label">지원 필요사항</span><span class="fv-value multiline" id="v_work_support"></span></div>
+          <div class="grid-2col">
+            <div class="fv-field"><span class="fv-label">완료예정일</span><span class="fv-value" id="v_work_due"></span></div>
+            <div class="fv-field"><span class="fv-label">추적 결과</span><span class="fv-value" id="v_work_result"></span></div>
+          </div>
+        </div>
+        <div class="action-card">
+          <h4>[2] 역량</h4>
+          <div class="fv-field"><span class="fv-label">주요 실행과제</span><span class="fv-value multiline" id="v_skill_task"></span></div>
+          <div class="fv-field"><span class="fv-label">지원 필요사항</span><span class="fv-value multiline" id="v_skill_support"></span></div>
+          <div class="grid-2col">
+            <div class="fv-field"><span class="fv-label">완료예정일</span><span class="fv-value" id="v_skill_due"></span></div>
+            <div class="fv-field"><span class="fv-label">추적 결과</span><span class="fv-value" id="v_skill_result"></span></div>
+          </div>
+        </div>
+        <div class="action-card">
+          <h4>[3] 협업</h4>
+          <div class="fv-field"><span class="fv-label">주요 실행과제</span><span class="fv-value multiline" id="v_collab_task"></span></div>
+          <div class="fv-field"><span class="fv-label">지원 필요사항</span><span class="fv-value multiline" id="v_collab_support"></span></div>
+          <div class="grid-2col">
+            <div class="fv-field"><span class="fv-label">완료예정일</span><span class="fv-value" id="v_collab_due"></span></div>
+            <div class="fv-field"><span class="fv-label">추적 결과</span><span class="fv-value" id="v_collab_result"></span></div>
+          </div>
+        </div>
+        <div class="action-card">
+          <h4>[4] 조직·환경</h4>
+          <div class="fv-field"><span class="fv-label">주요 실행과제</span><span class="fv-value multiline" id="v_env_task"></span></div>
+          <div class="grid-2col">
+            <div class="fv-field"><span class="fv-label">완료예정일</span><span class="fv-value" id="v_env_due"></span></div>
+            <div class="fv-field"><span class="fv-label">추적 결과</span><span class="fv-value" id="v_env_result"></span></div>
+          </div>
+        </div>
+        <div class="action-card">
+          <h4>[5] 기타</h4>
+          <div class="fv-field"><span class="fv-label">주요 실행과제</span><span class="fv-value multiline" id="v_etc_task"></span></div>
+          <div class="grid-2col">
+            <div class="fv-field"><span class="fv-label">완료예정일</span><span class="fv-value" id="v_etc_due"></span></div>
+            <div class="fv-field"><span class="fv-label">추적 결과</span><span class="fv-value" id="v_etc_result"></span></div>
+          </div>
+        </div>
+
+        <!-- 12. 면담 마무리 확인 -->
+        <h2>12. 면담 마무리 확인</h2>
+        <div class="fv-field"><span class="fv-label">당사자와 합의된 사항 및 추가 확인 필요사항</span><span class="fv-value multiline" id="v_agree"></span></div>
+        <div class="grid-2col">
+          <div class="fv-field"><span class="fv-label">차기 면담 예정일</span><span class="fv-value" id="v_next_date"></span></div>
+          <div class="fv-field"><span class="fv-label">중간 점검 방식</span><span class="fv-value" id="v_check_method"></span></div>
+          <div class="fv-field"><span class="fv-label">면담자 서명 / 확인일</span><span class="fv-value" id="v_sign1"></span></div>
+          <div class="fv-field"><span class="fv-label">면담대상자 서명 / 확인일</span><span class="fv-value" id="v_sign2"></span></div>
+        </div>
+        <h3>최종 체크</h3>
+        <div class="chk-list" id="v_final_checks"></div>
+
+        <!-- 직원 확인 서명 -->
+        <div class="confirm-section" id="confirmSection">
+          <h3><i class="fas fa-pen-to-square"></i> 직원 확인 서명</h3>
+          <div id="confirmStatus"></div>
+          <div id="employeeConfirmArea" class="hidden" style="margin-top:14px;">
+            <label class="form-label">확인 의견 (선택)</label>
+            <textarea id="employeeCommentInput" class="form-control"
+              style="min-height:60px; margin-bottom:12px;"
+              placeholder="면담 내용에 대한 의견이나 소감을 남겨주세요 (선택사항)"></textarea>
+            <button class="btn btn-success" onclick="doConfirm()">
+              <i class="fas fa-check-circle"></i> 면담일지 내용 확인 및 서명
+            </button>
+          </div>
+        </div>
+
+        <!-- 부록 -->
+        <h2>13. 부록. 원온원 진행 가이드</h2>
+        <div class="appendix-box">
+          <h4>A. 권장 진행 흐름 (30~50분)</h4>
+          <p><strong>1) 도입 (5분):</strong> 라포 형성, 면담 목적 공유, 비밀보장 범위 안내</p>
+          <p><strong>2) 업무/성과 점검 (10~15분):</strong> 최근 수행 업무, 어려움, 일정 리스크 확인</p>
+          <p><strong>3) 강점/동기/성장 대화 (10~15분):</strong> 잘하는 점, 원하는 역할, 육성 방향 확인</p>
+          <p style="margin:0"><strong>4) 실행계획 합의 (5~10분):</strong> 바로 할 일, 지원책, 다음 점검 일정 확정</p>
+        </div>
+        <div class="appendix-box">
+          <h4>B. 질문 예시</h4>
+          <ol style="margin-bottom:0; line-height:1.9;">
+            <li>지금 맡고 있는 업무 중 가장 중요하다고 생각하는 부분은 무엇입니까?</li>
+            <li>최근 결산/보고 과정에서 가장 부담이 컸던 구간은 어디였습니까?</li>
+            <li>반복적으로 발생하는 비효율이나 시스템 이슈가 있습니까?</li>
+            <li>본인의 강점을 팀 차원에서 더 잘 활용할 수 있는 방법은 무엇입니까?</li>
+            <li>향후 6~12개월 안에 어떤 역량을 키우고 싶습니까?</li>
+            <li>팀장인 제가 반드시 유지하거나 바꿔야 할 점은 무엇입니까?</li>
+          </ol>
+        </div>
+        <div class="appendix-box">
+          <h4>C. 기록 시 유의사항</h4>
+          <ul style="margin-bottom:0; line-height:1.9;">
+            <li>평가 목적 문구보다 지원·성장 목적 문구를 우선 사용</li>
+            <li>주관적 단정 표현보다 구체적 사례, 일정, 사실 중심으로 기록</li>
+            <li>민감한 개인사 이슈는 필요한 범위 내에서만 간략히 기록</li>
+            <li>후속 조치는 반드시 일정, 담당자, 확인 기준을 함께 남김</li>
+          </ul>
+        </div>
+
+      </div><!-- /formDoc -->
+    </div><!-- /content-body -->
+  </div>
+</div>
+
+<!-- 삭제 모달 -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-exclamation-triangle" style="color:#ef4444;margin-right:8px;"></i>면담일지 삭제</span>
+      <button class="modal-close" onclick="document.getElementById('deleteModal').classList.remove('show')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="color:#374151; line-height:1.6;">이 면담일지를 영구 삭제합니다.<br><span style="color:#ef4444; font-size:13px;">삭제 후 복구가 불가능합니다.</span></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('deleteModal').classList.remove('show')">취소</button>
+      <button class="btn btn-danger" onclick="doDelete()"><i class="fas fa-trash"></i> 삭제</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js"></script>
+<script>
+  if (!Portal.init()) throw 'AUTH';
+
+  const user = RBAC.getCurrentUser();
+  const params = new URLSearchParams(location.search);
+  const logId  = params.get('id');
+  let currentLog = null;
+
+  function sv(id, val) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const v = Array.isArray(val) ? val.filter(Boolean).join(', ') : (val || '');
+    if (!v) { el.textContent = '(없음)'; el.classList.add('empty'); }
+    else    { el.textContent = v; el.classList.remove('empty'); }
+  }
+
+  function renderChecks(items) {
+    document.getElementById('v_final_checks').innerHTML = items.map(({label, checked}) => `
+      <div class="chk-item">
+        <span class="chk-icon ${checked ? 'on' : 'off'}">${checked ? '<i class="fas fa-check"></i>' : ''}</span>
+        <span>${label}</span>
+      </div>`).join('');
+  }
+
+  function fillViewer(log) {
+    if (log.is_confidential) document.getElementById('confBadge').classList.remove('hidden');
+
+    const dateStr = (log.sec1_meet_date || log.interview_date || '-').slice(0, 10);
+    document.getElementById('docSub').textContent =
+      `피면담자: ${log.interviewee_name||'-'}  |  면담일: ${dateStr}  |  면담자: ${log.interviewer_name||'-'}  |  ${log.year||''}년 ${log.quarter||''}분기`;
+    document.getElementById('barTitle').textContent = `${log.interviewee_name||''} 면담일지`;
+
+    sv('v_doc_name',    log.sec1_doc_name);
+    sv('v_doc_purpose', log.sec1_doc_purpose);
+    sv('v_interviewer', log.interviewer_name);
+    sv('v_interviewee', log.interviewee_name);
+    sv('v_position',    log.sec1_position);
+    sv('v_meet_date',   log.sec1_meet_date);
+    sv('v_meet_place',  log.sec1_meet_place);
+    sv('v_round',       log.sec1_round);
+
+    const areas = Array.isArray(log.sec2_work_areas) ? [...log.sec2_work_areas] : [];
+    if (log.sec2_work_areas_etc) areas.push(`기타: ${log.sec2_work_areas_etc}`);
+    sv('v_work_status', log.sec2_work_status);
+    sv('v_work_areas',  areas);
+    sv('v_feedback',    log.sec2_feedback);
+    sv('v_focus',       log.sec2_focus);
+
+    sv('v_dept',        log.sec3_dept);
+    sv('v_exp',         log.sec3_exp);
+    sv('v_main_work',   log.sec3_main_work);
+    sv('v_stakeholders',log.sec3_stakeholders);
+    sv('v_kpi',         log.sec3_kpi);
+    sv('v_achieve',     log.sec3_achieve);
+    sv('v_strength',    log.sec3_strength);
+    sv('v_hardship',    log.sec3_hardship);
+    sv('v_workload',    log.sec3_workload);
+    sv('v_stress',      log.sec3_stress);
+    sv('v_pref',        log.sec3_pref);
+    sv('v_future',      log.sec3_future);
+
+    sv('v_perf1_fact',  log.sec4_perf1_fact);
+    sv('v_perf1_obs',   log.sec4_perf1_obs);
+    sv('v_perf2_fact',  log.sec4_perf2_fact);
+    sv('v_perf2_obs',   log.sec4_perf2_obs);
+
+    sv('v_schedule',      log.sec5_schedule);
+    sv('v_system',        log.sec5_system);
+    sv('v_data',          log.sec5_data);
+    sv('v_collab_depts',  log.sec5_collab_depts);
+    sv('v_collab_detail', log.sec5_collab_detail);
+    sv('v_auto_priority', log.sec5_auto_priority ? `${log.sec5_auto_priority}순위` : '');
+    sv('v_auto_detail',   log.sec5_auto_detail);
+
+    sv('v_strength6', log.sec6_strength);
+    sv('v_collab6',   log.sec6_collab);
+
+    sv('v_risks',    log.sec7_risks);
+    sv('v_issue1',   log.sec7_issue1);
+    sv('v_support1', log.sec7_support1);
+    sv('v_issue2',   log.sec7_issue2);
+    sv('v_support2', log.sec7_support2);
+
+    sv('v_reward',    log.sec8_reward);
+    sv('v_hope',      log.sec8_hope);
+    sv('v_edu',       log.sec8_edu);
+    sv('v_rotation',  log.sec8_rotation);
+    sv('v_eval',      log.sec8_eval);
+    sv('v_dev_short', log.sec8_dev_short);
+    sv('v_dev_long',  log.sec8_dev_long);
+
+    sv('v_team_feedback',  log.sec9_team_feedback);
+    sv('v_fb_freq',        log.sec9_fb_freq);
+    sv('v_report_ways',    log.sec9_report_ways);
+    sv('v_leader_request', log.sec9_leader_request);
+
+    sv('v_total',     log.sec10_total);
+    sv('v_dev_point', log.sec10_dev_point);
+    sv('v_note',      log.sec10_note);
+
+    sv('v_work_task',    log.sec11_work_task);
+    sv('v_work_support', log.sec11_work_support);
+    sv('v_work_due',     log.sec11_work_due);
+    sv('v_work_result',  log.sec11_work_result);
+    sv('v_skill_task',    log.sec11_skill_task);
+    sv('v_skill_support', log.sec11_skill_support);
+    sv('v_skill_due',     log.sec11_skill_due);
+    sv('v_skill_result',  log.sec11_skill_result);
+    sv('v_collab_task',    log.sec11_collab_task);
+    sv('v_collab_support', log.sec11_collab_support);
+    sv('v_collab_due',     log.sec11_collab_due);
+    sv('v_collab_result',  log.sec11_collab_result);
+    sv('v_env_task',   log.sec11_env_task);
+    sv('v_env_due',    log.sec11_env_due);
+    sv('v_env_result', log.sec11_env_result);
+    sv('v_etc_task',   log.sec11_etc_task);
+    sv('v_etc_due',    log.sec11_etc_due);
+    sv('v_etc_result', log.sec11_etc_result);
+
+    sv('v_agree',        log.sec12_agree);
+    sv('v_next_date',    log.sec12_next_date);
+    sv('v_check_method', log.sec12_check_method);
+    sv('v_sign1',        log.sec12_sign1);
+    sv('v_sign2',        log.sec12_sign2);
+    renderChecks([
+      { label:'사실과 의견이 명확히 구분되어 기록되었는가?',        checked: log.sec12_chk_fact },
+      { label:'후속조치의 책임자와 일정이 구체적으로 작성되었는가?', checked: log.sec12_chk_action },
+      { label:'민감정보를 불필요하게 과도하게 기록하지 않았는가?',  checked: log.sec12_chk_security },
+      { label:'차기 면담 및 점검 방식이 당사자와 합의되었는가?',    checked: log.sec12_chk_next },
+    ]);
+
+    renderConfirmSection(log);
+
+    if (user.role === 'team_leader') {
+      document.getElementById('editBtn').classList.remove('hidden');
+      document.getElementById('deleteBtn').classList.remove('hidden');
+    }
+  }
+
+  function renderConfirmSection(log) {
+    const statusEl  = document.getElementById('confirmStatus');
+    const confirmArea = document.getElementById('employeeConfirmArea');
+
+    if (log.is_confirmed_by_employee) {
+      statusEl.innerHTML = `
+        <div class="confirm-done-box">
+          <i class="fas fa-check-circle" style="font-size:24px;"></i>
+          <div>
+            <div>직원이 내용을 확인하였습니다</div>
+            <div style="font-size:12px; font-weight:400; margin-top:4px; color:#166534;">
+              확인일시: ${log.confirmed_at||'-'}
+            </div>
+            ${log.employee_comment ? `<div style="margin-top:8px; font-size:13px; color:#166534;">💬 ${log.employee_comment}</div>` : ''}
+          </div>
+        </div>`;
+      return;
+    }
+
+    statusEl.innerHTML = `
+      <div class="confirm-pending-box">
+        <i class="fas fa-clock" style="font-size:20px;"></i>
+        <span>직원 확인 대기 중</span>
+      </div>`;
+
+    // 본인이 피면담자이고 employee 역할이면 서명 가능
+    if (user.role === 'employee' && log.interviewee_name === user.full_name && !log.is_confidential) {
+      confirmArea.classList.remove('hidden');
+    }
+    // team_leader도 테스트 목적으로 서명 가능하게
+    if (user.role === 'team_leader') {
+      confirmArea.classList.remove('hidden');
+    }
+  }
+
+  async function doConfirm() {
+    const comment = document.getElementById('employeeCommentInput').value.trim();
+    const now = new Date().toLocaleString('ko-KR');
+    const payload = {
+      is_confirmed_by_employee: true,
+      confirmed_at: now,
+      employee_comment: comment
+    };
+    const r = await fetch(`/tables/interview_logs/${logId}`, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if (r.ok) {
+      const updated = await r.json();
+      currentLog = updated;
+      Portal.showToast('확인 서명이 완료되었습니다.', 'success');
+      renderConfirmSection(currentLog);
+      document.getElementById('employeeConfirmArea').classList.add('hidden');
+    } else {
+      Portal.showToast('처리 실패', 'error');
+    }
+  }
+
+  function openDeleteModal() {
+    document.getElementById('deleteModal').classList.add('show');
+  }
+
+  async function doDelete() {
+    document.getElementById('deleteModal').classList.remove('show');
+    const r = await fetch(`/tables/interview_logs/${logId}`, {method:'DELETE'});
+    if (r.ok) {
+      Portal.showToast('삭제되었습니다.', 'success');
+      setTimeout(() => location.href = 'interview-list.html', 1200);
+    } else {
+      Portal.showToast('삭제 실패', 'error');
+    }
+  }
+
+  async function initPage() {
+    if (!logId) {
+      document.getElementById('pageLoading').style.display = 'none';
+      document.getElementById('accessBanner').classList.remove('hidden');
+      document.getElementById('accessMsg').textContent = '면담일지 ID가 없습니다.';
+      return;
+    }
+
+    const r = await fetch(`/tables/interview_logs/${logId}`);
+    if (!r.ok) {
+      document.getElementById('pageLoading').style.display = 'none';
+      document.getElementById('accessBanner').classList.remove('hidden');
+      document.getElementById('accessMsg').textContent = '면담일지를 찾을 수 없습니다.';
+      return;
+    }
+
+    currentLog = await r.json();
+
+    // RBAC 접근 확인
+    if (user.role === 'employee' && currentLog.is_confidential) {
+      document.getElementById('pageLoading').style.display = 'none';
+      document.getElementById('accessBanner').classList.remove('hidden');
+      document.getElementById('accessMsg').textContent = '기밀 면담일지는 팀장만 열람 가능합니다.';
+      return;
+    }
+    if (user.role === 'employee' && currentLog.interviewee_name !== user.full_name) {
+      document.getElementById('pageLoading').style.display = 'none';
+      document.getElementById('accessBanner').classList.remove('hidden');
+      document.getElementById('accessMsg').textContent = '본인의 면담일지만 열람 가능합니다.';
+      return;
+    }
+
+    fillViewer(currentLog);
+    document.getElementById('pageLoading').style.display = 'none';
+    document.getElementById('formDoc').classList.remove('hidden');
+  }
+
+  initPage();
+</script>
+</body>
+</html>

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>보고서 생성 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    /* Report type cards */
+    .report-types { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:28px; }
+    @media(max-width:800px){ .report-types{grid-template-columns:1fr;} }
+    .report-type-card { border:2px solid #e5e7eb; border-radius:16px; padding:22px 20px; cursor:pointer;
+      transition:all .2s; background:#fff; position:relative; }
+    .report-type-card:hover { border-color:#4f86f7; box-shadow:0 4px 12px rgba(79,134,247,.12); }
+    .report-type-card.selected { border-color:#4f86f7; background:#f0f6ff; box-shadow:0 4px 16px rgba(79,134,247,.15); }
+    .report-type-card.selected::after { content:'\f00c'; font-family:'Font Awesome 6 Free'; font-weight:900;
+      position:absolute; top:14px; right:16px; color:#4f86f7; font-size:14px; }
+    .rtype-icon { width:48px; height:48px; border-radius:14px; display:flex; align-items:center;
+      justify-content:center; font-size:22px; margin-bottom:14px; }
+    .rtype-blue { background:#dbeafe; color:#1d4ed8; }
+    .rtype-purple { background:#ede9fe; color:#5b21b6; }
+    .rtype-green { background:#dcfce7; color:#166534; }
+    .rtype-title { font-size:15px; font-weight:700; color:#111827; margin-bottom:6px; }
+    .rtype-desc { font-size:12px; color:#6b7280; line-height:1.6; }
+    .rtype-sections { display:flex; gap:4px; flex-wrap:wrap; margin-top:10px; }
+    .rtype-section-badge { font-size:10px; font-weight:600; padding:2px 7px; border-radius:6px;
+      background:#f3f4f6; color:#6b7280; }
+
+    /* Options row */
+    .options-row { display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap; margin-bottom:24px;
+      background:#fff; border-radius:14px; padding:20px; border:1px solid #f3f4f6;
+      box-shadow:0 1px 4px rgba(0,0,0,.04); }
+    .opt-group { display:flex; flex-direction:column; gap:6px; }
+    .form-label { font-size:13px; font-weight:600; color:#374151; }
+    .form-select, .form-input {
+      padding:10px 14px; border:1.5px solid #e5e7eb; border-radius:10px;
+      font-size:14px; color:#111827; font-family:inherit; background:#fff;
+      transition:border-color .2s; }
+    .form-select:focus, .form-input:focus { outline:none; border-color:#4f86f7; }
+    .gen-btn { padding:10px 24px; border-radius:10px; font-size:14px; font-weight:700;
+      background:linear-gradient(135deg,#4f86f7,#6c5ce7); color:#fff; border:none; cursor:pointer;
+      display:flex; align-items:center; gap:8px; transition:opacity .2s; }
+    .gen-btn:hover { opacity:.9; }
+    .gen-btn:disabled { opacity:.5; cursor:not-allowed; }
+    .gen-spinner { width:16px; height:16px; border:2px solid rgba(255,255,255,.4);
+      border-top-color:#fff; border-radius:50%; animation:spin .8s linear infinite; display:none; }
+    .gen-spinner.visible { display:inline-block; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* Console */
+    .console-box { background:#0f172a; border-radius:12px; padding:18px 20px; min-height:80px;
+      max-height:200px; overflow-y:auto; font-family:'Courier New',monospace; font-size:13px;
+      color:#94a3b8; display:none; margin-bottom:24px; }
+    .console-box.visible { display:block; }
+    .cl-success { color:#34d399; }
+    .cl-error { color:#f87171; }
+    .cl-info { color:#60a5fa; }
+
+    /* History */
+    .history-section { background:#fff; border-radius:16px; border:1px solid #f3f4f6;
+      box-shadow:0 1px 4px rgba(0,0,0,.05); overflow:hidden; }
+    .history-header { padding:18px 22px; border-bottom:1px solid #f3f4f6;
+      display:flex; justify-content:space-between; align-items:center; }
+    .history-title { font-size:15px; font-weight:700; color:#111827; }
+    .htable { width:100%; border-collapse:collapse; }
+    .htable th { padding:11px 16px; font-size:12px; font-weight:600; color:#9ca3af;
+      text-align:left; border-bottom:1px solid #f3f4f6; background:#fafafa; }
+    .htable td { padding:13px 16px; font-size:13px; color:#374151; border-bottom:1px solid #f9fafb; vertical-align:middle; }
+    .htable tr:hover td { background:#f9fafb; }
+    .htable tr:last-child td { border-bottom:none; }
+    .rtype-badge { font-size:11px; font-weight:600; padding:3px 10px; border-radius:8px; }
+    .rt-actuary { background:#dbeafe; color:#1e40af; }
+    .rt-management { background:#ede9fe; color:#5b21b6; }
+    .rt-finance { background:#dcfce7; color:#166534; }
+    .run-status { font-size:11px; font-weight:600; padding:3px 10px; border-radius:8px; }
+    .run-success { background:#d1fae5; color:#065f46; }
+    .run-error { background:#fee2e2; color:#991b1b; }
+    .dl-btn { display:inline-flex; align-items:center; gap:5px; padding:5px 12px;
+      border-radius:8px; background:#f0f6ff; color:#4f86f7; font-size:12px; font-weight:600;
+      text-decoration:none; border:none; cursor:pointer; transition:background .15s; }
+    .dl-btn:hover { background:#dbeafe; }
+    .history-empty { padding:48px; text-align:center; color:#d1d5db; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-file-word"></i> 보고서 자동생성</h1>
+    </header>
+    <main class="content-body">
+
+      <!-- 보고서 유형 선택 -->
+      <div class="report-types">
+        <div class="report-type-card selected" data-type="actuary" onclick="selectType('actuary',this)">
+          <div class="rtype-icon rtype-blue"><i class="fas fa-calculator"></i></div>
+          <div class="rtype-title">계리보고서</div>
+          <div class="rtype-desc">IFRS17 결산 결과, 공시이율·가정·예정사업비율 현황을 포함한 종합 계리 보고서</div>
+          <div class="rtype-sections">
+            <span class="rtype-section-badge">결산 개요</span>
+            <span class="rtype-section-badge">주요 수치</span>
+            <span class="rtype-section-badge">공시이율</span>
+            <span class="rtype-section-badge">가정 현황</span>
+            <span class="rtype-section-badge">예정비율</span>
+          </div>
+        </div>
+        <div class="report-type-card" data-type="management" onclick="selectType('management',this)">
+          <div class="rtype-icon rtype-purple"><i class="fas fa-chart-line"></i></div>
+          <div class="rtype-title">경영개선협의회</div>
+          <div class="rtype-desc">경영개선협의회 보고용 계리결산 현황 및 주요 이슈 보고서</div>
+          <div class="rtype-sections">
+            <span class="rtype-section-badge">보고 배경</span>
+            <span class="rtype-section-badge">성과 지표</span>
+            <span class="rtype-section-badge">결산 결과</span>
+            <span class="rtype-section-badge">개선 과제</span>
+          </div>
+        </div>
+        <div class="report-type-card" data-type="finance" onclick="selectType('finance',this)">
+          <div class="rtype-icon rtype-green"><i class="fas fa-balance-scale"></i></div>
+          <div class="rtype-title">재무협의체</div>
+          <div class="rtype-desc">재무협의체 보고용 IFRS17·K-ICS 현황 및 리스크 모니터링 보고서</div>
+          <div class="rtype-sections">
+            <span class="rtype-section-badge">재무 요약</span>
+            <span class="rtype-section-badge">IFRS17</span>
+            <span class="rtype-section-badge">K-ICS</span>
+            <span class="rtype-section-badge">리스크</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 옵션 + 생성 버튼 -->
+      <div class="options-row">
+        <div class="opt-group">
+          <label class="form-label">기준월</label>
+          <select class="form-select" id="ymSel" style="min-width:140px"></select>
+        </div>
+        <div class="opt-group">
+          <label class="form-label">작성자</label>
+          <input type="text" class="form-input" id="authorInput" placeholder="예: 계리결산팀 김팀장" style="min-width:200px">
+        </div>
+        <div class="opt-group" style="margin-left:auto">
+          <label class="form-label" style="visibility:hidden">생성</label>
+          <button class="gen-btn" id="genBtn" onclick="generateReport()">
+            <div class="gen-spinner" id="genSpinner"></div>
+            <i class="fas fa-magic" id="genIcon"></i> 보고서 생성
+          </button>
+        </div>
+      </div>
+
+      <!-- 콘솔 출력 -->
+      <div class="console-box" id="consoleBox"></div>
+
+      <!-- 생성 이력 -->
+      <div class="history-section">
+        <div class="history-header">
+          <span class="history-title"><i class="fas fa-history"></i> 생성 이력</span>
+          <button class="btn btn-secondary" style="font-size:12px;padding:6px 14px" onclick="loadHistory()">
+            <i class="fas fa-sync-alt"></i> 새로고침
+          </button>
+        </div>
+        <div id="histContainer"><div class="history-empty">이력을 불러오는 중...</div></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js"></script>
+<script>
+  Portal.init();
+
+  const RTYPE = { actuary:'계리보고서', management:'경영개선협의회보고서', finance:'재무협의체보고서' };
+  let selectedType = 'actuary';
+  const currentUser = RBAC.getCurrentUser();
+
+  // Build YM options
+  (() => {
+    const sel = document.getElementById('ymSel');
+    const now = new Date();
+    for (let i = -12; i <= 2; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const ym = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}`;
+      const label = `${d.getFullYear()}년 ${d.getMonth()+1}월`;
+      const opt = document.createElement('option');
+      opt.value = ym; opt.textContent = label;
+      if (i === -1) opt.selected = true; // 전월 기본
+      sel.appendChild(opt);
+    }
+  })();
+
+  // Pre-fill author
+  if (currentUser?.full_name) {
+    document.getElementById('authorInput').value = `계리결산팀 ${currentUser.full_name}`;
+  }
+
+  function selectType(type, el) {
+    selectedType = type;
+    document.querySelectorAll('.report-type-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+
+  function writeConsole(lines) {
+    const box = document.getElementById('consoleBox');
+    box.classList.add('visible');
+    box.innerHTML = lines.map(line => {
+      if (!line.trim()) return '';
+      let cls = '';
+      const l = line.toLowerCase();
+      if (l.includes('오류') || l.includes('error') || l.includes('실패')) cls = 'cl-error';
+      else if (l.includes('완료') || l.includes('success') || l.includes('생성')) cls = 'cl-success';
+      else if (l.includes('처리') || l.includes('작성') || l.includes('연결')) cls = 'cl-info';
+      return `<div class="${cls}">${escHtml(line)}</div>`;
+    }).filter(Boolean).join('');
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  async function generateReport() {
+    const ym = document.getElementById('ymSel').value;
+    const author = document.getElementById('authorInput').value.trim() || '계리결산팀';
+    const btn = document.getElementById('genBtn');
+    const spin = document.getElementById('genSpinner');
+    const icon = document.getElementById('genIcon');
+
+    btn.disabled = true;
+    spin.classList.add('visible');
+    icon.style.display = 'none';
+    writeConsole([`▶ ${RTYPE[selectedType]} 생성 시작...`, `기준월: ${ym.slice(0,4)}년 ${parseInt(ym.slice(4))}월`]);
+
+    try {
+      const res = await fetch('/api/reports/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: selectedType, ym, author })
+      });
+      const data = await res.json();
+      const lines = (data.output || '').split('\n').filter(l => l.trim());
+      writeConsole(lines);
+      if (data.status === 'success' && data.filename) {
+        Portal.showToast(`${RTYPE[selectedType]} 생성 완료!`, 'success');
+        loadHistory();
+      } else {
+        Portal.showToast('생성 중 오류가 발생했습니다.', 'error');
+      }
+    } catch(e) {
+      writeConsole([`✗ 오류: ${e.message}`]);
+      Portal.showToast('생성 실패: ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
+      spin.classList.remove('visible');
+      icon.style.display = '';
+    }
+  }
+
+  async function loadHistory() {
+    try {
+      const res = await fetch('/tables/report_history?sort=created_at&limit=50');
+      const data = await res.json();
+      const logs = (data.rows || data.data || []).slice().reverse();
+      const container = document.getElementById('histContainer');
+      if (!logs.length) {
+        container.innerHTML = '<div class="history-empty"><i class="fas fa-file-word" style="font-size:32px;display:block;margin-bottom:8px;opacity:.2"></i>생성된 보고서가 없습니다</div>';
+        return;
+      }
+      container.innerHTML = `<table class="htable">
+        <thead><tr>
+          <th>보고서 유형</th><th>기준월</th><th>작성자</th>
+          <th>상태</th><th>파일명</th><th>생성 시각</th><th>다운로드</th>
+        </tr></thead>
+        <tbody>
+        ${logs.map(r => `<tr>
+          <td><span class="rtype-badge rt-${r.type||'actuary'}">${RTYPE[r.type]||r.type}</span></td>
+          <td>${r.ym ? r.ym.slice(0,4)+'년 '+parseInt(r.ym.slice(4))+'월' : '-'}</td>
+          <td>${escHtml(r.author||'-')}</td>
+          <td><span class="run-status run-${r.status||'error'}">${r.status==='success'?'성공':'실패'}</span></td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#9ca3af" title="${escHtml(r.filename||'')}">
+            ${escHtml(r.filename||'-')}</td>
+          <td>${Portal.formatDateTime(r.created_at)}</td>
+          <td>${r.status==='success' && r.filename
+            ? `<a class="dl-btn" href="/api/reports/download/${encodeURIComponent(r.filename)}" download><i class="fas fa-download"></i> 다운로드</a>`
+            : '<span style="color:#d1d5db;font-size:12px">-</span>'}</td>
+        </tr>`).join('')}
+        </tbody>
+      </table>`;
+    } catch(e) {
+      document.getElementById('histContainer').innerHTML = '<div class="history-empty">이력을 불러오지 못했습니다.</div>';
+    }
+  }
+
+  loadHistory();
+</script>
+</body>
+</html>

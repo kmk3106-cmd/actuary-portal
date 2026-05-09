@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>로그인 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background: linear-gradient(135deg, #1a1f3a 0%, #2d3561 50%, #1a1f3a 100%);
+      min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .login-wrapper { width: 100%; max-width: 460px; }
+    .login-header { text-align: center; margin-bottom: 32px; }
+    .login-logo {
+      width: 68px; height: 68px;
+      background: linear-gradient(135deg, #4f86f7, #6c5ce7);
+      border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px;
+      font-size: 28px; color: white;
+      box-shadow: 0 8px 32px rgba(79,134,247,0.4);
+    }
+    .login-title { font-size: 24px; font-weight: 700; color: white; margin-bottom: 6px; }
+    .login-subtitle { font-size: 13px; color: rgba(255,255,255,0.5); }
+    .login-card { background: rgba(255,255,255,0.97); border-radius: 20px; padding: 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .security-notice {
+      background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px;
+      padding: 12px 16px; margin-bottom: 28px;
+      display: flex; gap: 10px; align-items: flex-start;
+    }
+    .security-notice i { color: #3b82f6; margin-top: 2px; flex-shrink: 0; }
+    .security-notice p { font-size: 12.5px; color: #1e40af; line-height: 1.5; }
+    .form-group { margin-bottom: 20px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px; }
+    .input-wrapper { position: relative; }
+    .input-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 15px; }
+    .form-input {
+      width: 100%; padding: 12px 14px 12px 42px;
+      border: 2px solid #e5e7eb; border-radius: 10px;
+      font-size: 15px; font-family: inherit;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      color: #1f2937; background: #f9fafb;
+    }
+    .form-input:focus { outline: none; border-color: #4f86f7; background: white; box-shadow: 0 0 0 3px rgba(79,134,247,0.15); }
+    .password-toggle { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #9ca3af; background: none; border: none; padding: 4px; transition: color 0.2s; }
+    .password-toggle:hover { color: #4f86f7; }
+    .error-alert { display: none; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; color: #b91c1c; font-size: 13.5px; gap: 8px; align-items: center; }
+    .error-alert.show { display: flex; }
+    .btn-login {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, #4f86f7, #6c5ce7);
+      color: white; border: none; border-radius: 10px;
+      font-size: 16px; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: opacity 0.2s, transform 0.1s; margin-top: 8px;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-login:hover { opacity: 0.92; }
+    .btn-login:active { transform: scale(0.99); }
+    .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+    .spinner { display: none; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    .btn-login.loading .spinner { display: block; }
+    .btn-login.loading .btn-text { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .demo-accounts { margin-top: 28px; padding-top: 24px; border-top: 1px solid #e5e7eb; }
+    .demo-title { font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; text-align: center; }
+    .demo-grid { display: grid; gap: 8px; }
+    .demo-account { border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 14px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 12px; }
+    .demo-account:hover { border-color: #4f86f7; background: #f0f5ff; }
+    .demo-badge { padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+    .badge-employee     { background: #dbeafe; color: #1e40af; }
+    .badge-team-leader  { background: #dcfce7; color: #166534; }
+    .badge-section-chief{ background: #fef3c7; color: #92400e; }
+    .demo-info { flex: 1; }
+    .demo-name { font-size: 13px; font-weight: 600; color: #374151; }
+    .demo-cred { font-size: 11px; color: #9ca3af; margin-top: 1px; }
+    .demo-arrow { color: #9ca3af; font-size: 12px; }
+  </style>
+</head>
+<body>
+
+<div class="login-wrapper">
+  <div class="login-header">
+    <div class="login-logo">
+      <i class="fas fa-calculator"></i>
+    </div>
+    <h1 class="login-title">계리결산팀 운영관리포탈</h1>
+    <p class="login-subtitle">미래에셋생명 계리결산팀 전용 관리 시스템</p>
+  </div>
+
+  <div class="login-card">
+    <div class="security-notice">
+      <i class="fas fa-lock fa-sm"></i>
+      <p>이 시스템은 <strong>역할 기반 접근 통제(RBAC)</strong>를 적용합니다. 모든 접근 시도가 감사 로그에 기록됩니다.</p>
+    </div>
+
+    <div id="errorAlert" class="error-alert">
+      <i class="fas fa-exclamation-circle"></i>
+      <span id="errorMessage"></span>
+    </div>
+
+    <form id="loginForm" novalidate>
+      <div class="form-group">
+        <label class="form-label" for="username">아이디</label>
+        <div class="input-wrapper">
+          <i class="fas fa-user input-icon"></i>
+          <input type="text" id="username" class="form-input" placeholder="아이디를 입력하세요" autocomplete="username" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">비밀번호</label>
+        <div class="input-wrapper">
+          <i class="fas fa-key input-icon"></i>
+          <input type="password" id="password" class="form-input" placeholder="비밀번호를 입력하세요" autocomplete="current-password" required>
+          <button type="button" class="password-toggle" id="pwToggle">
+            <i class="fas fa-eye" id="pwToggleIcon"></i>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn-login" id="loginBtn">
+        <span class="spinner" id="loginSpinner"></span>
+        <span class="btn-text">로그인</span>
+      </button>
+    </form>
+
+    <div class="demo-accounts">
+      <div class="demo-title">테스트 계정 (비밀번호: password)</div>
+      <div class="demo-grid">
+        <div class="demo-account" onclick="fill('teamleader1','password')">
+          <span class="demo-badge badge-team-leader">팀장</span>
+          <div class="demo-info">
+            <div class="demo-name">김팀장</div>
+            <div class="demo-cred">ID: teamleader1 · 전체 관리 권한</div>
+          </div>
+          <i class="fas fa-chevron-right demo-arrow"></i>
+        </div>
+        <div class="demo-account" onclick="fill('sectionchief1','password')">
+          <span class="demo-badge badge-section-chief">실장</span>
+          <div class="demo-info">
+            <div class="demo-name">이실장</div>
+            <div class="demo-cred">ID: sectionchief1 · 읽기 전용</div>
+          </div>
+          <i class="fas fa-chevron-right demo-arrow"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script>
+  if (RBAC.isAuthenticated()) window.location.href = 'index.html';
+
+  document.getElementById('pwToggle').addEventListener('click', () => {
+    const pw = document.getElementById('password');
+    const icon = document.getElementById('pwToggleIcon');
+    if (pw.type === 'password') { pw.type = 'text'; icon.className = 'fas fa-eye-slash'; }
+    else { pw.type = 'password'; icon.className = 'fas fa-eye'; }
+  });
+
+  function fill(u, p) {
+    document.getElementById('username').value = u;
+    document.getElementById('password').value = p;
+  }
+
+  function showError(msg) {
+    const a = document.getElementById('errorAlert');
+    document.getElementById('errorMessage').textContent = msg;
+    a.classList.add('show');
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    document.getElementById('errorAlert').classList.remove('show');
+
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    if (!username || !password) { showError('아이디와 비밀번호를 모두 입력해주세요.'); return; }
+
+    const btn = document.getElementById('loginBtn');
+    btn.disabled = true;
+    btn.classList.add('loading');
+
+    const result = await Auth.login(username, password);
+    if (result.success) {
+      const params = new URLSearchParams(window.location.search);
+      const redirect = params.get('redirect');
+      window.location.href = (redirect && !redirect.includes('login')) ? decodeURIComponent(redirect) : 'index.html';
+    } else {
+      showError(result.message);
+      btn.disabled = false;
+      btn.classList.remove('loading');
+    }
+  });
+</script>
+</body>
+</html>
