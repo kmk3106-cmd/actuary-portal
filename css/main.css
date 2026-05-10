@@ -85,8 +85,8 @@ body {
 
 .brand-sub {
   font-size: 11px;
-  font-weight: 400;
-  color: var(--gray-400);
+  font-weight: 600;
+  color: var(--gray-700);
   letter-spacing: 0.25em;
   margin-top: 2px;
 }
@@ -127,7 +127,8 @@ body {
 
 .user-dept {
   font-size: 12px;
-  color: var(--gray-400);
+  color: var(--gray-700);
+  font-weight: 500;
   margin-top: 3px;
 }
 
@@ -167,16 +168,16 @@ body {
 .nav-section-num {
   font-family: 'Courier New', Courier, monospace;
   font-size: 12px;
-  font-weight: 400;
-  color: var(--gray-400);
+  font-weight: 600;
+  color: var(--gray-700);
   flex-shrink: 0;
   line-height: 1;
 }
 
 .nav-section-label {
   font-size: 13px;
-  font-weight: 600;
-  color: var(--gray-500);
+  font-weight: 700;
+  color: var(--gray-900);
   text-transform: none;
   letter-spacing: 0;
   line-height: 1;
@@ -187,7 +188,7 @@ body {
   display: flex; align-items: center; gap: 11px;
   padding: 10px 14px;
   margin: 1px 0;
-  color: var(--gray-700);
+  color: var(--gray-900);
   text-decoration: none;
   font-size: 14px;
   font-weight: 400;
@@ -218,9 +219,13 @@ body {
   width: 17px;
   text-align: center;
   font-size: 15px;
-  color: var(--gray-500);
+  color: var(--gray-800);
   flex-shrink: 0;
   transition: color 0.15s;
+}
+
+.nav-item span {
+  font-weight: 500;
 }
 
 .nav-item:hover i {
@@ -238,8 +243,8 @@ body {
 .logout-btn {
   display: flex; align-items: center; gap: 8px;
   background: none; border: none; cursor: pointer;
-  color: var(--gray-400);
-  font-size: 13px; font-weight: 400;
+  color: var(--gray-800);
+  font-size: 13px; font-weight: 500;
   font-family: inherit;
   padding: 6px 4px;
   transition: color 0.15s;
