@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=10">
+  <link rel="stylesheet" href="css/main.css?v=11">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
   <style>
     /* ── 팀 업무량 모니터링 전용 스타일 ── */
@@ -231,7 +231,7 @@
     }
     .legend-dot.overload { background: #ef4444; }
     .legend-dot.normal   { background: #10b981; }
-    .legend-dot.idle     { background: #9ca3af; }
+    .legend-dot.idle     { background: #f59e0b; }
     .legend-dot.empty    { background: #f3f4f6; border: 1px solid #d1d5db; }
     .legend-dot.holiday  {
       background: repeating-linear-gradient(
@@ -386,7 +386,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=10"></script>
+<script src="js/portal.js?v=11"></script>
 <script>
 /* ── 초기화 ── */
 let currentUser = null;
@@ -713,7 +713,7 @@ function renderHeatmap(data) {
         const cell = heatmapData.cells[pt] && heatmapData.cells[pt][dt];
         if (!cell) return `<div style="padding:8px 12px;font-size:12px;">${pt}<br>${dt}<br>데이터 없음</div>`;
         const statusLabel = { overload: '과중', normal: '정상', idle: '유휴', empty: '미입력' };
-        const statusColor = { overload: '#ef4444', normal: '#10b981', idle: '#9ca3af', empty: '#9ca3af' };
+        const statusColor = { overload: '#ef4444', normal: '#10b981', idle: '#f59e0b', empty: '#9ca3af' };
         const hours = Math.round(cell.total_minutes / 6) / 10;
         return `<div style="padding:10px 14px;font-size:12.5px;line-height:1.8;min-width:160px;">
           <strong style="font-size:13.5px;">${pt}</strong><br>
@@ -731,7 +731,7 @@ function renderHeatmap(data) {
           ranges: [
             { from: 0, to: 0, color: '#f0f0f0', name: '비영업일' },  // 비영업일
             { from: 1, to: 1, color: '#e5e7eb', name: '미입력' },     // empty
-            { from: 2, to: 2, color: '#d1d5db', name: '유휴' },       // idle
+            { from: 2, to: 2, color: '#f59e0b', name: '유휴' },       // idle (주황)
             { from: 3, to: 3, color: '#10b981', name: '정상' },       // normal
             { from: 4, to: 4, color: '#ef4444', name: '과중' }        // overload
           ]
