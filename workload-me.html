@@ -342,6 +342,60 @@
       width: 100%;
     }
 
+    /* 월 선택기 */
+    .month-selector-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .month-selector {
+      padding: 7px 12px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 9px;
+      font-size: 13.5px;
+      font-family: inherit;
+      color: var(--gray-800);
+      background: white;
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 30px;
+    }
+    .month-selector:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79,134,247,0.12);
+    }
+    /* 월 컨텍스트 chip */
+    .month-context-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .month-context-chip.past   { background: #f3f4f6; color: #6b7280; }
+    .month-context-chip.future { background: #fff7ed; color: #c2410c; }
+    /* 데이터 없음 안내 카드 */
+    .no-data-card {
+      background: #f9fafb;
+      border: 1.5px dashed var(--gray-200);
+      border-radius: 14px;
+      padding: 40px 24px;
+      text-align: center;
+      margin-bottom: 24px;
+      color: var(--gray-400);
+    }
+    .no-data-card i { font-size: 36px; display: block; margin-bottom: 12px; }
+    .no-data-card p { font-size: 14px; margin: 0; }
+
     /* 반응형 */
     @media (max-width: 1024px) {
       .three-col-layout { grid-template-columns: 1fr 1fr; }
@@ -355,10 +409,12 @@
       .entry-form-grid .form-field:nth-child(1) { grid-column: 1; }
       .entry-form-grid .form-field:nth-child(5) { grid-column: 1/-1; }
       .entry-form-grid .btn-add { grid-column: 1/-1; justify-content: center; }
+      .month-selector-wrap { flex-wrap: wrap; }
     }
     @media (max-width: 480px) {
       .entry-form-grid { grid-template-columns: 1fr; }
       .month-hero-stats { flex-direction: row; gap: 12px; }
+      .month-selector { font-size: 12.5px; }
     }
   </style>
 </head>
@@ -372,6 +428,10 @@
         내 업무량
       </div>
       <div class="header-actions">
+        <div class="month-selector-wrap">
+          <select class="month-selector" id="monthSelector" onchange="onMonthChange(this.value)"></select>
+          <span id="monthContextChip"></span>
+        </div>
         <button class="btn btn-secondary btn-sm" onclick="loadAll()">
           <i class="fas fa-sync-alt"></i> 새로고침
         </button>
@@ -395,10 +455,93 @@ let gaugeChart     = null;
 let donutChart     = null;
 let mmBarChart     = null;
 let taskCategories = [];
-let myEntries      = [];   // 오늘 기준 최근 로드 항목
+let myEntries      = [];   // 선택 월 로드 항목
 let editingId      = null; // 편집 중인 row ID
 let gaugePeriod    = 'month';
 let mmPeriod       = 'quarter';
+
+/* ── 월 선택 상태 ── */
+let selectedYM = (() => {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;
+})();
+
+/* ── 월 선택기 옵션 빌드 ── */
+function buildMonthSelector() {
+  const sel = document.getElementById('monthSelector');
+  if (!sel) return;
+  const now = new Date();
+  const currentY = now.getFullYear();
+  const currentM = now.getMonth() + 1;
+  // 과거 12개월 ~ 다음 1개월 (총 14개)
+  const options = [];
+  for (let delta = -12; delta <= 1; delta++) {
+    let y = currentY;
+    let m = currentM + delta;
+    while (m <= 0)  { m += 12; y--; }
+    while (m > 12)  { m -= 12; y++; }
+    const val  = `${y}-${String(m).padStart(2,'0')}`;
+    const text = `${y}년 ${m}월`;
+    options.push({ val, text });
+  }
+  // 최신 월이 위로
+  options.reverse();
+  sel.innerHTML = options.map(o =>
+    `<option value="${o.val}" ${o.val === selectedYM ? 'selected' : ''}>${o.text}</option>`
+  ).join('');
+  updateMonthContextChip();
+}
+
+/* ── 월 컨텍스트 chip 업데이트 ── */
+function updateMonthContextChip() {
+  const chip = document.getElementById('monthContextChip');
+  if (!chip) return;
+  const now = new Date();
+  const curYM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  if (selectedYM === curYM) { chip.innerHTML = ''; return; }
+  const [sy, sm] = selectedYM.split('-').map(Number);
+  const [cy, cm] = curYM.split('-').map(Number);
+  const diff = (sy - cy) * 12 + (sm - cm); // 양수=미래, 음수=과거
+  let label, cls;
+  if (diff > 0) {
+    label = diff === 1 ? '다음 달' : `${diff}개월 후`;
+    cls = 'future';
+  } else {
+    label = diff === -1 ? '지난 달' : diff === -2 ? '지지난 달' : `${-diff}개월 전`;
+    cls = 'past';
+  }
+  chip.innerHTML = `<span class="month-context-chip ${cls}"><i class="fas fa-history"></i> ${label}</span>`;
+}
+
+/* ── 월 변경 핸들러 ── */
+function onMonthChange(ym) {
+  selectedYM = ym;
+  updateMonthContextChip();
+  loadAll();
+}
+
+/* ── 선택 월의 from/to 계산 ── */
+function getSelectedMonthRange() {
+  const [y, m] = selectedYM.split('-').map(Number);
+  const from  = `${y}-${String(m).padStart(2,'0')}-01`;
+  const lastD = new Date(y, m, 0).getDate();
+  const to    = `${y}-${String(m).padStart(2,'0')}-${lastD}`;
+  return { from, to, year: y, month: m };
+}
+
+/* ── 현재 월 여부 ── */
+function isCurrentMonth() {
+  const now = new Date();
+  const curYM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  return selectedYM === curYM;
+}
+
+/* ── 미래 월 여부 ── */
+function isFutureMonth() {
+  const now = new Date();
+  const curYM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  return selectedYM > curYM;
+}
 
 /* ── 부트 ── */
 if (!Portal.init()) { /* 리다이렉트 */ }
@@ -408,6 +551,7 @@ async function bootPage() {
   currentUser = RBAC.getCurrentUser();
   if (!currentUser) return;
 
+  buildMonthSelector(); // 월 선택기 먼저 구성
   await Promise.all([
     loadCategories(),
     loadAll()
@@ -429,21 +573,29 @@ async function loadCategories() {
 async function loadAll() {
   const name = currentUser.full_name || currentUser.username;
   const encoded = encodeURIComponent(name);
+  const { from, to } = getSelectedMonthRange();
+
+  // 로딩 표시
+  const pageBody = document.getElementById('pageBody');
+  if (pageBody && pageBody.innerHTML.indexOf('month-hero') === -1) {
+    pageBody.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
+  }
 
   try {
-    // 병렬로 기본 데이터 fetch
+    // 선택 월 기준 from/to 파라미터로 API 호출
     const [userRes, entriesRes, missingRes] = await Promise.all([
-      fetch(`/api/workload/user/${encoded}?period=month`).catch(() => null),
+      fetch(`/api/workload/user/${encoded}?from=${from}&to=${to}`).catch(() => null),
       fetch(`/tables/daily_work_entries?limit=500`).catch(() => null),
-      fetch(`/api/workload/alerts`).catch(() => null)
+      isCurrentMonth() ? fetch(`/api/workload/alerts`).catch(() => null) : Promise.resolve(null)
     ]);
 
-    const userData = userRes && userRes.ok ? await userRes.json() : null;
+    const userData   = userRes    && userRes.ok    ? await userRes.json()    : null;
     const allEntries = entriesRes && entriesRes.ok ? await entriesRes.json() : { rows: [] };
     const alertData  = missingRes && missingRes.ok ? await missingRes.json() : null;
 
+    // 선택 월 범위의 항목만 필터
     myEntries = (allEntries.rows || allEntries.data || allEntries || [])
-      .filter(x => x.member_name === name);
+      .filter(x => x.member_name === name && x.work_date >= from && x.work_date <= to);
 
     renderPage(userData, alertData, name);
   } catch(e) {
@@ -461,40 +613,86 @@ function renderPage(userData, alertData, name) {
   const series  = userData?.series || [];
   const byType  = userData?.by_type || [];
 
-  /* 이번 달 기본값 계산 */
-  const now       = new Date();
-  const year      = now.getFullYear();
-  const monthNum  = now.getMonth() + 1;
-  const bizDays   = monthly?.business_days   || 0;
-  const stdHours  = monthly?.standard_hours  || 0;
-  const totalH    = monthly ? Math.round((monthly.total_minutes || 0) / 60 * 10) / 10 : 0;
-  const elapsedBiz = monthly?.elapsed_business_days || 0;
-  const remainBiz  = bizDays - elapsedBiz;
-  const loadPct    = monthly?.load_pct   || 0;
-  const paceMM     = monthly?.pace_mm    || 0;
+  /* 선택 월 정보 */
+  const { year, month: monthNum } = getSelectedMonthRange();
+  const isCurrent = isCurrentMonth();
+  const isFuture  = isFutureMonth();
 
-  /* 미입력 날짜 추출 */
+  const bizDays    = monthly?.business_days            || 0;
+  const stdHours   = monthly?.standard_hours           || 0;
+  const totalH     = monthly ? Math.round((monthly.total_minutes || 0) / 60 * 10) / 10 : 0;
+  const elapsedBiz = monthly?.elapsed_business_days    || 0;
+  const remainBiz  = bizDays - elapsedBiz;
+  const loadPct    = monthly?.load_pct                 || 0;
+  const paceMM     = monthly?.pace_mm                  || 0;
+
+  /* 잔여 영업일 표시 결정 */
+  let remainLabel;
+  if (isCurrent) {
+    remainLabel = `잔여 영업일 ${remainBiz}일`;
+  } else if (isFuture) {
+    remainLabel = `영업일 ${bizDays}일 (예정)`;
+  } else {
+    remainLabel = `완료 (영업일 ${bizDays}일)`;
+  }
+
+  /* 히어로 카드의 세 번째 stat */
+  let thirdStat;
+  if (isCurrent) {
+    thirdStat = `<div class="month-hero-stat">
+      <span class="val">${remainBiz}일</span>
+      <span class="lbl">잔여 영업일</span>
+    </div>`;
+  } else if (isFuture) {
+    thirdStat = `<div class="month-hero-stat">
+      <span class="val">${bizDays}일</span>
+      <span class="lbl">예정 영업일</span>
+    </div>`;
+  } else {
+    thirdStat = `<div class="month-hero-stat">
+      <span class="val">${bizDays}일</span>
+      <span class="lbl">완료 영업일</span>
+    </div>`;
+  }
+
+  /* 미입력 날짜 추출 (현재 월 또는 과거 월 모두) */
   let missingDates = [];
-  if (alertData) {
+  if (alertData && isCurrent) {
     const emptyItems = (alertData.empty_yesterday || []).filter(x => x.member_name === name);
     missingDates = emptyItems.map(x => x.date);
   }
-  // 최근 7일 영업일 중 미입력 추가 (series 활용)
+  // series에서 미입력 영업일 추출 (현재/과거 월 모두)
   const recentMissing = series
     .filter(s => s.is_business_day && s.status === 'empty' && s.total_minutes === 0)
-    .map(s => s.work_date)
-    .slice(-7);
-  const allMissing = [...new Set([...missingDates, ...recentMissing])].sort().reverse().slice(0, 7);
+    .map(s => s.work_date);
+  // 미래 월은 미입력 알림 표시 안 함
+  const allMissing = isFuture ? [] :
+    [...new Set([...missingDates, ...recentMissing])].sort().reverse().slice(0, 7);
+
+  /* 입력 폼 날짜 기본값: 현재 월이면 오늘, 그 외는 선택 월 1일 */
+  const { from: fromStr } = getSelectedMonthRange();
+  const defaultDate = isCurrent ? new Date().toISOString().split('T')[0] : fromStr;
+
+  /* 데이터 없음 여부 */
+  const hasNoData = !monthly && !isFuture;
+
+  /* 게이지 toggle: 이번 주 모드는 현재 월 여부 무관하게 항상 현재 주 기준 */
+  const gaugeMonthLabel = isCurrent ? '이번 달' : `${monthNum}월`;
+
+  /* 라인 차트 타이틀 */
+  const lineChartTitle = isCurrent
+    ? '부하율 시계열 (최근 90일)'
+    : `부하율 시계열 (${year}년 ${monthNum}월)`;
 
   document.getElementById('pageBody').innerHTML = `
-    <!-- 이번 달 히어로 카드 -->
+    <!-- 히어로 카드 -->
     <div class="month-hero">
       <div class="month-hero-icon"><i class="fas fa-calendar-alt"></i></div>
       <div class="month-hero-main">
         <div class="month-hero-title">${year}년 ${monthNum}월</div>
         <div class="month-hero-sub">
-          영업일 ${bizDays}일 · 표준 ${stdHours}시간 · 현재 ${totalH}h 입력
-          (잔여 영업일 ${remainBiz}일)
+          영업일 ${bizDays}일 · 표준 ${stdHours}시간 · ${totalH}h 입력
+          (${remainLabel})
         </div>
       </div>
       <div class="month-hero-stats">
@@ -508,19 +706,30 @@ function renderPage(userData, alertData, name) {
           <span class="lbl">부하율</span>
         </div>
         <div class="month-hero-divider"></div>
-        <div class="month-hero-stat">
-          <span class="val">${remainBiz}일</span>
-          <span class="lbl">잔여 영업일</span>
-        </div>
+        ${thirdStat}
       </div>
     </div>
 
-    <!-- 미입력 알림 -->
+    <!-- 미래 월 안내 -->
+    ${isFuture ? `
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:12px 18px;margin-bottom:20px;display:flex;align-items:center;gap:10px;">
+      <i class="fas fa-calendar-plus" style="color:#c2410c;flex-shrink:0;"></i>
+      <span style="font-size:13px;color:#9a3412;font-weight:600;">${year}년 ${monthNum}월은 아직 다가오지 않은 달입니다. 미리 업무를 입력할 수 있습니다.</span>
+    </div>` : ''}
+
+    <!-- 데이터 없음 안내 -->
+    ${hasNoData ? `
+    <div class="no-data-card">
+      <i class="fas fa-inbox"></i>
+      <p>이 달에 입력된 업무가 없습니다.</p>
+    </div>` : ''}
+
+    <!-- 미입력 알림 (데이터 있는 과거/현재 월만) -->
     ${allMissing.length > 0 ? `
     <div class="missing-banner">
       <i class="fas fa-exclamation-triangle"></i>
       <div>
-        <div class="missing-banner-title">최근 미입력 영업일 (${allMissing.length}건)</div>
+        <div class="missing-banner-title">미입력 영업일 (${allMissing.length}건)</div>
         <div class="missing-dates">
           ${allMissing.map(d => `<span class="missing-date-chip" onclick="setInputDate('${d}')"><i class="fas fa-calendar-plus"></i>${d}</span>`).join('')}
         </div>
@@ -535,7 +744,7 @@ function renderPage(userData, alertData, name) {
           <div class="chart-card-title">부하율 게이지</div>
           <div class="toggle-group" id="gaugeToggle">
             <button class="toggle-btn ${gaugePeriod === 'week' ? 'active' : ''}"  onclick="switchGaugePeriod('week',this)">이번 주</button>
-            <button class="toggle-btn ${gaugePeriod === 'month' ? 'active' : ''}" onclick="switchGaugePeriod('month',this)">이번 달</button>
+            <button class="toggle-btn ${gaugePeriod === 'month' ? 'active' : ''}" onclick="switchGaugePeriod('month',this)">${gaugeMonthLabel}</button>
           </div>
         </div>
         <div class="chart-card-body">
@@ -575,18 +784,18 @@ function renderPage(userData, alertData, name) {
     <div class="chart-card" style="margin-bottom:24px;">
       <div class="chart-card-header">
         <div class="chart-icon blue"><i class="fas fa-chart-area"></i></div>
-        <div class="chart-card-title">부하율 시계열 (최근 90일)</div>
+        <div class="chart-card-title" id="lineChartTitle">${lineChartTitle}</div>
       </div>
       <div class="chart-card-body">
         <div id="lineChart" style="min-height:240px;"></div>
       </div>
     </div>
 
-    <!-- MM 누적 차트 -->
+    <!-- MM 누적 차트 (분기/연 비교) -->
     <div class="chart-card" style="margin-bottom:24px;">
       <div class="chart-card-header">
         <div class="chart-icon purple"><i class="fas fa-layer-group"></i></div>
-        <div class="chart-card-title">월별 누적 MM</div>
+        <div class="chart-card-title">월별 누적 MM <span style="font-size:12px;font-weight:500;color:var(--gray-400);">(분기/연 비교)</span></div>
         <div class="toggle-group" id="mmToggle">
           <button class="toggle-btn ${mmPeriod === 'quarter' ? 'active' : ''}" onclick="switchMmPeriod('quarter',this)">이번 분기</button>
           <button class="toggle-btn ${mmPeriod === 'year' ? 'active' : ''}"    onclick="switchMmPeriod('year',this)">올해</button>
@@ -603,14 +812,14 @@ function renderPage(userData, alertData, name) {
         <div class="chart-icon green" style="width:28px;height:28px;border-radius:8px;font-size:13px;">
           <i class="fas fa-plus-circle"></i>
         </div>
-        <div class="input-section-title">업무 입력</div>
-        <span style="font-size:12px;color:var(--gray-400);" id="entryCountBadge">최근 ${myEntries.length}건</span>
+        <div class="input-section-title">업무 입력 — ${year}년 ${monthNum}월</div>
+        <span style="font-size:12px;color:var(--gray-400);" id="entryCountBadge">${myEntries.length}건</span>
       </div>
       <div class="input-section-body">
         <div class="entry-form-grid" id="entryForm">
           <div class="form-field">
             <label>날짜</label>
-            <input type="date" id="entryDate" value="${new Date().toISOString().split('T')[0]}">
+            <input type="date" id="entryDate" value="${defaultDate}">
           </div>
           <div class="form-field">
             <label>카테고리</label>
@@ -672,7 +881,7 @@ async function renderGauge(loadPct, period, userData) {
   let pct = Math.round(loadPct || 0);
 
   if (period === 'week') {
-    // 주간 데이터 별도 fetch
+    // 이번 주 모드: 항상 현재 주 기준 (선택 월 무관)
     try {
       const name = currentUser.full_name || currentUser.username;
       const encoded = encodeURIComponent(name);
@@ -764,7 +973,16 @@ async function switchGaugePeriod(period, btn) {
   const name    = currentUser.full_name || currentUser.username;
   const encoded = encodeURIComponent(name);
   try {
-    const r = await fetch(`/api/workload/user/${encoded}?period=${period}`);
+    let url;
+    if (period === 'week') {
+      // 이번 주 모드: 항상 현재 주 기준
+      url = `/api/workload/user/${encoded}?period=week`;
+    } else {
+      // 월 모드: 선택 월 기준
+      const { from, to } = getSelectedMonthRange();
+      url = `/api/workload/user/${encoded}?from=${from}&to=${to}`;
+    }
+    const r = await fetch(url);
     const d = r.ok ? await r.json() : null;
     const pct = d?.monthly?.load_pct || 0;
     renderGauge(pct, period, d);
@@ -934,6 +1152,13 @@ async function renderMmBar(period, cachedData) {
       if (!d?.monthly) return 0;
       return Math.round((d.monthly.mm || 0) * 100) / 100;
     });
+
+    // 모든 값이 0인 경우 안내 메시지
+    if (mmValues.every(v => v === 0)) {
+      document.getElementById('mmBarChart').innerHTML =
+        '<div style="text-align:center;padding:40px;color:var(--gray-400);"><i class="fas fa-chart-bar" style="font-size:28px;display:block;margin-bottom:10px;"></i>이 기간에 집계된 MM 데이터가 없습니다.</div>';
+      return;
+    }
 
     const opts = {
       chart: {
@@ -1184,17 +1409,34 @@ async function deleteEntry(id) {
   });
 }
 
-/* 입력 후 차트 부분 갱신 */
+/* 입력 후 차트 부분 갱신 (선택 월 기준) */
 async function refreshChartsAfterEdit() {
   const name    = currentUser.full_name || currentUser.username;
   const encoded = encodeURIComponent(name);
+  const { from, to } = getSelectedMonthRange();
   try {
-    const r = await fetch(`/api/workload/user/${encoded}?period=month`);
+    const r = await fetch(`/api/workload/user/${encoded}?from=${from}&to=${to}`);
     const d = r.ok ? await r.json() : null;
     if (d) {
       renderGauge(d.monthly?.load_pct || 0, gaugePeriod, d);
       renderDonut(d.by_type || []);
       renderLineChart(d.series || []);
+      // 히어로 카드 수치도 업데이트
+      const monthly = d.monthly;
+      if (monthly) {
+        const totalH = Math.round((monthly.total_minutes || 0) / 60 * 10) / 10;
+        const heroSub = document.querySelector('.month-hero-sub');
+        const { year, month: monthNum } = getSelectedMonthRange();
+        const isCurrent = isCurrentMonth();
+        const isFuture  = isFutureMonth();
+        const bizDays   = monthly.business_days || 0;
+        const stdHours  = monthly.standard_hours || 0;
+        const elapsedBiz= monthly.elapsed_business_days || 0;
+        const remainBiz = bizDays - elapsedBiz;
+        let remainLabel = isCurrent ? `잔여 영업일 ${remainBiz}일`
+          : isFuture ? `영업일 ${bizDays}일 (예정)` : `완료 (영업일 ${bizDays}일)`;
+        if (heroSub) heroSub.textContent = `영업일 ${bizDays}일 · 표준 ${stdHours}시간 · ${totalH}h 입력 (${remainLabel})`;
+      }
     }
   } catch(e) {}
 }
