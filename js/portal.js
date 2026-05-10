@@ -109,10 +109,11 @@ const Portal = (() => {
       if (!visibleItems.length) continue;
       sectionIdx++;
       const num = String(sectionIdx).padStart(2, '0');
-      navHtml += `<div class="nav-section-title">
-        <span class="nav-section-num">${num}</span>
-        <span class="nav-section-label">${section.section}</span>
-      </div>`;
+      navHtml += `<div class="nav-section">
+        <div class="nav-section-title">
+          <span class="nav-section-num">${num}</span>
+          <span class="nav-section-label">${section.section}</span>
+        </div>`;
       for (const item of visibleItems) {
         const active = (currentPage === item.href || currentPage === '' && item.href === 'index.html') ? ' active' : '';
         navHtml += `
@@ -121,6 +122,7 @@ const Portal = (() => {
             <span>${item.label}</span>
           </a>`;
       }
+      navHtml += `</div>`;
     }
 
     const initials = (user.full_name || user.username || '?').slice(0, 1);
