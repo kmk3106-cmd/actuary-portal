@@ -39,6 +39,30 @@
     .panel-desc { font-size:12px; color:#9ca3af; margin-top:4px; }
     .access-warn { background:#fef2f2; border:1.5px solid #fecaca; color:#991b1b;
       padding:14px 18px; border-radius:10px; font-size:14px; margin:24px; }
+
+    .table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:10px; }
+    .settings-table { min-width:560px; }
+
+    /* 모바일: 표 → 카드 형태로 변환 */
+    @media (max-width: 640px) {
+      .settings-table, .settings-table thead, .settings-table tbody,
+      .settings-table tr, .settings-table th, .settings-table td { display:block; }
+      .settings-table { min-width:0; }
+      .settings-table thead { display:none; }
+      .settings-table tr { background:#fff; border:1.5px solid #e5e7eb; border-radius:10px;
+        padding:10px 12px; margin-bottom:10px; }
+      .settings-table td { border:none; padding:6px 0; display:flex;
+        align-items:center; gap:10px; font-size:13px; }
+      .settings-table td::before { content: attr(data-label); flex:0 0 90px;
+        font-size:11px; font-weight:700; color:#9ca3af; }
+      .settings-table td input, .settings-table td select { flex:1; width:auto; }
+      .settings-table td.col-act { justify-content:flex-end; padding-top:10px;
+        border-top:1px dashed #f3f4f6; margin-top:6px; }
+      .settings-table td.col-act::before { display:none; }
+      .tabs { font-size:13px; overflow-x:auto; flex-wrap:nowrap; -webkit-overflow-scrolling:touch; }
+      .tab { white-space:nowrap; padding:9px 12px; font-size:13px; }
+      .panel-header { flex-direction:column; align-items:flex-start; gap:8px; }
+    }
   </style>
 </head>
 <body>
@@ -84,6 +108,7 @@ root.innerHTML = `
       </div>
       <button class="btn-mini primary" onclick="addSettleItem()"><i class="fas fa-plus"></i> 항목 추가</button>
     </div>
+    <div class="table-scroll">
     <table class="settings-table" id="tbl-settle">
       <thead><tr>
         <th style="width:70px;">순서</th><th>업무명</th><th style="width:140px;">그룹</th>
@@ -92,6 +117,7 @@ root.innerHTML = `
       </tr></thead>
       <tbody></tbody>
     </table>
+    </div>
   </div>
 
   <div class="tab-panel" id="panel-score">
@@ -102,6 +128,7 @@ root.innerHTML = `
       </div>
       <button class="btn-mini primary" onclick="addScoreRule()"><i class="fas fa-plus"></i> 규칙 추가</button>
     </div>
+    <div class="table-scroll">
     <table class="settings-table" id="tbl-score">
       <thead><tr>
         <th style="width:140px;">규칙 유형</th><th style="width:120px;">임계값</th>
@@ -109,6 +136,7 @@ root.innerHTML = `
       </tr></thead>
       <tbody></tbody>
     </table>
+    </div>
   </div>
 
   <div class="tab-panel" id="panel-kpi">
@@ -119,6 +147,7 @@ root.innerHTML = `
       </div>
       <button class="btn-mini primary" onclick="addKpi()"><i class="fas fa-plus"></i> KPI 추가</button>
     </div>
+    <div class="table-scroll">
     <table class="settings-table" id="tbl-kpi">
       <thead><tr>
         <th style="width:80px;">연도</th><th style="width:100px;">코드</th>
@@ -128,6 +157,7 @@ root.innerHTML = `
       </tr></thead>
       <tbody></tbody>
     </table>
+    </div>
   </div>
 
   <div class="tab-panel" id="panel-cat">
@@ -138,6 +168,7 @@ root.innerHTML = `
       </div>
       <button class="btn-mini primary" onclick="addCat()"><i class="fas fa-plus"></i> 카테고리 추가</button>
     </div>
+    <div class="table-scroll">
     <table class="settings-table" id="tbl-cat">
       <thead><tr>
         <th style="width:100px;">순서</th><th>카테고리명</th>
@@ -145,6 +176,7 @@ root.innerHTML = `
       </tr></thead>
       <tbody></tbody>
     </table>
+    </div>
   </div>
 `;
 
@@ -189,16 +221,16 @@ async function loadSettle() {
   const tbody = document.querySelector('#tbl-settle tbody');
   tbody.innerHTML = rows.map(r => `
     <tr data-id="${r.id}">
-      <td><input type="number" data-f="seq" value="${r.seq||''}"></td>
-      <td><input type="text" data-f="label" value="${escapeHtml(r.label||'')}"></td>
-      <td>
+      <td data-label="순서"><input type="number" data-f="seq" value="${r.seq||''}"></td>
+      <td data-label="업무명"><input type="text" data-f="label" value="${escapeHtml(r.label||'')}"></td>
+      <td data-label="그룹">
         <select data-f="group_name">
           ${SETTLE_GROUPS.map(g=>`<option value="${g}" ${r.group_name===g?'selected':''}>${g}</option>`).join('')}
         </select>
       </td>
-      <td><input type="number" data-f="due_biz_day" value="${r.due_biz_day??''}" placeholder="없음"></td>
-      <td><input type="text" data-f="assignee" value="${escapeHtml(r.assignee||'')}"></td>
-      <td style="text-align:center;"><input type="checkbox" data-f="is_active" ${r.is_active!==false?'checked':''}></td>
+      <td data-label="D+영업일"><input type="number" data-f="due_biz_day" value="${r.due_biz_day??''}" placeholder="없음"></td>
+      <td data-label="담당자"><input type="text" data-f="assignee" value="${escapeHtml(r.assignee||'')}"></td>
+      <td data-label="활성" style="text-align:center;"><input type="checkbox" data-f="is_active" ${r.is_active!==false?'checked':''}></td>
       <td class="col-act">
         <button class="btn-mini" onclick="saveRow('settle_items', this)">저장</button>
         <button class="btn-mini danger" onclick="delRow('settle_items', this, loadSettle)">삭제</button>
@@ -241,15 +273,15 @@ async function loadScore() {
     const orphanOpt = known ? '' : `<option value="${escapeHtml(r.rule_type)}" selected>(미정의: ${escapeHtml(r.rule_type)})</option>`;
     return `
     <tr data-id="${r.id}">
-      <td>
+      <td data-label="규칙 유형">
         <select data-f="rule_type">
           ${orphanOpt}
           ${RULE_TYPES.map(([v,l])=>`<option value="${v}" ${r.rule_type===v?'selected':''}>${l}</option>`).join('')}
         </select>
       </td>
-      <td><input type="number" data-f="threshold" value="${r.threshold??0}"></td>
-      <td><input type="number" data-f="score" value="${r.score??0}"></td>
-      <td><input type="text" data-f="label" value="${escapeHtml(r.label||'')}"></td>
+      <td data-label="임계값"><input type="number" data-f="threshold" value="${r.threshold??0}"></td>
+      <td data-label="점수"><input type="number" data-f="score" value="${r.score??0}"></td>
+      <td data-label="설명"><input type="text" data-f="label" value="${escapeHtml(r.label||'')}"></td>
       <td class="col-act">
         <button class="btn-mini" onclick="saveRow('score_rules', this)">저장</button>
         <button class="btn-mini danger" onclick="delRow('score_rules', this, loadScore)">삭제</button>
@@ -274,17 +306,17 @@ async function loadKpi() {
   const tbody = document.querySelector('#tbl-kpi tbody');
   tbody.innerHTML = rows.map(r => `
     <tr data-id="${r.id}">
-      <td><input type="number" data-f="year" value="${r.year||new Date().getFullYear()}"></td>
-      <td><input type="text" data-f="code" value="${escapeHtml(r.code||'')}"></td>
-      <td><input type="text" data-f="label" value="${escapeHtml(r.label||'')}"></td>
-      <td><input type="number" data-f="weight_pct" value="${r.weight_pct??0}"></td>
-      <td>
+      <td data-label="연도"><input type="number" data-f="year" value="${r.year||new Date().getFullYear()}"></td>
+      <td data-label="코드"><input type="text" data-f="code" value="${escapeHtml(r.code||'')}"></td>
+      <td data-label="라벨"><input type="text" data-f="label" value="${escapeHtml(r.label||'')}"></td>
+      <td data-label="가중치(%)"><input type="number" data-f="weight_pct" value="${r.weight_pct??0}"></td>
+      <td data-label="분류">
         <select data-f="category">
           <option value="qual" ${r.category==='qual'?'selected':''}>정성(KPI)</option>
           <option value="quant" ${r.category==='quant'?'selected':''}>정량</option>
         </select>
       </td>
-      <td style="text-align:center;"><input type="checkbox" data-f="is_active" ${r.is_active!==false?'checked':''}></td>
+      <td data-label="활성" style="text-align:center;"><input type="checkbox" data-f="is_active" ${r.is_active!==false?'checked':''}></td>
       <td class="col-act">
         <button class="btn-mini" onclick="saveRow('kpi_definitions', this)">저장</button>
         <button class="btn-mini danger" onclick="delRow('kpi_definitions', this, loadKpi)">삭제</button>
@@ -305,9 +337,9 @@ async function loadCat() {
   const tbody = document.querySelector('#tbl-cat tbody');
   tbody.innerHTML = rows.map(r => `
     <tr data-id="${r.id}">
-      <td><input type="number" data-f="sort_order" value="${r.sort_order||0}"></td>
-      <td><input type="text" data-f="label" value="${escapeHtml(r.label||'')}"></td>
-      <td style="text-align:center;"><input type="checkbox" data-f="is_active" ${r.is_active!==false?'checked':''}></td>
+      <td data-label="순서"><input type="number" data-f="sort_order" value="${r.sort_order||0}"></td>
+      <td data-label="카테고리명"><input type="text" data-f="label" value="${escapeHtml(r.label||'')}"></td>
+      <td data-label="활성" style="text-align:center;"><input type="checkbox" data-f="is_active" ${r.is_active!==false?'checked':''}></td>
       <td class="col-act">
         <button class="btn-mini" onclick="saveRow('task_categories', this)">저장</button>
         <button class="btn-mini danger" onclick="delRow('task_categories', this, loadCat)">삭제</button>
