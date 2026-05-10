@@ -567,9 +567,8 @@
   const curYear = new Date().getFullYear();
   const curQ    = Math.ceil((new Date().getMonth() + 1) / 3);
   let yearOpts  = '';
-  for (let y = curYear; y >= curYear - 4; y++) {
+  for (let y = curYear; y >= curYear - 4; y--) {
     yearOpts += `<option value="${y}" ${y === curYear ? 'selected' : ''}>${y}년</option>`;
-    if (y === curYear - 4) break;
   }
   document.getElementById('f_year').innerHTML = yearOpts;
   document.getElementById('f_quarter').value = String(curQ);
