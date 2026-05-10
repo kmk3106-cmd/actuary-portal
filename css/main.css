@@ -496,90 +496,104 @@ select.form-control { cursor: pointer; }
 
   /* 메인 레이아웃 */
   .main-content { margin-left: 0; }
-  .content-body { padding: 14px; }
+  .content-body { padding: 12px; }
 
   /* 페이지 헤더 */
-  .page-header { padding: 0 14px; gap: 10px; }
-  .page-title { font-size: 16px; }
+  .page-header { padding: 0 12px; gap: 8px; height: 52px; }
+  .page-title { font-size: 15px; }
   .page-title small { display: none; }
   .header-actions .btn span { display: none; }
-  .header-actions .btn { padding: 8px 10px; }
+  .header-actions .btn { padding: 7px 9px; }
 
   /* 그리드 */
-  .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-  .dashboard-row { grid-template-columns: 1fr; gap: 14px; margin-bottom: 14px; }
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .dashboard-row { grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
   .core-values-grid { grid-template-columns: 1fr; }
-  .quick-menu-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .quick-menu-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
 
   /* stat 카드 */
-  .stat-card { padding: 14px; gap: 12px; }
-  .stat-icon { width: 40px; height: 40px; font-size: 18px; border-radius: 10px; }
-  .stat-value { font-size: 22px; }
-  .stat-label { font-size: 12px; }
+  .stat-card { padding: 12px; gap: 10px; }
+  .stat-icon { width: 36px; height: 36px; font-size: 16px; border-radius: 9px; }
+  .stat-value { font-size: 20px; }
+  .stat-label { font-size: 11px; }
 
   /* 카드 */
-  .card-header { padding: 14px 16px; }
-  .card-body { padding: 16px; }
-  .card-title { font-size: 14px; }
+  .card { border-radius: 12px; }
+  .card-header { padding: 12px 14px; }
+  .card-body { padding: 14px; }
+  .card-title { font-size: 13px; }
 
   /* 필터바 */
-  .filter-bar { gap: 8px; }
-  .filter-bar .btn { font-size: 12px; padding: 7px 10px; }
-  .filter-select { font-size: 13px; padding: 8px 10px; }
+  .filter-bar { gap: 6px; flex-wrap: wrap; }
+  .filter-bar .btn { font-size: 12px; padding: 6px 9px; }
+  .filter-select { font-size: 13px; padding: 7px 8px; }
+  .search-input { font-size: 13px; padding: 7px 10px 7px 34px; }
 
   /* 테이블 */
   .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .data-table { min-width: 480px; }
-  .data-table th, .data-table td { padding: 8px 10px; font-size: 12px; }
+  .data-table th, .data-table td { padding: 7px 9px; font-size: 12px; }
 
   /* 모달 */
   .modal-overlay { padding: 0; align-items: flex-end; }
-  .modal {
-    max-width: 100%;
-    border-radius: 20px 20px 0 0;
-    max-height: 92vh;
-  }
-  .modal-header { padding: 16px 18px; }
-  .modal-body { padding: 16px 18px; }
-  .modal-footer { padding: 14px 18px; }
+  .modal { max-width: 100%; border-radius: 20px 20px 0 0; max-height: 92vh; }
+  .modal-header { padding: 14px 16px; }
+  .modal-body { padding: 14px 16px; }
+  .modal-footer { padding: 12px 16px; }
 
   /* 폼 */
   .form-control { font-size: 16px; } /* iOS 줌 방지 */
   .form-label { font-size: 12px; }
 
   /* 핵심가치 카드 */
-  .cv-card { padding: 14px; gap: 12px; }
-  .cv-icon { width: 40px; height: 40px; font-size: 17px; }
-  .cv-title { font-size: 14px; }
-  .cv-desc { font-size: 13px; }
-
-  /* 버튼 */
-  .btn { font-size: 13px; }
-  .btn-sm { font-size: 12px; padding: 5px 10px; }
-}
-
-@media (max-width: 480px) {
-  /* 더 작은 화면 */
-  .content-body { padding: 10px; }
-  .stats-grid { grid-template-columns: 1fr; gap: 8px; }
-  .quick-menu-grid { grid-template-columns: repeat(2, 1fr); }
-  .page-header { height: 56px; }
-  .page-title { font-size: 15px; }
-
-  /* stat 카드 가로 레이아웃 유지 */
-  .stat-card { padding: 12px; }
-  .stat-value { font-size: 20px; }
+  .cv-card { padding: 12px; gap: 10px; }
+  .cv-icon { width: 38px; height: 38px; font-size: 16px; }
+  .cv-title { font-size: 13px; }
+  .cv-desc { font-size: 12px; }
 
   /* 리스트 아이템 */
-  .list-item { padding: 10px 14px; gap: 10px; }
+  .list-item { padding: 10px 12px; gap: 10px; }
   .list-item-title { font-size: 13px; }
   .list-item-meta { font-size: 11px; gap: 6px; }
   .list-item-actions .btn-sm { padding: 4px 8px; font-size: 11px; }
 
+  /* 버튼 */
+  .btn { font-size: 13px; padding: 8px 14px; }
+  .btn-sm { font-size: 12px; padding: 5px 9px; }
+
+  /* 퀵메뉴 */
+  .quick-menu-item { padding: 14px 10px; }
+  .qm-icon { width: 40px; height: 40px; font-size: 17px; border-radius: 10px; }
+  .qm-label { font-size: 12px; }
+  .qm-sub { font-size: 10px; }
+
   /* 빈 상태 */
-  .empty-state { padding: 40px 16px; }
-  .empty-state i { font-size: 40px; }
-  .empty-state h3 { font-size: 16px; }
+  .empty-state { padding: 32px 16px; }
+  .empty-state i { font-size: 36px; }
+  .empty-state h3 { font-size: 15px; }
+}
+
+@media (max-width: 480px) {
+  /* 더 작은 화면 */
+  .content-body { padding: 8px; }
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .quick-menu-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .page-header { height: 50px; padding: 0 10px; }
+  .page-title { font-size: 14px; }
+
+  /* stat 카드 */
+  .stat-card { padding: 10px; gap: 8px; flex-direction: row; align-items: center; }
+  .stat-value { font-size: 18px; }
+  .stat-label { font-size: 10px; }
+
+  /* 카드 */
+  .card-header { padding: 10px 12px; }
+  .card-body { padding: 12px; }
+
+  /* 모달 */
+  .modal-header { padding: 12px 14px; }
+  .modal-body { padding: 12px 14px; }
+  .modal-footer { padding: 10px 14px; }
 }
 
 /* ─── 유틸리티 ────────────────────────────────────── */
