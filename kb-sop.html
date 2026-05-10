@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SOP 문서 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css?v=2">
+  <!-- EasyMDE 마크다운 에디터 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+  <style>
+    /* ── KB SOP 전용 스타일 ── */
+
+    /* 3컬럼 레이아웃 */
+    .kb-layout {
+      display: grid;
+      grid-template-columns: 220px 300px 1fr;
+      gap: 0;
+      height: calc(100vh - var(--header-height));
+      overflow: hidden;
+    }
+
+    /* ── 좌측 카테고리 트리 패널 ── */
+    .kb-tree-panel {
+      background: white;
+      border-right: 1px solid var(--gray-200);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .kb-panel-header {
+      padding: 16px 16px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border-bottom: 1px solid var(--gray-100);
+      flex-shrink: 0;
+    }
+    .tree-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      font-size: 13.5px;
+      color: var(--gray-700);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      border-left: 3px solid transparent;
+      text-decoration: none;
+    }
+    .tree-item:hover { background: var(--gray-50); color: var(--gray-900); }
+    .tree-item.active {
+      background: #eff6ff;
+      color: var(--primary);
+      border-left-color: var(--primary);
+      font-weight: 600;
+    }
+    .tree-item.tree-root { font-weight: 700; font-size: 13px; }
+    .tree-item.tree-child { padding-left: 32px; font-size: 13px; }
+    .tree-item .tree-icon { width: 16px; text-align: center; flex-shrink: 0; font-size: 12px; }
+    .tree-all {
+      margin: 8px 12px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gray-600);
+      cursor: pointer;
+      transition: background 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tree-all:hover { background: var(--gray-100); }
+    .tree-all.active { background: #eff6ff; color: var(--primary); }
+
+    /* ── 가운데 목록 패널 ── */
+    .kb-list-panel {
+      background: var(--gray-50);
+      border-right: 1px solid var(--gray-200);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .kb-list-header {
+      padding: 14px 16px;
+      background: white;
+      border-bottom: 1px solid var(--gray-200);
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    .kb-search-wrapper {
+      position: relative;
+    }
+    .kb-search-wrapper i {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--gray-400);
+      font-size: 13px;
+    }
+    .kb-search-input {
+      width: 100%;
+      padding: 8px 10px 8px 32px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--gray-800);
+      background: var(--gray-50);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .kb-search-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(79,134,247,0.12);
+    }
+    .kb-list-body { flex: 1; padding: 8px 0; }
+    .kb-doc-item {
+      padding: 12px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--gray-100);
+      transition: background 0.15s;
+      background: white;
+    }
+    .kb-doc-item:last-child { border-bottom: none; }
+    .kb-doc-item:hover { background: #f0f7ff; }
+    .kb-doc-item.active { background: #eff6ff; border-left: 3px solid var(--primary); }
+    .kb-doc-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--gray-900);
+      margin-bottom: 6px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .kb-doc-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .kb-cat-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+    .kb-cat-chip.green  { background: #d1fae5; color: #065f46; }
+    .kb-cat-chip.yellow { background: #fef3c7; color: #92400e; }
+    .kb-cat-chip.purple { background: #ede9fe; color: #5b21b6; }
+    .kb-cat-chip.red    { background: #fee2e2; color: #b91c1c; }
+    .kb-cat-chip.gray   { background: var(--gray-100); color: var(--gray-600); }
+    .kb-doc-stats {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11.5px;
+      color: var(--gray-400);
+    }
+    .kb-doc-stats i { font-size: 10px; }
+    .kb-doc-date {
+      font-size: 11.5px;
+      color: var(--gray-400);
+      margin-left: auto;
+    }
+    .kb-list-empty {
+      padding: 40px 16px;
+      text-align: center;
+      color: var(--gray-400);
+    }
+    .kb-list-empty i { font-size: 32px; display: block; margin-bottom: 10px; }
+    .kb-list-empty p { font-size: 13px; line-height: 1.6; }
+    .kb-list-count {
+      padding: 6px 16px;
+      font-size: 11px;
+      color: var(--gray-400);
+      background: var(--gray-50);
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    /* ── 우측 상세 패널 ── */
+    .kb-detail-panel {
+      overflow-y: auto;
+      background: white;
+      display: flex;
+      flex-direction: column;
+    }
+    .kb-detail-empty {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--gray-300);
+      padding: 40px;
+    }
+    .kb-detail-empty i { font-size: 48px; }
+    .kb-detail-empty p { font-size: 13.5px; color: var(--gray-400); text-align: center; line-height: 1.6; }
+
+    .kb-detail-inner { padding: 28px 32px; flex: 1; }
+
+    .kb-detail-header {
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--gray-200);
+      margin-bottom: 20px;
+    }
+    .kb-detail-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--gray-900);
+      line-height: 1.4;
+      margin-bottom: 12px;
+    }
+    .kb-detail-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .kb-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12.5px;
+      color: var(--gray-500);
+    }
+    .kb-meta-item i { font-size: 11px; color: var(--gray-400); }
+    .kb-version-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-size: 11.5px;
+      font-weight: 700;
+      background: #ede9fe;
+      color: #5b21b6;
+    }
+    .kb-detail-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn-helpful {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 8px;
+      background: white;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gray-600);
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .btn-helpful:hover { border-color: var(--primary); color: var(--primary); background: #eff6ff; }
+    .btn-helpful.voted { border-color: var(--primary); color: var(--primary); background: #eff6ff; }
+
+    /* 마크다운 본문 prose 스타일 */
+    .kb-prose {
+      font-size: 14.5px;
+      line-height: 1.8;
+      color: var(--gray-800);
+    }
+    .kb-prose h1 { font-size: 22px; font-weight: 800; color: var(--gray-900); margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--gray-200); }
+    .kb-prose h2 { font-size: 18px; font-weight: 700; color: var(--gray-900); margin: 20px 0 10px; }
+    .kb-prose h3 { font-size: 15.5px; font-weight: 700; color: var(--gray-800); margin: 16px 0 8px; }
+    .kb-prose p  { margin-bottom: 12px; }
+    .kb-prose ul, .kb-prose ol { margin: 8px 0 12px 20px; }
+    .kb-prose li { margin-bottom: 4px; }
+    .kb-prose code {
+      background: var(--gray-100);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      color: #b91c1c;
+    }
+    .kb-prose pre {
+      background: var(--gray-900);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      margin: 12px 0;
+    }
+    .kb-prose pre code {
+      background: transparent;
+      color: #e5e7eb;
+      font-size: 13px;
+      padding: 0;
+    }
+    .kb-prose blockquote {
+      border-left: 4px solid var(--primary);
+      padding-left: 16px;
+      margin: 12px 0;
+      color: var(--gray-600);
+      font-style: italic;
+    }
+    .kb-prose table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 13.5px;
+    }
+    .kb-prose table th {
+      background: var(--gray-50);
+      padding: 9px 12px;
+      text-align: left;
+      font-weight: 700;
+      color: var(--gray-700);
+      border: 1px solid var(--gray-200);
+    }
+    .kb-prose table td {
+      padding: 9px 12px;
+      border: 1px solid var(--gray-200);
+      color: var(--gray-700);
+    }
+    .kb-prose table tr:nth-child(even) td { background: var(--gray-50); }
+    .kb-prose a { color: var(--primary); text-decoration: underline; }
+    .kb-prose hr { border: none; border-top: 1px solid var(--gray-200); margin: 20px 0; }
+    .kb-prose img { max-width: 100%; border-radius: 8px; }
+
+    /* 첨부파일 */
+    .kb-attachments {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--gray-100);
+    }
+    .kb-attach-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--gray-600);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .kb-attach-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .kb-attach-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--gray-50);
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--gray-700);
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .kb-attach-item:hover { background: #eff6ff; color: var(--primary); }
+    .kb-attach-item i { color: var(--primary); }
+
+    /* 버전 이력 */
+    .kb-versions {
+      margin-top: 20px;
+      border-top: 1px solid var(--gray-100);
+    }
+    .kb-versions-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 0;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--gray-600);
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: inherit;
+      width: 100%;
+      text-align: left;
+      transition: color 0.15s;
+    }
+    .kb-versions-toggle:hover { color: var(--primary); }
+    .kb-versions-toggle i.chevron { transition: transform 0.2s; font-size: 11px; }
+    .kb-versions-toggle.open i.chevron { transform: rotate(180deg); }
+    .kb-version-list {
+      display: none;
+      flex-direction: column;
+      gap: 0;
+      margin-bottom: 16px;
+    }
+    .kb-version-list.open { display: flex; }
+    .kb-version-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--gray-100);
+      font-size: 13px;
+    }
+    .kb-version-item:last-child { border-bottom: none; }
+    .kb-version-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 28px;
+      height: 22px;
+      background: #ede9fe;
+      color: #5b21b6;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .kb-version-info { flex: 1; }
+    .kb-version-note { color: var(--gray-700); margin-bottom: 3px; }
+    .kb-version-date { font-size: 11.5px; color: var(--gray-400); }
+
+    /* 로딩 상태 */
+    .kb-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      color: var(--gray-400);
+      gap: 10px;
+      font-size: 13.5px;
+    }
+    .kb-spinner {
+      width: 24px; height: 24px;
+      border: 2.5px solid var(--gray-200);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: kbSpin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes kbSpin { to { transform: rotate(360deg); } }
+
+    /* 반응형 모바일 탭 */
+    .kb-mobile-tabs {
+      display: none;
+      background: white;
+      border-bottom: 1px solid var(--gray-200);
+    }
+    .kb-mobile-tabs button {
+      flex: 1;
+      padding: 10px;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gray-500);
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .kb-mobile-tabs button.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    /* 파일 입력 영역 */
+    .file-upload-area {
+      border: 2px dashed var(--gray-200);
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--gray-400);
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .file-upload-area:hover { border-color: var(--primary); background: #eff6ff; color: var(--primary); }
+    .file-upload-area input[type="file"] { display: none; }
+    .attach-preview-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+    .attach-preview-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: var(--gray-50);
+      border-radius: 7px;
+      font-size: 12.5px;
+      color: var(--gray-700);
+    }
+    .attach-preview-item button {
+      margin-left: auto;
+      background: none;
+      border: none;
+      color: var(--gray-400);
+      cursor: pointer;
+      padding: 2px;
+      font-size: 12px;
+      transition: color 0.15s;
+    }
+    .attach-preview-item button:hover { color: var(--danger); }
+
+    /* 토글 스위치 */
+    .toggle-switch {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      font-size: 13.5px;
+      color: var(--gray-700);
+    }
+    .toggle-switch input { display: none; }
+    .toggle-track {
+      width: 40px; height: 22px;
+      background: var(--gray-300);
+      border-radius: 11px;
+      position: relative;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .toggle-switch input:checked + .toggle-track { background: var(--primary); }
+    .toggle-track::after {
+      content: '';
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 16px; height: 16px;
+      background: white;
+      border-radius: 50%;
+      transition: left 0.2s;
+    }
+    .toggle-switch input:checked + .toggle-track::after { left: 21px; }
+
+    /* EasyMDE 커스텀 */
+    .EasyMDEContainer { border-radius: 9px; overflow: hidden; }
+    .EasyMDEContainer .CodeMirror { font-family: 'Noto Sans KR', monospace; font-size: 13.5px; min-height: 240px; }
+    .editor-toolbar { background: var(--gray-50); border-color: var(--gray-200); }
+
+    /* 반응형 */
+    @media (max-width: 1100px) {
+      .kb-layout { grid-template-columns: 200px 280px 1fr; }
+    }
+    @media (max-width: 768px) {
+      .kb-mobile-tabs { display: flex; }
+      .kb-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+        overflow: visible;
+      }
+      .kb-tree-panel,
+      .kb-list-panel,
+      .kb-detail-panel {
+        height: calc(100vh - var(--header-height) - 45px);
+        overflow-y: auto;
+      }
+      .kb-tree-panel   { display: none; }
+      .kb-list-panel   { display: none; border-right: none; }
+      .kb-detail-panel { display: none; }
+      .kb-tree-panel.mob-active,
+      .kb-list-panel.mob-active,
+      .kb-detail-panel.mob-active { display: flex; }
+      .kb-detail-inner { padding: 16px; }
+    }
+    @media (max-width: 480px) {
+      .kb-detail-title { font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <!-- 사이드바: portal.js가 주입 -->
+  <main class="main-content">
+    <header class="page-header">
+      <div class="page-title">
+        <i class="fas fa-book" style="color:#4f86f7;margin-right:8px;"></i>
+        SOP 문서
+      </div>
+      <div class="header-actions" id="headerActions">
+        <!-- 권한 시 신규 작성 버튼 주입 -->
+      </div>
+    </header>
+
+    <!-- 모바일 탭 -->
+    <div class="kb-mobile-tabs" id="mobileTabs">
+      <button class="active" onclick="switchMobileTab('list', this)"><i class="fas fa-list" style="margin-right:5px;"></i>목록</button>
+      <button onclick="switchMobileTab('tree', this)"><i class="fas fa-folder-tree" style="margin-right:5px;"></i>카테고리</button>
+      <button onclick="switchMobileTab('detail', this)" id="mobDetailTab"><i class="fas fa-file-alt" style="margin-right:5px;"></i>상세</button>
+    </div>
+
+    <!-- 3컬럼 레이아웃 -->
+    <div class="kb-layout" id="kbLayout">
+      <!-- 좌측: 카테고리 트리 -->
+      <div class="kb-tree-panel" id="treePanel">
+        <div class="kb-panel-header"><i class="fas fa-folder-tree" style="margin-right:6px;"></i>카테고리</div>
+        <div class="tree-all active" id="treeAll" onclick="selectCategory(null, this)">
+          <i class="fas fa-layer-group" style="color:var(--primary);"></i>
+          전체 문서
+        </div>
+        <div id="treeContainer">
+          <div class="kb-loading"><div class="kb-spinner"></div></div>
+        </div>
+      </div>
+
+      <!-- 가운데: 문서 목록 -->
+      <div class="kb-list-panel mob-active" id="listPanel">
+        <div class="kb-list-header">
+          <div class="kb-search-wrapper">
+            <i class="fas fa-search"></i>
+            <input type="text" class="kb-search-input" id="searchInput"
+              placeholder="제목, 내용 검색..." autocomplete="off">
+          </div>
+        </div>
+        <div class="kb-list-count" id="listCount"></div>
+        <div class="kb-list-body" id="docList">
+          <div class="kb-loading"><div class="kb-spinner"></div> 로딩 중...</div>
+        </div>
+      </div>
+
+      <!-- 우측: 문서 상세 -->
+      <div class="kb-detail-panel" id="detailPanel">
+        <div class="kb-detail-empty" id="detailEmpty">
+          <i class="fas fa-file-alt"></i>
+          <p>문서를 선택하면<br>내용이 여기에 표시됩니다</p>
+        </div>
+        <div id="detailContent" style="display:none; flex:1; overflow-y:auto;">
+          <!-- 상세 내용 동적 주입 -->
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ── 신규/수정 모달 ── -->
+<div class="modal-overlay" id="docModal">
+  <div class="modal" style="max-width:780px">
+    <div class="modal-header">
+      <span class="modal-title" id="docModalTitle">
+        <i class="fas fa-edit" style="color:var(--primary);margin-right:8px;"></i>
+        SOP 문서 작성
+      </span>
+      <button class="modal-close" onclick="closeDocModal()" aria-label="닫기">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">카테고리 <span class="required">*</span></label>
+        <select class="form-control" id="modalCategory">
+          <option value="">카테고리 선택</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">제목 <span class="required">*</span></label>
+        <input type="text" class="form-control" id="modalTitle" placeholder="SOP 문서 제목">
+      </div>
+      <div class="form-group">
+        <label class="form-label">내용 (마크다운)</label>
+        <textarea id="modalContent" placeholder="SOP 내용을 마크다운으로 작성하세요..."></textarea>
+      </div>
+      <div class="form-group" id="changeNoteGroup" style="display:none;">
+        <label class="form-label">변경 사유 <small style="font-weight:400;color:var(--gray-400);">(버전 이력에 기록)</small></label>
+        <input type="text" class="form-control" id="modalChangeNote" placeholder="어떤 내용을 변경했는지 간략히 기재">
+      </div>
+      <div class="form-group">
+        <label class="form-label">첨부파일</label>
+        <div class="file-upload-area" onclick="document.getElementById('modalFileInput').click()">
+          <i class="fas fa-paperclip" style="margin-right:6px;"></i>
+          파일 선택 (pdf, xlsx, docx, png, jpg, zip 등)
+          <input type="file" id="modalFileInput" multiple
+            accept=".pdf,.xlsx,.xls,.docx,.doc,.png,.jpg,.jpeg,.csv,.txt,.zip"
+            onchange="handleFileSelect(event)">
+        </div>
+        <div class="attach-preview-list" id="attachPreviewList"></div>
+      </div>
+      <div class="form-group">
+        <label class="toggle-switch">
+          <input type="checkbox" id="modalPublished" checked>
+          <span class="toggle-track"></span>
+          발행 (전체 공개)
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeDocModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveDoc()" id="saveDocBtn">
+        <i class="fas fa-save"></i> 저장
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js"></script>
+<!-- EasyMDE 에디터 -->
+<script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+<!-- 마크다운 렌더러 -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+/* ======================================================
+   kb-sop.html 전용 스크립트
+   ====================================================== */
+
+let currentUser   = null;
+let isLeader      = false;
+let isLeaderOrChief = false;
+
+let allDocs       = [];      // 전체 문서 캐시
+let allCategories = [];      // 전체 카테고리 캐시
+let selectedCatId = null;    // 현재 선택된 카테고리 ID
+let currentDocId  = null;    // 현재 열린 문서 ID
+let editingDocId  = null;    // 수정 중인 문서 ID (null=신규)
+let pendingAttachments = [];  // 업로드 완료된 첨부파일
+let easyMDE       = null;    // EasyMDE 인스턴스
+let searchDebounce = null;
+
+// marked.js 보안 설정
+marked.setOptions({ breaks: true, gfm: true });
+
+/* ── 초기화 ── */
+if (!Portal.init()) { /* auth.js redirect */ }
+else { bootPage(); }
+
+function bootPage() {
+  currentUser     = RBAC.getCurrentUser();
+  isLeader        = currentUser && currentUser.role === 'team_leader';
+  isLeaderOrChief = isLeader || (currentUser && currentUser.role === 'section_chief');
+
+  if (isLeaderOrChief) {
+    document.getElementById('headerActions').innerHTML = `
+      <button class="btn btn-primary btn-sm" onclick="openNewDocModal()">
+        <i class="fas fa-plus"></i> <span>새 문서</span>
+      </button>`;
+  }
+
+  // URL 파라미터로 특정 문서 직접 열기
+  const params = new URLSearchParams(window.location.search);
+  const initDocId = params.get('doc');
+
+  Promise.all([loadCategories(), loadDocs()]).then(() => {
+    if (initDocId) openDoc(parseInt(initDocId, 10));
+  });
+
+  // 검색 debounce
+  document.getElementById('searchInput').addEventListener('input', (e) => {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => {
+      const q = e.target.value.trim();
+      if (q.length === 0) {
+        renderDocList(filterDocsByCategory(allDocs, selectedCatId));
+      } else {
+        searchDocs(q);
+      }
+    }, 300);
+  });
+}
+
+/* ── 카테고리 트리 로드 ── */
+async function loadCategories() {
+  try {
+    const r = await fetch('/tables/kb_categories?limit=200');
+    if (!r.ok) throw new Error('카테고리 API 오류');
+    const data = await r.json();
+    allCategories = data.data || data.rows || data || [];
+    renderCategoryTree(allCategories);
+    populateCategorySelect(allCategories);
+  } catch(e) {
+    console.error('카테고리 로드 실패:', e);
+    document.getElementById('treeContainer').innerHTML =
+      '<div style="padding:16px;font-size:12.5px;color:var(--gray-400);">카테고리를 불러오지 못했습니다.</div>';
+  }
+}
+
+function renderCategoryTree(cats) {
+  const roots    = cats.filter(c => !c.parent_id).sort((a,b) => (a.display_order||0) - (b.display_order||0));
+  const children = (parentId) => cats.filter(c => c.parent_id === parentId).sort((a,b) => (a.display_order||0) - (b.display_order||0));
+
+  let html = '';
+  for (const root of roots) {
+    const childCats = children(root.id);
+    html += `<div class="tree-item tree-root" onclick="selectCategory(${root.id}, this)">
+      <i class="tree-icon fas fa-folder"></i>
+      ${escHtml(root.name)}
+    </div>`;
+    for (const child of childCats) {
+      html += `<div class="tree-item tree-child" onclick="selectCategory(${child.id}, this)">
+        <i class="tree-icon fas fa-file-alt" style="color:var(--gray-400);"></i>
+        ${escHtml(child.name)}
+      </div>`;
+    }
+  }
+  document.getElementById('treeContainer').innerHTML = html || '<div style="padding:16px;font-size:12.5px;color:var(--gray-400);">카테고리가 없습니다.</div>';
+}
+
+function populateCategorySelect(cats) {
+  const roots    = cats.filter(c => !c.parent_id).sort((a,b) => (a.display_order||0) - (b.display_order||0));
+  const children = (parentId) => cats.filter(c => c.parent_id === parentId).sort((a,b) => (a.display_order||0) - (b.display_order||0));
+  const sel = document.getElementById('modalCategory');
+  let html = '<option value="">카테고리 선택</option>';
+  for (const root of roots) {
+    const childCats = children(root.id);
+    if (childCats.length) {
+      html += `<optgroup label="${escHtml(root.name)}">`;
+      for (const child of childCats) {
+        html += `<option value="${child.id}">${escHtml(child.name)}</option>`;
+      }
+      html += '</optgroup>';
+    } else {
+      html += `<option value="${root.id}">${escHtml(root.name)}</option>`;
+    }
+  }
+  sel.innerHTML = html;
+}
+
+/* ── 카테고리 선택 ── */
+function selectCategory(catId, el) {
+  selectedCatId = catId;
+  // 트리 active 초기화
+  document.querySelectorAll('.tree-item, .tree-all').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  // 검색창 초기화
+  document.getElementById('searchInput').value = '';
+  // 문서 재필터
+  renderDocList(filterDocsByCategory(allDocs, catId));
+}
+
+function filterDocsByCategory(docs, catId) {
+  if (!catId) return docs;
+  // 선택된 카테고리의 하위 포함
+  const childIds = new Set([catId]);
+  allCategories.filter(c => c.parent_id === catId).forEach(c => childIds.add(c.id));
+  return docs.filter(d => childIds.has(d.category_id));
+}
+
+/* ── 문서 목록 로드 ── */
+async function loadDocs() {
+  document.getElementById('docList').innerHTML =
+    '<div class="kb-loading"><div class="kb-spinner"></div> 로딩 중...</div>';
+  try {
+    const r = await fetch('/tables/kb_documents?limit=500');
+    if (!r.ok) throw new Error('문서 API 오류');
+    const data = await r.json();
+    allDocs = (data.data || data.rows || data || []).filter(d => d.is_published !== false || isLeaderOrChief);
+    renderDocList(filterDocsByCategory(allDocs, selectedCatId));
+  } catch(e) {
+    console.error('문서 로드 실패:', e);
+    document.getElementById('docList').innerHTML =
+      '<div class="kb-list-empty"><i class="fas fa-exclamation-circle"></i><p>문서를 불러오지 못했습니다.</p></div>';
+  }
+}
+
+async function searchDocs(q) {
+  try {
+    const r = await fetch(`/tables/kb_documents?limit=500&search=${encodeURIComponent(q)}`);
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    const results = (data.data || data.rows || data || []).filter(d => d.is_published !== false || isLeaderOrChief);
+    renderDocList(results, q);
+  } catch(e) {
+    renderDocList([], q);
+  }
+}
+
+/* ── 카테고리 칩 색상 ── */
+const CAT_COLORS = ['blue','green','yellow','purple','red','gray'];
+function getCatChipColor(catId) {
+  if (!catId) return 'gray';
+  // 부모 ID 기준으로 색상 할당
+  const cat = allCategories.find(c => c.id === catId);
+  if (!cat) return 'gray';
+  const rootId = cat.parent_id || cat.id;
+  const roots = allCategories.filter(c => !c.parent_id).sort((a,b)=>(a.display_order||0)-(b.display_order||0));
+  const idx = roots.findIndex(r => r.id === rootId);
+  return CAT_COLORS[idx % CAT_COLORS.length] || 'gray';
+}
+
+function getCatName(catId) {
+  const cat = allCategories.find(c => c.id === catId);
+  return cat ? cat.name : '-';
+}
+
+/* ── 문서 목록 렌더링 ── */
+function renderDocList(docs, query) {
+  const count = document.getElementById('listCount');
+  count.textContent = docs.length > 0 ? `${docs.length}개 문서` : '';
+
+  if (!docs.length) {
+    const hasQuery = query && query.length > 0;
+    document.getElementById('docList').innerHTML = `
+      <div class="kb-list-empty">
+        <i class="fas ${hasQuery ? 'fa-search' : 'fa-file-alt'}"></i>
+        <p>${hasQuery ? `"${escHtml(query)}"에 대한 결과가 없습니다.` : '이 카테고리에 문서가 없습니다.'}</p>
+        ${isLeaderOrChief && !hasQuery ? `<button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="openNewDocModal()"><i class="fas fa-plus"></i> 첫 문서 작성</button>` : ''}
+      </div>`;
+    return;
+  }
+
+  // 최신 수정일 순 정렬
+  const sorted = [...docs].sort((a,b) => {
+    const ta = new Date(a.updated_at || a.created_at || 0).getTime();
+    const tb = new Date(b.updated_at || b.created_at || 0).getTime();
+    return tb - ta;
+  });
+
+  let html = '';
+  for (const doc of sorted) {
+    const catColor = getCatChipColor(doc.category_id);
+    const catName  = getCatName(doc.category_id);
+    const dateStr  = fmtShortDate(doc.updated_at || doc.created_at);
+    const active   = doc.id === currentDocId ? ' active' : '';
+    const draft    = !doc.is_published ? '<span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:4px;">초안</span>' : '';
+    html += `<div class="kb-doc-item${active}" onclick="openDoc(${doc.id})" id="docItem_${doc.id}">
+      <div class="kb-doc-title">${escHtml(doc.title || '(제목 없음)')}${draft}</div>
+      <div class="kb-doc-meta">
+        <span class="kb-cat-chip ${catColor}">${escHtml(catName)}</span>
+        <span class="kb-doc-stats">
+          <i class="fas fa-eye"></i>${doc.view_count || 0}
+          &nbsp;<i class="fas fa-thumbs-up"></i>${doc.helpful_count || 0}
+        </span>
+        <span class="kb-doc-date">${dateStr}</span>
+      </div>
+    </div>`;
+  }
+  document.getElementById('docList').innerHTML = html;
+}
+
+/* ── 문서 상세 열기 ── */
+async function openDoc(docId) {
+  currentDocId = docId;
+  // 목록 active 갱신
+  document.querySelectorAll('.kb-doc-item').forEach(el => el.classList.remove('active'));
+  const item = document.getElementById(`docItem_${docId}`);
+  if (item) item.classList.add('active');
+
+  // 상세 패널 전환
+  const empty   = document.getElementById('detailEmpty');
+  const content = document.getElementById('detailContent');
+  empty.style.display   = 'none';
+  content.style.display = 'block';
+  content.innerHTML = '<div class="kb-loading" style="padding:60px;"><div class="kb-spinner"></div> 로딩 중...</div>';
+
+  // 모바일: 상세 탭으로 전환
+  switchMobileTab('detail', document.querySelector('#mobileTabs button:nth-child(3)'));
+
+  try {
+    const r = await fetch(`/tables/kb_documents/${docId}`);
+    if (!r.ok) throw new Error('문서 API 오류');
+    const doc = await r.json();
+
+    renderDocDetail(doc);
+
+    // 조회수 카운트 (sessionStorage 중복 방지)
+    const viewKey = `kb_viewed_${docId}`;
+    if (!sessionStorage.getItem(viewKey)) {
+      fetch(`/api/kb/documents/${docId}/view`, { method: 'POST' }).catch(()=>{});
+      sessionStorage.setItem(viewKey, '1');
+      // 로컬 캐시 업데이트
+      const cached = allDocs.find(d => d.id === docId);
+      if (cached) cached.view_count = (cached.view_count || 0) + 1;
+    }
+  } catch(e) {
+    content.innerHTML = '<div class="kb-list-empty" style="padding:40px;"><i class="fas fa-exclamation-circle"></i><p>문서를 불러오지 못했습니다.</p></div>';
+  }
+}
+
+/* ── 문서 상세 렌더링 ── */
+function renderDocDetail(doc) {
+  const content = document.getElementById('detailContent');
+  const catName  = getCatName(doc.category_id);
+  const catColor = getCatChipColor(doc.category_id);
+
+  const canEdit   = isLeaderOrChief;
+  const canDelete = isLeader;
+
+  // 첨부파일
+  let attachHtml = '';
+  const atts = tryParseJSON(doc.attachments, []);
+  if (atts.length) {
+    const items = atts.map(a => `
+      <a class="kb-attach-item" href="/api/kb/download/${encodeURIComponent(a.stored_name)}" target="_blank">
+        <i class="fas ${getFileIcon(a.original_name)}"></i>
+        ${escHtml(a.original_name)}
+      </a>`).join('');
+    attachHtml = `<div class="kb-attachments">
+      <div class="kb-attach-title"><i class="fas fa-paperclip"></i> 첨부파일 (${atts.length})</div>
+      <div class="kb-attach-list">${items}</div>
+    </div>`;
+  }
+
+  // 본문 마크다운 렌더
+  const bodyHtml = doc.content ? marked.parse(String(doc.content)) : '<p style="color:var(--gray-400);">본문이 없습니다.</p>';
+
+  // 수정/삭제 버튼
+  const editBtns = canEdit ? `
+    <button class="btn btn-secondary btn-sm" onclick="openEditDocModal(${doc.id})">
+      <i class="fas fa-edit"></i> <span>수정</span>
+    </button>` : '';
+  const deleteBtns = canDelete ? `
+    <button class="btn btn-danger btn-sm" onclick="deleteDoc(${doc.id})">
+      <i class="fas fa-trash"></i> <span>삭제</span>
+    </button>` : '';
+
+  content.innerHTML = `
+    <div class="kb-detail-inner">
+      <div class="kb-detail-header">
+        <h1 class="kb-detail-title">${escHtml(doc.title || '(제목 없음)')}</h1>
+        <div class="kb-detail-meta-row">
+          <span class="kb-cat-chip ${catColor}">${escHtml(catName)}</span>
+          <span class="kb-version-badge"><i class="fas fa-code-branch"></i> v${doc.version || 1}</span>
+          ${!doc.is_published ? '<span style="background:#fef3c7;color:#92400e;font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:20px;">초안</span>' : ''}
+        </div>
+        <div class="kb-detail-meta-row">
+          <span class="kb-meta-item"><i class="fas fa-user"></i>${escHtml(doc.author_name || doc.author_id || '-')}</span>
+          <span class="kb-meta-item"><i class="fas fa-calendar-alt"></i>${Portal.formatDate(doc.updated_at || doc.created_at)}</span>
+          <span class="kb-meta-item"><i class="fas fa-eye"></i>${(doc.view_count || 0) + (sessionStorage.getItem('kb_viewed_'+doc.id) ? 0 : 0)}회</span>
+          <span class="kb-meta-item"><i class="fas fa-thumbs-up"></i><span id="helpfulCount">${doc.helpful_count || 0}</span>명 도움됨</span>
+        </div>
+        <div class="kb-detail-actions">
+          <button class="btn-helpful" id="helpfulBtn" onclick="voteHelpful(${doc.id}, this)">
+            <i class="fas fa-thumbs-up"></i> 도움됨
+          </button>
+          ${editBtns}
+          ${deleteBtns}
+        </div>
+      </div>
+
+      <!-- 본문 -->
+      <div class="kb-prose">${bodyHtml}</div>
+
+      <!-- 첨부파일 -->
+      ${attachHtml}
+
+      <!-- 버전 이력 -->
+      <div class="kb-versions">
+        <button class="kb-versions-toggle" onclick="toggleVersions(${doc.id}, this)">
+          <i class="fas fa-history"></i>
+          버전 이력 보기
+          <i class="fas fa-chevron-down chevron"></i>
+        </button>
+        <div class="kb-version-list" id="versionList_${doc.id}">
+          <div class="kb-loading"><div class="kb-spinner"></div></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ── 유용성 투표 ── */
+async function voteHelpful(docId, btn) {
+  if (btn.classList.contains('voted')) return;
+  btn.classList.add('voted');
+  const countEl = document.getElementById('helpfulCount');
+  const cur = parseInt(countEl.textContent, 10) || 0;
+  countEl.textContent = cur + 1; // 낙관적 업데이트
+  try {
+    await fetch(`/api/kb/documents/${docId}/helpful`, { method: 'POST' });
+    // 로컬 캐시 업데이트
+    const cached = allDocs.find(d => d.id === docId);
+    if (cached) cached.helpful_count = (cached.helpful_count || 0) + 1;
+  } catch(e) {
+    console.error('유용성 투표 실패:', e);
+  }
+}
+
+/* ── 버전 이력 토글 ── */
+async function toggleVersions(docId, btn) {
+  btn.classList.toggle('open');
+  const list = document.getElementById(`versionList_${docId}`);
+  list.classList.toggle('open');
+  if (!list.classList.contains('open')) return;
+  if (list.dataset.loaded) return;
+  list.dataset.loaded = '1';
+
+  try {
+    const r = await fetch(`/api/kb/documents/${docId}/versions`);
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    const versions = data.data || data.rows || data || [];
+    if (!versions.length) {
+      list.innerHTML = '<div style="padding:12px 0;font-size:13px;color:var(--gray-400);">버전 이력이 없습니다.</div>';
+      return;
+    }
+    list.innerHTML = versions.map(v => `
+      <div class="kb-version-item">
+        <span class="kb-version-num">v${v.version}</span>
+        <div class="kb-version-info">
+          <div class="kb-version-note">${escHtml(v.change_note || v.title || '-')}</div>
+          <div class="kb-version-date">${Portal.formatDateTime(v.created_at)}</div>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    list.innerHTML = '<div style="padding:12px 0;font-size:13px;color:var(--gray-400);">버전 이력을 불러오지 못했습니다.</div>';
+  }
+}
+
+/* ── 신규/수정 모달 ── */
+function openNewDocModal() {
+  editingDocId     = null;
+  pendingAttachments = [];
+  document.getElementById('docModalTitle').innerHTML =
+    '<i class="fas fa-plus-circle" style="color:var(--primary);margin-right:8px;"></i>새 SOP 문서 작성';
+  document.getElementById('modalTitle').value       = '';
+  document.getElementById('modalCategory').value    = selectedCatId || '';
+  document.getElementById('modalPublished').checked  = true;
+  document.getElementById('modalChangeNote').value  = '';
+  document.getElementById('changeNoteGroup').style.display = 'none';
+  document.getElementById('attachPreviewList').innerHTML = '';
+  initEasyMDE('');
+  document.getElementById('docModal').classList.add('show');
+}
+
+async function openEditDocModal(docId) {
+  editingDocId     = docId;
+  pendingAttachments = [];
+  try {
+    const r   = await fetch(`/tables/kb_documents/${docId}`);
+    const doc = await r.json();
+    document.getElementById('docModalTitle').innerHTML =
+      '<i class="fas fa-edit" style="color:var(--primary);margin-right:8px;"></i>SOP 문서 수정';
+    document.getElementById('modalTitle').value       = doc.title || '';
+    document.getElementById('modalCategory').value    = doc.category_id || '';
+    document.getElementById('modalPublished').checked = doc.is_published !== false;
+    document.getElementById('modalChangeNote').value  = '';
+    document.getElementById('changeNoteGroup').style.display = 'block';
+
+    // 기존 첨부파일
+    const atts = tryParseJSON(doc.attachments, []);
+    pendingAttachments = [...atts];
+    renderAttachPreview();
+
+    initEasyMDE(doc.content || '');
+    document.getElementById('docModal').classList.add('show');
+  } catch(e) {
+    Portal.showToast('문서를 불러오지 못했습니다.', 'error');
+  }
+}
+
+function closeDocModal() {
+  document.getElementById('docModal').classList.remove('show');
+  if (easyMDE) { easyMDE.toTextArea(); easyMDE = null; }
+}
+
+function initEasyMDE(initialValue) {
+  if (easyMDE) { easyMDE.toTextArea(); easyMDE = null; }
+  const ta = document.getElementById('modalContent');
+  ta.value = initialValue;
+  easyMDE = new EasyMDE({
+    element: ta,
+    autofocus: false,
+    spellChecker: false,
+    placeholder: 'SOP 내용을 마크다운으로 작성하세요...',
+    toolbar: [
+      'bold','italic','heading','|',
+      'unordered-list','ordered-list','|',
+      'link','quote','code','table','|',
+      'preview','side-by-side','fullscreen','|',
+      'guide'
+    ],
+    status: false
+  });
+}
+
+/* ── 첨부파일 처리 ── */
+async function handleFileSelect(event) {
+  const files = Array.from(event.target.files);
+  if (!files.length) return;
+
+  for (const file of files) {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64 = e.target.result.split(',')[1];
+      try {
+        const r = await fetch('/api/kb/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, content: base64 })
+        });
+        if (!r.ok) throw new Error('업로드 실패');
+        const att = await r.json();
+        pendingAttachments.push(att);
+        renderAttachPreview();
+        Portal.showToast(`"${file.name}" 업로드 완료`, 'success');
+      } catch(err) {
+        Portal.showToast(`"${file.name}" 업로드 실패`, 'error');
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+  // 파일 input 초기화 (동일 파일 재업로드 허용)
+  event.target.value = '';
+}
+
+function removeAttachment(idx) {
+  pendingAttachments.splice(idx, 1);
+  renderAttachPreview();
+}
+
+function renderAttachPreview() {
+  const list = document.getElementById('attachPreviewList');
+  list.innerHTML = pendingAttachments.map((a, i) => `
+    <div class="attach-preview-item">
+      <i class="fas ${getFileIcon(a.original_name)}" style="color:var(--primary);"></i>
+      ${escHtml(a.original_name)}
+      <button onclick="removeAttachment(${i})" title="제거"><i class="fas fa-times"></i></button>
+    </div>`).join('');
+}
+
+/* ── 문서 저장 ── */
+async function saveDoc() {
+  const title      = document.getElementById('modalTitle').value.trim();
+  const catId      = parseInt(document.getElementById('modalCategory').value, 10) || null;
+  const content    = easyMDE ? easyMDE.value() : document.getElementById('modalContent').value;
+  const published  = document.getElementById('modalPublished').checked;
+  const changeNote = document.getElementById('modalChangeNote').value.trim();
+
+  if (!title) { Portal.showToast('제목을 입력해주세요.', 'warning'); return; }
+  if (!catId) { Portal.showToast('카테고리를 선택해주세요.', 'warning'); return; }
+
+  const btn = document.getElementById('saveDocBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 저장 중...';
+
+  const body = {
+    category_id:  catId,
+    title,
+    content,
+    is_published: published,
+    attachments:  pendingAttachments.length ? JSON.stringify(pendingAttachments) : undefined,
+    author_id:    currentUser.user_id
+  };
+  if (editingDocId && changeNote) body.change_note = changeNote;
+
+  try {
+    let r;
+    if (editingDocId) {
+      r = await fetch(`/tables/kb_documents/${editingDocId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+    } else {
+      r = await fetch('/tables/kb_documents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+    }
+    if (!r.ok) throw new Error('저장 실패');
+    const saved = await r.json();
+    Portal.showToast(editingDocId ? '문서가 수정되었습니다.' : '문서가 등록되었습니다.', 'success');
+    closeDocModal();
+    await loadDocs();
+    const newId = saved.id || editingDocId;
+    if (newId) openDoc(newId);
+  } catch(e) {
+    Portal.showToast('저장 중 오류가 발생했습니다.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save"></i> 저장';
+  }
+}
+
+/* ── 문서 삭제 ── */
+function deleteDoc(docId) {
+  Portal.confirm('이 문서를 삭제하시겠습니까? 삭제된 문서는 복구할 수 없습니다.', async () => {
+    try {
+      const r = await fetch(`/tables/kb_documents/${docId}`, { method: 'DELETE' });
+      if (!r.ok) throw new Error();
+      Portal.showToast('문서가 삭제되었습니다.', 'success');
+      currentDocId = null;
+      document.getElementById('detailEmpty').style.display   = 'flex';
+      document.getElementById('detailContent').style.display = 'none';
+      await loadDocs();
+    } catch(e) {
+      Portal.showToast('삭제 중 오류가 발생했습니다.', 'error');
+    }
+  });
+}
+
+/* ── 모바일 탭 전환 ── */
+function switchMobileTab(tab, btn) {
+  if (!document.getElementById('mobileTabs').style.display) return; // 데스크탑 무시
+  if (window.innerWidth > 768) return;
+  document.querySelectorAll('#mobileTabs button').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const tree   = document.getElementById('treePanel');
+  const list   = document.getElementById('listPanel');
+  const detail = document.getElementById('detailPanel');
+  tree.classList.remove('mob-active');
+  list.classList.remove('mob-active');
+  detail.classList.remove('mob-active');
+  if (tab === 'tree')   tree.classList.add('mob-active');
+  if (tab === 'list')   list.classList.add('mob-active');
+  if (tab === 'detail') detail.classList.add('mob-active');
+}
+
+// 모달 배경 클릭 닫기
+document.getElementById('docModal').addEventListener('click', function(e) {
+  if (e.target === this) closeDocModal();
+});
+
+/* ── 유틸 ── */
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function fmtShortDate(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (isNaN(d)) return '';
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${d.getFullYear()}.${mm}.${dd}`;
+}
+
+function tryParseJSON(val, fallback) {
+  if (!val) return fallback;
+  if (Array.isArray(val)) return val;
+  try { return JSON.parse(val); } catch { return fallback; }
+}
+
+function getFileIcon(filename) {
+  if (!filename) return 'fa-file';
+  const ext = filename.split('.').pop().toLowerCase();
+  const map = {
+    pdf:  'fa-file-pdf',
+    xlsx: 'fa-file-excel', xls: 'fa-file-excel',
+    docx: 'fa-file-word',  doc: 'fa-file-word',
+    png:  'fa-file-image', jpg: 'fa-file-image', jpeg: 'fa-file-image',
+    csv:  'fa-file-csv',
+    txt:  'fa-file-alt',
+    zip:  'fa-file-archive'
+  };
+  return map[ext] || 'fa-file';
+}
+</script>
+</body>
+</html>

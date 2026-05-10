@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>이슈 사례집 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css?v=2">
+  <style>
+    /* ── KB 이슈 사례집 전용 스타일 ── */
+
+    /* 2컬럼 레이아웃 */
+    .issue-layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 0;
+      height: calc(100vh - var(--header-height));
+      overflow: hidden;
+    }
+
+    /* ── 좌측 리스트 패널 ── */
+    .issue-list-panel {
+      background: var(--gray-50);
+      border-right: 1px solid var(--gray-200);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .issue-list-header {
+      padding: 14px 16px;
+      background: white;
+      border-bottom: 1px solid var(--gray-200);
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .issue-search-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .issue-search-wrap {
+      position: relative;
+      flex: 1;
+    }
+    .issue-search-wrap i {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--gray-400);
+      font-size: 13px;
+    }
+    .issue-search-input {
+      width: 100%;
+      padding: 8px 10px 8px 32px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--gray-800);
+      background: var(--gray-50);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .issue-search-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(79,134,247,0.12);
+    }
+    .issue-filter-row {
+      display: flex;
+      gap: 6px;
+    }
+    .issue-filter-select {
+      flex: 1;
+      padding: 6px 10px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-family: inherit;
+      color: var(--gray-700);
+      background: white;
+      cursor: pointer;
+    }
+    .issue-filter-select:focus { outline: none; border-color: var(--primary); }
+
+    .issue-list-count {
+      padding: 6px 16px;
+      font-size: 11px;
+      color: var(--gray-400);
+      background: var(--gray-50);
+      border-bottom: 1px solid var(--gray-100);
+    }
+    .issue-list-body { flex: 1; }
+    .issue-item {
+      padding: 13px 16px;
+      background: white;
+      border-bottom: 1px solid var(--gray-100);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .issue-item:last-child { border-bottom: none; }
+    .issue-item:hover { background: #f0f7ff; }
+    .issue-item.active { background: #eff6ff; border-left: 3px solid var(--primary); }
+    .issue-item-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 5px;
+    }
+    .issue-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--gray-900);
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .sev-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .sev-badge.high   { background: #fee2e2; color: #b91c1c; }
+    .sev-badge.medium { background: #fef3c7; color: #92400e; }
+    .sev-badge.low    { background: var(--gray-100); color: var(--gray-600); }
+    .issue-item-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 11.5px;
+      color: var(--gray-400);
+      flex-wrap: wrap;
+    }
+    .issue-list-empty {
+      padding: 40px 16px;
+      text-align: center;
+      color: var(--gray-400);
+    }
+    .issue-list-empty i { font-size: 32px; display: block; margin-bottom: 10px; }
+    .issue-list-empty p { font-size: 13px; line-height: 1.6; }
+
+    /* ── 우측 상세 패널 ── */
+    .issue-detail-panel {
+      background: white;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .issue-detail-empty {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--gray-300);
+      padding: 40px;
+    }
+    .issue-detail-empty i { font-size: 48px; }
+    .issue-detail-empty p { font-size: 13.5px; color: var(--gray-400); text-align: center; line-height: 1.6; }
+    .issue-detail-inner { padding: 28px 32px; flex: 1; }
+
+    /* 상세 헤더 */
+    .issue-detail-header {
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--gray-200);
+      margin-bottom: 20px;
+    }
+    .issue-detail-title-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .issue-detail-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--gray-900);
+      line-height: 1.4;
+      flex: 1;
+    }
+    .issue-detail-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-size: 12.5px;
+      color: var(--gray-500);
+      margin-bottom: 12px;
+    }
+    .issue-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .issue-meta-item i { font-size: 11px; color: var(--gray-400); }
+    .issue-detail-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* 아코디언 섹션 */
+    .issue-sections { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+    .issue-section {
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .issue-section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: var(--gray-50);
+      cursor: pointer;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--gray-800);
+      transition: background 0.15s;
+      user-select: none;
+      border: none;
+      width: 100%;
+      text-align: left;
+      font-family: inherit;
+    }
+    .issue-section-header:hover { background: var(--gray-100); }
+    .issue-section-header.open { background: white; border-bottom: 1px solid var(--gray-200); }
+    .issue-section-header .sec-icon {
+      width: 28px; height: 28px;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+    .sec-icon.red    { background: #fee2e2; color: #b91c1c; }
+    .sec-icon.orange { background: #fef3c7; color: #d97706; }
+    .sec-icon.blue   { background: #dbeafe; color: #1d4ed8; }
+    .sec-icon.green  { background: #d1fae5; color: #059669; }
+    .issue-section-header .sec-chevron { margin-left: auto; font-size: 11px; color: var(--gray-400); transition: transform 0.2s; }
+    .issue-section-header.open .sec-chevron { transform: rotate(180deg); }
+    .issue-section-body {
+      display: none;
+      padding: 16px;
+      font-size: 14px;
+      line-height: 1.8;
+      color: var(--gray-700);
+      white-space: pre-wrap;
+    }
+    .issue-section-body.open { display: block; }
+
+    /* 태그 칩 */
+    .issue-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .tag-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--gray-100);
+      color: var(--gray-600);
+    }
+    .tag-chip i { font-size: 9px; }
+
+    /* 관련 SOP 링크 */
+    .issue-sop-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--primary);
+      text-decoration: none;
+      margin-bottom: 20px;
+      transition: background 0.15s;
+    }
+    .issue-sop-link:hover { background: #dbeafe; }
+
+    /* 유사 이슈 */
+    .similar-section {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--gray-100);
+    }
+    .similar-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--gray-700);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .similar-cards { display: flex; flex-direction: column; gap: 8px; }
+    .similar-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--gray-50);
+      border-radius: 9px;
+      cursor: pointer;
+      transition: background 0.15s;
+      border: 1px solid var(--gray-100);
+    }
+    .similar-card:hover { background: #eff6ff; border-color: #bfdbfe; }
+    .similar-card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gray-800);
+      flex: 1;
+    }
+    .similar-score {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--gray-400);
+      white-space: nowrap;
+    }
+
+    /* 로딩 */
+    .kb-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      color: var(--gray-400);
+      gap: 10px;
+      font-size: 13.5px;
+    }
+    .kb-spinner {
+      width: 24px; height: 24px;
+      border: 2.5px solid var(--gray-200);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: kbSpin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes kbSpin { to { transform: rotate(360deg); } }
+
+    /* 태그 칩 입력 */
+    .tag-input-wrap {
+      border: 2px solid var(--gray-200);
+      border-radius: 9px;
+      padding: 6px 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      background: var(--gray-50);
+      cursor: text;
+      min-height: 44px;
+    }
+    .tag-input-wrap:focus-within { border-color: var(--primary); background: white; box-shadow: 0 0 0 3px rgba(79,134,247,0.12); }
+    .tag-chip-editable {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 14px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+    .tag-chip-editable button {
+      background: none;
+      border: none;
+      color: #1d4ed8;
+      cursor: pointer;
+      padding: 0;
+      font-size: 10px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+    }
+    .tag-input-real {
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--gray-800);
+      outline: none;
+      min-width: 100px;
+      flex: 1;
+    }
+
+    /* 모바일 탭 */
+    .issue-mobile-tabs {
+      display: none;
+      background: white;
+      border-bottom: 1px solid var(--gray-200);
+    }
+    .issue-mobile-tabs button {
+      flex: 1;
+      padding: 10px;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gray-500);
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .issue-mobile-tabs button.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    /* SOP 검색 선택 */
+    .sop-search-results {
+      max-height: 180px;
+      overflow-y: auto;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 8px;
+      margin-top: 6px;
+      display: none;
+    }
+    .sop-search-results.open { display: block; }
+    .sop-result-item {
+      padding: 9px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      color: var(--gray-700);
+      border-bottom: 1px solid var(--gray-100);
+      transition: background 0.1s;
+    }
+    .sop-result-item:last-child { border-bottom: none; }
+    .sop-result-item:hover { background: #eff6ff; color: var(--primary); }
+
+    /* 반응형 */
+    @media (max-width: 900px) {
+      .issue-layout { grid-template-columns: 280px 1fr; }
+    }
+    @media (max-width: 768px) {
+      .issue-mobile-tabs { display: flex; }
+      .issue-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+        overflow: visible;
+      }
+      .issue-list-panel,
+      .issue-detail-panel {
+        height: calc(100vh - var(--header-height) - 45px);
+        overflow-y: auto;
+      }
+      .issue-list-panel   { display: none; border-right: none; }
+      .issue-detail-panel { display: none; }
+      .issue-list-panel.mob-active,
+      .issue-detail-panel.mob-active { display: flex; }
+      .issue-detail-inner { padding: 16px; }
+    }
+    @media (max-width: 480px) {
+      .issue-detail-title { font-size: 17px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <!-- 사이드바: portal.js가 주입 -->
+  <main class="main-content">
+    <header class="page-header">
+      <div class="page-title">
+        <i class="fas fa-exclamation-triangle" style="color:#f59e0b;margin-right:8px;"></i>
+        이슈 사례집
+      </div>
+      <div class="header-actions" id="headerActions">
+        <!-- 신규 버튼 권한에 따라 주입 -->
+      </div>
+    </header>
+
+    <!-- 모바일 탭 -->
+    <div class="issue-mobile-tabs" id="mobileTabs">
+      <button class="active" onclick="switchMobileTab('list', this)"><i class="fas fa-list" style="margin-right:5px;"></i>목록</button>
+      <button onclick="switchMobileTab('detail', this)"><i class="fas fa-info-circle" style="margin-right:5px;"></i>상세</button>
+    </div>
+
+    <!-- 2컬럼 레이아웃 -->
+    <div class="issue-layout" id="issueLayout">
+      <!-- 좌측: 이슈 목록 -->
+      <div class="issue-list-panel mob-active" id="listPanel">
+        <div class="issue-list-header">
+          <div class="issue-search-row">
+            <div class="issue-search-wrap">
+              <i class="fas fa-search"></i>
+              <input type="text" class="issue-search-input" id="searchInput"
+                placeholder="제목, 증상, 원인 검색..." autocomplete="off">
+            </div>
+          </div>
+          <div class="issue-filter-row">
+            <select class="issue-filter-select" id="filterCategory" onchange="applyFilters()">
+              <option value="">전체 카테고리</option>
+              <option value="시스템">시스템</option>
+              <option value="회계">회계</option>
+              <option value="규정">규정</option>
+              <option value="기타">기타</option>
+            </select>
+            <select class="issue-filter-select" id="filterSeverity" onchange="applyFilters()">
+              <option value="">전체 심각도</option>
+              <option value="high">HIGH (높음)</option>
+              <option value="medium">MEDIUM (중간)</option>
+              <option value="low">LOW (낮음)</option>
+            </select>
+          </div>
+        </div>
+        <div class="issue-list-count" id="listCount"></div>
+        <div class="issue-list-body" id="issueList">
+          <div class="kb-loading"><div class="kb-spinner"></div> 로딩 중...</div>
+        </div>
+      </div>
+
+      <!-- 우측: 이슈 상세 -->
+      <div class="issue-detail-panel" id="detailPanel">
+        <div class="issue-detail-empty" id="detailEmpty">
+          <i class="fas fa-exclamation-circle"></i>
+          <p>이슈를 선택하면<br>상세 내용이 여기에 표시됩니다</p>
+        </div>
+        <div id="detailContent" style="display:none; flex:1; overflow-y:auto;">
+          <!-- 동적 주입 -->
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ── 이슈 신규/수정 모달 ── -->
+<div class="modal-overlay" id="issueModal">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-header">
+      <span class="modal-title" id="issueModalTitle">
+        <i class="fas fa-plus-circle" style="color:var(--warning);margin-right:8px;"></i>
+        이슈 등록
+      </span>
+      <button class="modal-close" onclick="closeIssueModal()" aria-label="닫기">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">제목 <span class="required">*</span></label>
+          <input type="text" class="form-control" id="mTitle" placeholder="이슈 제목">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">발생일자 <span class="required">*</span></label>
+          <input type="date" class="form-control" id="mOccurredAt">
+        </div>
+      </div>
+      <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:16px;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">카테고리</label>
+          <select class="form-control" id="mCategory">
+            <option value="시스템">시스템</option>
+            <option value="회계">회계</option>
+            <option value="규정">규정</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">심각도 <span class="required">*</span></label>
+          <select class="form-control" id="mSeverity">
+            <option value="high">HIGH (높음)</option>
+            <option value="medium">MEDIUM (중간)</option>
+            <option value="low">LOW (낮음)</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">담당자</label>
+          <select class="form-control" id="mOwner">
+            <option value="">담당자 선택</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:16px;">
+        <label class="form-label">증상 <span class="required">*</span></label>
+        <textarea class="form-control" id="mSymptom" rows="3" placeholder="어떤 증상이 나타났는지 구체적으로..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">원인 분석</label>
+        <textarea class="form-control" id="mRootCause" rows="3" placeholder="근본 원인 분석..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">해결 방법 <span class="required">*</span></label>
+        <textarea class="form-control" id="mResolution" rows="3" placeholder="어떻게 해결했는지..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">재발 방지 방안</label>
+        <textarea class="form-control" id="mPrevention" rows="2" placeholder="재발 방지를 위한 조치사항..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">태그 <small style="font-weight:400;color:var(--gray-400);">(쉼표 또는 Enter로 추가)</small></label>
+        <div class="tag-input-wrap" id="tagInputWrap" onclick="document.getElementById('tagRealInput').focus()">
+          <div id="tagChips"></div>
+          <input type="text" class="tag-input-real" id="tagRealInput"
+            placeholder="태그 입력..."
+            onkeydown="handleTagInput(event)">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">관련 SOP 문서</label>
+        <div style="position:relative;">
+          <input type="text" class="form-control" id="mSopSearch"
+            placeholder="SOP 문서 제목 검색..." autocomplete="off"
+            oninput="searchSopDocs(this.value)">
+          <div class="sop-search-results" id="sopSearchResults"></div>
+          <input type="hidden" id="mRelatedSopId">
+          <div id="selectedSopDisplay" style="margin-top:6px;display:none;">
+            <span class="info-banner" style="margin-bottom:0;">
+              <i class="fas fa-link"></i>
+              <span id="selectedSopName"></span>
+              <button onclick="clearSopSelection()" style="margin-left:auto;background:none;border:none;color:var(--primary);cursor:pointer;font-size:12px;">
+                <i class="fas fa-times"></i> 해제
+              </button>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeIssueModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveIssue()" id="saveIssueBtn">
+        <i class="fas fa-save"></i> 저장
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js"></script>
+<script>
+/* ======================================================
+   kb-issues.html 전용 스크립트
+   ====================================================== */
+
+let currentUser     = null;
+let isLeader        = false;
+let isLeaderOrChief = false;
+
+let allIssues   = [];     // 전체 이슈 캐시
+let allSopDocs  = [];     // SOP 문서 캐시 (관련 SOP 선택용)
+let currentIssueId = null;
+let editingIssueId = null;
+let inputTags      = [];   // 모달 내 입력 태그 배열
+
+let searchDebounce  = null;
+let sopSearchDelay  = null;
+
+/* ── 초기화 ── */
+if (!Portal.init()) { /* auth.js redirect */ }
+else { bootPage(); }
+
+function bootPage() {
+  currentUser     = RBAC.getCurrentUser();
+  isLeader        = currentUser && currentUser.role === 'team_leader';
+  isLeaderOrChief = isLeader || (currentUser && currentUser.role === 'section_chief');
+
+  // 전원 신규 등록 가능
+  document.getElementById('headerActions').innerHTML = `
+    <button class="btn btn-primary btn-sm" onclick="openNewIssueModal()">
+      <i class="fas fa-plus"></i> <span>이슈 등록</span>
+    </button>`;
+
+  // 오늘 날짜 기본값
+  document.getElementById('mOccurredAt').value = Portal.todayStr();
+
+  loadIssues();
+  loadTeamMembers();
+  loadSopDocs();
+
+  // 검색 debounce
+  document.getElementById('searchInput').addEventListener('input', (e) => {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => {
+      const q = e.target.value.trim();
+      if (q.length === 0) {
+        applyFilters();
+      } else {
+        searchIssues(q);
+      }
+    }, 300);
+  });
+
+  // SOP 검색 결과 외부 클릭 닫기
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#mSopSearch') && !e.target.closest('#sopSearchResults')) {
+      document.getElementById('sopSearchResults').classList.remove('open');
+    }
+  });
+}
+
+/* ── 팀원 목록 (담당자 드롭다운) ── */
+async function loadTeamMembers() {
+  try {
+    const r = await fetch('/tables/users?limit=100');
+    if (!r.ok) return;
+    const data = await r.json();
+    const users = (data.data || data.rows || data || []).filter(u => u.is_active !== false);
+    const sel = document.getElementById('mOwner');
+    sel.innerHTML = '<option value="">담당자 선택</option>' +
+      users.map(u => `<option value="${u.id}">${escHtml(u.full_name || u.username)}</option>`).join('');
+  } catch {}
+}
+
+/* ── SOP 문서 목록 캐시 ── */
+async function loadSopDocs() {
+  try {
+    const r = await fetch('/tables/kb_documents?limit=500');
+    if (!r.ok) return;
+    const data = await r.json();
+    allSopDocs = (data.data || data.rows || data || []).filter(d => d.is_published !== false);
+  } catch {}
+}
+
+/* ── 이슈 전체 로드 ── */
+async function loadIssues() {
+  document.getElementById('issueList').innerHTML =
+    '<div class="kb-loading"><div class="kb-spinner"></div> 로딩 중...</div>';
+  try {
+    const r = await fetch('/tables/kb_issues?limit=500');
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    allIssues = data.data || data.rows || data || [];
+    applyFilters();
+  } catch(e) {
+    document.getElementById('issueList').innerHTML =
+      '<div class="issue-list-empty"><i class="fas fa-exclamation-circle"></i><p>이슈를 불러오지 못했습니다.</p></div>';
+  }
+}
+
+/* ── 검색 ── */
+async function searchIssues(q) {
+  try {
+    const r = await fetch(`/tables/kb_issues?limit=500&search=${encodeURIComponent(q)}`);
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    renderIssueList(data.data || data.rows || data || [], q);
+  } catch(e) {
+    renderIssueList([], q);
+  }
+}
+
+/* ── 필터 적용 ── */
+function applyFilters() {
+  const catFilter = document.getElementById('filterCategory').value;
+  const sevFilter = document.getElementById('filterSeverity').value;
+  let filtered = [...allIssues];
+  if (catFilter) filtered = filtered.filter(i => i.category === catFilter);
+  if (sevFilter) filtered = filtered.filter(i => i.severity === sevFilter);
+  renderIssueList(filtered);
+}
+
+/* ── 이슈 목록 렌더링 ── */
+function renderIssueList(issues, query) {
+  const count = document.getElementById('listCount');
+  count.textContent = issues.length > 0 ? `${issues.length}개 이슈` : '';
+
+  if (!issues.length) {
+    const hasQuery = query && query.length > 0;
+    document.getElementById('issueList').innerHTML = `
+      <div class="issue-list-empty">
+        <i class="fas ${hasQuery ? 'fa-search' : 'fa-exclamation-circle'}"></i>
+        <p>${hasQuery ? `"${escHtml(query)}"에 대한 결과가 없습니다.` : '등록된 이슈가 없습니다.'}</p>
+        <button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="openNewIssueModal()">
+          <i class="fas fa-plus"></i> 이슈 등록
+        </button>
+      </div>`;
+    return;
+  }
+
+  // 최신 발생일 순 정렬
+  const sorted = [...issues].sort((a,b) => {
+    const ta = new Date(a.occurred_at || a.created_at || 0).getTime();
+    const tb = new Date(b.occurred_at || b.created_at || 0).getTime();
+    return tb - ta;
+  });
+
+  let html = '';
+  for (const issue of sorted) {
+    const active = issue.id === currentIssueId ? ' active' : '';
+    const sevLabel = { high: 'HIGH', medium: 'MED', low: 'LOW' }[issue.severity] || issue.severity || '-';
+    const sevCls   = issue.severity || 'low';
+    const tags = parseTags(issue.tags);
+    const tagHtml = tags.slice(0,3).map(t => `<span class="tag-chip" style="font-size:10.5px;padding:1px 7px;">#${escHtml(t)}</span>`).join('');
+    const more = tags.length > 3 ? `<span style="font-size:10.5px;color:var(--gray-400);">+${tags.length-3}</span>` : '';
+
+    html += `<div class="issue-item${active}" onclick="openIssue(${issue.id})" id="issueItem_${issue.id}">
+      <div class="issue-item-top">
+        <span class="sev-badge ${sevCls}">${sevLabel}</span>
+        <span class="issue-title">${escHtml(issue.title || '(제목 없음)')}</span>
+      </div>
+      <div class="issue-item-meta">
+        <span><i class="fas fa-calendar-alt" style="font-size:10px;"></i>${fmtShortDate(issue.occurred_at)}</span>
+        <span><i class="fas fa-tag" style="font-size:10px;"></i>${escHtml(issue.category || '-')}</span>
+        ${tagHtml}${more}
+      </div>
+    </div>`;
+  }
+  document.getElementById('issueList').innerHTML = html;
+}
+
+/* ── 이슈 상세 열기 ── */
+async function openIssue(issueId) {
+  currentIssueId = issueId;
+  document.querySelectorAll('.issue-item').forEach(el => el.classList.remove('active'));
+  const item = document.getElementById(`issueItem_${issueId}`);
+  if (item) item.classList.add('active');
+
+  document.getElementById('detailEmpty').style.display   = 'none';
+  document.getElementById('detailContent').style.display = 'block';
+  document.getElementById('detailContent').innerHTML =
+    '<div class="kb-loading" style="padding:60px;"><div class="kb-spinner"></div> 로딩 중...</div>';
+
+  switchMobileTab('detail', document.querySelector('#mobileTabs button:nth-child(2)'));
+
+  try {
+    const r = await fetch(`/tables/kb_issues/${issueId}`);
+    if (!r.ok) throw new Error();
+    const issue = await r.json();
+    renderIssueDetail(issue);
+    // 유사 이슈 비동기 로드
+    loadSimilarIssues(issueId);
+  } catch(e) {
+    document.getElementById('detailContent').innerHTML =
+      '<div class="issue-list-empty" style="padding:40px;"><i class="fas fa-exclamation-circle"></i><p>이슈를 불러오지 못했습니다.</p></div>';
+  }
+}
+
+/* ── 이슈 상세 렌더링 ── */
+function renderIssueDetail(issue) {
+  const canEdit   = isLeaderOrChief || (currentUser && issue.owner_id === currentUser.user_id);
+  const canDelete = isLeader;
+  const sevCls    = issue.severity || 'low';
+  const sevLabel  = { high: 'HIGH (높음)', medium: 'MEDIUM (중간)', low: 'LOW (낮음)' }[issue.severity] || issue.severity || '-';
+  const tags      = parseTags(issue.tags);
+
+  // 관련 SOP 링크
+  let sopLinkHtml = '';
+  if (issue.related_sop_id) {
+    const sopDoc = allSopDocs.find(d => d.id === issue.related_sop_id);
+    const sopTitle = sopDoc ? sopDoc.title : `SOP #${issue.related_sop_id}`;
+    sopLinkHtml = `<a class="issue-sop-link" href="kb-sop.html?doc=${issue.related_sop_id}">
+      <i class="fas fa-book"></i> 관련 SOP: ${escHtml(sopTitle)} <i class="fas fa-external-link-alt" style="font-size:10px;"></i>
+    </a>`;
+  }
+
+  // 태그 칩
+  const tagHtml = tags.length
+    ? `<div class="issue-tags">${tags.map(t => `<span class="tag-chip"><i class="fas fa-hashtag"></i>${escHtml(t)}</span>`).join('')}</div>`
+    : '';
+
+  // 수정/삭제 버튼
+  const editBtns = canEdit ? `
+    <button class="btn btn-secondary btn-sm" onclick="openEditIssueModal(${issue.id})">
+      <i class="fas fa-edit"></i> <span>수정</span>
+    </button>` : '';
+  const deleteBtns = canDelete ? `
+    <button class="btn btn-danger btn-sm" onclick="deleteIssue(${issue.id})">
+      <i class="fas fa-trash"></i> <span>삭제</span>
+    </button>` : '';
+
+  document.getElementById('detailContent').innerHTML = `
+    <div class="issue-detail-inner">
+      <div class="issue-detail-header">
+        <div class="issue-detail-title-row">
+          <span class="sev-badge ${sevCls}" style="padding:5px 10px;font-size:12px;border-radius:6px;">${sevLabel}</span>
+          <h1 class="issue-detail-title">${escHtml(issue.title || '(제목 없음)')}</h1>
+        </div>
+        <div class="issue-detail-meta">
+          <span class="issue-meta-item"><i class="fas fa-calendar-alt"></i>${fmtShortDate(issue.occurred_at)}</span>
+          <span class="issue-meta-item"><i class="fas fa-tag"></i>${escHtml(issue.category || '-')}</span>
+          <span class="issue-meta-item"><i class="fas fa-user"></i>${escHtml(issue.owner_name || issue.owner_id || '-')}</span>
+          <span class="issue-meta-item"><i class="fas fa-clock"></i>${Portal.formatDate(issue.created_at)}</span>
+        </div>
+        <div class="issue-detail-actions">
+          ${editBtns}
+          ${deleteBtns}
+        </div>
+      </div>
+
+      <!-- 태그 -->
+      ${tagHtml}
+
+      <!-- 관련 SOP -->
+      ${sopLinkHtml}
+
+      <!-- 아코디언 섹션 -->
+      <div class="issue-sections">
+        ${makeSection('증상', issue.symptom, 'red', 'fa-bug', true)}
+        ${makeSection('원인 분석', issue.root_cause, 'orange', 'fa-microscope', false)}
+        ${makeSection('해결 방법', issue.resolution, 'blue', 'fa-wrench', false)}
+        ${makeSection('재발 방지', issue.prevention, 'green', 'fa-shield-alt', false)}
+      </div>
+
+      <!-- 유사 이슈 -->
+      <div class="similar-section" id="similarSection">
+        <div class="similar-title"><i class="fas fa-link"></i> 유사 이슈</div>
+        <div class="similar-cards" id="similarCards">
+          <div style="font-size:13px;color:var(--gray-400);">유사 이슈 로딩 중...</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function makeSection(title, content, iconCls, iconFa, defaultOpen) {
+  const openCls = defaultOpen ? ' open' : '';
+  const bodyCls = defaultOpen ? ' open' : '';
+  return `<div class="issue-section">
+    <button class="issue-section-header${openCls}" onclick="toggleSection(this)">
+      <span class="sec-icon ${iconCls}"><i class="fas ${iconFa}"></i></span>
+      ${title}
+      <i class="fas fa-chevron-down sec-chevron"></i>
+    </button>
+    <div class="issue-section-body${bodyCls}">${escHtml(content || '내용 없음')}</div>
+  </div>`;
+}
+
+function toggleSection(btn) {
+  btn.classList.toggle('open');
+  const body = btn.nextElementSibling;
+  body.classList.toggle('open');
+}
+
+/* ── 유사 이슈 로드 ── */
+async function loadSimilarIssues(issueId) {
+  try {
+    const r = await fetch(`/api/kb/issues/${issueId}/similar`);
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    const similars = data.data || data.rows || data || [];
+    const cardsEl = document.getElementById('similarCards');
+    if (!cardsEl) return;
+    if (!similars.length) {
+      cardsEl.innerHTML = '<div style="font-size:13px;color:var(--gray-400);">유사한 이슈가 없습니다.</div>';
+      return;
+    }
+    cardsEl.innerHTML = similars.map(s => `
+      <div class="similar-card" onclick="openIssue(${s.id})">
+        <span class="sev-badge ${s.severity || 'low'}" style="font-size:10.5px;">${(s.severity||'LOW').toUpperCase()}</span>
+        <span class="similar-card-title">${escHtml(s.title || '(제목 없음)')}</span>
+        ${s.score ? `<span class="similar-score">유사도 ${Math.round(s.score * 100)}%</span>` : ''}
+      </div>`).join('');
+  } catch(e) {
+    const cardsEl = document.getElementById('similarCards');
+    if (cardsEl) cardsEl.innerHTML = '<div style="font-size:13px;color:var(--gray-400);">유사 이슈를 불러오지 못했습니다.</div>';
+  }
+}
+
+/* ── 신규/수정 모달 ── */
+function openNewIssueModal() {
+  editingIssueId = null;
+  inputTags      = [];
+  document.getElementById('issueModalTitle').innerHTML =
+    '<i class="fas fa-plus-circle" style="color:var(--warning);margin-right:8px;"></i>이슈 등록';
+  document.getElementById('mTitle').value       = '';
+  document.getElementById('mOccurredAt').value  = Portal.todayStr();
+  document.getElementById('mCategory').value    = '시스템';
+  document.getElementById('mSeverity').value    = 'medium';
+  document.getElementById('mOwner').value       = currentUser ? currentUser.user_id : '';
+  document.getElementById('mSymptom').value     = '';
+  document.getElementById('mRootCause').value   = '';
+  document.getElementById('mResolution').value  = '';
+  document.getElementById('mPrevention').value  = '';
+  document.getElementById('mSopSearch').value   = '';
+  document.getElementById('mRelatedSopId').value = '';
+  document.getElementById('selectedSopDisplay').style.display = 'none';
+  renderTagChips();
+  document.getElementById('issueModal').classList.add('show');
+}
+
+async function openEditIssueModal(issueId) {
+  editingIssueId = issueId;
+  try {
+    const r     = await fetch(`/tables/kb_issues/${issueId}`);
+    const issue = await r.json();
+    document.getElementById('issueModalTitle').innerHTML =
+      '<i class="fas fa-edit" style="color:var(--warning);margin-right:8px;"></i>이슈 수정';
+    document.getElementById('mTitle').value       = issue.title || '';
+    document.getElementById('mOccurredAt').value  = issue.occurred_at ? issue.occurred_at.split('T')[0] : '';
+    document.getElementById('mCategory').value    = issue.category || '기타';
+    document.getElementById('mSeverity').value    = issue.severity || 'medium';
+    document.getElementById('mOwner').value       = issue.owner_id || '';
+    document.getElementById('mSymptom').value     = issue.symptom || '';
+    document.getElementById('mRootCause').value   = issue.root_cause || '';
+    document.getElementById('mResolution').value  = issue.resolution || '';
+    document.getElementById('mPrevention').value  = issue.prevention || '';
+    inputTags = parseTags(issue.tags);
+    renderTagChips();
+
+    // 관련 SOP
+    if (issue.related_sop_id) {
+      document.getElementById('mRelatedSopId').value = issue.related_sop_id;
+      const sopDoc = allSopDocs.find(d => d.id === issue.related_sop_id);
+      if (sopDoc) selectSopDoc(sopDoc);
+    } else {
+      document.getElementById('mSopSearch').value = '';
+      document.getElementById('mRelatedSopId').value = '';
+      document.getElementById('selectedSopDisplay').style.display = 'none';
+    }
+
+    document.getElementById('issueModal').classList.add('show');
+  } catch(e) {
+    Portal.showToast('이슈를 불러오지 못했습니다.', 'error');
+  }
+}
+
+function closeIssueModal() {
+  document.getElementById('issueModal').classList.remove('show');
+}
+
+/* ── 태그 입력 처리 ── */
+function handleTagInput(e) {
+  const input = document.getElementById('tagRealInput');
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    const val = input.value.replace(/,/g, '').trim();
+    if (val && !inputTags.includes(val)) {
+      inputTags.push(val);
+      renderTagChips();
+    }
+    input.value = '';
+  } else if (e.key === 'Backspace' && !input.value && inputTags.length) {
+    inputTags.pop();
+    renderTagChips();
+  }
+}
+
+function removeTag(idx) {
+  inputTags.splice(idx, 1);
+  renderTagChips();
+}
+
+function renderTagChips() {
+  document.getElementById('tagChips').innerHTML = inputTags.map((t, i) =>
+    `<span class="tag-chip-editable">#${escHtml(t)}<button type="button" onclick="removeTag(${i})"><i class="fas fa-times"></i></button></span>`
+  ).join('');
+}
+
+/* ── SOP 문서 검색 ── */
+function searchSopDocs(q) {
+  clearTimeout(sopSearchDelay);
+  const results = document.getElementById('sopSearchResults');
+  if (!q.trim()) { results.classList.remove('open'); return; }
+  sopSearchDelay = setTimeout(() => {
+    const matches = allSopDocs.filter(d =>
+      (d.title || '').toLowerCase().includes(q.toLowerCase())
+    ).slice(0, 10);
+    if (!matches.length) {
+      results.innerHTML = '<div class="sop-result-item" style="color:var(--gray-400);">결과 없음</div>';
+    } else {
+      results.innerHTML = matches.map(d =>
+        `<div class="sop-result-item" onclick="selectSopDoc(${JSON.stringify({id:d.id,title:d.title})})">${escHtml(d.title)}</div>`
+      ).join('');
+    }
+    results.classList.add('open');
+  }, 250);
+}
+
+function selectSopDoc(doc) {
+  if (typeof doc === 'string') doc = JSON.parse(doc);
+  document.getElementById('mRelatedSopId').value = doc.id;
+  document.getElementById('mSopSearch').value    = '';
+  document.getElementById('sopSearchResults').classList.remove('open');
+  document.getElementById('selectedSopName').textContent = doc.title;
+  document.getElementById('selectedSopDisplay').style.display = 'block';
+}
+
+function clearSopSelection() {
+  document.getElementById('mRelatedSopId').value = '';
+  document.getElementById('selectedSopDisplay').style.display = 'none';
+  document.getElementById('mSopSearch').value = '';
+}
+
+/* ── 이슈 저장 ── */
+async function saveIssue() {
+  const title      = document.getElementById('mTitle').value.trim();
+  const occurredAt = document.getElementById('mOccurredAt').value;
+  const category   = document.getElementById('mCategory').value;
+  const severity   = document.getElementById('mSeverity').value;
+  const owner_id   = document.getElementById('mOwner').value;
+  const symptom    = document.getElementById('mSymptom').value.trim();
+  const root_cause = document.getElementById('mRootCause').value.trim();
+  const resolution = document.getElementById('mResolution').value.trim();
+  const prevention = document.getElementById('mPrevention').value.trim();
+  const relSopId   = document.getElementById('mRelatedSopId').value;
+  const tags       = inputTags.join(',');
+
+  if (!title)      { Portal.showToast('제목을 입력해주세요.', 'warning'); return; }
+  if (!symptom)    { Portal.showToast('증상을 입력해주세요.', 'warning'); return; }
+  if (!resolution) { Portal.showToast('해결 방법을 입력해주세요.', 'warning'); return; }
+
+  const btn = document.getElementById('saveIssueBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 저장 중...';
+
+  const body = {
+    title,
+    occurred_at: occurredAt,
+    category,
+    severity,
+    owner_id:        owner_id || null,
+    symptom,
+    root_cause:      root_cause || null,
+    resolution,
+    prevention:      prevention || null,
+    related_sop_id:  relSopId ? parseInt(relSopId, 10) : null,
+    tags:            tags || null
+  };
+  if (!editingIssueId) body.author_id = currentUser ? currentUser.user_id : null;
+
+  try {
+    let r;
+    if (editingIssueId) {
+      r = await fetch(`/tables/kb_issues/${editingIssueId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+    } else {
+      r = await fetch('/tables/kb_issues', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+    }
+    if (!r.ok) throw new Error('저장 실패');
+    const saved = await r.json();
+    Portal.showToast(editingIssueId ? '이슈가 수정되었습니다.' : '이슈가 등록되었습니다.', 'success');
+    closeIssueModal();
+    await loadIssues();
+    const newId = saved.id || editingIssueId;
+    if (newId) openIssue(newId);
+  } catch(e) {
+    Portal.showToast('저장 중 오류가 발생했습니다.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save"></i> 저장';
+  }
+}
+
+/* ── 이슈 삭제 ── */
+function deleteIssue(issueId) {
+  Portal.confirm('이 이슈를 삭제하시겠습니까? 삭제된 이슈는 복구할 수 없습니다.', async () => {
+    try {
+      const r = await fetch(`/tables/kb_issues/${issueId}`, { method: 'DELETE' });
+      if (!r.ok) throw new Error();
+      Portal.showToast('이슈가 삭제되었습니다.', 'success');
+      currentIssueId = null;
+      document.getElementById('detailEmpty').style.display   = 'flex';
+      document.getElementById('detailContent').style.display = 'none';
+      await loadIssues();
+    } catch(e) {
+      Portal.showToast('삭제 중 오류가 발생했습니다.', 'error');
+    }
+  });
+}
+
+/* ── 모바일 탭 ── */
+function switchMobileTab(tab, btn) {
+  if (window.innerWidth > 768) return;
+  document.querySelectorAll('#mobileTabs button').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.getElementById('listPanel').classList.remove('mob-active');
+  document.getElementById('detailPanel').classList.remove('mob-active');
+  if (tab === 'list')   document.getElementById('listPanel').classList.add('mob-active');
+  if (tab === 'detail') document.getElementById('detailPanel').classList.add('mob-active');
+}
+
+// 모달 배경 클릭 닫기
+document.getElementById('issueModal').addEventListener('click', function(e) {
+  if (e.target === this) closeIssueModal();
+});
+
+/* ── 유틸 ── */
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function fmtShortDate(ts) {
+  if (!ts) return '-';
+  const d = new Date(ts);
+  if (isNaN(d)) return String(ts);
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${d.getFullYear()}.${mm}.${dd}`;
+}
+
+function parseTags(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  return String(raw).split(',').map(t => t.trim()).filter(Boolean);
+}
+</script>
+</body>
+</html>

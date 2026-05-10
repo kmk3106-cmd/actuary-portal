@@ -49,6 +49,13 @@ const Portal = (() => {
       ]
     },
     {
+      section: '지식관리',
+      items: [
+        { href: 'kb-sop.html',    icon: 'fa-book',                  label: 'SOP 문서' },
+        { href: 'kb-issues.html', icon: 'fa-exclamation-triangle',  label: '이슈 사례집' }
+      ]
+    },
+    {
       section: '시스템',
       items: [
         { href: 'bot-status.html', icon: 'fa-paper-plane', label: '텔레그램 봇' },
