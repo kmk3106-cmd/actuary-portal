@@ -173,7 +173,11 @@ function migrateDb(db) {
     'settle_items','score_rules','kpi_definitions','task_categories',
     // ── Phase 1: 업무량 모니터링 ──
     'business_days','business_days_monthly','daily_work_entries',
-    'workload_daily_cache','workload_thresholds'
+    'workload_daily_cache','workload_thresholds',
+    // ── Phase 4: 지식관리 (KB) ──
+    'kb_categories','kb_documents','kb_document_versions','kb_issues',
+    'kb_handovers','kb_handover_items',
+    'kb_onboarding_tracks','kb_onboarding_milestones'
   ];
   for (const table of requiredTables) {
     if (!Array.isArray(db[table])) {
@@ -368,6 +372,22 @@ function migrateDb(db) {
     }];
     changed = true;
   }
+  // ── Phase 4: KB 카테고리 시드 (계층) ──
+  if (!db.kb_categories.length) {
+    const cats = [
+      { id:'kbc_settlement', name:'결산',       parent_id:null, display_order:1 },
+      { id:'kbc_settle_monthly', name:'월결산', parent_id:'kbc_settlement', display_order:1 },
+      { id:'kbc_settle_quarterly', name:'분기결산', parent_id:'kbc_settlement', display_order:2 },
+      { id:'kbc_settle_year', name:'연결산',   parent_id:'kbc_settlement', display_order:3 },
+      { id:'kbc_validation', name:'검증·리뷰', parent_id:null, display_order:2 },
+      { id:'kbc_reporting',  name:'보고서·산출물', parent_id:null, display_order:3 },
+      { id:'kbc_automation', name:'자동화·시스템', parent_id:null, display_order:4 },
+      { id:'kbc_regulation', name:'규정·기준', parent_id:null, display_order:5 },
+      { id:'kbc_etc',        name:'기타',     parent_id:null, display_order:99 },
+    ];
+    db.kb_categories = cats.map(c => ({ ...c, created_at: t, updated_at: t }));
+    changed = true;
+  }
   // ── Phase 2: 기존 work_tasks → daily_work_entries 자동 변환 (한 번만) ──
   if (!db._meta) db._meta = {};
   if (!db._meta.migrated_work_tasks_to_daily) {
@@ -524,7 +544,29 @@ function handleTablesRequest(route, method, bodyStr) {
       const idx = collection.findIndex(x => String(x.id) === String(route.id));
       if (idx === -1) return { status: 404, body: { error: 'Not found' } };
       const before = collection[idx];
-      const updated = { ...before, ...body, id: before.id, updated_at: now() };
+      // ── Phase 4: kb_documents content 변경 시 자동 버전 스냅샷 ──
+      let nextVersion = before.version || 1;
+      if (table === 'kb_documents' && body && Object.prototype.hasOwnProperty.call(body, 'content')
+          && before.content !== body.content) {
+        db.kb_document_versions.push({
+          id: createId('kbv'),
+          document_id: before.id,
+          version: before.version || 1,
+          title: before.title,
+          content: before.content,
+          modified_by: before.author_id || null,
+          modified_at: before.updated_at || now(),
+          change_note: (body.change_note ? String(body.change_note) : ''),
+          created_at: now(),
+          updated_at: now(),
+        });
+        nextVersion = (before.version || 1) + 1;
+      }
+      const updated = {
+        ...before, ...body, id: before.id,
+        ...(table === 'kb_documents' ? { version: nextVersion } : {}),
+        updated_at: now(),
+      };
       db[table][idx] = updated;
       if (table === 'business_days' && updated.calendar_date) {
         const y = parseInt(updated.calendar_date.slice(0, 4), 10);
@@ -796,6 +838,154 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ last_alive: null, status: 'unknown', pid: null }));
       }
     });
+    return;
+  }
+
+  // ── Phase 4: KB 전용 API ──
+  if (urlPath.startsWith('/api/kb/')) {
+    const u = new URL(urlPath, 'http://internal');
+    const subpath = u.pathname.slice('/api/kb/'.length);
+    const sp = u.searchParams;
+    const send = (status, body) => {
+      res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(body));
+    };
+    const readBody = () => new Promise((resolve, reject) => {
+      const chunks = [];
+      req.on('data', c => chunks.push(c));
+      req.on('end', () => {
+        try { resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : null); }
+        catch (e) { reject(e); }
+      });
+      req.on('error', reject);
+    });
+
+    (async () => {
+      try {
+        // POST /api/kb/documents/:id/helpful — 유용성 카운터 증가
+        const helpfulMatch = subpath.match(/^documents\/([^/]+)\/helpful$/);
+        if (req.method === 'POST' && helpfulMatch) {
+          const docId = decodeURIComponent(helpfulMatch[1]);
+          await withDb(db => {
+            const idx = db.kb_documents.findIndex(d => d.id === docId);
+            if (idx === -1) return send(404, { error: 'Document not found' });
+            db.kb_documents[idx].helpful_count = (db.kb_documents[idx].helpful_count || 0) + 1;
+            db.kb_documents[idx].updated_at = now();
+            writeDb(db);
+            send(200, { id: docId, helpful_count: db.kb_documents[idx].helpful_count });
+          });
+          return;
+        }
+
+        // POST /api/kb/documents/:id/view — 조회수 증가 (선택)
+        const viewMatch = subpath.match(/^documents\/([^/]+)\/view$/);
+        if (req.method === 'POST' && viewMatch) {
+          const docId = decodeURIComponent(viewMatch[1]);
+          await withDb(db => {
+            const idx = db.kb_documents.findIndex(d => d.id === docId);
+            if (idx === -1) return send(404, { error: 'Document not found' });
+            db.kb_documents[idx].view_count = (db.kb_documents[idx].view_count || 0) + 1;
+            db.kb_documents[idx].updated_at = now();
+            writeDb(db);
+            send(200, { id: docId, view_count: db.kb_documents[idx].view_count });
+          });
+          return;
+        }
+
+        // GET /api/kb/documents/:id/versions — 버전 목록
+        const versionsMatch = subpath.match(/^documents\/([^/]+)\/versions$/);
+        if (req.method === 'GET' && versionsMatch) {
+          const docId = decodeURIComponent(versionsMatch[1]);
+          await withDb(db => {
+            const versions = (db.kb_document_versions || [])
+              .filter(v => v.document_id === docId)
+              .sort((a, b) => (b.version || 0) - (a.version || 0));
+            send(200, { document_id: docId, versions });
+          });
+          return;
+        }
+
+        // GET /api/kb/issues/:id/similar — 태그/카테고리 기반 유사
+        const similarMatch = subpath.match(/^issues\/([^/]+)\/similar$/);
+        if (req.method === 'GET' && similarMatch) {
+          const issueId = decodeURIComponent(similarMatch[1]);
+          await withDb(db => {
+            const target = (db.kb_issues || []).find(i => i.id === issueId);
+            if (!target) return send(404, { error: 'Issue not found' });
+            const targetTags = String(target.tags || '').split(',').map(s => s.trim()).filter(Boolean);
+            const scored = (db.kb_issues || [])
+              .filter(i => i.id !== issueId)
+              .map(i => {
+                const itTags = String(i.tags || '').split(',').map(s => s.trim()).filter(Boolean);
+                const tagOverlap = targetTags.filter(t => itTags.includes(t)).length;
+                const catMatch = i.category && i.category === target.category ? 1 : 0;
+                return { issue: i, score: tagOverlap * 2 + catMatch };
+              })
+              .filter(x => x.score > 0)
+              .sort((a, b) => b.score - a.score)
+              .slice(0, 10)
+              .map(x => ({ ...x.issue, _similarity: x.score }));
+            send(200, { source_id: issueId, similar: scored });
+          });
+          return;
+        }
+
+        // POST /api/kb/upload — 첨부파일 업로드 (base64 JSON)
+        // body: { filename, content (base64), context?: 'sop'|'issue'|'handover' }
+        if (req.method === 'POST' && subpath === 'upload') {
+          const body = await readBody();
+          if (!body || !body.filename || !body.content) {
+            return send(400, { error: 'filename / content (base64) 필수' });
+          }
+          const safeOriginal = String(body.filename).replace(/[\\/]/g, '_');
+          const ext = path.extname(safeOriginal).toLowerCase();
+          const allowed = ['.pdf','.xlsx','.xls','.docx','.doc','.png','.jpg','.jpeg','.csv','.txt','.zip'];
+          if (!allowed.includes(ext)) {
+            return send(400, { error: '허용되지 않은 확장자: ' + ext });
+          }
+          const uploadsDir = path.join(__dirname, 'data', 'kb_files');
+          fs.mkdirSync(uploadsDir, { recursive: true });
+          const stored = `${Date.now()}_${crypto.randomBytes(4).toString('hex')}${ext}`;
+          const fullPath = path.join(uploadsDir, stored);
+          fs.writeFileSync(fullPath, Buffer.from(body.content, 'base64'));
+          const stat = fs.statSync(fullPath);
+          send(200, {
+            stored_name: stored,
+            original_name: safeOriginal,
+            size: stat.size,
+            url: `/api/kb/download/${encodeURIComponent(stored)}`,
+            ext,
+          });
+          return;
+        }
+
+        // GET /api/kb/download/:storedName — 첨부파일 다운로드
+        const downloadMatch = subpath.match(/^download\/([^/]+)$/);
+        if (req.method === 'GET' && downloadMatch) {
+          const stored = decodeURIComponent(downloadMatch[1]);
+          if (stored.includes('/') || stored.includes('\\') || stored.includes('..')) {
+            return send(400, { error: 'Bad filename' });
+          }
+          const fullPath = path.join(__dirname, 'data', 'kb_files', stored);
+          fs.stat(fullPath, (err, st) => {
+            if (err || !st.isFile()) { res.writeHead(404); res.end('Not found'); return; }
+            const ext = path.extname(stored).toLowerCase();
+            const ct = MIME[ext] || 'application/octet-stream';
+            res.writeHead(200, {
+              'Content-Type': ct,
+              'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(stored)}`,
+              'Content-Length': st.size,
+            });
+            fs.createReadStream(fullPath).pipe(res);
+          });
+          return;
+        }
+
+        send(404, { error: 'Unknown KB endpoint' });
+      } catch (e) {
+        send(500, { error: String(e.message || e) });
+      }
+    })();
     return;
   }
 
