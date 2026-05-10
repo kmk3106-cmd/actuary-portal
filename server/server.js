@@ -1003,6 +1003,117 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // ── Phase 7-2: 시간대 입력 검증/충돌/분산 미리보기 API ──
+  if (urlPath.startsWith('/api/tasks/')) {
+    const u = new URL(urlPath, 'http://internal');
+    const subpath = u.pathname.slice('/api/tasks/'.length);
+    const send = (status, body) => {
+      res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(body));
+    };
+    const readBody = () => new Promise((resolve, reject) => {
+      const chunks = [];
+      req.on('data', c => chunks.push(c));
+      req.on('end', () => {
+        try { resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : null); }
+        catch (e) { reject(e); }
+      });
+      req.on('error', reject);
+    });
+
+    (async () => {
+      try {
+        // POST /api/tasks/validate-time — time_entries 또는 from/to 검증
+        if (req.method === 'POST' && subpath === 'validate-time') {
+          const body = await readBody();
+          if (!body) return send(400, { error: 'body 필수' });
+          await withDb(db => {
+            const bizMap = bizday.indexBusinessDays(db.business_days);
+            let entries = body.time_entries;
+            if (!entries && body.start_date && body.end_date && body.start_time && body.end_time) {
+              try {
+                entries = timeentry.buildEntriesFromRange(
+                  body.start_date, body.end_date, body.start_time, body.end_time
+                );
+              } catch (e) {
+                return send(200, { ok: false, errors: [e.message], warnings: [], entries: [] });
+              }
+            }
+            if (!Array.isArray(entries) || entries.length === 0) {
+              return send(200, { ok: false, errors: ['time_entries 또는 start_date/end_date/start_time/end_time 필수'], warnings: [], entries: [] });
+            }
+            const entry_results = entries.map(e => ({
+              entry: e,
+              ...timeentry.validateEntry(e, bizMap),
+            }));
+            const allErrors = entry_results.flatMap(r => r.errors);
+            const allWarnings = entry_results.flatMap(r => r.warnings);
+            const summary = timeentry.summarize(entries);
+            send(200, {
+              ok: allErrors.length === 0,
+              errors: allErrors,
+              warnings: allWarnings,
+              entries,
+              summary,
+              entry_results,
+            });
+          });
+          return;
+        }
+
+        // POST /api/tasks/conflicts — 동일 사용자 시간대 겹침 체크
+        if (req.method === 'POST' && subpath === 'conflicts') {
+          const body = await readBody();
+          if (!body || !body.member_name || !Array.isArray(body.time_entries)) {
+            return send(400, { error: 'member_name, time_entries 필수' });
+          }
+          await withDb(db => {
+            const conflicts = timeentry.findOverlaps(
+              db, body.member_name, body.time_entries, body.exclude_entry_id
+            );
+            send(200, { conflicts });
+          });
+          return;
+        }
+
+        // POST /api/tasks/spread — 분산 미리보기 (총 분량 + 종료일 → 시간대 배열)
+        // body: { total_minutes, end_date }
+        // 또는: { start_date, end_date, start_time, end_time }
+        if (req.method === 'POST' && subpath === 'spread') {
+          const body = await readBody();
+          if (!body) return send(400, { error: 'body 필수' });
+          await withDb(db => {
+            const bizMap = bizday.indexBusinessDays(db.business_days);
+            let entries = [];
+            try {
+              if (body.start_date && body.end_date && body.start_time && body.end_time) {
+                entries = timeentry.buildEntriesFromRange(
+                  body.start_date, body.end_date, body.start_time, body.end_time
+                );
+              } else if (Number(body.total_minutes) > 0 && body.end_date) {
+                entries = timeentry.spreadMinutesAcrossBusinessDays(
+                  Number(body.total_minutes), body.end_date, bizMap
+                );
+              } else {
+                return send(400, { error: 'total_minutes+end_date 또는 from/to 필수' });
+              }
+            } catch (e) {
+              return send(400, { error: String(e.message || e) });
+            }
+            const summary = timeentry.summarize(entries);
+            send(200, { entries, summary });
+          });
+          return;
+        }
+
+        send(404, { error: 'Unknown tasks endpoint' });
+      } catch (e) {
+        send(500, { error: String(e.message || e) });
+      }
+    })();
+    return;
+  }
+
   // ── Phase 4: KB 전용 API ──
   if (urlPath.startsWith('/api/kb/')) {
     const u = new URL(urlPath, 'http://internal');
