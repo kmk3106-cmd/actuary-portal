@@ -237,6 +237,17 @@
       .nav-btn { width:30px; height:30px; font-size:12px; }
     }
 
+    /* ── 모바일 칩 +N 뱃지 ──────────────────────────── */
+    .day-task-chip-more {
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700;
+      padding: 1px 5px; border-radius: 4px;
+      background: #e5e7eb; color: #6b7280;
+      cursor: pointer; line-height: 1.5;
+      transition: background .15s;
+    }
+    .day-task-chip-more:hover { background: #d1d5db; color: #374151; }
+
     /* Stats strip */
     .stats-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
     .stat-mini { background:#fff; border-radius:12px; padding:14px 16px; border:1px solid #f3f4f6;
@@ -254,8 +265,8 @@
       overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2); }
     .modal-header { padding:24px 28px 0; display:flex; justify-content:space-between; align-items:center; }
     .modal-title { font-size:18px; font-weight:700; color:#111827; }
-    .modal-close { width:32px; height:32px; border-radius:8px; border:none; background:#f3f4f6;
-      cursor:pointer; font-size:16px; color:#6b7280; display:flex; align-items:center; justify-content:center; }
+    .modal-close { width:44px; height:44px; border-radius:8px; border:none; background:#f3f4f6;
+      cursor:pointer; font-size:14px; color:#6b7280; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
     .modal-body { padding:20px 28px 28px; }
     .form-group { margin-bottom:16px; }
     .form-label { font-size:13px; font-weight:600; color:#374151; margin-bottom:6px; display:block; }
@@ -620,6 +631,13 @@
     }
   }
 
+  // 리사이즈 시 모바일/데스크톱 전환에 맞춰 달력 재렌더 (debounce 200ms)
+  let _calResizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(_calResizeTimer);
+    _calResizeTimer = setTimeout(() => { renderCalendar(); }, 200);
+  });
+
   function monthTasks() {
     const ym = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
     return allTasks.filter(t => t.date && t.date.startsWith(ym) && activeCats.has(t.category || '기타'));
@@ -705,7 +723,11 @@
       const tasksForDay = taskMap[dateStr] || [];
       const taskWrap = document.createElement('div');
       taskWrap.className = 'day-tasks';
-      const maxShow = 3;
+
+      // 모바일(480px 이하)이면 칩 1개만 표시 + +N 뱃지, 데스크톱은 기존 3개
+      const isMobileView = window.matchMedia('(max-width:480px)').matches;
+      const maxShow = isMobileView ? 1 : 3;
+
       tasksForDay.slice(0, maxShow).forEach(t => {
         const chip = document.createElement('div');
         const catKey = t.category || '기타';
@@ -715,31 +737,62 @@
         chip.onclick = (e) => { e.stopPropagation(); openEditModal(t.id); };
         taskWrap.appendChild(chip);
       });
-      if (tasksForDay.length > maxShow) {
-        const more = document.createElement('div');
-        more.className = 'more-tasks';
-        more.textContent = `+${tasksForDay.length - maxShow}개 더`;
-        taskWrap.appendChild(more);
-      }
+
+      // 숨겨진 나머지 칩 수 계산 (+마감/체크리스트 칩을 합산하기 위해 뒤에서 처리)
+      const hiddenTaskCount = tasksForDay.length - maxShow;
+
       // Add due date chips
       const dueTasks = scheduleDueDates[dateStr] || [];
-      if (dueTasks.length > 0 && !isOther) {
-        const chip = document.createElement('div');
-        chip.className = 'day-task-chip chip-마감';
-        chip.textContent = dueTasks.length === 1 ? `D+${dueTasks[0].due} ${dueTasks[0].label}` : `마감 ${dueTasks.length}건`;
-        chip.title = dueTasks.map(t => `D+${t.due} ${t.label}`).join('\n');
-        taskWrap.appendChild(chip);
+      const dueChipVisible = dueTasks.length > 0 && !isOther;
+      if (dueChipVisible) {
+        if (isMobileView) {
+          // 모바일: 마감 칩도 +N으로 통합 (아래에서 합산)
+        } else {
+          const chip = document.createElement('div');
+          chip.className = 'day-task-chip chip-마감';
+          chip.textContent = dueTasks.length === 1 ? `D+${dueTasks[0].due} ${dueTasks[0].label}` : `마감 ${dueTasks.length}건`;
+          chip.title = dueTasks.map(t => `D+${t.due} ${t.label}`).join('\n');
+          taskWrap.appendChild(chip);
+        }
       }
       // Add checklist completion chips
+      const chklItemsForDay = !isOther ? (chklChipMap[dateStr] || []) : [];
       if (!isOther) {
-        (chklChipMap[dateStr] || []).forEach(ct => {
-          const chip = document.createElement('div');
-          chip.className = `day-task-chip chip-chkl-${ct.status}`;
-          chip.textContent = `(${ct.status}) ${ct.taskLabel}`;
-          chip.title = `결산업무 완료: ${ct.taskLabel}`;
-          taskWrap.appendChild(chip);
-        });
+        if (isMobileView) {
+          // 모바일: 체크리스트 칩도 +N으로 통합 (아래에서 합산)
+        } else {
+          chklItemsForDay.forEach(ct => {
+            const chip = document.createElement('div');
+            chip.className = `day-task-chip chip-chkl-${ct.status}`;
+            chip.textContent = `(${ct.status}) ${ct.taskLabel}`;
+            chip.title = `결산업무 완료: ${ct.taskLabel}`;
+            taskWrap.appendChild(chip);
+          });
+        }
       }
+
+      // 모바일: 숨겨진 칩 수(일반 + 마감 + 체크리스트) 합산 후 +N 뱃지 렌더
+      if (isMobileView) {
+        const totalExtra = hiddenTaskCount
+          + (dueChipVisible ? dueTasks.length : 0)
+          + chklItemsForDay.length;
+        if (totalExtra > 0) {
+          const badge = document.createElement('div');
+          badge.className = 'day-task-chip-more';
+          badge.textContent = `+${totalExtra}`;
+          badge.title = `${totalExtra}건 더 보기`;
+          const captureDateStr = dateStr;
+          badge.onclick = (e) => { e.stopPropagation(); selectedDate = captureDateStr; showDayPanel(captureDateStr); };
+          taskWrap.appendChild(badge);
+        }
+      } else if (hiddenTaskCount > 0) {
+        // 데스크톱: 기존 more-tasks 표시
+        const more = document.createElement('div');
+        more.className = 'more-tasks';
+        more.textContent = `+${hiddenTaskCount}개 더`;
+        taskWrap.appendChild(more);
+      }
+
       cell.appendChild(taskWrap);
 
       cell.onclick = () => { selectedDate = dateStr; showDayPanel(dateStr); };

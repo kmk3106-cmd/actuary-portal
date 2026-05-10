@@ -142,8 +142,8 @@
       overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2); }
     .modal-header { padding:24px 28px 0; display:flex; justify-content:space-between; align-items:center; }
     .modal-title { font-size:18px; font-weight:700; color:#111827; }
-    .modal-close { width:32px; height:32px; border-radius:8px; border:none; background:#f3f4f6;
-      cursor:pointer; font-size:16px; color:#6b7280; display:flex; align-items:center; justify-content:center; }
+    .modal-close { width:44px; height:44px; border-radius:8px; border:none; background:#f3f4f6;
+      cursor:pointer; font-size:14px; color:#6b7280; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
     .modal-body { padding:20px 28px 28px; }
     .form-group { margin-bottom:14px; }
     .form-label { font-size:13px; font-weight:600; color:#374151; margin-bottom:5px; display:block; }
@@ -222,10 +222,10 @@
 
       <!-- 뷰 탭 -->
       <div class="view-tabs">
-        <div class="view-tab active" id="tabTable" onclick="switchView('table')">
+        <div class="view-tab active" id="tabTable" onclick="switchViewUser('table')">
           <i class="fas fa-table"></i> 팀 종합표
         </div>
-        <div class="view-tab" id="tabCard" onclick="switchView('card')">
+        <div class="view-tab" id="tabCard" onclick="switchViewUser('card')">
           <i class="fas fa-id-card"></i> 개인 평가 카드
         </div>
       </div>
@@ -819,12 +819,37 @@ function render() {
   renderCards(records);
 }
 
-function switchView(view) {
+// 사용자가 직접 탭을 클릭했는지 추적 — true면 리사이즈 시 자동전환 무시
+let userPickedTab = false;
+
+function switchView(view, fromUser) {
   document.getElementById('viewTable').style.display = view === 'table' ? 'block' : 'none';
   document.getElementById('viewCard').style.display = view === 'card' ? 'block' : 'none';
   document.getElementById('tabTable').classList.toggle('active', view === 'table');
   document.getElementById('tabCard').classList.toggle('active', view === 'card');
+  if (fromUser) userPickedTab = true;
 }
+
+// 뷰 탭 클릭 핸들러 래퍼 — HTML onclick에서 호출하는 기존 인터페이스를 유지하면서
+// fromUser=true 플래그를 주입한다
+function switchViewUser(view) { switchView(view, true); }
+
+// 모바일 자동 탭 전환: 768px 이하이면 카드 탭으로 자동 전환
+function autoSwitchTabForScreen() {
+  if (userPickedTab) return;
+  if (window.matchMedia('(max-width:768px)').matches) {
+    switchView('card', false);
+  } else {
+    switchView('table', false);
+  }
+}
+
+// 리사이즈 시 자동 전환 (debounce 200ms, userPickedTab=true면 무시)
+let _perfResizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_perfResizeTimer);
+  _perfResizeTimer = setTimeout(() => { autoSwitchTabForScreen(); }, 200);
+});
 
 function openEditModal(id) {
   const r = allRecords.find(x => x.id === id);
@@ -1054,6 +1079,8 @@ document.getElementById('perfModal').addEventListener('click', e => {
 });
 
 buildSelects();
+// 페이지 로드 시 모바일이면 카드 탭으로 자동 전환
+autoSwitchTabForScreen();
 loadConfigRules().then(() => loadRecords());
 </script>
 </body>
