@@ -6,6 +6,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { execFile } = require('child_process');
 const bizday = require('./lib/bizday');
+const workload = require('./lib/workload');
 
 // .env 로드 (dotenv 없이 직접 파싱)
 function loadEnv() {
@@ -46,6 +47,13 @@ const MIME = {
 };
 
 function now() { return Date.now(); }
+
+function isoOf(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
 
 function createId(table) {
   return `${table.slice(0, 3)}_${crypto.randomBytes(8).toString('hex')}`;
@@ -360,6 +368,42 @@ function migrateDb(db) {
     }];
     changed = true;
   }
+  // ── Phase 2: 기존 work_tasks → daily_work_entries 자동 변환 (한 번만) ──
+  if (!db._meta) db._meta = {};
+  if (!db._meta.migrated_work_tasks_to_daily) {
+    let inserted = 0;
+    for (const wt of (db.work_tasks || [])) {
+      const member = wt.member_name;
+      if (!member) continue;
+      const dates = wt.settlement_dates || {};
+      const times = wt.settlement_times || {};
+      // 결산 항목별 일자/소요시간 → 일별 엔트리
+      for (const [settleId, dateStr] of Object.entries(dates)) {
+        if (!dateStr) continue;
+        const minutes = Number(times[settleId]) || 0;
+        if (minutes <= 0) continue;
+        const settleItem = (db.settle_items || []).find(s => s.id === settleId);
+        const label = settleItem ? settleItem.label : settleId;
+        db.daily_work_entries.push({
+          id: `dwe_settle_${member}_${settleId}_${dateStr}`,
+          user_id: null,
+          member_name: member,
+          work_date: dateStr,
+          task_category_id: null,
+          task_label: label,
+          duration_minutes: minutes,
+          source: 'settlement_auto',
+          settle_item_id: settleId,
+          note: '결산 체크리스트에서 자동 변환',
+          created_at: t,
+          updated_at: t,
+        });
+        inserted++;
+      }
+    }
+    db._meta.migrated_work_tasks_to_daily = { at: t, inserted };
+    if (inserted > 0) changed = true;
+  }
   if (changed) writeDb(db);
 }
 
@@ -468,6 +512,10 @@ function handleTablesRequest(route, method, bodyStr) {
         const y = parseInt(created.calendar_date.slice(0, 4), 10);
         recomputeMonthlyCache(db, [y]);
       }
+      // daily_work_entries 변경 → workload_daily_cache 재계산
+      if (table === 'daily_work_entries' && created.member_name && created.work_date) {
+        workload.upsertCacheRow(db, created.member_name, created.work_date);
+      }
       writeDb(db);
       return { status: 201, body: created };
     }
@@ -475,11 +523,21 @@ function handleTablesRequest(route, method, bodyStr) {
     if ((method === 'PATCH' || method === 'PUT') && route.id) {
       const idx = collection.findIndex(x => String(x.id) === String(route.id));
       if (idx === -1) return { status: 404, body: { error: 'Not found' } };
-      const updated = { ...collection[idx], ...body, id: collection[idx].id, updated_at: now() };
+      const before = collection[idx];
+      const updated = { ...before, ...body, id: before.id, updated_at: now() };
       db[table][idx] = updated;
       if (table === 'business_days' && updated.calendar_date) {
         const y = parseInt(updated.calendar_date.slice(0, 4), 10);
         recomputeMonthlyCache(db, [y]);
+      }
+      if (table === 'daily_work_entries') {
+        // 일자나 멤버가 바뀌었으면 양쪽 모두 재계산
+        if (before.member_name && before.work_date) {
+          workload.upsertCacheRow(db, before.member_name, before.work_date);
+        }
+        if (updated.member_name && updated.work_date) {
+          workload.upsertCacheRow(db, updated.member_name, updated.work_date);
+        }
       }
       writeDb(db);
       return { status: 200, body: updated };
@@ -493,6 +551,9 @@ function handleTablesRequest(route, method, bodyStr) {
       if (table === 'business_days' && removed && removed.calendar_date) {
         const y = parseInt(removed.calendar_date.slice(0, 4), 10);
         recomputeMonthlyCache(db, [y]);
+      }
+      if (table === 'daily_work_entries' && removed && removed.member_name && removed.work_date) {
+        workload.upsertCacheRow(db, removed.member_name, removed.work_date);
       }
       writeDb(db);
       return { status: 200, body: { success: true } };
@@ -735,6 +796,103 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ last_alive: null, status: 'unknown', pid: null }));
       }
     });
+    return;
+  }
+
+  // ── Phase 2: 업무량 모니터링 API ──
+  if (urlPath.startsWith('/api/workload/')) {
+    const u = new URL(urlPath, 'http://internal');
+    const subpath = u.pathname.slice('/api/workload/'.length);
+    const sp = u.searchParams;
+
+    // 활성 팀원 목록 (member_name 기준)
+    const activeMembers = (db) =>
+      (db.users || [])
+        .filter(x => x.is_active !== false && x.role !== 'team_leader')
+        .map(x => x.full_name || x.username)
+        .filter(Boolean);
+
+    const send = (status, body) => {
+      res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(body));
+    };
+
+    (async () => {
+      try {
+        if (req.method === 'GET' && subpath === 'team') {
+          const from = sp.get('from'); const to = sp.get('to');
+          if (!from || !to) return send(400, { error: 'from/to 필수 (YYYY-MM-DD)' });
+          await withDb(db => {
+            const members = activeMembers(db);
+            const result = workload.computeRange(db, members, from, to);
+            send(200, result);
+          });
+          return;
+        }
+        if (req.method === 'GET' && subpath.startsWith('user/')) {
+          const memberName = decodeURIComponent(subpath.slice('user/'.length));
+          const period = sp.get('period') || 'month';
+          const from = sp.get('from'), to = sp.get('to');
+          await withDb(db => {
+            let fromStr = from, toStr = to;
+            if (!fromStr || !toStr) {
+              const today = new Date();
+              const f = new Date(today);
+              if (period === 'week') f.setDate(today.getDate() - 6);
+              else if (period === 'quarter') f.setDate(today.getDate() - 89);
+              else f.setDate(today.getDate() - 29); // month default 30일
+              fromStr = isoOf(f); toStr = isoOf(today);
+            }
+            const series = workload.computeUserSeries(db, memberName, fromStr, toStr);
+            const ym = toStr.slice(0, 7);
+            const monthly = workload.computeMonthlyForUser(db, memberName, ym);
+            const byType = workload.computeByType(db, { fromStr, toStr, memberName });
+            send(200, { member_name: memberName, from: fromStr, to: toStr, series, monthly, by_type: byType });
+          });
+          return;
+        }
+        if (req.method === 'GET' && subpath === 'summary') {
+          const date = sp.get('date');
+          await withDb(db => {
+            const members = activeMembers(db);
+            send(200, workload.computeSummary(db, members, date));
+          });
+          return;
+        }
+        if (req.method === 'GET' && subpath === 'by-type') {
+          const fromStr = sp.get('from'), toStr = sp.get('to');
+          const scope = sp.get('scope') || 'team';
+          const memberName = sp.get('member') || null;
+          await withDb(db => {
+            const result = workload.computeByType(db, {
+              fromStr, toStr,
+              memberName: scope === 'me' ? memberName : null,
+            });
+            send(200, { items: result });
+          });
+          return;
+        }
+        if (req.method === 'GET' && subpath === 'alerts') {
+          await withDb(db => {
+            const members = activeMembers(db);
+            send(200, workload.computeAlerts(db, members));
+          });
+          return;
+        }
+        if (req.method === 'POST' && subpath === 'recompute') {
+          await withDb(db => {
+            const members = activeMembers(db);
+            const r = workload.recomputeAllCache(db, members);
+            writeDb(db);
+            send(200, { status: 'ok', ...r });
+          });
+          return;
+        }
+        send(404, { error: 'Unknown workload endpoint' });
+      } catch (e) {
+        send(500, { error: String(e.message || e) });
+      }
+    })();
     return;
   }
 
