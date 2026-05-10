@@ -36,10 +36,18 @@ function classifyStatus(loadPct, thr) {
  * 결과: { member_name, work_date, total_minutes, load_pct, status, is_business_day, holiday_name }
  */
 function computeDayLoad(db, memberName, dateStr, thr, bizMap) {
-  const entries = (db.daily_work_entries || []).filter(
-    e => e.member_name === memberName && e.work_date === dateStr
-  );
-  const total_minutes = entries.reduce((s, e) => s + (Number(e.duration_minutes) || 0), 0);
+  // Phase 7-1: time_entries 우선, 없으면 legacy work_date+duration_minutes 사용
+  let total_minutes = 0;
+  for (const e of (db.daily_work_entries || [])) {
+    if (e.member_name !== memberName) continue;
+    if (Array.isArray(e.time_entries) && e.time_entries.length > 0) {
+      for (const te of e.time_entries) {
+        if (te && te.date === dateStr) total_minutes += (Number(te.minutes) || 0);
+      }
+    } else if (e.work_date === dateStr) {
+      total_minutes += (Number(e.duration_minutes) || 0);
+    }
+  }
   const dailyMin = thr.hoursPerDay * 60;
   const load_pct = dailyMin > 0 ? (total_minutes / dailyMin) * 100 : 0;
   const isBiz = bizday.isBusinessDay(dateStr, bizMap);
@@ -112,10 +120,18 @@ function computeMonthlyForUser(db, memberName, yearMonth) {
   const monthFrom = `${yearMonth}-01`;
   const lastDay = new Date(y, m, 0).getDate();
   const monthTo = `${yearMonth}-${String(lastDay).padStart(2, '0')}`;
-  const entries = (db.daily_work_entries || []).filter(
-    e => e.member_name === memberName && e.work_date >= monthFrom && e.work_date <= monthTo
-  );
-  const total_minutes = entries.reduce((s, e) => s + (Number(e.duration_minutes) || 0), 0);
+  // Phase 7-1: time_entries 우선
+  let total_minutes = 0;
+  for (const e of (db.daily_work_entries || [])) {
+    if (e.member_name !== memberName) continue;
+    if (Array.isArray(e.time_entries) && e.time_entries.length > 0) {
+      for (const te of e.time_entries) {
+        if (te && te.date >= monthFrom && te.date <= monthTo) total_minutes += (Number(te.minutes) || 0);
+      }
+    } else if (e.work_date >= monthFrom && e.work_date <= monthTo) {
+      total_minutes += (Number(e.duration_minutes) || 0);
+    }
+  }
 
   // 지나간 영업일까지의 부분 표준시간 (현재까지 페이스 계산용)
   const today = toIso(new Date());
@@ -158,12 +174,23 @@ function computeByType(db, opts) {
   const bucket = {};
   for (const e of (db.daily_work_entries || [])) {
     if (memberName && e.member_name !== memberName) continue;
-    if (fromStr && e.work_date < fromStr) continue;
-    if (toStr && e.work_date > toStr) continue;
     const key = e.task_category_id || 'uncategorized';
     const label = cats[key] || e.task_label || '미분류';
-    if (!bucket[label]) bucket[label] = 0;
-    bucket[label] += Number(e.duration_minutes) || 0;
+    // Phase 7-1: time_entries 기반 일자별 분리 합산
+    if (Array.isArray(e.time_entries) && e.time_entries.length > 0) {
+      for (const te of e.time_entries) {
+        if (!te || !te.date) continue;
+        if (fromStr && te.date < fromStr) continue;
+        if (toStr && te.date > toStr) continue;
+        if (!bucket[label]) bucket[label] = 0;
+        bucket[label] += Number(te.minutes) || 0;
+      }
+    } else {
+      if (fromStr && e.work_date < fromStr) continue;
+      if (toStr && e.work_date > toStr) continue;
+      if (!bucket[label]) bucket[label] = 0;
+      bucket[label] += Number(e.duration_minutes) || 0;
+    }
   }
   return Object.entries(bucket)
     .map(([label, minutes]) => ({ label, minutes, hours: Math.round((minutes / 60) * 10) / 10 }))

@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const { execFile } = require('child_process');
 const bizday = require('./lib/bizday');
 const workload = require('./lib/workload');
+const timeentry = require('./lib/timeentry');
 
 // .env 로드 (dotenv 없이 직접 파싱)
 function loadEnv() {
@@ -441,6 +442,30 @@ function migrateDb(db) {
     db._meta.migrated_work_tasks_to_daily = { at: t, inserted };
     if (inserted > 0) changed = true;
   }
+  // ── Phase 7-1: 기존 daily_work_entries에 time_entries 시간대 분산 (한 번만) ──
+  if (!db._meta.migrated_to_time_entries_v1) {
+    const bizMap = bizday.indexBusinessDays(db.business_days);
+    let migrated = 0;
+    for (const e of (db.daily_work_entries || [])) {
+      // 이미 time_entries 있으면 스킵 (멱등성)
+      if (Array.isArray(e.time_entries) && e.time_entries.length > 0) continue;
+      const total = Number(e.duration_minutes) || 0;
+      if (total <= 0 || !e.work_date) continue;
+      // 시간대 분산: 종료일 = work_date, 18:00 기준 역산
+      const segs = timeentry.spreadMinutesAcrossBusinessDays(total, e.work_date, bizMap);
+      const summary = timeentry.summarize(segs);
+      e.time_entries = segs;
+      e.total_minutes = summary.total_minutes;
+      e.start_date = summary.start_date;
+      e.end_date = summary.end_date;
+      e.time_entry_mode = summary.time_entry_mode;
+      e.is_estimated = true; // 추정 라벨
+      e.updated_at = t;
+      migrated++;
+    }
+    db._meta.migrated_to_time_entries_v1 = { at: t, migrated };
+    if (migrated > 0) changed = true;
+  }
   if (changed) writeDb(db);
 }
 
@@ -543,6 +568,59 @@ function appendAuditLog(db, table, action, route, before, after, reqHeaders) {
   }
 }
 
+// daily_work_entries POST/PUT 시 time_entries 자동 보정
+// 입력 우선순위:
+//  1) body.time_entries 직접 전달
+//  2) body.start_date/end_date + body.start_time/end_time
+//  3) body.work_date + body.duration_minutes (legacy 자동분산)
+function normalizeTimeEntries(db, body) {
+  const bizMap = bizday.indexBusinessDays(db.business_days);
+  let entries = null;
+  if (Array.isArray(body.time_entries) && body.time_entries.length > 0) {
+    entries = body.time_entries.map(e => ({
+      date: e.date,
+      start: e.start,
+      end: e.end,
+      minutes: Number(e.minutes) ||
+        (timeentry.timeToMin(e.end) - timeentry.timeToMin(e.start)),
+    }));
+  } else if (body.start_date && body.end_date && body.start_time && body.end_time) {
+    entries = timeentry.buildEntriesFromRange(
+      body.start_date, body.end_date, body.start_time, body.end_time
+    );
+  } else if (body.work_date && Number(body.duration_minutes) > 0) {
+    entries = timeentry.spreadMinutesAcrossBusinessDays(
+      Number(body.duration_minutes), body.work_date, bizMap
+    );
+  }
+  if (!entries) return body;
+  const summary = timeentry.summarize(entries);
+  return {
+    ...body,
+    time_entries: entries,
+    total_minutes: summary.total_minutes,
+    start_date: summary.start_date,
+    end_date: summary.end_date,
+    time_entry_mode: summary.time_entry_mode,
+    work_date: summary.end_date,            // 호환성 (deprecated)
+    duration_minutes: summary.total_minutes, // 호환성 (deprecated)
+  };
+}
+
+// daily_work_entries 캐시 갱신: time_entries의 모든 일자
+function refreshDailyCacheFor(db, entry) {
+  if (!entry || !entry.member_name) return;
+  const dates = new Set();
+  if (Array.isArray(entry.time_entries)) {
+    entry.time_entries.forEach(e => e.date && dates.add(e.date));
+  } else if (entry.work_date) {
+    dates.add(entry.work_date);
+  }
+  for (const d of dates) {
+    workload.upsertCacheRow(db, entry.member_name, d);
+  }
+}
+
 // business_days 변경 시 영향 받는 연도를 캐시 재계산
 function recomputeMonthlyCache(db, affectedYears) {
   const bizMap = bizday.indexBusinessDays(db.business_days);
@@ -581,16 +659,21 @@ function handleTablesRequest(route, method, bodyStr, reqHeaders) {
 
     if (method === 'POST' && !route.id) {
       const id = body?.id || createId(table);
-      const created = { ...body, id, created_at: now(), updated_at: now() };
+      let payload = body || {};
+      // daily_work_entries: time_entries 자동 보정
+      if (table === 'daily_work_entries') {
+        payload = normalizeTimeEntries(db, payload);
+      }
+      const created = { ...payload, id, created_at: now(), updated_at: now() };
       db[table] = [...collection, created];
       // business_days 변경 → 월별 캐시 재계산
       if (table === 'business_days' && created.calendar_date) {
         const y = parseInt(created.calendar_date.slice(0, 4), 10);
         recomputeMonthlyCache(db, [y]);
       }
-      // daily_work_entries 변경 → workload_daily_cache 재계산
-      if (table === 'daily_work_entries' && created.member_name && created.work_date) {
-        workload.upsertCacheRow(db, created.member_name, created.work_date);
+      // daily_work_entries 변경 → workload_daily_cache 재계산 (모든 영향 일자)
+      if (table === 'daily_work_entries') {
+        refreshDailyCacheFor(db, created);
       }
       appendAuditLog(db, table, 'create', route, null, created, reqHeaders);
       writeDb(db);
@@ -619,8 +702,17 @@ function handleTablesRequest(route, method, bodyStr, reqHeaders) {
         });
         nextVersion = (before.version || 1) + 1;
       }
+      // daily_work_entries: time_entries 자동 보정 (변경 사항이 시간대 영향 시)
+      let mergedBody = body || {};
+      if (table === 'daily_work_entries' &&
+          (mergedBody.time_entries !== undefined ||
+           mergedBody.start_time || mergedBody.end_time ||
+           mergedBody.start_date || mergedBody.end_date ||
+           mergedBody.duration_minutes !== undefined)) {
+        mergedBody = normalizeTimeEntries(db, { ...before, ...mergedBody });
+      }
       const updated = {
-        ...before, ...body, id: before.id,
+        ...before, ...mergedBody, id: before.id,
         ...(table === 'kb_documents' ? { version: nextVersion } : {}),
         updated_at: now(),
       };
@@ -630,13 +722,9 @@ function handleTablesRequest(route, method, bodyStr, reqHeaders) {
         recomputeMonthlyCache(db, [y]);
       }
       if (table === 'daily_work_entries') {
-        // 일자나 멤버가 바뀌었으면 양쪽 모두 재계산
-        if (before.member_name && before.work_date) {
-          workload.upsertCacheRow(db, before.member_name, before.work_date);
-        }
-        if (updated.member_name && updated.work_date) {
-          workload.upsertCacheRow(db, updated.member_name, updated.work_date);
-        }
+        // before/after 양쪽 영향 일자 모두 재계산
+        refreshDailyCacheFor(db, before);
+        refreshDailyCacheFor(db, updated);
       }
       appendAuditLog(db, table, 'update', route, before, updated, reqHeaders);
       writeDb(db);
@@ -652,8 +740,8 @@ function handleTablesRequest(route, method, bodyStr, reqHeaders) {
         const y = parseInt(removed.calendar_date.slice(0, 4), 10);
         recomputeMonthlyCache(db, [y]);
       }
-      if (table === 'daily_work_entries' && removed && removed.member_name && removed.work_date) {
-        workload.upsertCacheRow(db, removed.member_name, removed.work_date);
+      if (table === 'daily_work_entries' && removed) {
+        refreshDailyCacheFor(db, removed);
       }
       appendAuditLog(db, table, 'delete', route, removed, null, reqHeaders);
       writeDb(db);
