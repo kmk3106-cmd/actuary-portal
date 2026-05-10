@@ -476,7 +476,8 @@ select.form-control { cursor: pointer; }
     z-index: 200;
   }
   .sidebar.open { transform: translateX(0); }
-  .sidebar-overlay { display: block; }
+  .sidebar-overlay { display: block; pointer-events: none; }
+  .sidebar-overlay.show { pointer-events: auto; }
 
   /* 바디 스크롤 잠금 */
   body.sidebar-open { overflow: hidden; }
