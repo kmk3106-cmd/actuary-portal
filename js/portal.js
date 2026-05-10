@@ -99,6 +99,7 @@ const Portal = (() => {
     const isLeader = user.role === 'team_leader';
     const isLeaderOrChief = isLeader || user.role === 'section_chief';
     let navHtml = '';
+    let sectionIdx = 0;
     for (const section of NAV) {
       const visibleItems = section.items.filter(it => {
         if (it.requiresLeader) return isLeader;
@@ -106,7 +107,12 @@ const Portal = (() => {
         return true;
       });
       if (!visibleItems.length) continue;
-      navHtml += `<div class="nav-section-title">${section.section}</div>`;
+      sectionIdx++;
+      const num = String(sectionIdx).padStart(2, '0');
+      navHtml += `<div class="nav-section-title">
+        <span class="nav-section-num">${num}</span>
+        <span class="nav-section-label">${section.section}</span>
+      </div>`;
       for (const item of visibleItems) {
         const active = (currentPage === item.href || currentPage === '' && item.href === 'index.html') ? ' active' : '';
         navHtml += `
@@ -119,32 +125,33 @@ const Portal = (() => {
 
     const initials = (user.full_name || user.username || '?').slice(0, 1);
     const roleLabel = RBAC.getRoleLabel(user.role);
-    const roleBadge = RBAC.getRoleBadgeClass(user.role);
 
     const html = `
       <div class="sidebar-overlay" id="sidebarOverlay" onclick="Portal.closeSidebar()"></div>
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
-          <div class="brand-icon"><i class="fas fa-calculator"></i></div>
+          <div class="brand-icon"></div>
           <div>
             <div class="brand-name">계리결산팀</div>
-            <div class="brand-sub">운영관리포탈</div>
+            <div class="brand-sub">OPERATIONS PORTAL</div>
           </div>
         </div>
         <div class="sidebar-user">
           <div class="user-card">
             <div class="user-avatar">${initials}</div>
             <div class="user-info">
-              <div class="user-name">${user.full_name || user.username}</div>
+              <div class="user-name-row">
+                <span class="user-name">${user.full_name || user.username}</span>
+                <span class="role-badge">${roleLabel}</span>
+              </div>
               <div class="user-dept">${user.department || '계리결산팀'}</div>
             </div>
           </div>
-          <span class="role-badge ${roleBadge}"><i class="fas fa-circle" style="font-size:6px;margin-right:4px;"></i>${roleLabel}</span>
         </div>
         <nav class="sidebar-nav">${navHtml}</nav>
         <div class="sidebar-footer">
-          <button class="nav-item danger" onclick="Auth.logout()">
-            <i class="fas fa-sign-out-alt"></i>
+          <button class="logout-btn" onclick="Auth.logout()">
+            <i class="fas fa-power-off"></i>
             <span>로그아웃</span>
           </button>
         </div>

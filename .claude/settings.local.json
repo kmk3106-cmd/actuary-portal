@@ -68,7 +68,8 @@
       "Bash(awk '{print $5, $9}')",
       "Bash(read id *)",
       "Bash(echo \"rows: $\\(python -c \"import json; print\\(len\\(json.load\\(open\\('/tmp/r3.json'\\)\\)['rows']\\)\\)\"\\)\")",
-      "Bash(awk '{print $2}')"
+      "Bash(awk '{print $2}')",
+      "Bash(powershell *)"
     ],
     "defaultMode": "bypassPermissions"
   }
