@@ -61,6 +61,19 @@
     @media (max-width:768px) {
       .iv-card { padding:14px; gap:12px; }
       .iv-actions .btn-sm span { display:none; }
+      /* 필터바 셀렉트 작게 */
+      .filter-select { font-size:12px; padding:7px 8px; }
+      /* iv-title 줄바꿈 허용 */
+      .iv-title { white-space:normal; word-break:break-all; }
+      /* 통계 카드 2x2 */
+      .stats-grid { grid-template-columns:1fr 1fr !important; }
+    }
+    @media (max-width:480px) {
+      /* iv-card 세로 정렬 */
+      .iv-card { flex-direction:column; }
+      .iv-icon { width:36px; height:36px; font-size:15px; }
+      .iv-actions { align-self:flex-end; }
+      .filter-bar { gap:5px; }
     }
   </style>
 </head>

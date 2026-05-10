@@ -612,3 +612,81 @@ select.form-control { cursor: pointer; }
 .gap-2 { gap: 8px; }
 .gap-3 { gap: 16px; }
 .flex-1 { flex: 1; }
+
+/* ─── 반응형 공통 보완 (글로벌) ──────────────────── */
+
+/* 히스토리 테이블 래퍼: 가로스크롤 보장 */
+.history-section { overflow: hidden; }
+.history-section > div { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* 탭 가로 스크롤 허용 */
+.auto-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+@media (max-width: 768px) {
+  /* 툴바 공통 */
+  .toolbar { gap: 6px; }
+
+  /* 통계 4칸 그리드 → 2x2 */
+  .stats-row { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+  .score-bar  { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+
+  /* 보고서 유형 그리드 → 1열 */
+  .report-types { grid-template-columns: 1fr !important; }
+
+  /* 보고서 옵션 행 세로 정렬 */
+  .options-row { flex-direction: column; align-items: stretch; gap: 12px; }
+  .options-row .gen-btn { width: 100%; justify-content: center; }
+
+  /* bot-status 히어로 압축 */
+  .status-hero { padding: 16px 18px; gap: 14px; }
+  .status-icon { font-size: 36px !important; }
+  .status-main-title { font-size: 17px !important; }
+  .status-sub { font-size: 13px; }
+
+  /* automation 탭 */
+  .auto-tab { padding: 10px 14px; font-size: 13px; white-space: nowrap; }
+
+  /* 히스토리 테이블 (automation/reports/bot-status) */
+  .history-table, .htable, .log-table { min-width: 520px; }
+  .history-section .card-body,
+  .card-body[style*="overflow-x:auto"],
+  div[style*="overflow-x:auto"] { -webkit-overflow-scrolling: touch; }
+
+  /* work-personal 결산외 업무 헤더 숨김 (col-header) */
+  .col-header { display: none !important; }
+
+  /* month-btns 줄바꿈 허용 */
+  .month-btns { gap: 3px; }
+  .month-btn  { padding: 5px 8px !important; font-size: 12px !important; }
+
+  /* perf-table 최소폭 보장 (table-scroll 안에서 스크롤) */
+  .perf-table { min-width: 900px; }
+
+  /* 성과관리 카드 score-grid 2열 */
+  .score-grid  { grid-template-columns: repeat(2, 1fr) !important; }
+  .card-bottom { grid-template-columns: 1fr !important; }
+
+  /* 결산 리뷰 손익 3컬럼 → 1컬럼 */
+  .pnl-row     { grid-template-columns: 1fr !important; }
+  .pnl-display { grid-template-columns: 1fr !important; }
+
+  /* view-tabs 가로 스크롤 */
+  .view-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .view-tab  { white-space: nowrap; padding: 10px 16px; font-size: 13px; }
+
+  /* form-row 공통 폴백 (개별 페이지에서 이미 처리한 것은 그쪽이 우선) */
+  .modal-box .form-row,
+  .modal-body .form-row  { grid-template-columns: 1fr !important; }
+  .modal-body .form-row-3 { grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 480px) {
+  /* 히스토리 테이블 최소폭 줄임 */
+  .history-table, .htable, .log-table { min-width: 400px; }
+
+  /* score-grid 1열로 */
+  .score-grid { grid-template-columns: 1fr !important; }
+
+  /* month-btn 더 작게 */
+  .month-btn { padding: 4px 6px !important; font-size: 11px !important; }
+}

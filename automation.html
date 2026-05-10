@@ -98,6 +98,22 @@
     .output-detail { display:none; background:#f8faff; border-radius:8px; padding:10px 12px;
       font-family:'Courier New',monospace; font-size:12px; color:#475569; margin-top:6px;
       white-space:pre-wrap; max-height:120px; overflow-y:auto; }
+
+    @media(max-width:768px) {
+      /* 탭 버튼 가로스크롤 */
+      .auto-tabs { gap:0; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+      .auto-tab { flex-shrink:0; padding:10px 14px; font-size:13px; }
+      /* 업로드 섹션 세로 정렬 */
+      .upload-section { grid-template-columns:1fr !important; }
+      /* 히스토리 테이블 가로스크롤 */
+      #historyContainer { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+      .history-table { min-width:500px; }
+      /* run-row 줄바꿈 */
+      .run-row { flex-wrap:wrap; }
+    }
+    @media(max-width:480px) {
+      .history-table { min-width:400px; }
+    }
   </style>
 </head>
 <body>

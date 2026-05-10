@@ -105,9 +105,21 @@
     .range-value { font-size:16px; font-weight:700; color:#4f86f7; min-width:40px; text-align:right; }
     .modal-footer { display:flex; justify-content:flex-end; gap:10px; padding-top:8px; border-top:1px solid #f3f4f6; margin-top:8px; }
     @media (max-width: 768px) {
-      .stats-row { grid-template-columns:1fr 1fr; }
+      .stats-row { grid-template-columns:1fr 1fr; gap:10px; }
       .goals-grid { grid-template-columns:1fr; }
       .form-row { grid-template-columns:1fr; }
+      .year-tabs { gap:6px; flex-wrap:wrap; }
+      .year-tab { padding:7px 14px; font-size:13px; }
+      .filter-row { gap:6px; }
+      .filter-btn { padding:5px 10px; font-size:12px; }
+      .goal-card-body { padding:14px; }
+      .goal-title { font-size:14px; }
+      /* goal-actions 항상 표시 (hover 불가) */
+      .goal-actions { opacity:1 !important; }
+    }
+    @media (max-width:480px) {
+      .stats-row { grid-template-columns:1fr 1fr; gap:8px; }
+      .stat-value { font-size:22px; }
     }
   </style>
 </head>

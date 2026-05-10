@@ -97,9 +97,24 @@
     @media (max-width: 900px) {
       .smart-grid { grid-template-columns:1fr 1fr; }
     }
+    @media (max-width: 768px) {
+      /* 카드 헤더 세로 정렬 */
+      .smart-card-header { flex-direction:column; align-items:flex-start; gap:10px; }
+      .smart-actions { width:100%; justify-content:flex-end; display:flex; }
+      .smart-card-header { padding:14px 16px 12px; }
+      .smart-body { padding:0 16px; }
+      .smart-footer { padding:10px 16px; }
+      .smart-card-title { font-size:14px; }
+      /* goal-actions 항상 표시 */
+      .smart-actions button { opacity:1 !important; }
+      .toolbar { flex-wrap:wrap; gap:6px; }
+      .member-tab { padding:5px 12px; font-size:12px; }
+    }
     @media (max-width: 600px) {
       .smart-grid { grid-template-columns:1fr; }
       .form-row { grid-template-columns:1fr; }
+      .smart-cell { border-right:none; border-bottom:1px solid #f3f4f6; padding:12px; }
+      .smart-cell:last-child { border-bottom:none; }
     }
   </style>
 </head>

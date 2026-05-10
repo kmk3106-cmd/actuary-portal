@@ -132,6 +132,15 @@
       padding-top:8px; border-top:1px solid #f3f4f6; margin-top:8px;
     }
 
+    @media(max-width:768px) {
+      .directive-card { padding:14px 16px; }
+      .directive-title { font-size:14px; }
+      .directive-content { font-size:13px; padding:8px 12px; }
+      .directive-footer { flex-direction:column; align-items:flex-start; gap:8px; }
+      .directive-footer > div { width:100%; justify-content:flex-end; }
+      .toolbar { gap:6px; }
+      .yr-sel, .filter-sel { font-size:13px; padding:7px 10px; }
+    }
     @media(max-width:600px) {
       .form-row { grid-template-columns:1fr; }
       .directive-card-top { flex-wrap:wrap; }

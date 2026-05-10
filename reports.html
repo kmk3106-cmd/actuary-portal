@@ -87,6 +87,19 @@
       border:none; cursor:pointer; transition:background .15s; margin-left:4px; }
     .del-hist-btn:hover { background:#fee2e2; }
     .history-empty { padding:48px; text-align:center; color:#d1d5db; }
+
+    @media(max-width:768px) {
+      /* 히스토리 테이블 가로스크롤: JS가 동적 생성하는 컨테이너에 overflow 적용 */
+      #histContainer { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+      .htable { min-width:520px; }
+      /* 옵션 행 세로 정렬 */
+      .options-row { flex-direction:column; align-items:stretch; gap:10px; }
+      .opt-group { flex-direction:row; align-items:center; gap:10px; flex-wrap:wrap; }
+      .gen-btn { width:100%; justify-content:center; }
+    }
+    @media(max-width:480px) {
+      .htable { min-width:400px; }
+    }
   </style>
 </head>
 <body>

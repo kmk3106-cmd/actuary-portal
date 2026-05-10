@@ -37,21 +37,29 @@
     .warn-banner { background:#fef3c7; border:1.5px solid #f59e0b; border-radius:12px; padding:14px 18px;
       display:flex; align-items:center; gap:12px; margin-bottom:20px; font-size:14px; color:#92400e; font-weight:500; }
     .warn-banner i { font-size:20px; color:#d97706; flex-shrink:0; }
+
+    @media(max-width:768px) {
+      .stat-cards { grid-template-columns:1fr 1fr; }
+      .status-hero { flex-direction:column; gap:12px; text-align:center; }
+    }
+    @media(max-width:480px) {
+      .stat-cards { grid-template-columns:1fr 1fr; gap:10px; }
+      .stat-card .val { font-size:20px; }
+    }
   </style>
 </head>
 <body>
 <div class="app-layout">
   <nav class="sidebar" id="sidebar"></nav>
   <div class="main-content">
-    <div class="page-header">
-      <div class="page-header-left">
-        <button class="menu-toggle" onclick="Portal.toggleSidebar()"><i class="fas fa-bars"></i></button>
-        <div>
-          <div class="page-title"><i class="fas fa-robot"></i> 봇 상태 모니터링</div>
-          <div class="page-subtitle">텔레그램 결산조회봇 헬스체크</div>
-        </div>
-      </div>
-    </div>
+    <header class="page-header">
+      <button class="hamburger-btn" onclick="Portal.toggleSidebar()" aria-label="메뉴 열기">
+        <i class="fas fa-bars"></i>
+      </button>
+      <h1 class="page-title"><i class="fas fa-robot"></i> 봇 상태 모니터링 <small>텔레그램 결산조회봇 헬스체크</small></h1>
+    </header>
+
+    <main class="content-body">
 
     <div id="warnBanner" style="display:none" class="warn-banner">
       <i class="fas fa-exclamation-triangle"></i>
@@ -81,7 +89,7 @@
           <button class="btn btn-secondary" onclick="loadAll()"><i class="fas fa-sync-alt"></i> 새로고침</button>
         </div>
       </div>
-      <div class="card-body" style="overflow-x:auto;">
+      <div class="card-body" style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
         <table class="log-table">
           <thead>
             <tr>
@@ -99,6 +107,8 @@
         </table>
       </div>
     </div>
+
+    </main>
   </div>
 </div>
 
