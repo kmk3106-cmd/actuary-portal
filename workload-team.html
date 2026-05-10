@@ -876,24 +876,54 @@ function switchSort(sort, btn) {
 
 /* ── 도넛 차트 ── */
 async function loadDonut(from, to) {
+  const container = document.getElementById('donutChart');
+  if (!container) return;
+  // 항상 즉시 spinner 제거 — 무한 로딩 방지
+  const showEmpty = (msg) => {
+    container.innerHTML =
+      '<div style="text-align:center;padding:40px 20px;color:var(--gray-400);">' +
+      '<i class="fas fa-chart-pie" style="font-size:32px;margin-bottom:10px;display:block;opacity:0.3;"></i>' +
+      msg + '</div>';
+  };
   try {
     const r = await fetch(`/api/workload/by-type?from=${from}&to=${to}&scope=team`);
-    if (!r.ok) throw new Error('도넛 API 오류');
+    if (!r.ok) throw new Error('도넛 API 오류 status=' + r.status);
     const data = await r.json();
-    const items = (data.items || []).filter(x => x.minutes > 0);
+    const rawItems = Array.isArray(data?.items) ? data.items : [];
+    const items = rawItems.filter(x => x && Number(x.minutes) > 0);
 
-    if (donutChart) { donutChart.destroy(); donutChart = null; }
+    if (donutChart) {
+      try { donutChart.destroy(); } catch(_) {}
+      donutChart = null;
+    }
     if (!items.length) {
-      document.getElementById('donutChart').innerHTML =
-        '<div style="text-align:center;padding:40px;color:var(--gray-400);">업무유형 데이터가 없습니다.</div>';
+      showEmpty('이 기간에 입력된 업무가 없습니다.');
       return;
     }
 
     const DONUT_COLORS = ['#4f86f7','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#84cc16','#f97316'];
+    // 단일 항목인 경우 카드 형태로 표시 (donut이 단건일 때 렌더 이슈 회피)
+    if (items.length === 1) {
+      const it = items[0];
+      const hours = Math.round((it.minutes / 60) * 10) / 10;
+      container.innerHTML = `
+        <div style="text-align:center;padding:32px 20px;">
+          <div style="width:120px;height:120px;border-radius:50%;background:${DONUT_COLORS[0]};
+                      display:inline-flex;align-items:center;justify-content:center;color:#fff;
+                      font-size:22px;font-weight:800;margin-bottom:14px;">
+            ${hours}h
+          </div>
+          <div style="font-size:14px;font-weight:700;color:var(--gray-800);">${it.label}</div>
+          <div style="font-size:12px;color:var(--gray-500);margin-top:4px;">단일 업무 유형 (${it.minutes}분)</div>
+        </div>`;
+      return;
+    }
+
+    // 2건 이상: 진짜 도넛
     const opts = {
       chart: { type: 'donut', height: 260, toolbar: { show: false }, animations: { enabled: false } },
-      series: items.map(x => x.minutes),
-      labels: items.map(x => x.label),
+      series: items.map(x => Number(x.minutes) || 0),
+      labels: items.map(x => String(x.label || '미분류')),
       colors: DONUT_COLORS.slice(0, items.length),
       dataLabels: { enabled: false },
       legend: {
@@ -903,34 +933,22 @@ async function loadDonut(from, to) {
         offsetY: 4
       },
       plotOptions: {
-        pie: {
-          donut: {
-            size: '65%',
-            labels: {
-              show: true,
-              total: {
-                show: true,
-                label: '총 시간',
-                fontSize: '12px',
-                formatter: () => {
-                  const totalMin = items.reduce((s, x) => s + x.minutes, 0);
-                  return `${Math.round(totalMin / 60)}h`;
-                }
-              }
-            }
-          }
-        }
+        pie: { donut: { size: '65%' } }
       },
       tooltip: { y: { formatter: v => `${Math.round(v/60*10)/10}h (${v}분)` } }
     };
-
-    document.getElementById('donutChart').innerHTML = '';
-    donutChart = new ApexCharts(document.getElementById('donutChart'), opts);
-    donutChart.render();
+    container.innerHTML = '';
+    donutChart = new ApexCharts(container, opts);
+    // setTimeout으로 다른 차트와 렌더 경쟁 방지
+    setTimeout(() => {
+      donutChart.render().catch(err => {
+        console.error('도넛 render 실패:', err);
+        showEmpty('차트를 그리지 못했습니다.');
+      });
+    }, 50);
   } catch(e) {
     console.error('도넛 로드 실패:', e);
-    document.getElementById('donutChart').innerHTML =
-      '<div style="text-align:center;padding:40px;color:var(--gray-400);">데이터를 불러오지 못했습니다.</div>';
+    showEmpty('데이터를 불러오지 못했습니다.');
   }
 }
 
