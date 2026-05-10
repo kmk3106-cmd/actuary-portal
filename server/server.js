@@ -680,7 +680,15 @@ function sendStatic(absPath, res) {
       return;
     }
     const ext = path.extname(absPath).toLowerCase();
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+    const headers = { 'Content-Type': MIME[ext] || 'application/octet-stream' };
+    // HTML은 항상 fresh 가져오도록 (코드 업데이트 즉시 반영)
+    // JS/CSS는 ?v=N 쿼리로 cache-busting 하므로 일반 캐시 OK
+    if (ext === '.html') {
+      headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+      headers['Pragma'] = 'no-cache';
+      headers['Expires'] = '0';
+    }
+    res.writeHead(200, headers);
     fs.createReadStream(absPath).pipe(res);
   });
 }
