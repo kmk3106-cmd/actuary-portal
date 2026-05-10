@@ -48,7 +48,19 @@
       "Bash(Get-Content \"C:\\\\Users\\\\USER\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-USER-actuary-potal\\\\64d911a5-a0ab-4cbd-b584-7b87e4aa4724\\\\tasks\\\\bgd5x322s.output\" -Tail 5)",
       "PowerShell(Start-Sleep -Seconds 3; try { $r = Invoke-WebRequest -Uri \"http://localhost:8888\" -TimeoutSec 5 -ErrorAction Stop; \"서버 응답: $\\($r.StatusCode\\)\" } catch { $_.Exception.Message })",
       "Bash(tasklist)",
-      "Bash(taskkill /F /PID 95652 /PID 99168 /PID 99896 /PID 108484)"
+      "Bash(taskkill /F /PID 95652 /PID 99168 /PID 99896 /PID 108484)",
+      "Bash(taskkill /F /IM notepad.exe /IM code.exe /IM WINWORD.EXE)",
+      "Bash(taskkill /F /IM python.exe)",
+      "Bash(taskkill /F /IM python.exe /IM python3.exe)",
+      "Bash(\"C:\\\\Users\\\\USER\\\\infinite_buy_v22\\\\.venv\\\\Scripts\\\\python.exe\" app.py)",
+      "Bash(cmd /c setup-cloudflare.bat)",
+      "Bash(where cloudflared *)",
+      "Bash(winget install *)",
+      "Bash(cloudflared tunnel *)",
+      "Bash(Start-Process *)",
+      "PowerShell(Start-Process -WindowStyle Minimized cmd -ArgumentList \"/c cloudflared tunnel run actuary-portal >> `\"C:\\\\Users\\\\USER\\\\actuary potal\\\\server\\\\cloudflare.log`\" 2>&1\")",
+      "Bash(npm init *)",
+      "Bash(npm install *)"
     ],
     "defaultMode": "bypassPermissions"
   }

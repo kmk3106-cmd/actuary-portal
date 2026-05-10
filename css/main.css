@@ -4,6 +4,10 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* 모바일 터치 클릭 지연 제거 */
+html { touch-action: manipulation; }
+a, button { -webkit-tap-highlight-color: transparent; }
+
 :root {
   --primary: #4f86f7;
   --primary-dark: #3a6fd8;
@@ -458,13 +462,19 @@ select.form-control { cursor: pointer; }
 /* ─── 사이드바 오버레이 ───────────────────────────── */
 
 .sidebar-overlay {
-  display: none;
   position: fixed; inset: 0;
   background: rgba(0,0,0,0.5);
   z-index: 99;
-  opacity: 0; transition: opacity 0.3s;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.3s, visibility 0.3s;
 }
-.sidebar-overlay.show { opacity: 1; }
+.sidebar-overlay.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
 
 /* ─── 반응형 ──────────────────────────────────────── */
 
@@ -476,8 +486,7 @@ select.form-control { cursor: pointer; }
     z-index: 200;
   }
   .sidebar.open { transform: translateX(0); }
-  .sidebar-overlay { display: block; pointer-events: none; }
-  .sidebar-overlay.show { pointer-events: auto; }
+  /* 오버레이는 기본 스타일(visibility:hidden)로 처리됨 */
 
   /* 바디 스크롤 잠금 */
   body.sidebar-open { overflow: hidden; }
