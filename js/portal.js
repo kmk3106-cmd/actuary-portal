@@ -36,7 +36,9 @@ const Portal = (() => {
     {
       section: '업무',
       items: [
-        { href: 'work-personal.html', icon: 'fa-tasks', label: '개인별 업무입력' }
+        { href: 'work-personal.html',  icon: 'fa-tasks',      label: '개인별 업무입력' },
+        { href: 'workload-me.html',    icon: 'fa-chart-line', label: '내 업무량' },
+        { href: 'workload-team.html',  icon: 'fa-users',      label: '팀 업무량 모니터링', leaderOrChief: true }
       ]
     },
     {
@@ -62,9 +64,14 @@ const Portal = (() => {
     const currentPage = window.location.pathname.split('/').pop() || 'index.html';
 
     const isLeader = user.role === 'team_leader';
+    const isLeaderOrChief = isLeader || user.role === 'section_chief';
     let navHtml = '';
     for (const section of NAV) {
-      const visibleItems = section.items.filter(it => !it.requiresLeader || isLeader);
+      const visibleItems = section.items.filter(it => {
+        if (it.requiresLeader) return isLeader;
+        if (it.leaderOrChief) return isLeaderOrChief;
+        return true;
+      });
       if (!visibleItems.length) continue;
       navHtml += `<div class="nav-section-title">${section.section}</div>`;
       for (const item of visibleItems) {
