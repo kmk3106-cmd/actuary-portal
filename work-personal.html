@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=6">
+  <link rel="stylesheet" href="css/main.css?v=8">
   <style>
     .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
     .yr-sel, .month-sel, .member-sel {
@@ -31,11 +31,11 @@
     .icon-green  { background:#dcfce7; color:#166534; }
     .section-badge { font-size:12px; font-weight:600; padding:3px 10px; border-radius:10px; background:#eff6ff; color:#3b82f6; }
 
-    /* 결산외 업무 행 - 5컬럼 */
+    /* 결산외 업무 행 - 시간대 입력 (7컬럼) */
     .other-task-list { padding:0 24px 16px; }
     .other-task-row {
       display:grid;
-      grid-template-columns:150px 1fr 70px 80px 36px;
+      grid-template-columns:150px 0.7fr 120px 120px 90px 90px 36px;
       gap:8px; align-items:center; margin-bottom:8px;
     }
     .other-task-row input, .other-task-row select {
@@ -47,10 +47,17 @@
     .col-header {
       padding:12px 24px 4px;
       display:grid;
-      grid-template-columns:150px 1fr 70px 80px 36px;
+      grid-template-columns:150px 0.7fr 120px 120px 90px 90px 36px;
       gap:8px;
     }
     .col-header > div { font-size:11px; font-weight:700; color:#9ca3af; text-transform:uppercase; }
+    /* 행별 시간 합계 표시 */
+    .row-time-badge {
+      font-size:11px; font-weight:700; color:#4f86f7;
+      background:#eff6ff; border-radius:6px;
+      padding:2px 6px; white-space:nowrap;
+      text-align:center; margin-top:2px;
+    }
     .btn-del-row { width:32px; height:32px; border-radius:8px; border:none; background:#fef2f2;
       color:#ef4444; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0; }
     .btn-del-row:hover { background:#fee2e2; }
@@ -123,23 +130,31 @@
       background:#eff6ff; border-radius:10px; padding:12px 18px;
       font-size:13px; font-weight:600; color:#374151; }
 
+    @media(max-width:1200px) {
+      .other-task-row { grid-template-columns:130px 0.6fr 110px 110px 84px 84px 32px; }
+      .col-header    { grid-template-columns:130px 0.6fr 110px 110px 84px 84px 32px; }
+    }
     @media(max-width:900px) {
       .score-bar { grid-template-columns:1fr 1fr; }
-      .other-task-row { grid-template-columns:120px 1fr 56px 70px 32px; }
-      .col-header    { grid-template-columns:120px 1fr 56px 70px 32px; }
+      .other-task-row { grid-template-columns:120px 1fr 100px 100px 80px 80px 32px; }
+      .col-header    { grid-template-columns:120px 1fr 100px 100px 80px 80px 32px; }
     }
-    @media(max-width:600px) {
-      /* 결산외 업무 행: 업무명 + 유형 / 소요 + 난이도 + 삭제 */
+    @media(max-width:768px) {
+      /* 결산외 업무 행 — 모바일 2열 카드 */
       .other-task-row {
         grid-template-columns: 1fr 1fr;
-        grid-template-rows: auto auto;
+        grid-template-rows: auto auto auto;
         gap: 6px;
+        background:#f8faff; border-radius:10px;
+        border:1.5px solid #e5e7eb; padding:10px 12px; margin-bottom:10px;
       }
-      .other-task-row > *:nth-child(1) { grid-column: 1 / 3; }  /* 업무명 full width */
-      .other-task-row > *:nth-child(2) { grid-column: 1 / 2; }  /* 유형 */
-      .other-task-row > *:nth-child(3) { grid-column: 2 / 3; }  /* 소요시간 */
-      .other-task-row > *:nth-child(4) { grid-column: 1 / 2; }  /* 난이도 */
-      .other-task-row > *:nth-child(5) { grid-column: 2 / 3; justify-self:start; } /* 삭제 */
+      .other-task-row > *:nth-child(1) { grid-column: 1 / 3; }  /* 카테고리 full */
+      .other-task-row > *:nth-child(2) { grid-column: 1 / 3; }  /* 업무내용 full */
+      .other-task-row > *:nth-child(3) { grid-column: 1 / 2; }  /* 시작일 */
+      .other-task-row > *:nth-child(4) { grid-column: 2 / 3; }  /* 종료일 */
+      .other-task-row > *:nth-child(5) { grid-column: 1 / 2; }  /* 시작시간 */
+      .other-task-row > *:nth-child(6) { grid-column: 2 / 3; }  /* 종료시간 */
+      .other-task-row > *:nth-child(7) { grid-column: 2 / 3; justify-self:end; } /* 삭제 */
       .col-header    { display:none; }
       .quant-grid    { grid-template-columns:1fr; }
       .other-task-list, .btn-add-row { padding-left:12px; padding-right:12px; margin-left:0; margin-right:0; }
@@ -182,11 +197,11 @@
           <div class="score-card-value blue" id="otherCount">0건</div>
         </div>
         <div class="score-card">
-          <div class="score-card-label">총 소요시간</div>
-          <div class="score-card-value purple" id="totalTime">0분</div>
+          <div class="score-card-label">총 투입시간</div>
+          <div class="score-card-value purple" id="totalTime">0h</div>
         </div>
         <div class="score-card">
-          <div class="score-card-label">난이도 합계점수</div>
+          <div class="score-card-label">시간점수 (max 50)</div>
           <div class="score-card-value orange" id="diffScore">0점</div>
         </div>
         <div class="score-card">
@@ -365,8 +380,10 @@
         <div class="col-header">
           <div>구분</div>
           <div>업무 내용</div>
-          <div>난이도(1-5)</div>
-          <div>소요시간(분)</div>
+          <div>시작일</div>
+          <div>종료일</div>
+          <div>시작시간</div>
+          <div>종료시간</div>
           <div></div>
         </div>
         <div class="other-task-list" id="otherTaskList"></div>
@@ -405,7 +422,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=6"></script>
+<script src="js/portal.js?v=8"></script>
 <script>
 Portal.init();
 
@@ -687,45 +704,97 @@ function onFilterChange() {
   loadCurrentRecord();
 }
 
+/* ── 시간대 헬퍼 ── */
+function buildHalfHourOptions(startHH = '09:00', endHH = '18:00') {
+  const opts = [];
+  const [sh, sm] = startHH.split(':').map(Number);
+  const [eh, em] = endHH.split(':').map(Number);
+  let cur = sh * 60 + sm;
+  const endMin = eh * 60 + em;
+  while (cur <= endMin) {
+    const h = String(Math.floor(cur / 60)).padStart(2, '0');
+    const m = String(cur % 60).padStart(2, '0');
+    opts.push(`${h}:${m}`);
+    cur += 30;
+  }
+  return opts;
+}
+
+const HALF_HOUR_OPTS = buildHalfHourOptions('06:00', '22:00');
+
+function calcRowMinutes(task) {
+  if (!task.start_date || !task.end_date || !task.start_time || !task.end_time) return 0;
+  try {
+    const s = new Date(`${task.start_date}T${task.start_time}:00`);
+    const e = new Date(`${task.end_date}T${task.end_time}:00`);
+    const diff = Math.round((e - s) / 60000);
+    return diff > 0 ? diff : 0;
+  } catch(_) { return 0; }
+}
+
+function fmtMinutes(min) {
+  if (!min) return '-';
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h > 0 ? `${h}h${m > 0 ? ' ' + m + 'm' : ''}` : `${m}m`;
+}
+
 function updateScores() {
   const valid = otherTasks.filter(t => t.desc);
   const count    = valid.length;
-  const totalMin = valid.reduce((s, t) => s + (parseInt(t.minutes) || 0), 0);
-  const diffSum  = valid.reduce((s, t) => s + (parseInt(t.diff) || 1) * 2, 0);
-  // 시간가중 점수: 난이도점수 + 시간점수(60분=1점, max 30점)
-  const timeScore = Math.min(30, Math.round(totalMin / 60));
-  const calcScore = Math.min(100, diffSum + timeScore);
+  const totalMin = valid.reduce((s, t) => s + (calcRowMinutes(t) || 0), 0);
+  // 시간가중 점수: 시간점수(60분=1점, max 50점)
+  const timeScore = Math.min(50, Math.round(totalMin / 60));
+  const calcScore = Math.min(100, timeScore);
 
   document.getElementById('otherCount').textContent  = count + '건';
   document.getElementById('otherBadge').textContent  = count + '건';
-  document.getElementById('totalTime').textContent   = totalMin + '분';
-  document.getElementById('diffScore').textContent   = diffSum + '점';
+  document.getElementById('totalTime').textContent   = totalMin >= 60 ? Math.round(totalMin / 6) / 10 + 'h' : totalMin + '분';
+  document.getElementById('diffScore').textContent   = timeScore + '점';
   document.getElementById('calcScore').textContent   = calcScore + '점';
 }
 
 function renderOtherTasks() {
-  const catOptions = OTHER_CATEGORIES.map(c =>
-    `<option value="${c}">${c}</option>`
-  ).join('');
-
   const container = document.getElementById('otherTaskList');
   if (otherTasks.length === 0) {
     container.innerHTML = '<div class="empty-state" style="padding:20px;"><i class="fas fa-plus-circle"></i>항목을 추가해주세요.</div>';
     updateScores();
     return;
   }
+
+  const timeOpts = HALF_HOUR_OPTS.map(t => `<option value="${t}">${t}</option>`).join('');
+  const today = new Date().toISOString().split('T')[0];
+
   container.innerHTML = otherTasks.map((t, i) => {
-    const opts = OTHER_CATEGORIES.map(c =>
+    const catOpts = OTHER_CATEGORIES.map(c =>
       `<option value="${c}"${t.cat === c ? ' selected' : ''}>${c}</option>`
     ).join('');
-    return `<div class="other-task-row">
-      <select onchange="otherTasks[${i}].cat=this.value;updateScores()">${opts}</select>
-      <input type="text" placeholder="업무 내용 입력" value="${esc(t.desc || '')}"
-        oninput="otherTasks[${i}].desc=this.value;updateScores()">
-      <input type="number" min="1" max="5" placeholder="난이도" value="${t.diff || 3}"
-        oninput="otherTasks[${i}].diff=this.value;updateScores()">
-      <input type="number" min="0" placeholder="분" value="${t.minutes || ''}"
-        oninput="otherTasks[${i}].minutes=this.value;updateScores()">
+    const rowMin = calcRowMinutes(t);
+
+    function selTime(val, opts) {
+      return opts.replace(`value="${val}"`, `value="${val}" selected`);
+    }
+
+    const startSel = `<select onchange="otherTasks[${i}].start_time=this.value;updateScores()">
+      ${HALF_HOUR_OPTS.map(v => `<option value="${v}"${t.start_time===v?' selected':''}>${v}</option>`).join('')}
+    </select>`;
+    const endSel = `<select onchange="otherTasks[${i}].end_time=this.value;updateScores()">
+      ${HALF_HOUR_OPTS.map(v => `<option value="${v}"${t.end_time===v?' selected':''}>${v}</option>`).join('')}
+    </select>`;
+
+    return `<div class="other-task-row" id="otr_${i}">
+      <select onchange="otherTasks[${i}].cat=this.value">${catOpts}</select>
+      <div>
+        <input type="text" placeholder="업무 내용 입력" value="${esc(t.desc || '')}"
+          oninput="otherTasks[${i}].desc=this.value;updateScores()">
+        ${rowMin > 0 ? `<div class="row-time-badge">${fmtMinutes(rowMin)}</div>` : ''}
+      </div>
+      <input type="date" value="${t.start_date || today}"
+        onchange="otherTasks[${i}].start_date=this.value;updateScores()">
+      <input type="date" value="${t.end_date || today}"
+        onchange="otherTasks[${i}].end_date=this.value;updateScores()">
+      ${startSel}
+      ${endSel}
       <button class="btn-del-row" onclick="removeOtherTask(${i})"><i class="fas fa-times"></i></button>
     </div>`;
   }).join('');
@@ -733,7 +802,8 @@ function renderOtherTasks() {
 }
 
 function addOtherTask() {
-  otherTasks.push({ cat: OTHER_CATEGORIES[0], desc: '', diff: 3, minutes: 0 });
+  const today = new Date().toISOString().split('T')[0];
+  otherTasks.push({ cat: OTHER_CATEGORIES[0], desc: '', start_date: today, end_date: today, start_time: '09:00', end_time: '18:00' });
   renderOtherTasks();
 }
 
@@ -747,24 +817,67 @@ function esc(str) {
 }
 
 async function saveWorkTask() {
-  const valid      = otherTasks.filter(t => t.desc);
-  const totalMin   = valid.reduce((s, t) => s + (parseInt(t.minutes) || 0), 0);
-  const diffSum    = valid.reduce((s, t) => s + (parseInt(t.diff) || 1) * 2, 0);
-  const timeScore  = Math.min(30, Math.round(totalMin / 60));
-  const calcScore  = Math.min(100, diffSum + timeScore);
+  const valid    = otherTasks.filter(t => t.desc);
+  const totalMin = valid.reduce((s, t) => s + (calcRowMinutes(t) || 0), 0);
+  const calcScore = Math.min(100, Math.min(50, Math.round(totalMin / 60)));
 
+  /* 1. 검증 API */
+  for (const t of valid) {
+    if (!t.start_date || !t.end_date || !t.start_time || !t.end_time) continue;
+    try {
+      const vr = await fetch('/api/tasks/validate-time', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ start_date: t.start_date, end_date: t.end_date,
+          start_time: t.start_time, end_time: t.end_time })
+      });
+      if (vr.ok) {
+        const vd = await vr.json();
+        if (!vd.ok && vd.errors && vd.errors.length) {
+          Portal.showToast(`[${t.desc}] 시간 오류: ${vd.errors[0]}`, 'error'); return;
+        }
+        if (vd.warnings && vd.warnings.length) {
+          const go = await new Promise(resolve => {
+            Portal.confirm(`[${t.desc}] 경고: ${vd.warnings[0]}\n계속 저장하시겠습니까?`, () => resolve(true), () => resolve(false));
+          });
+          if (!go) return;
+        }
+      }
+    } catch(_) {}
+  }
+
+  /* 2. 충돌 체크 */
+  for (const t of valid) {
+    if (!t.start_date || !t.start_time || !t.end_time) continue;
+    try {
+      const cr = await fetch('/api/tasks/conflicts', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ member_name: currentMember,
+          time_entries: [{ date: t.start_date, start: t.start_time, end: t.end_time }] })
+      });
+      if (cr.ok) {
+        const cd = await cr.json();
+        if (cd.conflicts && cd.conflicts.length) {
+          const go = await new Promise(resolve => {
+            Portal.confirm(`[${t.desc}] 시간 충돌이 있습니다 (${cd.conflicts[0].against_label}). 계속 저장하시겠습니까?`, () => resolve(true), () => resolve(false));
+          });
+          if (!go) return;
+        }
+      }
+    } catch(_) {}
+  }
+
+  /* 3. work_tasks 업데이트 (호환용 other_tasks 보존) */
+  const legacyTasks = valid.map(t => ({
+    cat: t.cat, desc: t.desc, diff: 3,
+    minutes: calcRowMinutes(t)
+  }));
   const body = {
-    year: currentYear,
-    month: currentMonth,
-    member_name: currentMember,
-    other_tasks: valid,
-    total_minutes: totalMin,
-    calc_score: calcScore,
+    year: currentYear, month: currentMonth, member_name: currentMember,
+    other_tasks: legacyTasks, total_minutes: totalMin, calc_score: calcScore,
   };
   try {
     let res;
     if (currentRecordId) {
-      // 기존 레코드에 other_tasks만 업데이트 (settlement 필드 유지)
       res = await fetch('/tables/work_tasks/' + currentRecordId, {
         method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
       });
@@ -776,17 +889,37 @@ async function saveWorkTask() {
       currentRecordId = data.id;
     }
     if (!res.ok) throw new Error();
+
+    /* 4. daily_work_entries 개별 POST */
+    for (const t of valid) {
+      if (!t.start_date || !t.start_time || !t.end_time) continue;
+      const dweBody = {
+        member_name: currentMember,
+        task_label: t.desc,
+        task_category_id: null,
+        start_date: t.start_date,
+        end_date: t.end_date || t.start_date,
+        start_time: t.start_time,
+        end_time: t.end_time,
+        source: 'manual',
+        note: '',
+      };
+      try {
+        await fetch('/tables/daily_work_entries', {
+          method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(dweBody)
+        });
+      } catch(_) {}
+    }
+
     Portal.showToast('저장되었습니다.', 'success');
     await loadHistory();
   } catch(e) { Portal.showToast('저장에 실패했습니다.', 'error'); }
 }
 
 async function reflectToPerformance() {
-  const valid     = otherTasks.filter(t => t.desc);
-  const totalMin  = valid.reduce((s, t) => s + (parseInt(t.minutes) || 0), 0);
-  const diffSum   = valid.reduce((s, t) => s + (parseInt(t.diff) || 1) * 2, 0);
-  const timeScore = Math.min(30, Math.round(totalMin / 60));
-  const calcScore = Math.min(100, diffSum + timeScore);
+  const valid    = otherTasks.filter(t => t.desc);
+  const totalMin = valid.reduce((s, t) => s + (calcRowMinutes(t) || 0), 0);
+  const calcScore = Math.min(100, Math.min(50, Math.round(totalMin / 60)));
 
   try {
     const res = await fetch('/tables/performance_records?limit=200');
@@ -821,11 +954,15 @@ async function loadCurrentRecord() {
     );
     if (match) {
       currentRecordId = match.id;
+      const today2 = new Date().toISOString().split('T')[0];
       otherTasks = (match.other_tasks || []).map(t => ({
         cat: t.cat || OTHER_CATEGORIES[0],
         desc: t.desc || '',
-        diff: t.diff || 3,
-        minutes: t.minutes || 0
+        // 시간대 필드: 기존 레코드는 없을 수 있어 오늘 날짜/기본시간으로 채움
+        start_date: t.start_date || today2,
+        end_date:   t.end_date   || today2,
+        start_time: t.start_time || '09:00',
+        end_time:   t.end_time   || '18:00',
       }));
       kpiTasks      = match.kpi_tasks   || { kpi1:[], kpi2:[], kpi3:[] };
       kpiScores     = match.kpi_scores  || { kpi1:null, kpi2:null, kpi3:null };

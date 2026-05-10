@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=6">
+  <link rel="stylesheet" href="css/main.css?v=8">
   <style>
     /* Layout */
     .cal-wrapper { display:grid; grid-template-columns:1fr 300px; gap:24px; align-items:start; }
@@ -153,8 +153,9 @@
     .chk-group { border-top:1px solid #f3f4f6; }
     .chk-group-header { padding:10px 24px; background:#f8faff; font-size:12px; font-weight:700;
       color:#6b7280; display:flex; align-items:center; gap:8px; }
-    .chk-task-row { display:grid; grid-template-columns:auto 1fr 75px 110px 90px 48px;
-      gap:8px; align-items:center; padding:10px 24px; border-bottom:1px solid #f3f4f6; }
+    /* 체크리스트 행: 체크박스 | 업무명 | 상태 | 시작일 | 완료일 | 시작시간 | 종료시간 | 기한별점 */
+    .chk-task-row { display:grid; grid-template-columns:auto 1fr 55px 110px 110px 80px 80px 48px;
+      gap:6px; align-items:center; padding:10px 24px; border-bottom:1px solid #f3f4f6; }
     .chk-deadline-sel { padding:4px 4px; border:1.5px solid #e5e7eb; border-radius:7px; font-size:11px;
       font-family:inherit; width:100%; box-sizing:border-box; background:#fff; cursor:pointer; }
     .chk-deadline-sel:focus { outline:none; border-color:#4f86f7; }
@@ -197,19 +198,29 @@
       .stat-mini-label { font-size:10px; }
       /* 체크리스트 헤더행 숨김 */
       .chk-header-row { display:none !important; }
-      /* 체크리스트 행 → 2줄 카드 레이아웃 */
+      /* 체크리스트 행 → 3줄 카드 레이아웃 (시간대 추가) */
       .chk-task-row {
         grid-template-columns: 22px 1fr auto;
-        grid-template-rows: auto auto;
+        grid-template-rows: auto auto auto;
         gap: 4px 8px;
         padding: 10px 12px;
       }
       .chk-checkbox    { grid-area:1/1/2/2; align-self:center; }
       .chk-label       { grid-area:1/2/2/3; font-size:12px; line-height:1.4; }
       .chk-st          { grid-area:1/3/2/4; align-self:center; }
-      .chk-min-input   { grid-area:2/1/3/2; font-size:11px; padding:4px; }
-      .chk-date-input  { grid-area:2/2/3/3; font-size:11px; padding:4px 6px; }
-      .chk-deadline-sel{ grid-area:2/3/3/4; font-size:10px; padding:3px 1px; width:auto; }
+      /* 2행: 시작일 + 완료일 */
+      .chk-date-input  { font-size:11px; padding:4px 6px; }
+      /* 3행: 시작시간 + 종료시간 + 기한별점 */
+      .chk-time-sel    { font-size:10px; padding:3px 1px; width:auto; }
+      .chk-deadline-sel{ font-size:10px; padding:3px 1px; width:auto; }
+      /* row 2: 두 날짜 입력 나란히 */
+      .chk-task-row .chk-date-start { grid-area:2/1/3/2; }
+      .chk-task-row .chk-date-end   { grid-area:2/2/3/3; }
+      .chk-task-row .chk-date-end-deadline { grid-area:2/3/3/4; }
+      /* row 3: 시작시간 + 종료시간 + 기한 */
+      .chk-task-row .chk-time-start-sel { grid-area:3/1/4/2; }
+      .chk-task-row .chk-time-end-sel   { grid-area:3/2/4/3; }
+      .chk-task-row .chk-deadline-col   { grid-area:3/3/4/4; }
       /* 체크리스트 내부 여백 축소 */
       .chk-group-header { padding:8px 12px; font-size:11px; }
       .chk-stats { grid-template-columns:1fr 1fr; gap:8px; padding:12px 12px 8px; }
@@ -437,7 +448,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=6"></script>
+<script src="js/portal.js?v=8"></script>
 <script>
   Portal.init();
 
@@ -1016,7 +1027,10 @@
   const thisMonthC = new Date().getMonth() + 1;
   let chkYear = thisYearC, chkMonth = thisMonthC, chkMember = '';
   let chkDone = new Set(), chkTimes = {}, chkRecordId = null;
-  let chkDates = {}; // taskId -> completionDateStr
+  let chkDates = {}; // taskId -> completionDateStr (완료일)
+  let chkStartDates = {}; // taskId -> 시작일자
+  let chkStartTimes = {}; // taskId -> 시작시간 HH:MM
+  let chkEndTimes   = {}; // taskId -> 종료시간 HH:MM
   let chklChipMap = {}; // completionDateStr -> [{taskLabel, status}]
   let chkDeadlineDaysMap = {}; // taskId -> 단축(+)/지연(-) 일수
 
@@ -1098,13 +1112,15 @@
   function renderChecklist() {
     updateChkStats();
     const container = document.getElementById('chkTaskList');
-    const headerRow = `<div class="chk-header-row" style="display:grid;grid-template-columns:auto 1fr 75px 110px 90px 48px;gap:8px;padding:6px 24px;background:#f8faff;border-top:1px solid #f3f4f6;border-bottom:1px solid #f3f4f6;">
+    const headerRow = `<div class="chk-header-row" style="display:grid;grid-template-columns:auto 1fr 55px 110px 110px 80px 80px 48px;gap:6px;padding:6px 24px;background:#f8faff;border-top:1px solid #f3f4f6;border-bottom:1px solid #f3f4f6;">
       <span></span>
       <span style="font-size:11px;font-weight:700;color:#6b7280;">업무명</span>
-      <span style="font-size:11px;font-weight:700;color:#6b7280;text-align:center;">소요시간</span>
-      <span style="font-size:11px;font-weight:700;color:#6b7280;text-align:center;">완료일</span>
-      <span style="font-size:11px;font-weight:700;color:#6366f1;text-align:center;">단축/지연일</span>
       <span style="font-size:11px;font-weight:700;color:#6b7280;text-align:center;">상태</span>
+      <span style="font-size:11px;font-weight:700;color:#6b7280;text-align:center;">시작일</span>
+      <span style="font-size:11px;font-weight:700;color:#6b7280;text-align:center;">완료일</span>
+      <span style="font-size:11px;font-weight:700;color:#6b7280;text-align:center;">시작시간</span>
+      <span style="font-size:11px;font-weight:700;color:#6b7280;text-align:center;">종료시간</span>
+      <span style="font-size:11px;font-weight:700;color:#6366f1;text-align:center;">단축/지연</span>
     </div>`;
     // 비팀장은 자기 assignee 항목 + 미지정(assignee 없음) 항목만 표시
     const visibleIds = new Set(
@@ -1126,20 +1142,42 @@
           const status = getTaskStatus(t.id);
           const stClass = status === '조기마감' ? 'chk-st-조기마감' : status === '준수' ? 'chk-st-준수' : status === '지연' ? 'chk-st-지연' : 'chk-st-미완';
           const stText = status || '미완';
-          return `
+          return (()=>{
+            /* 30분 단위 시간 옵션 헬퍼 (settlement 내부 전용) */
+            if (!window._chkHalfOpts) {
+              window._chkHalfOpts = [];
+              for (let m = 360; m <= 1320; m += 30) { // 06:00 ~ 22:00
+                const hh = String(Math.floor(m/60)).padStart(2,'0');
+                const mm = String(m%60).padStart(2,'0');
+                window._chkHalfOpts.push(hh + ':' + mm);
+              }
+            }
+            const halfOpts = window._chkHalfOpts;
+            const sSt = chkStartTimes && chkStartTimes[t.id] || '09:00';
+            const sSend = chkEndTimes && chkEndTimes[t.id] || '18:00';
+            const sStartDateVal = chkStartDates && chkStartDates[t.id] || '';
+            const sEndDateVal   = chkDates[t.id] || '';
+            const startSel = halfOpts.map(v => `<option value="${v}"${sSt===v?' selected':''}>${v}</option>`).join('');
+            const endSel   = halfOpts.map(v => `<option value="${v}"${sSend===v?' selected':''}>${v}</option>`).join('');
+            return `
           <div class="chk-task-row">
             <input type="checkbox" class="chk-checkbox" id="chk_${t.id}"
               ${chkDone.has(t.id) ? 'checked' : ''}
               onchange="toggleChkTask('${t.id}',this.checked)">
             <label for="chk_${t.id}" class="chk-label${chkDone.has(t.id) ? ' done' : ''}">${t.label}</label>
-            <input type="number" class="chk-min-input" min="0" placeholder="분"
-              value="${chkTimes[t.id] || ''}"
-              oninput="chkTimes['${t.id}']=parseInt(this.value)||0;updateChkStats()">
-            <input type="date" class="chk-date-input" id="chkdate_${t.id}"
-              value="${chkDates[t.id] || ''}"
+            <span class="chk-st ${stClass}">${stText}</span>
+            <input type="date" class="chk-date-input chk-date-start" id="chkstartdate_${t.id}"
+              value="${sStartDateVal}"
+              onchange="chkStartDates['${t.id}']=this.value">
+            <input type="date" class="chk-date-input chk-date-end" id="chkdate_${t.id}"
+              value="${sEndDateVal}"
               onchange="chkDates['${t.id}']=this.value;autoCalcDeadline('${t.id}');renderChecklist();buildChklChipMap();renderCalendar();if(selectedDate)showDayPanel(selectedDate)">
+            <select class="chk-time-sel chk-time-start-sel" title="시작시간"
+              onchange="if(!chkStartTimes)chkStartTimes={};chkStartTimes['${t.id}']=this.value">${startSel}</select>
+            <select class="chk-time-sel chk-time-end-sel" title="종료시간"
+              onchange="if(!chkEndTimes)chkEndTimes={};chkEndTimes['${t.id}']=this.value">${endSel}</select>
             ${t.due != null
-              ? `<select class="chk-deadline-sel${chkDeadlineDaysMap[t.id]!=null?' auto-val':''}" disabled title="완료일 기준 자동계산">
+              ? `<select class="chk-deadline-sel chk-deadline-col${chkDeadlineDaysMap[t.id]!=null?' auto-val':''}" disabled title="완료일 기준 자동계산">
                   <option value="">-</option>
                   <option value="2"  ${chkDeadlineDaysMap[t.id]===2?'selected':''}>+2일↑</option>
                   <option value="1"  ${chkDeadlineDaysMap[t.id]===1?'selected':''}>+1일</option>
@@ -1148,7 +1186,7 @@
                   <option value="-2" ${chkDeadlineDaysMap[t.id]===-2?'selected':''}>-2일</option>
                   <option value="-3" ${chkDeadlineDaysMap[t.id]===-3?'selected':''}>-3일↓</option>
                 </select>`
-              : `<select class="chk-deadline-sel${chkDeadlineDaysMap[t.id]!=null?' has-val':''}"
+              : `<select class="chk-deadline-sel chk-deadline-col${chkDeadlineDaysMap[t.id]!=null?' has-val':''}"
                   onchange="onTaskDeadlineChange('${t.id}',this.value)" title="마감기일 미지정: 직접 선택">
                   <option value="">기한</option>
                   <option value="2"  ${chkDeadlineDaysMap[t.id]===2?'selected':''}>+2일↑</option>
@@ -1159,8 +1197,8 @@
                   <option value="-3" ${chkDeadlineDaysMap[t.id]===-3?'selected':''}>-3일↓</option>
                 </select>`
             }
-            <span class="chk-st ${stClass}">${stText}</span>
           </div>`;
+          })();
         }).join('')}
       </div>`;
     }).join('');
@@ -1237,10 +1275,13 @@
         String(r.year) === String(chkYear) &&
         String(r.month) === String(chkMonth)
       );
-      chkDone = new Set(match?.settlement_done || []);
-      chkTimes = match?.settlement_times || {};
-      chkDates = match?.settlement_dates || {};
-      chkRecordId = match?.id || null;
+      chkDone       = new Set(match?.settlement_done || []);
+      chkTimes      = match?.settlement_times || {};
+      chkDates      = match?.settlement_dates || {};
+      chkStartDates = match?.settlement_start_dates || {};
+      chkStartTimes = match?.settlement_start_times || {};
+      chkEndTimes   = match?.settlement_end_times   || {};
+      chkRecordId   = match?.id || null;
       chkDeadlineDaysMap = match?.settlement_deadline_days || {};
     } catch(e) {
       chkDone = new Set(); chkTimes = {}; chkDates = {}; chkRecordId = null; chkDeadlineDaysMap = {};
@@ -1254,9 +1295,12 @@
     if (!chkMember) { Portal.showToast('팀원을 선택하세요.', 'error'); return; }
     const body = {
       year: chkYear, month: chkMonth, member_name: chkMember,
-      settlement_done: [...chkDone],
-      settlement_times: chkTimes,
-      settlement_dates: chkDates,
+      settlement_done:          [...chkDone],
+      settlement_times:         chkTimes,
+      settlement_dates:         chkDates,
+      settlement_start_dates:   chkStartDates,
+      settlement_start_times:   chkStartTimes,
+      settlement_end_times:     chkEndTimes,
       settlement_deadline_days: chkDeadlineDaysMap,
     };
     try {
@@ -1277,7 +1321,47 @@
       renderCalendar();
       if (selectedDate) showDayPanel(selectedDate);
       if (Object.keys(chkDeadlineDaysMap).length > 0) pushDeadlineToPerf();
+      /* daily_work_entries 동기화 (완료된 항목 + 시간 입력된 항목) */
+      syncSettleToDwe();
     } catch(e) { Portal.showToast('저장에 실패했습니다.', 'error'); }
+  }
+
+  /* ── daily_work_entries 동기화 ── */
+  async function syncSettleToDwe() {
+    if (!chkMember) return;
+    // 완료된 항목 중 시간 정보가 있는 것만 upsert
+    for (const t of SETTLE_SCHEDULE) {
+      if (!chkDone.has(t.id)) continue;
+      const endDate   = chkDates[t.id];
+      const startDate = chkStartDates[t.id] || endDate;
+      const startTime = chkStartTimes[t.id] || '09:00';
+      const endTime   = chkEndTimes[t.id]   || '18:00';
+      if (!endDate) continue; // 완료일 없으면 스킵
+      const dweId = `dwe_settle_${chkMember}_${t.id}_${endDate}`;
+      const dweBody = {
+        id: dweId,
+        member_name: chkMember,
+        task_label:  t.label,
+        settle_item_id: t.id,
+        start_date:  startDate,
+        end_date:    endDate,
+        start_time:  startTime,
+        end_time:    endTime,
+        source:      'settlement',
+        note:        '',
+      };
+      try {
+        // PUT (upsert 시도 — 없으면 POST fallback)
+        const pr = await fetch(`/tables/daily_work_entries/${encodeURIComponent(dweId)}`, {
+          method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(dweBody)
+        });
+        if (!pr.ok) {
+          await fetch('/tables/daily_work_entries', {
+            method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(dweBody)
+          });
+        }
+      } catch(_) {}
+    }
   }
 
   function calcDeadlinePerfScore(days) {

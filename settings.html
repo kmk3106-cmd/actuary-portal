@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=6">
+  <link rel="stylesheet" href="css/main.css?v=8">
   <style>
     .tabs { display:flex; gap:4px; border-bottom:2px solid #e5e7eb; margin-bottom:20px; flex-wrap:wrap; }
     .tab { padding:10px 18px; background:none; border:none; font-size:14px; font-weight:600;
@@ -42,6 +42,30 @@
 
     .table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:10px; }
     .settings-table { min-width:560px; }
+
+    /* 마이그레이션 탭 전용 */
+    .mig-stat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }
+    .mig-stat-card { background:#fff; border:1.5px solid #e5e7eb; border-radius:12px; padding:16px 20px; text-align:center; }
+    .mig-stat-label { font-size:11px; color:#9ca3af; font-weight:500; margin-bottom:6px; }
+    .mig-stat-val { font-size:26px; font-weight:800; }
+    .mig-stat-val.blue   { color:#3b82f6; }
+    .mig-stat-val.orange { color:#f59e0b; }
+    .mig-stat-val.green  { color:#10b981; }
+    .est-chip-small { display:inline-flex; align-items:center; padding:1px 7px; border-radius:10px;
+      font-size:10px; font-weight:700; background:#dbeafe; color:#1d4ed8; white-space:nowrap; }
+    .mig-list { display:flex; flex-direction:column; gap:8px; }
+    .mig-item { display:grid; grid-template-columns:80px 1fr 1fr 70px 80px auto;
+      gap:8px; align-items:center; padding:10px 12px;
+      background:#f9fafb; border-radius:10px; border:1px solid #f3f4f6; font-size:13px; }
+    .mig-item:hover { background:#f3f4f6; }
+    .mig-danger-zone { margin-top:28px; padding:16px 20px; background:#fef2f2;
+      border:1.5px solid #fecaca; border-radius:12px; }
+    .mig-danger-title { font-size:14px; font-weight:700; color:#991b1b; margin-bottom:10px; }
+    .mig-danger-desc { font-size:12px; color:#b91c1c; line-height:1.7; margin-bottom:14px; }
+    @media(max-width:640px) {
+      .mig-stat-grid { grid-template-columns:1fr 1fr; }
+      .mig-item { grid-template-columns:1fr 1fr; grid-template-rows:auto auto auto; }
+    }
 
     /* 모바일: 표 → 카드 형태로 변환 */
     @media (max-width: 640px) {
@@ -80,7 +104,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=6"></script>
+<script src="js/portal.js?v=8"></script>
 <script>
 if (!Portal.init()) throw 'AUTH';
 
@@ -99,6 +123,7 @@ root.innerHTML = `
     <button class="tab" data-tab="kpi">KPI 정의</button>
     <button class="tab" data-tab="cat">기타 카테고리</button>
     <button class="tab" data-tab="issue-cat">이슈 카테고리</button>
+    <button class="tab" data-tab="migration">마이그레이션</button>
   </div>
 
   <div class="tab-panel active" id="panel-settle">
@@ -198,6 +223,54 @@ root.innerHTML = `
     </table>
     </div>
   </div>
+
+  <div class="tab-panel" id="panel-migration">
+    <div class="panel-header">
+      <div>
+        <h2>시간대 마이그레이션 도구</h2>
+        <div class="panel-desc">daily_work_entries — 추정값 현황 및 보정 관리</div>
+      </div>
+      <button class="btn-mini" onclick="loadMigration()"><i class="fas fa-sync-alt"></i> 새로고침</button>
+    </div>
+
+    <!-- 현황 카드 -->
+    <div class="mig-stat-grid" id="migStatGrid">
+      <div class="mig-stat-card">
+        <div class="mig-stat-label">전체 항목</div>
+        <div class="mig-stat-val blue" id="migTotal">-</div>
+      </div>
+      <div class="mig-stat-card">
+        <div class="mig-stat-label">추정값 (보정 전)</div>
+        <div class="mig-stat-val orange" id="migEstCount">-</div>
+      </div>
+      <div class="mig-stat-card">
+        <div class="mig-stat-label">사용자 보정 완료</div>
+        <div class="mig-stat-val green" id="migDoneCount">-</div>
+      </div>
+    </div>
+
+    <!-- 추정 항목 리스트 -->
+    <div class="panel-header" style="margin-bottom:10px;">
+      <div>
+        <h2 style="font-size:14px;">추정 항목 목록 <span style="font-size:12px;color:#9ca3af;font-weight:400;">(is_estimated=true)</span></h2>
+      </div>
+    </div>
+    <div id="migList">
+      <div style="text-align:center;padding:32px;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> 로딩 중...</div>
+    </div>
+
+    <!-- 위험 구역 -->
+    <div class="mig-danger-zone">
+      <div class="mig-danger-title"><i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>위험 구역 — 재마이그레이션</div>
+      <div class="mig-danger-desc">
+        모든 daily_work_entries 항목의 time_entries를 비우고 duration_minutes 기준으로 재분산합니다.<br>
+        이 작업은 사용자가 수동 보정한 시간 정보를 덮어씁니다. 실행 전 반드시 DB 백업을 확인하세요.
+      </div>
+      <button class="btn-mini danger" onclick="remigrate()" style="border-color:#ef4444;color:#ef4444;">
+        <i class="fas fa-redo"></i> 전체 재마이그레이션 실행
+      </button>
+    </div>
+  </div>
 `;
 
 document.querySelectorAll('.tab').forEach(btn => {
@@ -206,6 +279,8 @@ document.querySelectorAll('.tab').forEach(btn => {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    // 마이그레이션 탭 최초 진입 시 자동 로드
+    if (btn.dataset.tab === 'migration') loadMigration();
   });
 });
 
@@ -435,6 +510,167 @@ function escapeHtml(s) {
 
 // 초기 로드
 loadSettle(); loadScore(); loadKpi(); loadCat(); loadIssueCat();
+
+// ───────── 마이그레이션 도구 ─────────
+let _migData = [];
+
+async function loadMigration() {
+  document.getElementById('migTotal').textContent    = '...';
+  document.getElementById('migEstCount').textContent = '...';
+  document.getElementById('migDoneCount').textContent= '...';
+  document.getElementById('migList').innerHTML =
+    '<div style="text-align:center;padding:32px;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> 로딩 중...</div>';
+
+  try {
+    const r = await fetch('/tables/daily_work_entries?limit=1000');
+    const d = await r.json();
+    _migData = (d.rows || d.data || []);
+    const total   = _migData.length;
+    const estRows = _migData.filter(x => x.is_estimated === true || x.is_estimated === 1);
+    const doneRows = _migData.filter(x => x.is_estimated === false || x.is_estimated === 0);
+    document.getElementById('migTotal').textContent     = total + '건';
+    document.getElementById('migEstCount').textContent  = estRows.length + '건';
+    document.getElementById('migDoneCount').textContent = doneRows.length + '건';
+    renderMigList(estRows);
+  } catch(e) {
+    document.getElementById('migList').innerHTML =
+      '<div style="color:#ef4444;padding:16px;">데이터를 불러오지 못했습니다.</div>';
+  }
+}
+
+function renderMigList(rows) {
+  const container = document.getElementById('migList');
+  if (!rows.length) {
+    container.innerHTML = '<div style="text-align:center;padding:32px;color:#9ca3af;">추정 항목이 없습니다. 모든 항목이 보정 완료 상태입니다.</div>';
+    return;
+  }
+  container.innerHTML = `<div class="mig-list">` +
+    rows.map(r => {
+      const sd = r.start_date || r.work_date || '-';
+      const ed = r.end_date   || r.work_date || sd;
+      const period = sd === ed ? sd : `${sd} ~ ${ed}`;
+      const totalMin = r.total_minutes || r.duration_minutes || 0;
+      const h = Math.floor(totalMin / 60), m = totalMin % 60;
+      const dur = h > 0 ? `${h}h${m > 0 ? ' ' + m + 'm' : ''}` : `${m}m`;
+      return `<div class="mig-item" data-id="${r.id}">
+        <span style="font-size:12px;font-weight:600;color:#374151;">${r.member_name || '-'}</span>
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(r.task_label||'')}">${escapeHtml(r.task_label || '-')}</span>
+        <span style="font-size:12px;color:#6b7280;">${period}</span>
+        <span style="font-size:12px;font-weight:700;color:#4f86f7;">${dur}</span>
+        <span><span class="est-chip-small">추정</span></span>
+        <button class="btn-mini" onclick="openMigEditModal(${r.id})"><i class="fas fa-pen"></i> 수정</button>
+      </div>`;
+    }).join('') + `</div>`;
+}
+
+function openMigEditModal(id) {
+  const row = _migData.find(x => x.id === id);
+  if (!row) return;
+
+  // 간단한 시간 편집 모달 (인라인 alert/prompt 대신 Portal confirm 활용)
+  const sd = row.start_date || row.work_date || '';
+  const ed = row.end_date   || row.work_date || sd;
+  const st = row.time_entries?.[0]?.start || '09:00';
+  const et = row.time_entries?.[row.time_entries.length-1]?.end || '18:00';
+
+  // 모달 DOM 생성
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay show';
+  overlay.id = 'migEditOverlay';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:16px;width:440px;max-width:95vw;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+        <span style="font-size:16px;font-weight:700;color:#111827;">시간대 보정 — ${escapeHtml(row.task_label || '')}</span>
+        <button onclick="document.getElementById('migEditOverlay').remove()"
+          style="border:none;background:#f3f4f6;width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:14px;color:#6b7280;">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">시작일</label>
+          <input type="date" id="mig_sd_${id}" value="${sd}" style="width:100%;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">종료일</label>
+          <input type="date" id="mig_ed_${id}" value="${ed}" style="width:100%;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">시작시간</label>
+          <select id="mig_st_${id}" style="width:100%;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;">
+            ${buildMigTimeOpts(st)}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">종료시간</label>
+          <select id="mig_et_${id}" style="width:100%;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;">
+            ${buildMigTimeOpts(et)}
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button onclick="document.getElementById('migEditOverlay').remove()"
+          style="padding:9px 18px;border-radius:9px;border:1.5px solid #e5e7eb;background:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">취소</button>
+        <button onclick="saveMigEdit(${id})"
+          style="padding:9px 20px;border-radius:9px;border:none;background:#4f86f7;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">보정 저장</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+function buildMigTimeOpts(selected) {
+  const opts = [];
+  for (let m = 360; m <= 1320; m += 30) {
+    const hh = String(Math.floor(m/60)).padStart(2,'0');
+    const mm = String(m%60).padStart(2,'0');
+    const v = `${hh}:${mm}`;
+    opts.push(`<option value="${v}"${v === selected ? ' selected' : ''}>${v}</option>`);
+  }
+  return opts.join('');
+}
+
+async function saveMigEdit(id) {
+  const sd = document.getElementById(`mig_sd_${id}`)?.value;
+  const ed = document.getElementById(`mig_ed_${id}`)?.value;
+  const st = document.getElementById(`mig_st_${id}`)?.value;
+  const et = document.getElementById(`mig_et_${id}`)?.value;
+  if (!sd || !st || !et) { Portal.showToast('모든 필드를 입력해주세요.', 'error'); return; }
+  try {
+    const r = await fetch(`/tables/daily_work_entries/${id}`, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ start_date: sd, end_date: ed || sd,
+        start_time: st, end_time: et, is_estimated: false })
+    });
+    if (!r.ok) throw new Error(`PUT 실패 (${r.status})`);
+    document.getElementById('migEditOverlay')?.remove();
+    Portal.showToast('보정이 저장되었습니다.', 'success');
+    await loadMigration();
+  } catch(e) {
+    Portal.showToast('저장 중 오류: ' + e.message, 'error');
+  }
+}
+
+async function remigrate() {
+  if (!confirm('모든 daily_work_entries의 time_entries를 초기화하고 재분산합니다.\n이 작업은 되돌릴 수 없습니다.\n\n정말 실행하시겠습니까?')) return;
+  if (!confirm('마지막 확인: DB 백업 여부를 확인하셨습니까? 계속하면 수동 보정 내용이 지워집니다.')) return;
+  try {
+    // 서버 재마이그레이션 API 호출 (존재하면 사용, 없으면 안내)
+    const r = await fetch('/api/tasks/remigrate', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}'
+    });
+    if (r.ok) {
+      Portal.showToast('재마이그레이션이 완료되었습니다.', 'success');
+      await loadMigration();
+    } else if (r.status === 404) {
+      Portal.showToast('재마이그레이션 API가 아직 구현되지 않았습니다. 서버 담당자에게 문의하세요.', 'warning');
+    } else {
+      throw new Error(`서버 오류 (${r.status})`);
+    }
+  } catch(e) {
+    Portal.showToast('오류: ' + e.message, 'error');
+  }
+}
 </script>
 </body>
 </html>

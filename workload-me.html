@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=6">
+  <link rel="stylesheet" href="css/main.css?v=8">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
   <style>
     /* ── 내 업무량 전용 스타일 ── */
@@ -317,6 +317,117 @@
       color: var(--gray-400);
     }
 
+    /* ── 시간대 입력 모드 토글 ── */
+    .time-mode-toggle {
+      display: flex;
+      gap: 0;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 9px;
+      overflow: hidden;
+      margin-bottom: 16px;
+      width: fit-content;
+    }
+    .time-mode-btn {
+      padding: 7px 16px;
+      background: white;
+      border: none;
+      font-size: 13px; font-weight: 600;
+      color: var(--gray-500);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .time-mode-btn + .time-mode-btn { border-left: 1.5px solid var(--gray-200); }
+    .time-mode-btn:hover { background: var(--gray-50); }
+    .time-mode-btn.active { background: var(--primary); color: white; }
+
+    /* 단일 모드 폼 */
+    .single-mode-grid {
+      display: grid;
+      grid-template-columns: 140px 90px 90px 1fr 1fr auto;
+      gap: 10px;
+      align-items: end;
+      margin-bottom: 12px;
+    }
+    /* 여러일정 모드 */
+    .multi-time-row {
+      display: grid;
+      grid-template-columns: 140px 90px 90px auto auto;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+      padding: 8px 12px;
+      background: var(--gray-50);
+      border-radius: 9px;
+      border: 1px solid var(--gray-200);
+    }
+    .multi-time-calc {
+      font-size: 12px; font-weight: 700; color: var(--primary);
+      white-space: nowrap;
+    }
+    .btn-del-time {
+      background: none; border: none; cursor: pointer;
+      color: var(--gray-400); font-size: 14px;
+      padding: 4px 6px; border-radius: 6px;
+      transition: all 0.15s;
+    }
+    .btn-del-time:hover { color: var(--danger); background: #fee2e2; }
+    .time-total-bar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px;
+      background: #eff6ff; border-radius: 9px;
+      font-size: 13px; color: var(--gray-700);
+      margin-bottom: 12px;
+    }
+    .time-total-val { font-size: 18px; font-weight: 800; color: var(--primary); }
+
+    /* 기간 표시 배지 */
+    .entry-period-badge {
+      display: inline-flex;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11.5px; font-weight: 700;
+      background: #f3f4f6; color: #374151;
+      white-space: nowrap;
+    }
+    /* 추정 chip */
+    .est-chip {
+      display: inline-flex; align-items: center;
+      padding: 1px 7px; border-radius: 12px;
+      font-size: 10px; font-weight: 700;
+      background: #dbeafe; color: #1d4ed8;
+      white-space: nowrap;
+    }
+    /* 시간대 펼치기 행 */
+    .time-expand-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--primary); font-size: 12px;
+      padding: 3px 8px; border-radius: 6px;
+      transition: background 0.15s;
+    }
+    .time-expand-btn:hover { background: #eff6ff; }
+    .time-entries-detail {
+      background: var(--gray-50);
+      padding: 8px 14px;
+      font-size: 12px;
+      border-top: 1px solid var(--gray-100);
+    }
+    .te-row { display: flex; gap: 12px; padding: 4px 0; color: var(--gray-600); }
+    .te-row strong { color: var(--gray-800); font-weight: 700; }
+
+    @media (max-width: 768px) {
+      .single-mode-grid { grid-template-columns: 1fr 1fr; }
+      .single-mode-grid .form-field:nth-child(1) { grid-column:1/3; }
+      .single-mode-grid .form-field:nth-child(6) { grid-column:1/3; }
+      .single-mode-grid .btn-add { grid-column:1/3; justify-content:center; }
+      .multi-time-row { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; }
+    }
+    @media (max-width: 480px) {
+      .single-mode-grid { grid-template-columns: 1fr; }
+      .single-mode-grid > * { grid-column: 1 !important; }
+      .multi-time-row { grid-template-columns: 1fr; }
+    }
+
     /* 스피너 */
     .spinner {
       width: 28px; height: 28px;
@@ -446,7 +557,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=6"></script>
+<script src="js/portal.js?v=8"></script>
 <script>
 /* ── 상태 ── */
 let currentUser    = null;
@@ -593,9 +704,14 @@ async function loadAll() {
     const allEntries = entriesRes && entriesRes.ok ? await entriesRes.json() : { rows: [] };
     const alertData  = missingRes && missingRes.ok ? await missingRes.json() : null;
 
-    // 선택 월 범위의 항목만 필터
+    // 선택 월 범위의 항목만 필터 (start_date/end_date 또는 work_date 기준)
     myEntries = (allEntries.rows || allEntries.data || allEntries || [])
-      .filter(x => x.member_name === name && x.work_date >= from && x.work_date <= to);
+      .filter(x => {
+        if (x.member_name !== name) return false;
+        const sd = x.start_date || x.work_date || '';
+        const ed = x.end_date   || x.work_date || sd;
+        return (sd >= from && sd <= to) || (ed >= from && ed <= to);
+      });
 
     renderPage(userData, alertData, name);
   } catch(e) {
@@ -806,7 +922,7 @@ function renderPage(userData, alertData, name) {
       </div>
     </div>
 
-    <!-- 업무 입력 폼 -->
+    <!-- 업무 입력 폼 (시간대 입력) -->
     <div class="input-section">
       <div class="input-section-header">
         <div class="chart-icon green" style="width:28px;height:28px;border-radius:8px;font-size:13px;">
@@ -816,46 +932,104 @@ function renderPage(userData, alertData, name) {
         <span style="font-size:12px;color:var(--gray-400);" id="entryCountBadge">${myEntries.length}건</span>
       </div>
       <div class="input-section-body">
-        <div class="entry-form-grid" id="entryForm">
-          <div class="form-field">
-            <label>날짜</label>
-            <input type="date" id="entryDate" value="${defaultDate}">
-          </div>
-          <div class="form-field">
-            <label>카테고리</label>
-            <select id="entryCategory">
-              <option value="">-- 선택 (선택사항) --</option>
-              ${taskCategories.map(c =>
-                `<option value="${c.id}">${c.name || c.label || c.task_name || c.id}</option>`
-              ).join('')}
-            </select>
-          </div>
-          <div class="form-field">
-            <label>업무 내용</label>
-            <input type="text" id="entryLabel" placeholder="업무 내용 자유 입력" style="min-width:140px;">
-          </div>
-          <div class="form-field">
-            <label>시간 (분)</label>
-            <input type="number" id="entryMinutes" placeholder="60" min="1" max="999" style="width:80px;">
-          </div>
-          <div class="form-field">
-            <label>메모</label>
-            <input type="text" id="entryNote" placeholder="선택사항">
-          </div>
-          <button class="btn-add" onclick="submitEntry()" id="btnAdd">
-            <i class="fas fa-plus"></i> 추가
+
+        <!-- 모드 토글 -->
+        <div class="time-mode-toggle">
+          <button class="time-mode-btn active" id="modeSingleBtn" onclick="switchEntryMode('single')">
+            단일일정
           </button>
+          <button class="time-mode-btn" id="modeMultiBtn" onclick="switchEntryMode('multi')">
+            여러일정
+          </button>
+        </div>
+
+        <!-- 단일 모드 -->
+        <div id="singleModeForm">
+          <div class="single-mode-grid">
+            <div class="form-field">
+              <label>날짜</label>
+              <input type="date" id="entryDate" value="${defaultDate}">
+            </div>
+            <div class="form-field">
+              <label>시작시간</label>
+              <select id="entryStartTime">${buildHalfHourSelectOpts('09:00')}</select>
+            </div>
+            <div class="form-field">
+              <label>종료시간</label>
+              <select id="entryEndTime" onchange="updateSingleCalc()">${buildHalfHourSelectOpts('18:00')}</select>
+            </div>
+            <div class="form-field">
+              <label>카테고리</label>
+              <select id="entryCategory">
+                <option value="">-- 선택사항 --</option>
+                ${taskCategories.map(c =>
+                  `<option value="${c.id}">${c.name || c.label || c.task_name || c.id}</option>`
+                ).join('')}
+              </select>
+            </div>
+            <div class="form-field">
+              <label>업무 내용 *</label>
+              <input type="text" id="entryLabel" placeholder="업무 내용 자유 입력" style="min-width:120px;">
+            </div>
+            <div class="form-field">
+              <label>메모</label>
+              <input type="text" id="entryNote" placeholder="선택사항">
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+            <span style="font-size:13px;color:var(--gray-600);">소요시간: <strong id="singleCalcDisp" style="color:var(--primary);">-</strong></span>
+            <button class="btn-add" onclick="submitEntry()" id="btnAdd">
+              <i class="fas fa-plus"></i> 추가
+            </button>
+          </div>
+        </div>
+
+        <!-- 여러일정 모드 -->
+        <div id="multiModeForm" style="display:none;">
+          <div id="multiTimeRows"></div>
+          <button class="btn btn-secondary btn-sm" onclick="addMultiTimeRow()" style="margin-bottom:12px;">
+            <i class="fas fa-plus"></i> 시간대 추가
+          </button>
+          <div class="time-total-bar" id="multiTotalBar" style="display:none;">
+            총 <span class="time-total-val" id="multiTotalDisp">0h</span>
+            <span style="color:var(--gray-400);">|</span>
+            <span id="multiDaysDisp" style="font-size:12px;color:var(--gray-500);"></span>
+          </div>
+          <div class="single-mode-grid" style="grid-template-columns:1fr 1fr auto;">
+            <div class="form-field">
+              <label>카테고리</label>
+              <select id="multiEntryCategory">
+                <option value="">-- 선택사항 --</option>
+                ${taskCategories.map(c =>
+                  `<option value="${c.id}">${c.name || c.label || c.task_name || c.id}</option>`
+                ).join('')}
+              </select>
+            </div>
+            <div class="form-field">
+              <label>업무 내용 *</label>
+              <input type="text" id="multiEntryLabel" placeholder="업무 내용 자유 입력">
+            </div>
+            <div class="form-field">
+              <label>메모</label>
+              <input type="text" id="multiEntryNote" placeholder="선택사항">
+            </div>
+          </div>
+          <div>
+            <button class="btn-add" onclick="submitMultiEntry()" id="btnAddMulti">
+              <i class="fas fa-plus"></i> 추가
+            </button>
+          </div>
         </div>
 
         <div class="entry-table-wrap">
           <table class="entry-table" id="entryTable">
             <thead>
               <tr>
-                <th>날짜</th>
+                <th>기간</th>
                 <th>카테고리</th>
                 <th>업무 내용</th>
-                <th>시간</th>
-                <th>메모</th>
+                <th>총 시간</th>
+                <th>시간대</th>
                 <th></th>
               </tr>
             </thead>
@@ -874,6 +1048,17 @@ function renderPage(userData, alertData, name) {
   renderLineChart(series);
   renderMmBar(mmPeriod, userData);
   renderEntryTable();
+  /* 입력 폼 초기화 */
+  entryMode = 'single';
+  multiTimeRows = [];
+  // 시작시간 변경 시 calc 업데이트
+  setTimeout(() => {
+    const st = document.getElementById('entryStartTime');
+    const et = document.getElementById('entryEndTime');
+    if (st) st.addEventListener('change', updateSingleCalc);
+    if (et) et.addEventListener('change', updateSingleCalc);
+    updateSingleCalc();
+  }, 0);
 }
 
 /* ── 게이지 차트 ── */
@@ -1221,60 +1406,195 @@ function switchMmPeriod(period, btn) {
   renderMmBar(period, null);
 }
 
-/* ── 엔트리 테이블 렌더 ── */
+/* ── 시간대 입력 헬퍼 ── */
+let entryMode = 'single'; // 'single' | 'multi'
+let multiTimeRows = []; // [{ date, start, end }]
+
+function buildHalfHourSelectOpts(selected = '09:00') {
+  const opts = [];
+  for (let m = 360; m <= 1320; m += 30) { // 06:00 ~ 22:00
+    const hh = String(Math.floor(m / 60)).padStart(2, '0');
+    const mm = String(m % 60).padStart(2, '0');
+    const val = `${hh}:${mm}`;
+    opts.push(`<option value="${val}"${val === selected ? ' selected' : ''}>${val}</option>`);
+  }
+  return opts.join('');
+}
+
+function switchEntryMode(mode) {
+  entryMode = mode;
+  document.getElementById('modeSingleBtn').classList.toggle('active', mode === 'single');
+  document.getElementById('modeMultiBtn').classList.toggle('active', mode === 'multi');
+  const sf = document.getElementById('singleModeForm');
+  const mf = document.getElementById('multiModeForm');
+  if (sf) sf.style.display = mode === 'single' ? '' : 'none';
+  if (mf) mf.style.display = mode === 'multi'  ? '' : 'none';
+}
+
+function updateSingleCalc() {
+  const dateEl  = document.getElementById('entryDate');
+  const startEl = document.getElementById('entryStartTime');
+  const endEl   = document.getElementById('entryEndTime');
+  const dispEl  = document.getElementById('singleCalcDisp');
+  if (!dateEl || !startEl || !endEl || !dispEl) return;
+  try {
+    const d = dateEl.value || new Date().toISOString().split('T')[0];
+    const s = new Date(`${d}T${startEl.value}:00`);
+    const e = new Date(`${d}T${endEl.value}:00`);
+    const min = Math.round((e - s) / 60000);
+    if (min > 0) {
+      const h = Math.floor(min / 60), m = min % 60;
+      dispEl.textContent = h > 0 ? `${h}h${m > 0 ? ' ' + m + 'm' : ''}` : `${m}m`;
+    } else {
+      dispEl.textContent = '-';
+    }
+  } catch(_) { dispEl.textContent = '-'; }
+}
+
+function addMultiTimeRow() {
+  const today = new Date().toISOString().split('T')[0];
+  multiTimeRows.push({ date: today, start: '09:00', end: '18:00' });
+  renderMultiTimeRows();
+}
+
+function removeMultiTimeRow(i) {
+  multiTimeRows.splice(i, 1);
+  renderMultiTimeRows();
+}
+
+function renderMultiTimeRows() {
+  const container = document.getElementById('multiTimeRows');
+  if (!container) return;
+  if (!multiTimeRows.length) {
+    container.innerHTML = '';
+    document.getElementById('multiTotalBar').style.display = 'none';
+    return;
+  }
+  let totalMin = 0;
+  const dateSet = new Set();
+  container.innerHTML = multiTimeRows.map((r, i) => {
+    const startOpts = buildHalfHourSelectOpts(r.start);
+    const endOpts   = buildHalfHourSelectOpts(r.end);
+    try {
+      const s = new Date(`${r.date}T${r.start}:00`);
+      const e = new Date(`${r.date}T${r.end}:00`);
+      const min = Math.round((e - s) / 60000);
+      if (min > 0) { totalMin += min; dateSet.add(r.date); }
+      const h = Math.floor(min / 60), m = min % 60;
+      const calc = min > 0 ? (h > 0 ? `${h}h${m > 0 ? ' ' + m + 'm' : ''}` : `${m}m`) : '-';
+      return `<div class="multi-time-row">
+        <input type="date" value="${r.date}" style="padding:7px 8px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:13px;font-family:inherit;"
+          onchange="multiTimeRows[${i}].date=this.value;renderMultiTimeRows()">
+        <select style="padding:7px 8px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:13px;font-family:inherit;"
+          onchange="multiTimeRows[${i}].start=this.value;renderMultiTimeRows()">${startOpts}</select>
+        <select style="padding:7px 8px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:13px;font-family:inherit;"
+          onchange="multiTimeRows[${i}].end=this.value;renderMultiTimeRows()">${endOpts}</select>
+        <span class="multi-time-calc">(${calc})</span>
+        <button class="btn-del-time" onclick="removeMultiTimeRow(${i})"><i class="fas fa-times"></i></button>
+      </div>`;
+    } catch(_) { return ''; }
+  }).join('');
+
+  const totalH = Math.round(totalMin / 6) / 10;
+  const barEl  = document.getElementById('multiTotalBar');
+  const dispEl = document.getElementById('multiTotalDisp');
+  const daysEl = document.getElementById('multiDaysDisp');
+  if (barEl) barEl.style.display = totalMin > 0 ? 'flex' : 'none';
+  if (dispEl) dispEl.textContent = totalH + 'h';
+  if (daysEl) daysEl.textContent = `영업일 ${dateSet.size}일`;
+}
+
+/* ── 엔트리 테이블 렌더 (기간 + 시간대 펼치기 포함) ── */
 function renderEntryTable() {
   const tbody = document.getElementById('entryTableBody');
   if (!tbody) return;
 
-  // 최근 30건, 날짜 내림차순
+  // 기간 내림차순 (start_date 또는 work_date)
   const sorted = [...myEntries]
-    .sort((a, b) => (b.work_date || '').localeCompare(a.work_date || ''))
-    .slice(0, 50);
+    .sort((a, b) => {
+      const da = b.start_date || b.work_date || '';
+      const db = a.start_date || a.work_date || '';
+      return da.localeCompare(db);
+    })
+    .slice(0, 60);
 
   if (!sorted.length) {
     tbody.innerHTML = `<tr class="entry-empty-row"><td colspan="6"><i class="fas fa-inbox" style="font-size:28px;display:block;margin-bottom:8px;color:var(--gray-300);"></i>입력된 항목이 없습니다.</td></tr>`;
     return;
   }
 
-  // 날짜별 그룹화
-  const groups = {};
-  for (const row of sorted) {
-    const d = row.work_date || '날짜 없음';
-    if (!groups[d]) groups[d] = [];
-    groups[d].push(row);
-  }
-
   let html = '';
-  for (const [date, rows] of Object.entries(groups)) {
-    const totalMin = rows.reduce((s, r) => s + (r.duration_minutes || 0), 0);
-    const totalH   = Math.round(totalMin / 6) / 10;
-    html += `<tr class="entry-date-header">
-      <td colspan="6">${date} &nbsp;<span style="color:var(--primary);font-weight:700;">(합계 ${totalH}h / ${totalMin}분)</span></td>
-    </tr>`;
-    for (const row of rows) {
-      if (editingId === row.id) {
-        html += renderEditRow(row);
-      } else {
-        const mins = row.duration_minutes || 0;
-        const hh   = Math.floor(mins / 60);
-        const mm2  = mins % 60;
-        const dur  = hh > 0 ? `${hh}h${mm2 > 0 ? ' ' + mm2 + 'm' : ''}` : `${mm2}m`;
-        html += `<tr data-id="${row.id}">
-          <td>${row.work_date || '-'}</td>
-          <td><span class="entry-cat-badge">${getCatName(row.task_category_id) || row.task_label || '기타'}</span></td>
-          <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${row.task_label || '-'}</td>
-          <td><span class="entry-dur-badge">${dur}</span></td>
-          <td style="color:var(--gray-500);font-size:12.5px;">${row.note || '-'}</td>
-          <td style="white-space:nowrap;">
-            <button class="entry-action-btn edit"   onclick="startEdit(${row.id})"   title="편집"><i class="fas fa-pen"></i></button>
-            <button class="entry-action-btn delete" onclick="deleteEntry(${row.id})" title="삭제"><i class="fas fa-trash"></i></button>
-          </td>
-        </tr>`;
-      }
+  for (const row of sorted) {
+    if (editingId === row.id) {
+      html += renderEditRow(row);
+    } else {
+      // 기간 표시
+      const startD = row.start_date || row.work_date || '-';
+      const endD   = row.end_date   || row.work_date || startD;
+      const periodStr = startD === endD ? startD : `${startD.slice(5)} ~ ${endD.slice(5)}`;
+      const periodBadge = `<span class="entry-period-badge">${periodStr}</span>`;
+
+      // 총 시간
+      const totalMin = row.total_minutes || row.duration_minutes || 0;
+      const hh = Math.floor(totalMin / 60), mm2 = totalMin % 60;
+      const dur = hh > 0 ? `${hh}h${mm2 > 0 ? ' ' + mm2 + 'm' : ''}` : `${mm2}m`;
+
+      // 추정 chip
+      const estBadge = row.is_estimated
+        ? `<span class="est-chip">추정</span>`
+        : '';
+
+      // 시간대 펼치기 버튼
+      const teCount = (row.time_entries || []).length;
+      const expandBtn = teCount > 0
+        ? `<button class="time-expand-btn" onclick="toggleTimeEntries(this, ${row.id})" title="시간대 펼치기">
+             <i class="fas fa-clock"></i> ${teCount}건
+           </button>`
+        : `<span style="font-size:11px;color:var(--gray-300);">-</span>`;
+
+      html += `<tr data-id="${row.id}">
+        <td>${periodBadge}</td>
+        <td><span class="entry-cat-badge">${getCatName(row.task_category_id) || '기타'}</span></td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          ${row.task_label || '-'} ${estBadge}
+        </td>
+        <td><span class="entry-dur-badge">${dur}</span></td>
+        <td>${expandBtn}</td>
+        <td style="white-space:nowrap;">
+          <button class="entry-action-btn edit"   onclick="startEdit(${row.id})"   title="편집"><i class="fas fa-pen"></i></button>
+          <button class="entry-action-btn delete" onclick="deleteEntry(${row.id})" title="삭제"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>`;
     }
   }
 
   tbody.innerHTML = html;
+}
+
+function toggleTimeEntries(btn, rowId) {
+  // 이미 펼쳐진 행이면 닫기
+  const existing = document.getElementById(`te_detail_${rowId}`);
+  if (existing) { existing.remove(); return; }
+
+  const row = myEntries.find(x => x.id === rowId);
+  if (!row || !row.time_entries || !row.time_entries.length) return;
+
+  const tr = btn.closest('tr');
+  const colCount = tr.querySelectorAll('td').length;
+  const detail = document.createElement('tr');
+  detail.id = `te_detail_${rowId}`;
+  const entries = row.time_entries.map(e => {
+    const min = e.minutes || 0;
+    const h = Math.floor(min / 60), m = min % 60;
+    const dur = h > 0 ? `${h}h${m > 0 ? ' ' + m + 'm' : ''}` : `${m}m`;
+    return `<div class="te-row">
+      <strong>${e.date}</strong>
+      <span>${e.start || '-'} ~ ${e.end || '-'}</span>
+      <span style="margin-left:auto;color:var(--primary);font-weight:700;">${dur}</span>
+    </div>`;
+  }).join('');
+  detail.innerHTML = `<td colspan="${colCount}" class="time-entries-detail">${entries}</td>`;
+  tr.insertAdjacentElement('afterend', detail);
 }
 
 function getCatName(id) {
@@ -1284,8 +1604,13 @@ function getCatName(id) {
 }
 
 function renderEditRow(row) {
+  const sd = row.start_date || row.work_date || '';
+  const ed = row.end_date   || row.work_date || sd;
   return `<tr class="editing-row" data-id="${row.id}">
-    <td><input type="date" id="edit_date_${row.id}" value="${row.work_date || ''}"></td>
+    <td>
+      <input type="date" id="edit_sdate_${row.id}" value="${sd}" style="margin-bottom:3px;">
+      <input type="date" id="edit_edate_${row.id}" value="${ed}">
+    </td>
     <td>
       <select id="edit_cat_${row.id}" style="padding:5px 8px;border:1.5px solid var(--primary);border-radius:7px;font-size:13px;font-family:inherit;">
         <option value="">-- 선택 --</option>
@@ -1293,7 +1618,10 @@ function renderEditRow(row) {
       </select>
     </td>
     <td><input type="text" id="edit_label_${row.id}" value="${row.task_label || ''}"></td>
-    <td><input type="number" id="edit_min_${row.id}" value="${row.duration_minutes || 0}" style="width:70px;"></td>
+    <td>
+      <select id="edit_start_${row.id}">${buildHalfHourSelectOpts(row.time_entries?.[0]?.start || '09:00')}</select>
+      <select id="edit_end_${row.id}">${buildHalfHourSelectOpts(row.time_entries?.[row.time_entries.length-1]?.end || '18:00')}</select>
+    </td>
     <td><input type="text" id="edit_note_${row.id}" value="${row.note || ''}"></td>
     <td style="white-space:nowrap;">
       <button class="btn btn-primary btn-sm" onclick="saveEdit(${row.id})"><i class="fas fa-check"></i></button>
@@ -1304,29 +1632,48 @@ function renderEditRow(row) {
 
 /* ── CRUD ── */
 async function submitEntry() {
-  const date    = document.getElementById('entryDate').value;
-  const catId   = document.getElementById('entryCategory').value;
-  const label   = document.getElementById('entryLabel').value.trim();
-  const minutes = parseInt(document.getElementById('entryMinutes').value) || 0;
-  const note    = document.getElementById('entryNote').value.trim();
+  const date      = document.getElementById('entryDate')?.value;
+  const startTime = document.getElementById('entryStartTime')?.value || '09:00';
+  const endTime   = document.getElementById('entryEndTime')?.value   || '18:00';
+  const catId     = document.getElementById('entryCategory')?.value;
+  const label     = document.getElementById('entryLabel')?.value.trim();
+  const note      = document.getElementById('entryNote')?.value.trim();
 
   if (!date)  { Portal.showToast('날짜를 선택해주세요.', 'warning'); return; }
   if (!label) { Portal.showToast('업무 내용을 입력해주세요.', 'warning'); return; }
-  if (minutes <= 0) { Portal.showToast('시간(분)을 1 이상 입력해주세요.', 'warning'); return; }
+  if (startTime >= endTime) { Portal.showToast('종료시간이 시작시간보다 늦어야 합니다.', 'warning'); return; }
 
   const btn = document.getElementById('btnAdd');
-  btn.disabled = true;
+  if (btn) btn.disabled = true;
 
   const name = currentUser.full_name || currentUser.username;
   const body = {
-    member_name: name,
-    work_date: date,
-    task_label: label,
-    duration_minutes: minutes,
-    source: 'manual',
-    note: note
+    member_name:  name,
+    task_label:   label,
+    start_date:   date,
+    end_date:     date,
+    start_time:   startTime,
+    end_time:     endTime,
+    source:       'manual',
+    note:         note || '',
   };
   if (catId) body.task_category_id = parseInt(catId) || catId;
+
+  /* 검증 API */
+  try {
+    const vr = await fetch('/api/tasks/validate-time', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ start_date: date, end_date: date, start_time: startTime, end_time: endTime })
+    });
+    if (vr.ok) {
+      const vd = await vr.json();
+      if (!vd.ok && vd.errors && vd.errors.length) {
+        Portal.showToast('시간 오류: ' + vd.errors[0], 'error');
+        if (btn) btn.disabled = false;
+        return;
+      }
+    }
+  } catch(_) {}
 
   try {
     const r = await fetch('/tables/daily_work_entries', {
@@ -1338,17 +1685,69 @@ async function submitEntry() {
     const saved = await r.json();
 
     myEntries.unshift(saved.row || saved);
-    document.getElementById('entryLabel').value   = '';
-    document.getElementById('entryMinutes').value = '';
-    document.getElementById('entryNote').value    = '';
+    if (document.getElementById('entryLabel'))   document.getElementById('entryLabel').value   = '';
+    if (document.getElementById('entryNote'))    document.getElementById('entryNote').value    = '';
+    const entryCountBadge = document.getElementById('entryCountBadge');
+    if (entryCountBadge) entryCountBadge.textContent = myEntries.length + '건';
     renderEntryTable();
     Portal.showToast('업무가 저장되었습니다.', 'success');
-    // 차트 부분 갱신
     refreshChartsAfterEdit();
   } catch(e) {
     Portal.showToast('저장 중 오류가 발생했습니다: ' + e.message, 'error');
   } finally {
-    btn.disabled = false;
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function submitMultiEntry() {
+  const label = document.getElementById('multiEntryLabel')?.value.trim();
+  const note  = document.getElementById('multiEntryNote')?.value.trim();
+  const catId = document.getElementById('multiEntryCategory')?.value;
+
+  if (!label) { Portal.showToast('업무 내용을 입력해주세요.', 'warning'); return; }
+  if (!multiTimeRows.length) { Portal.showToast('시간대를 하나 이상 추가해주세요.', 'warning'); return; }
+
+  const name = currentUser.full_name || currentUser.username;
+  const timeEntries = multiTimeRows.map(r => {
+    const s = new Date(`${r.date}T${r.start}:00`);
+    const e = new Date(`${r.date}T${r.end}:00`);
+    return { date: r.date, start: r.start, end: r.end, minutes: Math.max(0, Math.round((e - s) / 60000)) };
+  });
+
+  const body = {
+    member_name:   name,
+    task_label:    label,
+    time_entries:  timeEntries,
+    source:        'manual',
+    note:          note || '',
+  };
+  if (catId) body.task_category_id = parseInt(catId) || catId;
+
+  const btn = document.getElementById('btnAddMulti');
+  if (btn) btn.disabled = true;
+
+  try {
+    const r = await fetch('/tables/daily_work_entries', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error(`저장 실패 (${r.status})`);
+    const saved = await r.json();
+    myEntries.unshift(saved.row || saved);
+    multiTimeRows = [];
+    renderMultiTimeRows();
+    if (document.getElementById('multiEntryLabel')) document.getElementById('multiEntryLabel').value = '';
+    if (document.getElementById('multiEntryNote'))  document.getElementById('multiEntryNote').value  = '';
+    const entryCountBadge = document.getElementById('entryCountBadge');
+    if (entryCountBadge) entryCountBadge.textContent = myEntries.length + '건';
+    renderEntryTable();
+    Portal.showToast('업무가 저장되었습니다.', 'success');
+    refreshChartsAfterEdit();
+  } catch(e) {
+    Portal.showToast('저장 중 오류: ' + e.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -1362,17 +1761,22 @@ function cancelEdit() {
 }
 
 async function saveEdit(id) {
-  const date    = document.getElementById(`edit_date_${id}`).value;
-  const catId   = document.getElementById(`edit_cat_${id}`).value;
-  const label   = document.getElementById(`edit_label_${id}`).value.trim();
-  const minutes = parseInt(document.getElementById(`edit_min_${id}`).value) || 0;
-  const note    = document.getElementById(`edit_note_${id}`).value.trim();
+  const startDate = document.getElementById(`edit_sdate_${id}`)?.value;
+  const endDate   = document.getElementById(`edit_edate_${id}`)?.value || startDate;
+  const catId     = document.getElementById(`edit_cat_${id}`)?.value;
+  const label     = document.getElementById(`edit_label_${id}`)?.value.trim();
+  const startTime = document.getElementById(`edit_start_${id}`)?.value || '09:00';
+  const endTime   = document.getElementById(`edit_end_${id}`)?.value   || '18:00';
+  const note      = document.getElementById(`edit_note_${id}`)?.value.trim();
 
-  if (!date || !label || minutes <= 0) {
-    Portal.showToast('날짜, 업무내용, 시간을 올바르게 입력해주세요.', 'warning'); return;
+  if (!startDate || !label) {
+    Portal.showToast('날짜와 업무내용을 입력해주세요.', 'warning'); return;
   }
 
-  const body = { work_date: date, task_label: label, duration_minutes: minutes, note: note };
+  const body = {
+    start_date: startDate, end_date: endDate,
+    task_label: label, start_time: startTime, end_time: endTime, note: note || ''
+  };
   if (catId) body.task_category_id = parseInt(catId) || catId;
 
   try {
@@ -1382,7 +1786,6 @@ async function saveEdit(id) {
       body: JSON.stringify(body)
     });
     if (!r.ok) throw new Error(`수정 실패 (${r.status})`);
-    const updated = await r.json();
     const idx = myEntries.findIndex(x => x.id === id);
     if (idx >= 0) myEntries[idx] = { ...myEntries[idx], ...body };
     editingId = null;

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=7">
+  <link rel="stylesheet" href="css/main.css?v=8">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
   <style>
     /* ── 팀 업무량 모니터링 전용 스타일 ── */
@@ -386,7 +386,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=7"></script>
+<script src="js/portal.js?v=8"></script>
 <script>
 /* ── 초기화 ── */
 let currentUser = null;
@@ -1056,7 +1056,7 @@ async function loadAlerts() {
   }
 }
 
-/* ── 일별 상세 모달 ── */
+/* ── 일별 상세 모달 (시간대 세그먼트 표시) ── */
 async function openDetailModal(member, date, meta) {
   const modal = document.getElementById('detailModal');
   const title = document.getElementById('detailModalTitle');
@@ -1065,17 +1065,21 @@ async function openDetailModal(member, date, meta) {
   const statusLabel = { overload: '과중', normal: '정상', idle: '유휴', empty: '미입력' };
   const statusColor = { overload: '#ef4444', normal: '#10b981', idle: '#9ca3af', empty: '#9ca3af' };
 
-  title.innerHTML = `<i class="fas fa-calendar-day" style="margin-right:8px;color:var(--primary);"></i>${member} · ${date}`;
+  // 요일 이름
+  const DOW = ['일','월','화','수','목','금','토'];
+  const dateObj = new Date(date + 'T00:00:00');
+  const dow = DOW[dateObj.getDay()];
+
+  title.innerHTML = `<i class="fas fa-calendar-day" style="margin-right:8px;color:var(--primary);"></i>${date} (${dow}) — ${member}`;
   body.innerHTML = `<div style="text-align:center;padding:24px;"><div class="spinner" style="margin:auto;"></div></div>`;
   modal.classList.add('show');
 
   try {
-    const encoded = encodeURIComponent(member);
-    const r = await fetch(`/tables/daily_work_entries?limit=200`);
-    // 전체 항목에서 해당 멤버+날짜 필터
+    const r = await fetch(`/tables/daily_work_entries?limit=500`);
     const all  = r.ok ? (await r.json()) : { rows: [] };
+    // 해당 멤버의 모든 엔트리 중 이 날짜를 포함하는 것 필터
     const rows = (all.rows || all.data || all || [])
-      .filter(x => x.member_name === member && x.work_date === date);
+      .filter(x => x.member_name === member);
 
     let html = '';
 
@@ -1086,26 +1090,77 @@ async function openDetailModal(member, date, meta) {
       html += `<div class="detail-summary">
         <div class="detail-stat"><strong>${hours}h</strong> 투입</div>
         <div class="detail-stat"><strong style="color:${statusColor[meta.status] || '#9ca3af'};">${statusStr}</strong></div>
-        ${isHoliday ? `<div class="detail-stat"><strong>${meta.holiday_name || '비영업일'}</strong></div>` : `<div class="detail-stat">부하율 <strong>${Math.round(meta.load_pct || 0)}%</strong></div>`}
+        ${isHoliday
+          ? `<div class="detail-stat"><strong>${meta.holiday_name || '비영업일'}</strong></div>`
+          : `<div class="detail-stat">부하율 <strong>${Math.round(meta.load_pct || 0)}%</strong></div>`}
       </div>`;
     }
 
-    if (rows.length === 0) {
-      html += `<div class="entry-empty"><i class="fas fa-inbox" style="font-size:28px;display:block;margin-bottom:8px;color:var(--gray-300);"></i>입력된 업무 내역이 없습니다.</div>`;
+    // 해당 날짜 세그먼트 추출: time_entries 배열에서 date===date 인 것만 꺼냄
+    const segments = [];
+    for (const row of rows) {
+      const entries = row.time_entries || [];
+      for (const e of entries) {
+        if (e.date === date) {
+          segments.push({
+            label:     row.task_label || '기타',
+            cat:       row.task_category_id,
+            start:     e.start,
+            end:       e.end,
+            minutes:   e.minutes || 0,
+            is_estimated: row.is_estimated,
+            row_id:    row.id,
+          });
+        }
+      }
+      // time_entries가 없는 경우 work_date 기반 fallback
+      if (!entries.length && (row.work_date === date || row.start_date === date)) {
+        segments.push({
+          label:   row.task_label || '기타',
+          cat:     row.task_category_id,
+          start:   null,
+          end:     null,
+          minutes: row.duration_minutes || row.total_minutes || 0,
+          is_estimated: row.is_estimated,
+          row_id:  row.id,
+        });
+      }
+    }
+
+    // 시작시간 기준 정렬
+    segments.sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+
+    if (!segments.length) {
+      html += `<div class="entry-empty"><i class="fas fa-inbox" style="font-size:28px;display:block;margin-bottom:8px;color:var(--gray-300);"></i>이 날짜에 입력된 업무가 없습니다.</div>`;
     } else {
+      const totalMin = segments.reduce((s, sg) => s + (sg.minutes || 0), 0);
+      const totalH   = Math.round(totalMin / 6) / 10;
+      const loadPct  = meta ? Math.round(meta.load_pct || 0) : 0;
+
       html += `<div class="entry-list">`;
-      for (const row of rows) {
-        const mins = row.duration_minutes || 0;
-        const hh   = Math.floor(mins / 60);
-        const mm   = mins % 60;
-        const dur  = hh > 0 ? `${hh}h ${mm > 0 ? mm + 'm' : ''}` : `${mm}m`;
-        html += `<div class="entry-item">
-          <span class="entry-cat">${row.task_label || row.task_category_id || '기타'}</span>
-          <span class="entry-label">${row.note || row.task_label || '-'}</span>
-          <span class="entry-duration">${dur}</span>
+      for (const sg of segments) {
+        const hh = Math.floor(sg.minutes / 60);
+        const mm = sg.minutes % 60;
+        const dur = hh > 0 ? `${hh}h${mm > 0 ? ' ' + mm + 'm' : ''}` : `${mm}m`;
+        const timeRange = sg.start && sg.end
+          ? `<span style="font-size:12px;font-weight:700;color:#374151;min-width:112px;">${sg.start} ~ ${sg.end}</span>`
+          : `<span style="font-size:11px;color:#9ca3af;min-width:112px;">시간 미입력</span>`;
+        const estBadge = sg.is_estimated
+          ? `<span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:#dbeafe;color:#1d4ed8;margin-left:4px;">추정</span>`
+          : '';
+        html += `<div class="entry-item" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          ${timeRange}
+          <span class="entry-cat" style="flex-shrink:0;">${sg.label}</span>
+          ${estBadge}
+          <span class="entry-duration" style="margin-left:auto;">(${dur})</span>
         </div>`;
       }
-      html += `</div>`;
+      html += `</div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--gray-100);
+        display:flex;gap:20px;font-size:13px;color:var(--gray-600);">
+        <span>총 <strong style="color:var(--gray-900);">${totalH}h</strong></span>
+        <span>부하율 <strong style="color:${loadPct > 120 ? '#ef4444' : loadPct > 70 ? '#10b981' : '#9ca3af'};">${loadPct}%</strong></span>
+      </div>`;
     }
 
     body.innerHTML = html;
