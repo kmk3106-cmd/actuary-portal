@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=5">
+  <link rel="stylesheet" href="css/main.css?v=6">
 </head>
 <body>
 
@@ -172,7 +172,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=5"></script>
+<script src="js/portal.js?v=6"></script>
 <script>
   Portal.init();
 
@@ -192,15 +192,29 @@
 
   // 데이터 로드
   async function loadDashboard() {
+    console.log('[DIAG] loadDashboard 시작', { user: currentUser?.username, time: new Date().toISOString() });
     try {
-      const [usersRes, goalsRes, tasksRes, interviewsRes, identityRes, directivesRes] = await Promise.all([
-        fetch('tables/users?limit=100'),
-        fetch('tables/team_goals?limit=100'),
-        fetch('tables/settlement_calendar?limit=100'),
-        fetch('tables/interview_logs?limit=100'),
-        fetch('tables/team_identity/default'),
-        fetch('tables/team_directives?limit=200'),
-      ]);
+      const urls = [
+        'tables/users?limit=100',
+        'tables/team_goals?limit=100',
+        'tables/settlement_calendar?limit=100',
+        'tables/interview_logs?limit=100',
+        'tables/team_identity/default',
+        'tables/team_directives?limit=200',
+      ];
+      console.log('[DIAG] fetch 시작', urls);
+      const t0 = performance.now();
+      const responses = await Promise.all(urls.map((u, i) =>
+        fetch(u).then(r => {
+          console.log(`[DIAG] [${i}] ${u} → ${r.status} ${r.statusText} (${Math.round(performance.now()-t0)}ms)`);
+          return r;
+        }).catch(e => {
+          console.error(`[DIAG] [${i}] ${u} → FETCH FAIL`, e);
+          throw e;
+        })
+      ));
+      const [usersRes, goalsRes, tasksRes, interviewsRes, identityRes, directivesRes] = responses;
+      console.log('[DIAG] 6개 fetch 완료, JSON 파싱 시작');
 
       // 통계
       if (usersRes.ok) {
@@ -238,8 +252,10 @@
         const dirs = d.rows || d.data || [];
         renderDirectives(dirs);
       }
+      console.log('[DIAG] loadDashboard 완료');
     } catch (e) {
-      console.error('대시보드 로드 실패:', e);
+      console.error('[DIAG] 대시보드 로드 실패:', e);
+      console.error('[DIAG] stack:', e?.stack);
     }
   }
 

@@ -700,6 +700,13 @@ const server = http.createServer((req, res) => {
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
   const urlPath = req.url || '/';
+  // [DIAG] 요청 로그 (Phase 6 진단용 — 운영 시 제거)
+  const _t0 = Date.now();
+  const _origEnd = res.end;
+  res.end = function(...args) {
+    console.log(`[REQ] ${req.method} ${urlPath} → ${res.statusCode} (${Date.now()-_t0}ms)`);
+    return _origEnd.apply(res, args);
+  };
 
   // Report generation: POST /api/reports/generate
   if (req.method === 'POST' && urlPath === '/api/reports/generate') {

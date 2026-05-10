@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=5">
+  <link rel="stylesheet" href="css/main.css?v=6">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
   <style>
     /* ── 팀 업무량 모니터링 전용 스타일 ── */
@@ -386,7 +386,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=5"></script>
+<script src="js/portal.js?v=6"></script>
 <script>
 /* ── 초기화 ── */
 let currentUser = null;
@@ -398,7 +398,9 @@ if (!Portal.init()) { /* auth.js가 로그인으로 리다이렉트 */ }
 else { bootPage(); }
 
 function bootPage() {
+  console.log('[DIAG] bootPage 시작');
   currentUser = RBAC.getCurrentUser();
+  console.log('[DIAG] user role=' + currentUser?.role);
   const allowed = currentUser &&
     (currentUser.role === 'team_leader' || currentUser.role === 'section_chief');
 
@@ -759,6 +761,7 @@ function renderHeatmap(data) {
 
 /* ── 막대 차트 (개인별 비교) ── */
 async function loadBarChart(period) {
+  console.log('[DIAG-BAR] start period=' + period);
   barPeriod = period;
   const loading = document.querySelector('#barChart .loading-overlay');
   if (loading) loading.style.display = 'flex';
@@ -766,9 +769,12 @@ async function loadBarChart(period) {
   try {
     // 기간별 날짜 계산
     const { from, to } = getPeriodRange(period);
+    console.log('[DIAG-BAR] fetch /api/workload/team?from=' + from + '&to=' + to);
     const r = await fetch(`/api/workload/team?from=${from}&to=${to}`);
+    console.log('[DIAG-BAR] response status=' + r.status);
     if (!r.ok) throw new Error('바 차트 API 오류');
     const data = await r.json();
+    console.log('[DIAG-BAR] data: members=' + data.members.length + ' dates=' + data.dates.length);
 
     // 멤버별 합산
     const totals = {};
@@ -778,7 +784,7 @@ async function loadBarChart(period) {
         const cell = data.cells[member] && data.cells[member][date];
         if (cell && cell.is_business_day) sum += (cell.total_minutes || 0);
       }
-      totals[member] = Math.round(sum / 6) / 10; // 시간 (소수점1자리)
+      totals[member] = Math.round(sum / 6) / 10;
     }
 
     const sorted = Object.entries(totals).sort((a, b) =>
@@ -786,12 +792,14 @@ async function loadBarChart(period) {
     );
     const names  = sorted.map(x => x[0]);
     const values = sorted.map(x => x[1]);
+    console.log('[DIAG-BAR] values=' + JSON.stringify(values));
 
     if (barChart) { barChart.destroy(); barChart = null; }
 
-    // 데이터가 모두 0이면 ApexCharts 렌더링 행 발생 가능 — 안내 표시
     const hasData = values.some(v => v > 0);
+    console.log('[DIAG-BAR] hasData=' + hasData);
     if (!hasData) {
+      console.log('[DIAG-BAR] showing empty state');
       document.getElementById('barChart').innerHTML =
         '<div style="text-align:center;padding:60px 20px;color:var(--gray-400);">' +
         '<i class="fas fa-chart-bar" style="font-size:32px;margin-bottom:10px;display:block;opacity:0.3;"></i>' +
@@ -881,8 +889,9 @@ function switchSort(sort, btn) {
 
 /* ── 업무유형별 분포 (이번 달, ApexCharts 미사용 정적 차트) ── */
 async function loadDonut(from, to) {
+  console.log('[DIAG-DONUT] start from=' + from + ' to=' + to);
   const container = document.getElementById('donutChart');
-  if (!container) return;
+  if (!container) { console.log('[DIAG-DONUT] container not found'); return; }
   const showEmpty = (msg) => {
     container.innerHTML =
       '<div style="text-align:center;padding:40px 20px;color:var(--gray-400);">' +
@@ -898,13 +907,16 @@ async function loadDonut(from, to) {
   }
 
   try {
+    console.log('[DIAG-DONUT] fetch by-type');
     const r = await fetch(`/api/workload/by-type?from=${from}&to=${to}&scope=team`);
+    console.log('[DIAG-DONUT] status=' + r.status);
     if (!r.ok) throw new Error('도넛 API status=' + r.status);
     const data = await r.json();
     const rawItems = Array.isArray(data?.items) ? data.items : [];
     const items = rawItems
       .filter(x => x && Number(x.minutes) > 0)
       .sort((a, b) => b.minutes - a.minutes);
+    console.log('[DIAG-DONUT] items count=' + items.length);
 
     if (donutChart) {
       try { donutChart.destroy(); } catch(_) {}
@@ -967,8 +979,9 @@ async function loadDonut(from, to) {
         </div>
         <div style="flex:1;min-width:180px;max-width:280px;">${legend}</div>
       </div>`;
+    console.log('[DIAG-DONUT] rendered SVG OK');
   } catch(e) {
-    console.error('도넛 로드 실패:', e);
+    console.error('[DIAG-DONUT] error:', e);
     showEmpty('데이터를 불러오지 못했습니다.');
   }
 }
@@ -979,10 +992,13 @@ function escapeHtml(s) {
 
 /* ── 알림 패널 ── */
 async function loadAlerts() {
+  console.log('[DIAG-ALERT] start');
   try {
     const r = await fetch('/api/workload/alerts');
+    console.log('[DIAG-ALERT] status=' + r.status);
     if (!r.ok) throw new Error('알림 API 오류');
     const data = await r.json();
+    console.log('[DIAG-ALERT] overload=' + data.overload.length + ' idle=' + data.idle.length + ' empty=' + data.empty_yesterday.length);
 
     const overload     = data.overload      || [];
     const idle         = data.idle          || [];
@@ -1031,8 +1047,9 @@ async function loadAlerts() {
     }
 
     document.getElementById('alertContent').innerHTML = html;
+    console.log('[DIAG-ALERT] rendered OK');
   } catch(e) {
-    console.error('알림 로드 실패:', e);
+    console.error('[DIAG-ALERT] error:', e);
     document.getElementById('alertContent').innerHTML =
       '<div class="alert-empty">알림 데이터를 불러오지 못했습니다.</div>';
   }
