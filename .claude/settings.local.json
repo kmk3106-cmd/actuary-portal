@@ -62,7 +62,9 @@
       "Bash(npm init *)",
       "Bash(npm install *)",
       "Bash(findstr /i node)",
-      "PowerShell(Get-NetTCPConnection *)"
+      "PowerShell(Get-NetTCPConnection *)",
+      "Bash(gh --version)",
+      "Bash(gh auth *)"
     ],
     "defaultMode": "bypassPermissions"
   }
