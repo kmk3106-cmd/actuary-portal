@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=6">
+  <link rel="stylesheet" href="css/main.css?v=7">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
   <style>
     /* ── 팀 업무량 모니터링 전용 스타일 ── */
@@ -386,13 +386,16 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=6"></script>
+<script src="js/portal.js?v=7"></script>
 <script>
 /* ── 초기화 ── */
 let currentUser = null;
 let heatmapChart = null;
 let barChart     = null;
 let donutChart   = null;
+let barPeriod    = 'week';   // ← bootPage() 전에 초기화 필수 (TDZ 방지)
+let barSort      = 'desc';
+let heatmapData  = null;
 
 if (!Portal.init()) { /* auth.js가 로그인으로 리다이렉트 */ }
 else { bootPage(); }
@@ -533,9 +536,7 @@ function renderPageShell() {
 }
 
 /* ── 전체 데이터 로드 ── */
-let barPeriod = 'week';
-let barSort   = 'desc';
-let heatmapData = null;
+// (barPeriod/barSort/heatmapData는 상단에서 미리 선언 — TDZ 방지)
 
 async function loadAll() {
   const from = getFrom();
