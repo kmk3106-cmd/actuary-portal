@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=9">
+  <link rel="stylesheet" href="css/main.css?v=10">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
   <style>
     /* ── 내 업무량 전용 스타일 ── */
@@ -557,7 +557,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=9"></script>
+<script src="js/portal.js?v=10"></script>
 <script>
 /* ── 상태 ── */
 let currentUser    = null;
@@ -787,7 +787,7 @@ function renderPage(userData, alertData, name) {
 
   /* 입력 폼 날짜 기본값: 현재 월이면 오늘, 그 외는 선택 월 1일 */
   const { from: fromStr } = getSelectedMonthRange();
-  const defaultDate = isCurrent ? new Date().toISOString().split('T')[0] : fromStr;
+  const defaultDate = isCurrent ? Portal.todayStr() : fromStr;
 
   /* 데이터 없음 여부 */
   const hasNoData = !monthly && !isFuture;
@@ -1438,7 +1438,7 @@ function updateSingleCalc() {
   const dispEl  = document.getElementById('singleCalcDisp');
   if (!dateEl || !startEl || !endEl || !dispEl) return;
   try {
-    const d = dateEl.value || new Date().toISOString().split('T')[0];
+    const d = dateEl.value || Portal.todayStr();
     const s = new Date(`${d}T${startEl.value}:00`);
     const e = new Date(`${d}T${endEl.value}:00`);
     const min = Math.round((e - s) / 60000);
@@ -1452,7 +1452,7 @@ function updateSingleCalc() {
 }
 
 function addMultiTimeRow() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = Portal.todayStr();
   multiTimeRows.push({ date: today, start: '09:00', end: '18:00' });
   renderMultiTimeRows();
 }

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=9">
+  <link rel="stylesheet" href="css/main.css?v=10">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
   <style>
     /* ── 팀 업무량 모니터링 전용 스타일 ── */
@@ -386,7 +386,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=9"></script>
+<script src="js/portal.js?v=10"></script>
 <script>
 /* ── 초기화 ── */
 let currentUser = null;
@@ -426,13 +426,20 @@ function bootPage() {
 
 /* ── 날짜 범위 초기화 (최근 30일) ── */
 function initDateRange() {
+  // 이번 달 1일 ~ 말일
   const today = new Date();
-  const from  = new Date(today);
-  from.setDate(from.getDate() - 29);
-  document.getElementById('fromDate').value = dateStr(from);
-  document.getElementById('toDate').value   = dateStr(today);
+  const first = new Date(today.getFullYear(), today.getMonth(), 1);
+  const last  = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  document.getElementById('fromDate').value = dateStr(first);
+  document.getElementById('toDate').value   = dateStr(last);
 }
-function dateStr(d) { return d.toISOString().split('T')[0]; }
+// 로컬 시간 기준 'YYYY-MM-DD' (toISOString은 UTC 변환되어 한국 자정~09시 사이 일자가 하루 빨라짐)
+function dateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
 function getFrom()  { return document.getElementById('fromDate').value; }
 function getTo()    { return document.getElementById('toDate').value; }
 

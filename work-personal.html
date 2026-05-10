@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=9">
+  <link rel="stylesheet" href="css/main.css?v=10">
   <style>
     .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
     .yr-sel, .month-sel, .member-sel {
@@ -415,7 +415,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=9"></script>
+<script src="js/portal.js?v=10"></script>
 <script>
 Portal.init();
 
@@ -756,7 +756,7 @@ function renderOtherTasks() {
   }
 
   const timeOpts = HALF_HOUR_OPTS.map(t => `<option value="${t}">${t}</option>`).join('');
-  const today = new Date().toISOString().split('T')[0];
+  const today = Portal.todayStr();
 
   container.innerHTML = otherTasks.map((t, i) => {
     const catOpts = OTHER_CATEGORIES.map(c =>
@@ -792,7 +792,7 @@ function renderOtherTasks() {
 }
 
 function addOtherTask() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = Portal.todayStr();
   otherTasks.push({ cat: OTHER_CATEGORIES[0], desc: '', start_date: today, end_date: today, start_time: '09:00', end_time: '18:00' });
   renderOtherTasks();
 }
@@ -944,7 +944,7 @@ async function loadCurrentRecord() {
     );
     if (match) {
       currentRecordId = match.id;
-      const today2 = new Date().toISOString().split('T')[0];
+      const today2 = Portal.todayStr();
       otherTasks = (match.other_tasks || []).map(t => ({
         cat: t.cat || OTHER_CATEGORIES[0],
         desc: t.desc || '',

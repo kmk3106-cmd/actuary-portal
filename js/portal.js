@@ -227,7 +227,11 @@ const Portal = (() => {
   }
 
   function todayStr() {
-    return new Date().toISOString().split('T')[0];
+    // 로컬 시간 기준 (toISOString은 UTC 변환되어 한국 자정~09시에 일자가 하루 빨라짐)
+    const d = new Date();
+    return d.getFullYear() + '-' +
+           String(d.getMonth() + 1).padStart(2, '0') + '-' +
+           String(d.getDate()).padStart(2, '0');
   }
 
   function currentYearMonth() {
