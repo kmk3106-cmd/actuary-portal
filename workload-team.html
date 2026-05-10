@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=4">
+  <link rel="stylesheet" href="css/main.css?v=5">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
   <style>
     /* ── 팀 업무량 모니터링 전용 스타일 ── */
@@ -386,7 +386,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=4"></script>
+<script src="js/portal.js?v=5"></script>
 <script>
 /* ── 초기화 ── */
 let currentUser = null;
@@ -540,12 +540,17 @@ async function loadAll() {
   const to   = getTo();
   document.getElementById('dateRangeLabel').textContent = `${from} ~ ${to}`;
 
+  // 도넛은 항상 이번 달 기준 (요구: 월별)
+  const now = new Date();
+  const monthFrom = dateStr(new Date(now.getFullYear(), now.getMonth(), 1));
+  const monthTo   = dateStr(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+
   // 병렬 로드
   await Promise.all([
     loadKpi(),
     loadHeatmap(from, to),
     loadBarChart(barPeriod),
-    loadDonut(from, to),
+    loadDonut(monthFrom, monthTo),
     loadAlerts()
   ]);
 }
@@ -874,82 +879,102 @@ function switchSort(sort, btn) {
   loadBarChart(barPeriod);
 }
 
-/* ── 도넛 차트 ── */
+/* ── 업무유형별 분포 (이번 달, ApexCharts 미사용 정적 차트) ── */
 async function loadDonut(from, to) {
   const container = document.getElementById('donutChart');
   if (!container) return;
-  // 항상 즉시 spinner 제거 — 무한 로딩 방지
   const showEmpty = (msg) => {
     container.innerHTML =
       '<div style="text-align:center;padding:40px 20px;color:var(--gray-400);">' +
       '<i class="fas fa-chart-pie" style="font-size:32px;margin-bottom:10px;display:block;opacity:0.3;"></i>' +
       msg + '</div>';
   };
+  // 컨테이너 헤더 라벨 업데이트 (이번 달 표기)
+  const ym = (from || '').slice(0, 7);
+  const headerEl = document.querySelector('#donutChart')?.closest('.chart-card')?.querySelector('.chart-card-title');
+  if (headerEl && ym) {
+    const [y, m] = ym.split('-');
+    headerEl.textContent = `업무유형별 분포 (${y}년 ${parseInt(m,10)}월)`;
+  }
+
   try {
     const r = await fetch(`/api/workload/by-type?from=${from}&to=${to}&scope=team`);
-    if (!r.ok) throw new Error('도넛 API 오류 status=' + r.status);
+    if (!r.ok) throw new Error('도넛 API status=' + r.status);
     const data = await r.json();
     const rawItems = Array.isArray(data?.items) ? data.items : [];
-    const items = rawItems.filter(x => x && Number(x.minutes) > 0);
+    const items = rawItems
+      .filter(x => x && Number(x.minutes) > 0)
+      .sort((a, b) => b.minutes - a.minutes);
 
     if (donutChart) {
       try { donutChart.destroy(); } catch(_) {}
       donutChart = null;
     }
     if (!items.length) {
-      showEmpty('이 기간에 입력된 업무가 없습니다.');
+      showEmpty('이 달에 입력된 업무가 없습니다.');
       return;
     }
 
-    const DONUT_COLORS = ['#4f86f7','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#84cc16','#f97316'];
-    // 단일 항목인 경우 카드 형태로 표시 (donut이 단건일 때 렌더 이슈 회피)
-    if (items.length === 1) {
-      const it = items[0];
+    const COLORS = ['#4f86f7','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#84cc16','#f97316','#ec4899','#14b8a6'];
+    const totalMin = items.reduce((s, x) => s + Number(x.minutes || 0), 0);
+    const totalH = Math.round(totalMin / 6) / 10;
+
+    // SVG 도넛 (ApexCharts 미사용 — 안정적 렌더 보장)
+    const cx = 100, cy = 100, rOuter = 80, rInner = 50;
+    let cum = 0;
+    const arcs = items.map((it, i) => {
+      const frac = it.minutes / totalMin;
+      const a0 = cum * 2 * Math.PI - Math.PI / 2;
+      cum += frac;
+      const a1 = cum * 2 * Math.PI - Math.PI / 2;
+      const large = frac > 0.5 ? 1 : 0;
+      const x0o = cx + rOuter * Math.cos(a0), y0o = cy + rOuter * Math.sin(a0);
+      const x1o = cx + rOuter * Math.cos(a1), y1o = cy + rOuter * Math.sin(a1);
+      const x0i = cx + rInner * Math.cos(a1), y0i = cy + rInner * Math.sin(a1);
+      const x1i = cx + rInner * Math.cos(a0), y1i = cy + rInner * Math.sin(a0);
+      // 단일 항목(360도)일 때는 두 개의 반호로 분리
+      if (frac >= 0.999) {
+        return `<circle cx="${cx}" cy="${cy}" r="${(rOuter+rInner)/2}" fill="none" stroke="${COLORS[i%COLORS.length]}" stroke-width="${rOuter-rInner}"/>`;
+      }
+      const d = [
+        `M ${x0o.toFixed(2)} ${y0o.toFixed(2)}`,
+        `A ${rOuter} ${rOuter} 0 ${large} 1 ${x1o.toFixed(2)} ${y1o.toFixed(2)}`,
+        `L ${x0i.toFixed(2)} ${y0i.toFixed(2)}`,
+        `A ${rInner} ${rInner} 0 ${large} 0 ${x1i.toFixed(2)} ${y1i.toFixed(2)}`,
+        'Z'
+      ].join(' ');
+      return `<path d="${d}" fill="${COLORS[i%COLORS.length]}"/>`;
+    }).join('');
+
+    const legend = items.map((it, i) => {
+      const pct = Math.round((it.minutes / totalMin) * 100);
       const hours = Math.round((it.minutes / 60) * 10) / 10;
-      container.innerHTML = `
-        <div style="text-align:center;padding:32px 20px;">
-          <div style="width:120px;height:120px;border-radius:50%;background:${DONUT_COLORS[0]};
-                      display:inline-flex;align-items:center;justify-content:center;color:#fff;
-                      font-size:22px;font-weight:800;margin-bottom:14px;">
-            ${hours}h
-          </div>
-          <div style="font-size:14px;font-weight:700;color:var(--gray-800);">${it.label}</div>
-          <div style="font-size:12px;color:var(--gray-500);margin-top:4px;">단일 업무 유형 (${it.minutes}분)</div>
-        </div>`;
-      return;
-    }
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12.5px;">
+        <span style="width:12px;height:12px;border-radius:3px;background:${COLORS[i%COLORS.length]};flex-shrink:0;"></span>
+        <span style="flex:1;color:var(--gray-700);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(it.label)}">${escapeHtml(it.label)}</span>
+        <span style="color:var(--gray-500);font-weight:600;flex-shrink:0;">${hours}h · ${pct}%</span>
+      </div>`;
+    }).join('');
 
-    // 2건 이상: 진짜 도넛
-    const opts = {
-      chart: { type: 'donut', height: 260, toolbar: { show: false }, animations: { enabled: false } },
-      series: items.map(x => Number(x.minutes) || 0),
-      labels: items.map(x => String(x.label || '미분류')),
-      colors: DONUT_COLORS.slice(0, items.length),
-      dataLabels: { enabled: false },
-      legend: {
-        position: 'bottom',
-        fontSize: '12px',
-        fontFamily: 'Noto Sans KR',
-        offsetY: 4
-      },
-      plotOptions: {
-        pie: { donut: { size: '65%' } }
-      },
-      tooltip: { y: { formatter: v => `${Math.round(v/60*10)/10}h (${v}분)` } }
-    };
-    container.innerHTML = '';
-    donutChart = new ApexCharts(container, opts);
-    // setTimeout으로 다른 차트와 렌더 경쟁 방지
-    setTimeout(() => {
-      donutChart.render().catch(err => {
-        console.error('도넛 render 실패:', err);
-        showEmpty('차트를 그리지 못했습니다.');
-      });
-    }, 50);
+    container.innerHTML = `
+      <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:center;padding:8px 4px;">
+        <div style="position:relative;flex-shrink:0;">
+          <svg width="200" height="200" viewBox="0 0 200 200">${arcs}</svg>
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;">
+            <div style="font-size:11px;color:var(--gray-500);font-weight:600;">총 시간</div>
+            <div style="font-size:22px;font-weight:800;color:var(--gray-900);">${totalH}h</div>
+          </div>
+        </div>
+        <div style="flex:1;min-width:180px;max-width:280px;">${legend}</div>
+      </div>`;
   } catch(e) {
     console.error('도넛 로드 실패:', e);
     showEmpty('데이터를 불러오지 못했습니다.');
   }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 /* ── 알림 패널 ── */
