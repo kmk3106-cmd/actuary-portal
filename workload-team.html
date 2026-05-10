@@ -783,12 +783,23 @@ async function loadBarChart(period) {
     const values = sorted.map(x => x[1]);
 
     if (barChart) { barChart.destroy(); barChart = null; }
+
+    // 데이터가 모두 0이면 ApexCharts 렌더링 행 발생 가능 — 안내 표시
+    const hasData = values.some(v => v > 0);
+    if (!hasData) {
+      document.getElementById('barChart').innerHTML =
+        '<div style="text-align:center;padding:60px 20px;color:var(--gray-400);">' +
+        '<i class="fas fa-chart-bar" style="font-size:32px;margin-bottom:10px;display:block;opacity:0.3;"></i>' +
+        '이 기간에 입력된 업무가 없습니다.</div>';
+      return;
+    }
+
     const opts = {
       chart: {
         type: 'bar',
         height: Math.max(300, names.length * 32 + 60),
         toolbar: { show: false },
-        animations: { speed: 400 }
+        animations: { enabled: false }
       },
       plotOptions: {
         bar: {
@@ -800,7 +811,7 @@ async function loadBarChart(period) {
       },
       colors: values.map(v => {
         if (v === 0) return '#e5e7eb';
-        const maxH = 50; // 약 표준시간 기준
+        const maxH = 50;
         const pct  = (v / maxH) * 100;
         if (pct > 110) return '#ef4444';
         if (pct > 70)  return '#10b981';
@@ -808,21 +819,17 @@ async function loadBarChart(period) {
       }),
       dataLabels: {
         enabled: true,
-        formatter: v => v > 0 ? `${v}h` : '미입력',
+        formatter: v => v > 0 ? `${v}h` : '',
         style: { fontSize: '12px', fontWeight: 600 }
       },
       series: [{ name: '투입시간', data: values }],
       xaxis: {
         categories: names,
-        labels: {
-          style: { fontSize: '12px', fontWeight: 600, colors: '#374151' }
-        }
+        labels: { style: { fontSize: '12px', fontWeight: 600, colors: '#374151' } }
       },
       yaxis: { labels: { style: { fontSize: '12.5px', fontWeight: 600 } } },
       legend: { show: false },
-      tooltip: {
-        y: { formatter: v => `${v}h` }
-      },
+      tooltip: { y: { formatter: v => `${v}h` } },
       grid: { borderColor: '#f3f4f6' }
     };
 
@@ -884,7 +891,7 @@ async function loadDonut(from, to) {
 
     const DONUT_COLORS = ['#4f86f7','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#84cc16','#f97316'];
     const opts = {
-      chart: { type: 'donut', height: 260, toolbar: { show: false } },
+      chart: { type: 'donut', height: 260, toolbar: { show: false }, animations: { enabled: false } },
       series: items.map(x => x.minutes),
       labels: items.map(x => x.label),
       colors: DONUT_COLORS.slice(0, items.length),
