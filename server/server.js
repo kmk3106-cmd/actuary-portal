@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { execFile } = require('child_process');
+const bizday = require('./lib/bizday');
 
 // .env 로드 (dotenv 없이 직접 파싱)
 function loadEnv() {
@@ -161,7 +162,10 @@ function migrateDb(db) {
     'individual_goals','performance_records','work_tasks','settlement_calendar',
     'automation_logs','report_history','interview_logs','audit_logs',
     'settlement_reviews','team_directives',
-    'settle_items','score_rules','kpi_definitions','task_categories'
+    'settle_items','score_rules','kpi_definitions','task_categories',
+    // ── Phase 1: 업무량 모니터링 ──
+    'business_days','business_days_monthly','daily_work_entries',
+    'workload_daily_cache','workload_thresholds'
   ];
   for (const table of requiredTables) {
     if (!Array.isArray(db[table])) {
@@ -280,6 +284,82 @@ function migrateDb(db) {
       }
     }
   }
+  // ── Phase 1: business_days 시드 (한국 법정공휴일 2025~2027 하드코딩) ──
+  if (!db.business_days.length) {
+    const HOLIDAYS = [
+      // 2025
+      ['2025-01-01','신정'],
+      ['2025-01-28','설날연휴'],['2025-01-29','설날'],['2025-01-30','설날연휴'],
+      ['2025-03-01','삼일절'],
+      ['2025-05-01','근로자의날'],
+      ['2025-05-05','어린이날'],['2025-05-06','대체공휴일'],
+      ['2025-06-06','현충일'],
+      ['2025-08-15','광복절'],
+      ['2025-10-03','개천절'],
+      ['2025-10-05','추석연휴'],['2025-10-06','추석'],['2025-10-07','추석연휴'],['2025-10-08','추석대체'],
+      ['2025-10-09','한글날'],
+      ['2025-12-25','크리스마스'],
+      // 2026
+      ['2026-01-01','신정'],
+      ['2026-02-16','설날연휴'],['2026-02-17','설날'],['2026-02-18','설날연휴'],
+      ['2026-03-01','삼일절'],['2026-03-02','삼일절대체'],
+      ['2026-05-01','근로자의날'],
+      ['2026-05-05','어린이날'],
+      ['2026-05-24','석가탄신일'],['2026-05-25','석가탄신일대체'],
+      ['2026-06-06','현충일'],
+      ['2026-08-15','광복절'],
+      ['2026-09-24','추석연휴'],['2026-09-25','추석'],['2026-09-26','추석연휴'],['2026-09-28','추석대체'],
+      ['2026-10-03','개천절'],
+      ['2026-10-09','한글날'],
+      ['2026-12-25','크리스마스'],
+      // 2027
+      ['2027-01-01','신정'],
+      ['2027-01-25','설날연휴'],['2027-01-26','설날'],['2027-01-27','설날연휴'],
+      ['2027-03-01','삼일절'],
+      ['2027-05-01','근로자의날'],
+      ['2027-05-05','어린이날'],
+      ['2027-05-13','석가탄신일'],
+      ['2027-06-06','현충일'],['2027-06-07','현충일대체'],
+      ['2027-08-15','광복절'],['2027-08-16','광복절대체'],
+      ['2027-10-03','개천절'],['2027-10-04','개천절대체'],
+      ['2027-10-09','한글날'],
+      ['2027-10-14','추석연휴'],['2027-10-15','추석'],['2027-10-16','추석연휴'],['2027-10-18','추석대체'],
+      ['2027-12-25','크리스마스'],
+    ];
+    db.business_days = HOLIDAYS.map(([date, name]) => ({
+      id: `bd_${date}`,
+      calendar_date: date,
+      is_business_day: false,
+      day_type: 'public_holiday',
+      holiday_name: name,
+      note: '',
+      updated_by: 'system',
+      created_at: t,
+      updated_at: t,
+    }));
+    changed = true;
+  }
+  // ── Phase 1: 월별 영업일 캐시 (2025~2027) ──
+  if (!db.business_days_monthly.length) {
+    const bizMap = bizday.indexBusinessDays(db.business_days);
+    db.business_days_monthly = bizday.buildMonthlyCacheRange(2025, 2027, bizMap)
+      .map(r => ({ ...r, created_at: t, updated_at: t }));
+    changed = true;
+  }
+  // ── Phase 1: 부하율 임계값 (단일 행 config) ──
+  if (!db.workload_thresholds.length) {
+    db.workload_thresholds = [{
+      id: 'default',
+      hours_per_day: bizday.HOURS_PER_DAY,
+      overload_pct: 120,         // 일 부하율 > 120% → 과중
+      idle_pct: 70,              // 일 부하율 < 70% → 유휴
+      overload_consec_days: 3,   // 영업일 연속 N일 시 과중 플래그
+      idle_consec_days: 5,       // 영업일 연속 N일 시 유휴 플래그
+      created_at: t,
+      updated_at: t,
+    }];
+    changed = true;
+  }
   if (changed) writeDb(db);
 }
 
@@ -343,6 +423,20 @@ function applyPaging(items, page, limit) {
   return items.slice((p - 1) * l, p * l);
 }
 
+// business_days 변경 시 영향 받는 연도를 캐시 재계산
+function recomputeMonthlyCache(db, affectedYears) {
+  const bizMap = bizday.indexBusinessDays(db.business_days);
+  const years = affectedYears && affectedYears.length
+    ? Array.from(new Set(affectedYears)).sort()
+    : [2025, 2026, 2027];
+  const minY = years[0], maxY = years[years.length - 1];
+  const fresh = bizday.buildMonthlyCacheRange(minY, maxY, bizMap);
+  const freshIds = new Set(fresh.map(r => r.id));
+  // 영향 범위 외는 보존, 영향 범위 내는 새 값으로 교체
+  const kept = (db.business_days_monthly || []).filter(r => !freshIds.has(r.id));
+  db.business_days_monthly = [...kept, ...fresh.map(r => ({ ...r, updated_at: now() }))];
+}
+
 function handleTablesRequest(route, method, bodyStr) {
   return withDb(db => {
     const table = route.table;
@@ -369,6 +463,11 @@ function handleTablesRequest(route, method, bodyStr) {
       const id = body?.id || createId(table);
       const created = { ...body, id, created_at: now(), updated_at: now() };
       db[table] = [...collection, created];
+      // business_days 변경 → 월별 캐시 재계산
+      if (table === 'business_days' && created.calendar_date) {
+        const y = parseInt(created.calendar_date.slice(0, 4), 10);
+        recomputeMonthlyCache(db, [y]);
+      }
       writeDb(db);
       return { status: 201, body: created };
     }
@@ -378,6 +477,10 @@ function handleTablesRequest(route, method, bodyStr) {
       if (idx === -1) return { status: 404, body: { error: 'Not found' } };
       const updated = { ...collection[idx], ...body, id: collection[idx].id, updated_at: now() };
       db[table][idx] = updated;
+      if (table === 'business_days' && updated.calendar_date) {
+        const y = parseInt(updated.calendar_date.slice(0, 4), 10);
+        recomputeMonthlyCache(db, [y]);
+      }
       writeDb(db);
       return { status: 200, body: updated };
     }
@@ -385,7 +488,12 @@ function handleTablesRequest(route, method, bodyStr) {
     if (method === 'DELETE' && route.id) {
       const idx = collection.findIndex(x => String(x.id) === String(route.id));
       if (idx === -1) return { status: 404, body: { error: 'Not found' } };
+      const removed = collection[idx];
       db[table].splice(idx, 1);
+      if (table === 'business_days' && removed && removed.calendar_date) {
+        const y = parseInt(removed.calendar_date.slice(0, 4), 10);
+        recomputeMonthlyCache(db, [y]);
+      }
       writeDb(db);
       return { status: 200, body: { success: true } };
     }
