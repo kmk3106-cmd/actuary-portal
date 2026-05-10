@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=8">
+  <link rel="stylesheet" href="css/main.css?v=9">
   <style>
     .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
     .yr-sel, .month-sel, .member-sel {
@@ -51,13 +51,6 @@
       gap:8px;
     }
     .col-header > div { font-size:11px; font-weight:700; color:#9ca3af; text-transform:uppercase; }
-    /* 행별 시간 합계 표시 */
-    .row-time-badge {
-      font-size:11px; font-weight:700; color:#4f86f7;
-      background:#eff6ff; border-radius:6px;
-      padding:2px 6px; white-space:nowrap;
-      text-align:center; margin-top:2px;
-    }
     .btn-del-row { width:32px; height:32px; border-radius:8px; border:none; background:#fef2f2;
       color:#ef4444; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0; }
     .btn-del-row:hover { background:#fee2e2; }
@@ -422,7 +415,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=8"></script>
+<script src="js/portal.js?v=9"></script>
 <script>
 Portal.init();
 
@@ -784,11 +777,8 @@ function renderOtherTasks() {
 
     return `<div class="other-task-row" id="otr_${i}">
       <select onchange="otherTasks[${i}].cat=this.value">${catOpts}</select>
-      <div>
-        <input type="text" placeholder="업무 내용 입력" value="${esc(t.desc || '')}"
-          oninput="otherTasks[${i}].desc=this.value;updateScores()">
-        ${rowMin > 0 ? `<div class="row-time-badge">${fmtMinutes(rowMin)}</div>` : ''}
-      </div>
+      <input type="text" placeholder="업무 내용 입력" value="${esc(t.desc || '')}"
+        oninput="otherTasks[${i}].desc=this.value;updateScores()">
       <input type="date" value="${t.start_date || today}"
         onchange="otherTasks[${i}].start_date=this.value;updateScores()">
       <input type="date" value="${t.end_date || today}"
