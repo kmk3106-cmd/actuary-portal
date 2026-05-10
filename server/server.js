@@ -177,7 +177,9 @@ function migrateDb(db) {
     // ── Phase 4: 지식관리 (KB) ──
     'kb_categories','kb_documents','kb_document_versions','kb_issues',
     'kb_handovers','kb_handover_items',
-    'kb_onboarding_tracks','kb_onboarding_milestones'
+    'kb_onboarding_tracks','kb_onboarding_milestones',
+    // ── Phase 6: 이슈 카테고리 SSOT ──
+    'issue_categories'
   ];
   for (const table of requiredTables) {
     if (!Array.isArray(db[table])) {
@@ -372,6 +374,21 @@ function migrateDb(db) {
     }];
     changed = true;
   }
+  // ── Phase 6: 이슈 카테고리 시드 ──
+  if (!db.issue_categories.length) {
+    const cats = [
+      ['ic_system',     '시스템'],
+      ['ic_accounting', '회계'],
+      ['ic_regulation', '규정'],
+      ['ic_data',       '데이터'],
+      ['ic_etc',        '기타'],
+    ];
+    db.issue_categories = cats.map(([id, label], i) => ({
+      id, label, sort_order: i + 1, is_active: true,
+      created_at: t, updated_at: t,
+    }));
+    changed = true;
+  }
   // ── Phase 4: KB 카테고리 시드 (계층) ──
   if (!db.kb_categories.length) {
     const cats = [
@@ -487,6 +504,45 @@ function applyPaging(items, page, limit) {
   return items.slice((p - 1) * l, p * l);
 }
 
+// 감사 로그 대상 외 (자동 캐시/시스템 테이블)
+const AUDIT_SKIP_TABLES = new Set([
+  'audit_logs', 'sessions',
+  'workload_daily_cache', 'business_days_monthly', 'kb_document_versions',
+  'automation_logs', 'report_history',
+]);
+function appendAuditLog(db, table, action, route, before, after, reqHeaders) {
+  if (AUDIT_SKIP_TABLES.has(table)) return;
+  // 헤더 X-Actor-User / X-Actor-Username (클라이언트가 RBAC 세션에서 채워서 보냄)
+  const actorId = (reqHeaders && reqHeaders['x-actor-user']) || '';
+  let actorName = (reqHeaders && reqHeaders['x-actor-username']) || '';
+  try { actorName = decodeURIComponent(actorName); } catch (_) { /* leave as-is */ }
+  const actorRole = (reqHeaders && reqHeaders['x-actor-role']) || '';
+  // 변경 요약
+  let detail = `${table} ${action}`;
+  const targetId = after?.id || before?.id || route?.id || '';
+  if (targetId) detail += ` id=${targetId}`;
+  // 주요 필드 (있는 경우만)
+  const labelFields = ['title', 'label', 'name', 'member_name', 'target_name', 'task_label', 'holiday_name'];
+  for (const f of labelFields) {
+    if (after && after[f]) { detail += ` ${f}="${String(after[f]).slice(0, 60)}"`; break; }
+    if (before && before[f]) { detail += ` ${f}="${String(before[f]).slice(0, 60)}"`; break; }
+  }
+  db.audit_logs = db.audit_logs || [];
+  db.audit_logs.push({
+    id: createId('aud'),
+    user_id: actorId, username: actorName, role: actorRole,
+    action: `${action}:${table}`,
+    result: 'allowed',
+    detail,
+    created_at: now(), updated_at: now(),
+  });
+  // audit_logs는 무한 누적 방지: 최근 5000건만 보관
+  const MAX_LOG = 5000;
+  if (db.audit_logs.length > MAX_LOG) {
+    db.audit_logs = db.audit_logs.slice(-MAX_LOG);
+  }
+}
+
 // business_days 변경 시 영향 받는 연도를 캐시 재계산
 function recomputeMonthlyCache(db, affectedYears) {
   const bizMap = bizday.indexBusinessDays(db.business_days);
@@ -501,7 +557,7 @@ function recomputeMonthlyCache(db, affectedYears) {
   db.business_days_monthly = [...kept, ...fresh.map(r => ({ ...r, updated_at: now() }))];
 }
 
-function handleTablesRequest(route, method, bodyStr) {
+function handleTablesRequest(route, method, bodyStr, reqHeaders) {
   return withDb(db => {
     const table = route.table;
     if (!Object.prototype.hasOwnProperty.call(db, table)) {
@@ -536,6 +592,7 @@ function handleTablesRequest(route, method, bodyStr) {
       if (table === 'daily_work_entries' && created.member_name && created.work_date) {
         workload.upsertCacheRow(db, created.member_name, created.work_date);
       }
+      appendAuditLog(db, table, 'create', route, null, created, reqHeaders);
       writeDb(db);
       return { status: 201, body: created };
     }
@@ -581,6 +638,7 @@ function handleTablesRequest(route, method, bodyStr) {
           workload.upsertCacheRow(db, updated.member_name, updated.work_date);
         }
       }
+      appendAuditLog(db, table, 'update', route, before, updated, reqHeaders);
       writeDb(db);
       return { status: 200, body: updated };
     }
@@ -597,6 +655,7 @@ function handleTablesRequest(route, method, bodyStr) {
       if (table === 'daily_work_entries' && removed && removed.member_name && removed.work_date) {
         workload.upsertCacheRow(db, removed.member_name, removed.work_date);
       }
+      appendAuditLog(db, table, 'delete', route, removed, null, reqHeaders);
       writeDb(db);
       return { status: 200, body: { success: true } };
     }
@@ -1097,7 +1156,7 @@ const server = http.createServer((req, res) => {
     const chunks = [];
     req.on('data', c => chunks.push(c));
     req.on('end', () => {
-      handleTablesRequest(route, method, Buffer.concat(chunks).toString('utf8'))
+      handleTablesRequest(route, method, Buffer.concat(chunks).toString('utf8'), req.headers)
         .then(out => {
           res.writeHead(out.status, { 'Content-Type': 'application/json; charset=utf-8' });
           res.end(JSON.stringify(out.body));

@@ -98,6 +98,7 @@ root.innerHTML = `
     <button class="tab" data-tab="score">점수 규칙</button>
     <button class="tab" data-tab="kpi">KPI 정의</button>
     <button class="tab" data-tab="cat">기타 카테고리</button>
+    <button class="tab" data-tab="issue-cat">이슈 카테고리</button>
   </div>
 
   <div class="tab-panel active" id="panel-settle">
@@ -170,6 +171,25 @@ root.innerHTML = `
     </div>
     <div class="table-scroll">
     <table class="settings-table" id="tbl-cat">
+      <thead><tr>
+        <th style="width:100px;">순서</th><th>카테고리명</th>
+        <th style="width:80px;">활성</th><th class="col-act">관리</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panel-issue-cat">
+    <div class="panel-header">
+      <div>
+        <h2>이슈 카테고리</h2>
+        <div class="panel-desc">이슈 사례집의 카테고리 드롭다운 (kb-issues.html 필터 및 등록 모달)</div>
+      </div>
+      <button class="btn-mini primary" onclick="addIssueCat()"><i class="fas fa-plus"></i> 카테고리 추가</button>
+    </div>
+    <div class="table-scroll">
+    <table class="settings-table" id="tbl-issue-cat">
       <thead><tr>
         <th style="width:100px;">순서</th><th>카테고리명</th>
         <th style="width:80px;">활성</th><th class="col-act">관리</th>
@@ -354,6 +374,29 @@ async function addCat() {
   await loadCat();
 }
 
+// ───────── 이슈 카테고리 ─────────
+async function loadIssueCat() {
+  const rows = (await apiList('issue_categories')).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  const tbody = document.querySelector('#tbl-issue-cat tbody');
+  tbody.innerHTML = rows.map(r => `
+    <tr data-id="${r.id}">
+      <td data-label="순서"><input type="number" data-f="sort_order" value="${r.sort_order||0}"></td>
+      <td data-label="카테고리명"><input type="text" data-f="label" value="${escapeHtml(r.label||'')}"></td>
+      <td data-label="활성" style="text-align:center;"><input type="checkbox" data-f="is_active" ${r.is_active!==false?'checked':''}></td>
+      <td class="col-act">
+        <button class="btn-mini" onclick="saveRow('issue_categories', this)">저장</button>
+        <button class="btn-mini danger" onclick="delRow('issue_categories', this, loadIssueCat)">삭제</button>
+      </td>
+    </tr>`).join('');
+}
+async function addIssueCat() {
+  const list = await apiList('issue_categories');
+  await apiCreate('issue_categories', {
+    label: '신규 카테고리', sort_order: list.length + 1, is_active: true
+  });
+  await loadIssueCat();
+}
+
 // ───────── 행 저장/삭제 공통 ─────────
 function rowToBody(tr) {
   const body = {};
@@ -391,7 +434,7 @@ function escapeHtml(s) {
 }
 
 // 초기 로드
-loadSettle(); loadScore(); loadKpi(); loadCat();
+loadSettle(); loadScore(); loadKpi(); loadCat(); loadIssueCat();
 </script>
 </body>
 </html>

@@ -516,10 +516,6 @@
           <div class="issue-filter-row">
             <select class="issue-filter-select" id="filterCategory" onchange="applyFilters()">
               <option value="">전체 카테고리</option>
-              <option value="시스템">시스템</option>
-              <option value="회계">회계</option>
-              <option value="규정">규정</option>
-              <option value="기타">기타</option>
             </select>
             <select class="issue-filter-select" id="filterSeverity" onchange="applyFilters()">
               <option value="">전체 심각도</option>
@@ -576,10 +572,7 @@
         <div class="form-group" style="margin-bottom:0;">
           <label class="form-label">카테고리</label>
           <select class="form-control" id="mCategory">
-            <option value="시스템">시스템</option>
-            <option value="회계">회계</option>
-            <option value="규정">규정</option>
-            <option value="기타">기타</option>
+            <option value="">카테고리 로딩 중...</option>
           </select>
         </div>
         <div class="form-group" style="margin-bottom:0;">
@@ -663,8 +656,9 @@ let currentUser     = null;
 let isLeader        = false;
 let isLeaderOrChief = false;
 
-let allIssues   = [];     // 전체 이슈 캐시
-let allSopDocs  = [];     // SOP 문서 캐시 (관련 SOP 선택용)
+let allIssues      = [];     // 전체 이슈 캐시
+let allSopDocs     = [];     // SOP 문서 캐시 (관련 SOP 선택용)
+let allIssueCategories = []; // 이슈 카테고리 캐시 (DB SSOT)
 let currentIssueId = null;
 let editingIssueId = null;
 let inputTags      = [];   // 모달 내 입력 태그 배열
@@ -690,6 +684,7 @@ function bootPage() {
   // 오늘 날짜 기본값
   document.getElementById('mOccurredAt').value = Portal.todayStr();
 
+  loadIssueCategories();
   loadIssues();
   loadTeamMembers();
   loadSopDocs();
@@ -713,6 +708,36 @@ function bootPage() {
       document.getElementById('sopSearchResults').classList.remove('open');
     }
   });
+}
+
+/* ── 이슈 카테고리 (DB SSOT) ── */
+async function loadIssueCategories() {
+  try {
+    const r = await fetch('/tables/issue_categories?limit=200');
+    if (!r.ok) return;
+    const data = await r.json();
+    allIssueCategories = (data.data || data.rows || data || [])
+      .filter(c => c.is_active !== false)
+      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+
+    // 필터 드롭다운 채우기
+    const filterSel = document.getElementById('filterCategory');
+    filterSel.innerHTML = '<option value="">전체 카테고리</option>' +
+      allIssueCategories.map(c => `<option value="${escHtml(c.label)}">${escHtml(c.label)}</option>`).join('');
+
+    // 모달 카테고리 드롭다운 채우기
+    const modalSel = document.getElementById('mCategory');
+    if (!allIssueCategories.length) {
+      modalSel.innerHTML = '<option value="">(설정 → 룰 설정 → 이슈 카테고리에서 추가하세요)</option>';
+    } else {
+      modalSel.innerHTML = allIssueCategories
+        .map(c => `<option value="${escHtml(c.label)}">${escHtml(c.label)}</option>`).join('');
+    }
+  } catch(e) {
+    // 카테고리 로드 실패 시 모달에 안내 표시
+    const modalSel = document.getElementById('mCategory');
+    if (modalSel) modalSel.innerHTML = '<option value="">(카테고리 로드 실패)</option>';
+  }
 }
 
 /* ── 팀원 목록 (담당자 드롭다운) ── */
@@ -980,7 +1005,7 @@ function openNewIssueModal() {
     '<i class="fas fa-plus-circle" style="color:var(--warning);margin-right:8px;"></i>이슈 등록';
   document.getElementById('mTitle').value       = '';
   document.getElementById('mOccurredAt').value  = Portal.todayStr();
-  document.getElementById('mCategory').value    = '시스템';
+  document.getElementById('mCategory').selectedIndex = 0;
   document.getElementById('mSeverity').value    = 'medium';
   document.getElementById('mOwner').value       = currentUser ? currentUser.user_id : '';
   document.getElementById('mSymptom').value     = '';

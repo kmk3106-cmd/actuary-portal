@@ -3,7 +3,33 @@
  * - 사이드바 동적 주입
  * - 토스트 알림
  * - 날짜 포맷
+ * - 감사 로그용 X-Actor-* 헤더 자동 첨부 (모든 fetch에 적용)
  */
+
+// ── 글로벌 fetch 인터셉터: 모든 /tables/, /api/ 요청에 actor 헤더 자동 첨부 ──
+(function installAuditHeaders() {
+  if (typeof window === 'undefined' || !window.fetch || window.__auditFetchInstalled) return;
+  const origFetch = window.fetch.bind(window);
+  window.fetch = function(input, init) {
+    init = init || {};
+    try {
+      const url = typeof input === 'string' ? input : (input && input.url) || '';
+      const isInternal = url.startsWith('/') || url.includes(window.location.host);
+      if (isInternal) {
+        const session = (typeof RBAC !== 'undefined' && RBAC.getCurrentUser) ? RBAC.getCurrentUser() : null;
+        if (session) {
+          const headers = new Headers(init.headers || (typeof input !== 'string' ? input.headers : undefined) || {});
+          if (!headers.has('X-Actor-User'))     headers.set('X-Actor-User', String(session.user_id || session.id || ''));
+          if (!headers.has('X-Actor-Username')) headers.set('X-Actor-Username', encodeURIComponent(session.username || ''));
+          if (!headers.has('X-Actor-Role'))     headers.set('X-Actor-Role', String(session.role || ''));
+          init.headers = headers;
+        }
+      }
+    } catch (_) { /* 헤더 첨부 실패해도 원래 요청은 진행 */ }
+    return origFetch(input, init);
+  };
+  window.__auditFetchInstalled = true;
+})();
 
 const Portal = (() => {
 

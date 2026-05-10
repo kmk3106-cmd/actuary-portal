@@ -66,6 +66,10 @@
     .btn-login.loading .spinner { display: block; }
     .btn-login.loading .btn-text { display: none; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .login-help { margin-top: 24px; padding: 12px 14px; background: #f8fafc;
+      border: 1px solid #e5e7eb; border-radius: 10px; font-size: 12.5px;
+      color: #6b7280; display: flex; align-items: center; gap: 8px; }
+    .login-help i { color: #4f86f7; }
     .demo-accounts { margin-top: 28px; padding-top: 24px; border-top: 1px solid #e5e7eb; }
     .demo-title { font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; text-align: center; }
     .demo-grid { display: grid; gap: 8px; }
@@ -127,26 +131,10 @@
       </button>
     </form>
 
-    <div class="demo-accounts">
-      <div class="demo-title">테스트 계정 (비밀번호: password)</div>
-      <div class="demo-grid">
-        <div class="demo-account" onclick="fill('teamleader1','password')">
-          <span class="demo-badge badge-team-leader">팀장</span>
-          <div class="demo-info">
-            <div class="demo-name">김팀장</div>
-            <div class="demo-cred">ID: teamleader1 · 전체 관리 권한</div>
-          </div>
-          <i class="fas fa-chevron-right demo-arrow"></i>
-        </div>
-        <div class="demo-account" onclick="fill('sectionchief1','password')">
-          <span class="demo-badge badge-section-chief">실장</span>
-          <div class="demo-info">
-            <div class="demo-name">이실장</div>
-            <div class="demo-cred">ID: sectionchief1 · 읽기 전용</div>
-          </div>
-          <i class="fas fa-chevron-right demo-arrow"></i>
-        </div>
-      </div>
+    <!-- 테스트 계정 노출 영역 제거됨 (운영 보안) — 계정 문의는 팀장에게 -->
+    <div class="login-help">
+      <i class="fas fa-info-circle"></i>
+      <span>계정 발급/비밀번호 분실 시 팀장에게 문의하세요</span>
     </div>
   </div>
 </div>
