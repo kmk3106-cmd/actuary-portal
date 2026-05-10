@@ -444,35 +444,23 @@
   currentYear = today.getFullYear();
   currentMonth = today.getMonth(); // 0-indexed
 
-  // ========== 결산 D+N 영업일 스케줄 ==========
-  const SETTLE_SCHEDULE = [
-    { id:'s01', label:'계리계약 마감',                      group:'계약/준비금',    due:5,    assignee:'오정택'         },
-    { id:'s02', label:'지급준비금 마감',                    group:'계약/준비금',    due:7,    assignee:'이용우'         },
-    { id:'s03', label:'준비금 마감',                        group:'계약/준비금',    due:8,    assignee:'강세진'         },
-    { id:'s04', label:'보험료분해 마감',                    group:'계약/준비금',    due:10,   assignee:'김채린'         },
-    { id:'s05', label:'재보험 마감 (출재/청구)',            group:'계약/준비금',    due:12,   assignee:'김예은'         },
-    { id:'s06', label:'보증준비금 마감',                    group:'계약/준비금',    due:13,   assignee:'강세진'         },
-    { id:'s07', label:'잉여금처리 & 계약자배당',           group:'계약/준비금',    due:null, assignee:'이상현'         },
-    { id:'s08', label:'예금보험료',                         group:'계약/준비금',    due:null, assignee:'강세진'         },
-    { id:'s09', label:'결산 모델 배포',                     group:'모델/가정',      due:1,    assignee:'한인석'         },
-    { id:'s10', label:'계리모델 입력데이터 준비',          group:'모델/가정',      due:8,    assignee:'김예은/이성원'  },
-    { id:'s11', label:'경제적 가정 산출',                   group:'모델/가정',      due:7,    assignee:'이상백'         },
-    { id:'s12', label:'최초/후속 모델포인트 생성',         group:'모델/가정',      due:9,    assignee:'이성원'         },
-    { id:'s13', label:'최초인식 보험부채 산출',            group:'부채산출',       due:9,    assignee:'김예은'         },
-    { id:'s14', label:'후속측정 보험부채 산출',            group:'부채산출',       due:12,   assignee:'한인석/이성원'  },
-    { id:'s15', label:'사업비 배부',                        group:'부채산출',       due:12,   assignee:'마혜원'         },
-    { id:'s16', label:'최초인식대상계약 확정',             group:'부채산출',       due:9,    assignee:'이용우'         },
-    { id:'s17', label:'결산대상계약 확정',                  group:'부채산출',       due:10,   assignee:'이용우'         },
-    { id:'s18', label:'가중평균할인율 산출',               group:'부채산출',       due:10,   assignee:'예대호'         },
-    { id:'s19', label:'BEL/RA data 입수 및 계약그룹 작업', group:'ETL/데이터',    due:12,   assignee:'이동민'         },
-    { id:'s20', label:'결산대상계약 및 실제CF 이관 (ETL)', group:'ETL/데이터',    due:12,   assignee:'김예은'         },
-    { id:'s21', label:'실제CF Data 이관 (ETL)',             group:'ETL/데이터',    due:13,   assignee:'이동민'         },
-    { id:'s22', label:'가중평균할인율 산출 (재보험)',       group:'재보험',         due:14,   assignee:'예대호'         },
-    { id:'s23', label:'BEL/RA data 입수 (재보험)',          group:'재보험',         due:15,   assignee:'김예은'         },
-    { id:'s24', label:'부채결산 무브먼트',                  group:'무브먼트/전송',  due:15,   assignee:'이동민'         },
-    { id:'s25', label:'부채결산 무브먼트 (재보험)',         group:'무브먼트/전송',  due:15,   assignee:'김예은'         },
-    { id:'s26', label:'회계팀 결산Data 전송',               group:'무브먼트/전송',  due:15,   assignee:'예대호'         },
-  ];
+  // ========== 결산 D+N 영업일 스케줄 (DB 로드) ==========
+  let SETTLE_SCHEDULE = [];
+  async function loadSettleSchedule() {
+    try {
+      const r = await fetch('/tables/settle_items?limit=500');
+      const d = await r.json();
+      const rows = (d.rows || d.data || []).filter(x => x.is_active !== false);
+      rows.sort((a,b) => (a.seq || 0) - (b.seq || 0));
+      SETTLE_SCHEDULE = rows.map(r => ({
+        id: r.id, label: r.label, group: r.group_name,
+        due: r.due_biz_day, assignee: r.assignee
+      }));
+    } catch (e) {
+      console.error('settle_items 로드 실패', e);
+      SETTLE_SCHEDULE = [];
+    }
+  }
 
   const KR_HOLIDAYS = new Map([
     // ── 2025년 ──────────────────────────────────────────────────────────
@@ -966,7 +954,6 @@
   window.goToday         = goToday;
 
   buildCatFilters();
-  loadTasks();
 
   // ========== 결산업무 체크리스트 ==========
   const SETTLE_GROUPS = ['계약/준비금','모델/가정','부채산출','ETL/데이터','재보험','무브먼트/전송'];
@@ -1287,7 +1274,10 @@
   }
 
   buildChkSelects();
-  loadChecklist();
+  loadSettleSchedule().then(() => {
+    loadTasks();
+    loadChecklist();
+  });
 </script>
 </body>
 </html>

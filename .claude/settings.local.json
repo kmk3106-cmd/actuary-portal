@@ -60,7 +60,9 @@
       "Bash(Start-Process *)",
       "PowerShell(Start-Process -WindowStyle Minimized cmd -ArgumentList \"/c cloudflared tunnel run actuary-portal >> `\"C:\\\\Users\\\\USER\\\\actuary potal\\\\server\\\\cloudflare.log`\" 2>&1\")",
       "Bash(npm init *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(findstr /i node)",
+      "PowerShell(Get-NetTCPConnection *)"
     ],
     "defaultMode": "bypassPermissions"
   }

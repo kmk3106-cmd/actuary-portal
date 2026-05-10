@@ -392,11 +392,20 @@
 Portal.init();
 
 
-const OTHER_CATEGORIES = [
+let OTHER_CATEGORIES = [
   '보고서 작성','회의/협의','데이터 분석','시스템 작업',
   'KPI1 관련','KPI2 관련','KPI3 관련','교육/연수',
   '프로젝트','타부서업무협조','금감원CPC','예보산출','내부통제','외부감사','기타'
 ];
+async function loadCategories() {
+  try {
+    const r = await fetch('/tables/task_categories?limit=200');
+    const d = await r.json();
+    const rows = (d.rows || d.data || []).filter(x => x.is_active !== false);
+    rows.sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+    if (rows.length) OTHER_CATEGORIES = rows.map(r => r.label);
+  } catch (e) { console.error('task_categories 로드 실패', e); }
+}
 
 const MEMBERS = ['한인석','이동민','이상현','마혜원','예대호','이성원','고인수','김예은','강세진','이용우','오정택','김채린'];
 const thisYear  = new Date().getFullYear();
@@ -865,7 +874,7 @@ async function loadHistory() {
 }
 
 buildSelects();
-loadCurrentRecord();
+loadCategories().then(() => loadCurrentRecord());
 </script>
 </body>
 </html>

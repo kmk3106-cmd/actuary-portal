@@ -217,28 +217,7 @@
           </div>
           <div class="table-scroll">
             <table class="perf-table" id="perfTable">
-              <thead>
-                <tr>
-                  <th class="left" rowspan="2" style="min-width:80px;">팀원</th>
-                  <th colspan="4" class="col-section" style="background:#eff6ff;color:#3b82f6;">정량평가</th>
-                  <th colspan="3" class="col-section" style="background:#f0fdf4;color:#166534;">정성평가 (KPI)</th>
-                  <th rowspan="2" class="col-section" style="min-width:60px;">기본<br>점수</th>
-                  <th colspan="2" class="col-section" style="background:#fffbeb;color:#854d0e;">가산</th>
-                  <th rowspan="2" style="background:#fffbeb;min-width:60px;">최종<br>점수</th>
-                  <th rowspan="2">등급</th>
-                </tr>
-                <tr>
-                  <th class="col-section">지시수행<br><span class="weight-label">(5%)</span></th>
-                  <th>재무수치안<br><span class="weight-label">(10%)</span></th>
-                  <th>기한준수<br><span class="weight-label">(20%)</span></th>
-                  <th>임원소스<br><span class="weight-label">(15%)</span></th>
-                  <th class="col-section">KPI1<br><span class="weight-label">(20%)</span></th>
-                  <th>KPI2<br><span class="weight-label">(20%)</span></th>
-                  <th>KPI3<br><span class="weight-label">(10%)</span></th>
-                  <th class="col-section">프로젝트</th>
-                  <th>승진</th>
-                </tr>
-              </thead>
+              <thead id="perfTableHead"></thead>
               <tbody id="perfTableBody">
                 <tr><td colspan="13" style="text-align:center;padding:30px;color:#9ca3af;">로딩 중...</td></tr>
               </tbody>
@@ -326,20 +305,7 @@
 
       <div id="kpiSection">
         <div class="section-divider"><i class="fas fa-star"></i> 정성평가 (KPI) — 팀장 입력</div>
-        <div class="form-row-3">
-          <div class="form-group">
-            <label class="form-label">KPI1 계리모델AI활용 (20%)</label>
-            <input type="number" class="form-input" id="fScoreKpi1" min="0" max="100" placeholder="미입력" oninput="autoCalcScores()">
-          </div>
-          <div class="form-group">
-            <label class="form-label">KPI2 재무수치분석 (20%)</label>
-            <input type="number" class="form-input" id="fScoreKpi2" min="0" max="100" placeholder="미입력" oninput="autoCalcScores()">
-          </div>
-          <div class="form-group">
-            <label class="form-label">KPI3 계리지원강화 (10%)</label>
-            <input type="number" class="form-input" id="fScoreKpi3" min="0" max="100" placeholder="미입력" oninput="autoCalcScores()">
-          </div>
-        </div>
+        <div id="kpiInputs" class="form-row-3"></div>
       </div>
 
       <div class="section-divider"><i class="fas fa-plus-circle"></i> 가산</div>
@@ -409,6 +375,87 @@ const isLeader = RBAC.isTeamLeader();
 const currentUser = RBAC.getCurrentUser();
 const TEAM_MEMBERS = ['한인석','이동민','이상현','마혜원','예대호','이성원','고인수','김예은','강세진','이용우','오정택','김채린'];
 
+// ── 룰 설정 (DB 로드) ─────────────────────────────────────
+let SCORE_RULES = {};                 // { rule_type: [rules sorted by threshold desc] }
+let KPI_DEFS_BY_CODE = {};            // { code: def }
+let QUAL_KPIS = [];                   // 정성 (사용자가 직접 점수 입력)
+const QUANT_CODES = ['directive','csm','deadline','meeting']; // 정량 4종 고정
+
+async function loadConfigRules() {
+  try {
+    const [rRules, rKpi] = await Promise.all([
+      fetch('/tables/score_rules?limit=500').then(r=>r.json()),
+      fetch('/tables/kpi_definitions?limit=500').then(r=>r.json())
+    ]);
+    const rules = rRules.rows || rRules.data || [];
+    SCORE_RULES = {};
+    rules.forEach(r => {
+      (SCORE_RULES[r.rule_type] = SCORE_RULES[r.rule_type] || []).push(r);
+    });
+    Object.values(SCORE_RULES).forEach(arr => arr.sort((a,b)=>(b.threshold||0)-(a.threshold||0)));
+
+    const kpis = rKpi.rows || rKpi.data || [];
+    const curYear = new Date().getFullYear();
+    KPI_DEFS_BY_CODE = {};
+    kpis.filter(k => k.is_active !== false && k.year === curYear)
+        .forEach(k => { KPI_DEFS_BY_CODE[k.code] = k; });
+    QUAL_KPIS = Object.values(KPI_DEFS_BY_CODE)
+      .filter(k => k.category === 'qual')
+      .sort((a,b) => (a.code||'').localeCompare(b.code||''));
+
+    applyQuantLabels();
+    renderQualInputs();
+  } catch (e) { console.error('config 로드 실패', e); }
+}
+
+// 정량 4종 라벨/가중치 동기화 (HTML 폼은 고정)
+function applyQuantLabels() {
+  const map = [
+    ['qDisp_directive', 'directive', '① 지시수행', 5],
+    ['qDisp_csm',       'csm',       '② 재무수치안', 10],
+    ['qDisp_deadline',  'deadline',  '③ 기한준수', 20],
+    ['qDisp_meeting',   'meeting',   '④ 임원소스', 15],
+  ];
+  for (const [id, code, prefix, fb] of map) {
+    const input = document.getElementById(id);
+    const label = input?.parentElement?.querySelector('label.form-label');
+    if (!label) continue;
+    const def = KPI_DEFS_BY_CODE[code];
+    const lbl = def ? def.label : prefix.replace(/^[①-④]\s*/, '');
+    const wt  = def ? def.weight_pct : fb;
+    label.innerHTML = `${prefix.match(/^[①-④]/)?.[0] || ''} ${lbl} <span style="color:#9ca3af;font-size:10px;">(${wt}%)</span>`;
+  }
+}
+
+// 정성(KPI) 동적 렌더링
+function renderQualInputs() {
+  const wrap = document.getElementById('kpiInputs');
+  if (!wrap) return;
+  if (!QUAL_KPIS.length) {
+    wrap.innerHTML = `<div style="grid-column:1/-1;color:#9ca3af;font-size:12px;padding:8px;">
+      KPI 정의에 정성 KPI가 없습니다. (룰 설정 → KPI 정의)</div>`;
+    return;
+  }
+  wrap.innerHTML = QUAL_KPIS.map(k => `
+    <div class="form-group">
+      <label class="form-label">${escapeHtmlSafe(k.code.toUpperCase())} ${escapeHtmlSafe(k.label)} (${k.weight_pct}%)</label>
+      <input type="number" class="form-input" id="fScore_${k.code}" min="0" max="100" placeholder="미입력" oninput="autoCalcScores()">
+    </div>`).join('');
+}
+function escapeHtmlSafe(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function applyScoreRule(ruleType, value) {
+  if (value === '' || value == null) return null;
+  const n = Number(value);
+  const rules = SCORE_RULES[ruleType] || [];
+  for (const r of rules) {
+    if (n >= (r.threshold ?? -Infinity)) return r.score;
+  }
+  return 0;
+}
+
 function buildSelects() {
   const ySel = document.getElementById('yearSel');
   const fySel = document.getElementById('fYear');
@@ -467,28 +514,26 @@ function getAggregatedRecords() {
     return vals.length ? Math.round(vals.reduce((a,b)=>a+b,0) / 12 * 10) / 10 : null;
   };
   const lastF = (recs, f) => { const v = recs.map(r=>r[f]).filter(v=>v!=null); return v.length?v[v.length-1]:null; };
-  return Object.entries(map).map(([name, recs]) => ({
-    id: 'agg_' + name,
-    target_name: name,
-    year: currentYear,
-    month: 0,
-    score_directive: avgF(recs,'score_directive'),
-    score_csm:        avgF(recs,'score_csm'),
-    score_deadline:   avgF(recs,'score_deadline'),
-    score_meeting:    avgF(recs,'score_meeting'),
-    score_kpi1:       avgF(recs,'score_kpi1'),
-    score_kpi2:       avgF(recs,'score_kpi2'),
-    score_kpi3:       avgF(recs,'score_kpi3'),
-    basic_score:      avgF(recs,'basic_score'),
-    final_score:      avgF(recs,'final_score'),
-    grade:            lastF(recs,'grade'),
-    bonus_project:    recs.some(r=>r.bonus_project),
-    bonus_promotion:  recs.some(r=>r.bonus_promotion),
-    self_score:       avgF(recs,'self_score'),
-    self_comment:     lastF(recs,'self_comment'),
-    leader_comment:   lastF(recs,'leader_comment'),
-    _months: recs.length,
-  }));
+  return Object.entries(map).map(([name, recs]) => {
+    const agg = {
+      id: 'agg_' + name,
+      target_name: name,
+      year: currentYear,
+      month: 0,
+      basic_score:      avgF(recs,'basic_score'),
+      final_score:      avgF(recs,'final_score'),
+      grade:            lastF(recs,'grade'),
+      bonus_project:    recs.some(r=>r.bonus_project),
+      bonus_promotion:  recs.some(r=>r.bonus_promotion),
+      self_score:       avgF(recs,'self_score'),
+      self_comment:     lastF(recs,'self_comment'),
+      leader_comment:   lastF(recs,'leader_comment'),
+      _months: recs.length,
+    };
+    QUANT_CODES.forEach(c => { agg['score_'+c] = avgF(recs, 'score_'+c); });
+    QUAL_KPIS.forEach(k => { agg['score_'+k.code] = avgF(recs, 'score_'+k.code); });
+    return agg;
+  });
 }
 
 function filteredRecords() {
@@ -526,10 +571,41 @@ function scoreText(v) {
   return v != null ? v : '<span style="color:#d1d5db;font-size:11px;">-</span>';
 }
 
+function renderTableHead() {
+  const head = document.getElementById('perfTableHead');
+  if (!head) return;
+  const quantCols = QUANT_CODES.map(code => {
+    const def = KPI_DEFS_BY_CODE[code];
+    return `<th><span class="col-h-label">${escapeHtmlSafe(def?.label || code)}</span><br><span class="weight-label">(${def?.weight_pct ?? '-'}%)</span></th>`;
+  }).join('');
+  const qualCols = QUAL_KPIS.map(k => `<th><span class="col-h-label">${escapeHtmlSafe(k.code.toUpperCase())}</span><br><span class="weight-label">(${k.weight_pct}%)</span></th>`).join('');
+  head.innerHTML = `
+    <tr>
+      <th class="left" rowspan="2" style="min-width:80px;">팀원</th>
+      <th colspan="${QUANT_CODES.length}" class="col-section" style="background:#eff6ff;color:#3b82f6;">정량평가</th>
+      <th colspan="${Math.max(QUAL_KPIS.length,1)}" class="col-section" style="background:#f0fdf4;color:#166534;">정성평가 (KPI)</th>
+      <th rowspan="2" class="col-section" style="min-width:60px;">기본<br>점수</th>
+      <th colspan="2" class="col-section" style="background:#fffbeb;color:#854d0e;">가산</th>
+      <th rowspan="2" style="background:#fffbeb;min-width:60px;">최종<br>점수</th>
+      <th rowspan="2">등급</th>
+    </tr>
+    <tr>
+      ${quantCols}
+      ${qualCols || '<th style="color:#9ca3af;font-size:11px;">없음</th>'}
+      <th class="col-section">프로젝트</th>
+      <th>승진</th>
+    </tr>`;
+}
+
+function perfColspan() {
+  return 1 + QUANT_CODES.length + Math.max(QUAL_KPIS.length,1) + 1 + 2 + 1 + 1;
+}
+
 function renderTable(records) {
+  renderTableHead();
   const tbody = document.getElementById('perfTableBody');
   if (!records.length) {
-    tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:40px;color:#9ca3af;">해당 조건의 데이터가 없습니다.</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="${perfColspan()}" style="text-align:center;padding:40px;color:#9ca3af;">해당 조건의 데이터가 없습니다.</td></tr>`;
     return;
   }
   tbody.innerHTML = records.map(r => {
@@ -538,19 +614,18 @@ function renderTable(records) {
     const bp = r.bonus_project  ? '<span class="bonus-dot bonus-y" title="프로젝트 가산"></span>' : '<span class="bonus-dot bonus-n"></span>';
     const bpr = r.bonus_promotion ? '<span class="bonus-dot bonus-y" title="승진대상 가산"></span>' : '<span class="bonus-dot bonus-n"></span>';
     const editBtn = isLeader ? `<button onclick="openEditModal('${r.id}')" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:12px;margin-left:6px;" title="수정"><i class="fas fa-pen"></i></button>` : '';
+    const quantTds = QUANT_CODES.map(c => `<td class="score-cell ${scoreColor(r['score_'+c])}">${scoreText(r['score_'+c])}</td>`).join('');
+    const qualTds = QUAL_KPIS.length
+      ? QUAL_KPIS.map(k => `<td class="score-cell ${scoreColor(r['score_'+k.code])}">${scoreText(r['score_'+k.code])}</td>`).join('')
+      : '<td style="color:#9ca3af;">-</td>';
     return `<tr>
       <td class="name-cell">${r.target_name || '-'}${editBtn}</td>
-      <td class="score-cell ${scoreColor(r.score_directive)}">${scoreText(r.score_directive)}</td>
-      <td class="score-cell ${scoreColor(r.score_csm)}">${scoreText(r.score_csm)}</td>
-      <td class="score-cell ${scoreColor(r.score_deadline)}">${scoreText(r.score_deadline)}</td>
-      <td class="score-cell ${scoreColor(r.score_meeting)}">${scoreText(r.score_meeting)}</td>
-      <td class="score-cell col-section ${scoreColor(r.score_kpi1)}">${scoreText(r.score_kpi1)}</td>
-      <td class="score-cell ${scoreColor(r.score_kpi2)}">${scoreText(r.score_kpi2)}</td>
-      <td class="score-cell ${scoreColor(r.score_kpi3)}">${scoreText(r.score_kpi3)}</td>
+      ${quantTds}
+      ${qualTds}
       <td class="score-cell col-section"><strong>${r.basic_score ?? '-'}</strong></td>
       <td style="text-align:center;">${bp}</td>
       <td style="text-align:center;">${bpr}</td>
-      <td class="score-cell" style="background:#fffbeb;font-size:15px;"><strong>${r.final_score != null ? r.final_score.toFixed ? r.final_score.toFixed(1) : r.final_score : '-'}</strong></td>
+      <td class="score-cell" style="background:#fffbeb;font-size:15px;"><strong>${r.final_score != null ? (r.final_score.toFixed ? r.final_score.toFixed(1) : r.final_score) : '-'}</strong></td>
       <td><span class="grade-badge ${gClass}">${grade}</span></td>
     </tr>`;
   }).join('');
@@ -649,34 +724,23 @@ function renderCards(records) {
         </div>` : ''}
       </div>
       <div class="score-grid">
-        <div class="score-item">
-          <div class="score-item-label">팀장지시수행 <span style="color:#111827;font-weight:700;font-size:11px;">(5%)</span></div>
-          <div class="score-item-val ${r.score_directive == null ? 'null-val' : ''}">${r.score_directive ?? '미입력'}</div>
-        </div>
-        <div class="score-item">
-          <div class="score-item-label">CSM기여 <span style="color:#111827;font-weight:700;font-size:11px;">(10%)</span></div>
-          <div class="score-item-val ${r.score_csm == null ? 'null-val' : ''}">${r.score_csm ?? '미입력'}</div>
-        </div>
-        <div class="score-item">
-          <div class="score-item-label">기한준수 <span style="color:#111827;font-weight:700;font-size:11px;">(20%)</span></div>
-          <div class="score-item-val ${r.score_deadline == null ? 'null-val' : ''}">${r.score_deadline ?? '미입력'}</div>
-        </div>
-        <div class="score-item">
-          <div class="score-item-label">임원회의 <span style="color:#111827;font-weight:700;font-size:11px;">(15%)</span></div>
-          <div class="score-item-val ${r.score_meeting == null ? 'null-val' : ''}">${r.score_meeting ?? '미입력'}</div>
-        </div>
-        <div class="score-item">
-          <div class="score-item-label">KPI1 계리모델AI <span style="color:#111827;font-weight:700;font-size:11px;">(20%)</span></div>
-          <div class="score-item-val ${r.score_kpi1 == null ? 'null-val' : ''}">${r.score_kpi1 ?? '미입력'}</div>
-        </div>
-        <div class="score-item">
-          <div class="score-item-label">KPI2 재무수치분석 <span style="color:#111827;font-weight:700;font-size:11px;">(20%)</span></div>
-          <div class="score-item-val ${r.score_kpi2 == null ? 'null-val' : ''}">${r.score_kpi2 ?? '미입력'}</div>
-        </div>
-        <div class="score-item">
-          <div class="score-item-label">KPI3 계리지원강화 <span style="color:#111827;font-weight:700;font-size:11px;">(10%)</span></div>
-          <div class="score-item-val ${r.score_kpi3 == null ? 'null-val' : ''}">${r.score_kpi3 ?? '미입력'}</div>
-        </div>
+        ${QUANT_CODES.map(code => {
+          const def = KPI_DEFS_BY_CODE[code];
+          const lbl = def ? def.label : code;
+          const wt  = def ? def.weight_pct : '-';
+          const v   = r['score_' + code];
+          return `<div class="score-item">
+          <div class="score-item-label">${escapeHtmlSafe(lbl)} <span style="color:#111827;font-weight:700;font-size:11px;">(${wt}%)</span></div>
+          <div class="score-item-val ${v == null ? 'null-val' : ''}">${v ?? '미입력'}</div>
+        </div>`;
+        }).join('')}
+        ${QUAL_KPIS.map(k => {
+          const v = r['score_' + k.code];
+          return `<div class="score-item">
+          <div class="score-item-label">${escapeHtmlSafe(k.code.toUpperCase())} ${escapeHtmlSafe(k.label)} <span style="color:#111827;font-weight:700;font-size:11px;">(${k.weight_pct}%)</span></div>
+          <div class="score-item-val ${v == null ? 'null-val' : ''}">${v ?? '미입력'}</div>
+        </div>`;
+        }).join('')}
         <div class="score-item" style="background:#fffbeb;">
           <div class="score-item-label">최종평가점수</div>
           <div class="score-item-val" style="color:#854d0e;">${r.final_score != null ? (typeof r.final_score === 'number' ? r.final_score.toFixed(1) : r.final_score) : '-'}</div>
@@ -751,9 +815,10 @@ function openEditModal(id) {
   document.getElementById('fScoreMeeting').value   = r.score_meeting ?? '';
   populateQuantFromWorkTask(r);
   fetchWorkTasksForModal();
-  document.getElementById('fScoreKpi1').value = r.score_kpi1 ?? '';
-  document.getElementById('fScoreKpi2').value = r.score_kpi2 ?? '';
-  document.getElementById('fScoreKpi3').value = r.score_kpi3 ?? '';
+  for (const k of QUAL_KPIS) {
+    const el = document.getElementById('fScore_' + k.code);
+    if (el) el.value = r['score_' + k.code] ?? '';
+  }
   document.getElementById('fBasicScore').value = r.basic_score ?? '';
   document.getElementById('fBonusProject').value = String(!!r.bonus_project);
   document.getElementById('fBonusPromotion').value = String(!!r.bonus_promotion);
@@ -774,43 +839,29 @@ function nv(id) {
   return v === '' ? null : Number(v);
 }
 
-function calcDirectiveScore(v) {
-  if (v === '' || v == null) return null;
-  return parseInt(v) === 1 ? 100 : 0;
-}
-function calcCsmScore(v) {
-  if (v === '' || v == null) return null;
-  const n = Number(v);
-  if (n >= 1000) return 100; if (n >= 500) return 90;
-  if (n >= 200)  return 80;  if (n >= 100) return 70; return 0;
-}
-function calcDeadlineScore(v) {
-  if (v === '' || v == null) return null;
-  const n = parseInt(v);
-  if (n >= 2)   return 100; if (n === 1)  return 90;
-  if (n === 0)  return 80;  if (n === -1) return 70;
-  if (n === -2) return 60;  return 0;
-}
-function calcMeetingScore(v) {
-  if (v === '' || v == null) return null;
-  return Number(v) >= 1 ? 100 : 0;
-}
+function calcDirectiveScore(v) { return applyScoreRule('directive', v); }
+function calcCsmScore(v)       { return applyScoreRule('csm', v); }
+function calcDeadlineScore(v)  { return applyScoreRule('deadline', v); }
+function calcMeetingScore(v)   { return applyScoreRule('meeting', v); }
 
 function autoCalcScores() {
-  const s1 = document.getElementById('fScoreDirective').value !== '' ? Number(document.getElementById('fScoreDirective').value) : null;
-  const s2 = document.getElementById('fScoreCsm').value       !== '' ? Number(document.getElementById('fScoreCsm').value)       : null;
-  const s3 = document.getElementById('fScoreDeadline').value  !== '' ? Number(document.getElementById('fScoreDeadline').value)  : null;
-  const s4 = document.getElementById('fScoreMeeting').value   !== '' ? Number(document.getElementById('fScoreMeeting').value)   : null;
-  const k1 = nv('fScoreKpi1'), k2 = nv('fScoreKpi2'), k3 = nv('fScoreKpi3');
-  const weighted = [
-    s1 != null ? s1 * 0.05 : null,
-    s2 != null ? s2 * 0.10 : null,
-    s3 != null ? s3 * 0.20 : null,
-    s4 != null ? s4 * 0.15 : null,
-    k1 != null ? k1 * 0.20 : null,
-    k2 != null ? k2 * 0.20 : null,
-    k3 != null ? k3 * 0.10 : null,
-  ].filter(v => v !== null);
+  const w = (code, fb) => (KPI_DEFS_BY_CODE[code]?.weight_pct ?? fb) / 100;
+  const readVal = id => {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    return el.value !== '' ? Number(el.value) : null;
+  };
+  const quantW = { directive:5, csm:10, deadline:20, meeting:15 };
+  const QUANT_FIELD_MAP = { directive:'fScoreDirective', csm:'fScoreCsm', deadline:'fScoreDeadline', meeting:'fScoreMeeting' };
+  const weighted = [];
+  for (const code of QUANT_CODES) {
+    const v = readVal(QUANT_FIELD_MAP[code]);
+    if (v != null) weighted.push(v * w(code, quantW[code]));
+  }
+  for (const k of QUAL_KPIS) {
+    const v = readVal('fScore_' + k.code);
+    if (v != null) weighted.push(v * (k.weight_pct / 100));
+  }
   if (weighted.length) {
     const basic = Math.round(weighted.reduce((a,b) => a+b, 0) * 10) / 10;
     document.getElementById('fBasicScore').value = basic;
@@ -878,9 +929,10 @@ async function saveRecord() {
     score_deadline:   document.getElementById('fScoreDeadline').value  !== '' ? Number(document.getElementById('fScoreDeadline').value)  : null,
     score_meeting:    document.getElementById('fScoreMeeting').value   !== '' ? Number(document.getElementById('fScoreMeeting').value)   : null,
     rule_version:     '1.0.0',
-    score_kpi1: nv('fScoreKpi1'),
-    score_kpi2: nv('fScoreKpi2'),
-    score_kpi3: nv('fScoreKpi3'),
+    ...Object.fromEntries(QUAL_KPIS.map(k => [
+      'score_' + k.code,
+      (() => { const el = document.getElementById('fScore_' + k.code); return el && el.value !== '' ? Number(el.value) : null; })()
+    ])),
     basic_score: nv('fBasicScore'),
     bonus_project: document.getElementById('fBonusProject').value === 'true',
     bonus_promotion: document.getElementById('fBonusPromotion').value === 'true',
@@ -977,7 +1029,7 @@ document.getElementById('perfModal').addEventListener('click', e => {
 });
 
 buildSelects();
-loadRecords();
+loadConfigRules().then(() => loadRecords());
 </script>
 </body>
 </html>

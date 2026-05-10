@@ -160,7 +160,8 @@ function migrateDb(db) {
     'users','sessions','team_identity','core_values','team_goals',
     'individual_goals','performance_records','work_tasks','settlement_calendar',
     'automation_logs','report_history','interview_logs','audit_logs',
-    'settlement_reviews','team_directives'
+    'settlement_reviews','team_directives',
+    'settle_items','score_rules','kpi_definitions','task_categories'
   ];
   for (const table of requiredTables) {
     if (!Array.isArray(db[table])) {
@@ -177,6 +178,107 @@ function migrateDb(db) {
       updated_by: ''
     });
     changed = true;
+  }
+  // settle_items 초기 시드 (26개 결산업무)
+  if (!db.settle_items.length) {
+    const seed = [
+      ['s01','계리계약 마감','계약/준비금',5,'오정택'],
+      ['s02','지급준비금 마감','계약/준비금',7,'이용우'],
+      ['s03','준비금 마감','계약/준비금',8,'강세진'],
+      ['s04','보험료분해 마감','계약/준비금',10,'김채린'],
+      ['s05','재보험 마감 (출재/청구)','계약/준비금',12,'김예은'],
+      ['s06','보증준비금 마감','계약/준비금',13,'강세진'],
+      ['s07','잉여금처리 & 계약자배당','계약/준비금',null,'이상현'],
+      ['s08','예금보험료','계약/준비금',null,'강세진'],
+      ['s09','결산 모델 배포','모델/가정',1,'한인석'],
+      ['s10','계리모델 입력데이터 준비','모델/가정',8,'김예은/이성원'],
+      ['s11','경제적 가정 산출','모델/가정',7,'이상백'],
+      ['s12','최초/후속 모델포인트 생성','모델/가정',9,'이성원'],
+      ['s13','최초인식 보험부채 산출','부채산출',9,'김예은'],
+      ['s14','후속측정 보험부채 산출','부채산출',12,'한인석/이성원'],
+      ['s15','사업비 배부','부채산출',12,'마혜원'],
+      ['s16','최초인식대상계약 확정','부채산출',9,'이용우'],
+      ['s17','결산대상계약 확정','부채산출',10,'이용우'],
+      ['s18','가중평균할인율 산출','부채산출',10,'예대호'],
+      ['s19','BEL/RA data 입수 및 계약그룹 작업','ETL/데이터',12,'이동민'],
+      ['s20','결산대상계약 및 실제CF 이관 (ETL)','ETL/데이터',12,'김예은'],
+      ['s21','실제CF Data 이관 (ETL)','ETL/데이터',13,'이동민'],
+      ['s22','가중평균할인율 산출 (재보험)','재보험',14,'예대호'],
+      ['s23','BEL/RA data 입수 (재보험)','재보험',15,'김예은'],
+      ['s24','부채결산 무브먼트','무브먼트/전송',15,'이동민'],
+      ['s25','부채결산 무브먼트 (재보험)','무브먼트/전송',15,'김예은'],
+      ['s26','회계팀 결산Data 전송','무브먼트/전송',15,'예대호'],
+    ];
+    db.settle_items = seed.map((r, i) => ({
+      id: r[0], seq: i + 1, label: r[1], group_name: r[2],
+      due_biz_day: r[3], assignee: r[4], is_active: true,
+      created_at: t, updated_at: t
+    }));
+    changed = true;
+  }
+  // score_rules 초기 시드 (기한준수 점수 6단계)
+  if (!db.score_rules.length) {
+    const rules = [
+      ['deadline', 2, 100, 'D-2 이상 조기완료'],
+      ['deadline', 1, 90,  'D-1 조기완료'],
+      ['deadline', 0, 80,  '기한 정시'],
+      ['deadline', -1, 70, 'D+1 지연'],
+      ['deadline', -2, 60, 'D+2 지연'],
+      ['deadline', -99, 0, 'D+3 이상 지연'],
+      ['csm', 1000, 100, '10억원 이상'],
+      ['csm', 500,  90,  '5억원 이상'],
+      ['csm', 200,  80,  '2억원 이상'],
+      ['csm', 100,  70,  '1억원 이상'],
+      ['csm', 0,    0,   '미달'],
+      ['directive', 1, 100, '수행'],
+      ['directive', 0, 0,   '미수행'],
+      ['meeting', 1, 100, '1회 이상'],
+      ['meeting', 0, 0,   '미수행'],
+    ];
+    db.score_rules = rules.map((r, i) => ({
+      id: `sr_${i + 1}`, rule_type: r[0], threshold: r[1], score: r[2], label: r[3],
+      created_at: t, updated_at: t
+    }));
+    changed = true;
+  }
+  // kpi_definitions 초기 시드 (KPI 1~3 + 정량 가중치)
+  if (!db.kpi_definitions.length) {
+    const year = new Date().getFullYear();
+    const items = [
+      ['kpi1',  '계리모델AI활용', 20, 'qual'],
+      ['kpi2',  '재무수치분석',   20, 'qual'],
+      ['kpi3',  '계리지원강화',   10, 'qual'],
+      ['directive', '지시수행',   5,  'quant'],
+      ['csm',       '재무수치안', 10, 'quant'],
+      ['deadline',  '기한준수',   20, 'quant'],
+      ['meeting',   '임원회의',   15, 'quant'],
+    ];
+    db.kpi_definitions = items.map((r, i) => ({
+      id: `kpi_${year}_${r[0]}`, year, code: r[0],
+      label: r[1], weight_pct: r[2], category: r[3], is_active: true,
+      created_at: t, updated_at: t
+    }));
+    changed = true;
+  }
+  // task_categories 초기 시드 (work-personal 카테고리)
+  if (!db.task_categories.length) {
+    const cats = ['보고서 작성','회의/협의','데이터 분석','시스템 작업',
+      'KPI1 관련','KPI2 관련','KPI3 관련','교육/연수',
+      '프로젝트','타부서업무협조','금감원CPC','예보산출','내부통제','외부감사','기타'];
+    db.task_categories = cats.map((label, i) => ({
+      id: `tc_${i + 1}`, label, sort_order: i + 1, is_active: true,
+      created_at: t, updated_at: t
+    }));
+    changed = true;
+  }
+  // 기존 score_rules의 deadline_perf → deadline 으로 통일 (kpi_definitions code와 일치)
+  if (Array.isArray(db.score_rules)) {
+    for (const r of db.score_rules) {
+      if (r.rule_type === 'deadline_perf') {
+        r.rule_type = 'deadline';
+        changed = true;
+      }
+    }
   }
   if (changed) writeDb(db);
 }

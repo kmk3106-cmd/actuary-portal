@@ -49,7 +49,8 @@ const Portal = (() => {
     {
       section: '시스템',
       items: [
-        { href: 'bot-status.html', icon: 'fa-paper-plane', label: '텔레그램 봇' }
+        { href: 'bot-status.html', icon: 'fa-paper-plane', label: '텔레그램 봇' },
+        { href: 'settings.html',   icon: 'fa-sliders-h',   label: '룰 설정', requiresLeader: true }
       ]
     }
   ];
@@ -60,10 +61,13 @@ const Portal = (() => {
 
     const currentPage = window.location.pathname.split('/').pop() || 'index.html';
 
+    const isLeader = user.role === 'team_leader';
     let navHtml = '';
     for (const section of NAV) {
+      const visibleItems = section.items.filter(it => !it.requiresLeader || isLeader);
+      if (!visibleItems.length) continue;
       navHtml += `<div class="nav-section-title">${section.section}</div>`;
-      for (const item of section.items) {
+      for (const item of visibleItems) {
         const active = (currentPage === item.href || currentPage === '' && item.href === 'index.html') ? ' active' : '';
         navHtml += `
           <a href="${item.href}" class="nav-item${active}" onclick="Portal.closeSidebar()">

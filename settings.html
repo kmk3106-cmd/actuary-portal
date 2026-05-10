@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>룰 설정 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css?v=2">
+  <style>
+    .tabs { display:flex; gap:4px; border-bottom:2px solid #e5e7eb; margin-bottom:20px; flex-wrap:wrap; }
+    .tab { padding:10px 18px; background:none; border:none; font-size:14px; font-weight:600;
+      color:#6b7280; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+    .tab.active { color:#4f86f7; border-bottom-color:#4f86f7; }
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+
+    .settings-table { width:100%; border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; }
+    .settings-table th { background:#f9fafb; padding:10px 12px; font-size:12px; font-weight:700;
+      color:#374151; text-align:left; border-bottom:1.5px solid #e5e7eb; }
+    .settings-table td { padding:8px 12px; font-size:13px; color:#374151;
+      border-bottom:1px solid #f3f4f6; vertical-align:middle; }
+    .settings-table tr:last-child td { border-bottom:none; }
+    .settings-table input, .settings-table select { width:100%; padding:5px 8px; font-size:13px;
+      border:1px solid #e5e7eb; border-radius:6px; }
+    .settings-table input[type=number] { width:80px; }
+    .settings-table .col-act { width:80px; text-align:center; }
+
+    .btn-mini { padding:4px 10px; font-size:12px; border-radius:6px; border:1px solid #e5e7eb;
+      background:#fff; cursor:pointer; font-weight:600; color:#374151; }
+    .btn-mini:hover { border-color:#4f86f7; color:#4f86f7; }
+    .btn-mini.danger:hover { border-color:#ef4444; color:#ef4444; }
+    .btn-mini.primary { background:#4f86f7; color:#fff; border-color:#4f86f7; }
+    .btn-mini.primary:hover { background:#3a6fd8; }
+
+    .panel-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+    .panel-header h2 { font-size:16px; font-weight:700; color:#111827; margin:0; }
+    .panel-desc { font-size:12px; color:#9ca3af; margin-top:4px; }
+    .access-warn { background:#fef2f2; border:1.5px solid #fecaca; color:#991b1b;
+      padding:14px 18px; border-radius:10px; font-size:14px; margin:24px; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-sliders-h"></i> 룰 설정</h1>
+    </header>
+    <main class="content-body">
+      <div id="rootMount"></div>
+    </main>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js"></script>
+<script>
+if (!Portal.init()) throw 'AUTH';
+
+const user = RBAC.getCurrentUser();
+if (user.role !== 'team_leader') {
+  document.getElementById('rootMount').innerHTML =
+    '<div class="access-warn"><i class="fas fa-lock"></i> 룰 설정은 팀장만 접근할 수 있습니다.</div>';
+  throw 'ACCESS_DENIED';
+}
+
+const root = document.getElementById('rootMount');
+root.innerHTML = `
+  <div class="tabs">
+    <button class="tab active" data-tab="settle">결산업무 (26)</button>
+    <button class="tab" data-tab="score">점수 규칙</button>
+    <button class="tab" data-tab="kpi">KPI 정의</button>
+    <button class="tab" data-tab="cat">기타 카테고리</button>
+  </div>
+
+  <div class="tab-panel active" id="panel-settle">
+    <div class="panel-header">
+      <div>
+        <h2>결산업무 항목</h2>
+        <div class="panel-desc">SETTLE_SCHEDULE — 결산캘린더 / 체크리스트의 마감일 기준</div>
+      </div>
+      <button class="btn-mini primary" onclick="addSettleItem()"><i class="fas fa-plus"></i> 항목 추가</button>
+    </div>
+    <table class="settings-table" id="tbl-settle">
+      <thead><tr>
+        <th style="width:70px;">순서</th><th>업무명</th><th style="width:140px;">그룹</th>
+        <th style="width:110px;">D+영업일</th><th style="width:160px;">담당자</th>
+        <th style="width:80px;">활성</th><th class="col-act">관리</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="tab-panel" id="panel-score">
+    <div class="panel-header">
+      <div>
+        <h2>점수 규칙</h2>
+        <div class="panel-desc">기한준수 / CSM / 지시수행 / 임원회의 — 임계값별 점수</div>
+      </div>
+      <button class="btn-mini primary" onclick="addScoreRule()"><i class="fas fa-plus"></i> 규칙 추가</button>
+    </div>
+    <table class="settings-table" id="tbl-score">
+      <thead><tr>
+        <th style="width:140px;">규칙 유형</th><th style="width:120px;">임계값</th>
+        <th style="width:100px;">점수</th><th>설명</th><th class="col-act">관리</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="tab-panel" id="panel-kpi">
+    <div class="panel-header">
+      <div>
+        <h2>KPI 정의</h2>
+        <div class="panel-desc">연도별 KPI 1~3 라벨 + 정량/정성 가중치 (%)</div>
+      </div>
+      <button class="btn-mini primary" onclick="addKpi()"><i class="fas fa-plus"></i> KPI 추가</button>
+    </div>
+    <table class="settings-table" id="tbl-kpi">
+      <thead><tr>
+        <th style="width:80px;">연도</th><th style="width:100px;">코드</th>
+        <th>라벨</th><th style="width:100px;">가중치(%)</th>
+        <th style="width:110px;">분류</th><th style="width:80px;">활성</th>
+        <th class="col-act">관리</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="tab-panel" id="panel-cat">
+    <div class="panel-header">
+      <div>
+        <h2>기타 카테고리</h2>
+        <div class="panel-desc">개인별 업무입력의 비결산 카테고리 드롭다운</div>
+      </div>
+      <button class="btn-mini primary" onclick="addCat()"><i class="fas fa-plus"></i> 카테고리 추가</button>
+    </div>
+    <table class="settings-table" id="tbl-cat">
+      <thead><tr>
+        <th style="width:100px;">순서</th><th>카테고리명</th>
+        <th style="width:80px;">활성</th><th class="col-act">관리</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+`;
+
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ───────── 공용 API ─────────
+async function apiList(table) {
+  const r = await fetch(`/tables/${table}?limit=500`);
+  const d = await r.json();
+  return d.rows || d.data || [];
+}
+async function apiCreate(table, body) {
+  const r = await fetch(`/tables/${table}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return r.json();
+}
+async function apiUpdate(table, id, body) {
+  const r = await fetch(`/tables/${table}/${id}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return r.json();
+}
+async function apiDelete(table, id) {
+  await fetch(`/tables/${table}/${id}`, { method: 'DELETE' });
+}
+
+const SETTLE_GROUPS = ['계약/준비금','모델/가정','부채산출','ETL/데이터','재보험','무브먼트/전송'];
+
+// ───────── 결산업무 ─────────
+async function loadSettle() {
+  const rows = (await apiList('settle_items')).sort((a,b)=>(a.seq||0)-(b.seq||0));
+  const tbody = document.querySelector('#tbl-settle tbody');
+  tbody.innerHTML = rows.map(r => `
+    <tr data-id="${r.id}">
+      <td><input type="number" data-f="seq" value="${r.seq||''}"></td>
+      <td><input type="text" data-f="label" value="${escapeHtml(r.label||'')}"></td>
+      <td>
+        <select data-f="group_name">
+          ${SETTLE_GROUPS.map(g=>`<option value="${g}" ${r.group_name===g?'selected':''}>${g}</option>`).join('')}
+        </select>
+      </td>
+      <td><input type="number" data-f="due_biz_day" value="${r.due_biz_day??''}" placeholder="없음"></td>
+      <td><input type="text" data-f="assignee" value="${escapeHtml(r.assignee||'')}"></td>
+      <td style="text-align:center;"><input type="checkbox" data-f="is_active" ${r.is_active!==false?'checked':''}></td>
+      <td class="col-act">
+        <button class="btn-mini" onclick="saveRow('settle_items', this)">저장</button>
+        <button class="btn-mini danger" onclick="delRow('settle_items', this, loadSettle)">삭제</button>
+      </td>
+    </tr>`).join('');
+}
+async function addSettleItem() {
+  const list = await apiList('settle_items');
+  const nextSeq = list.length + 1;
+  await apiCreate('settle_items', {
+    id: `s${String(nextSeq).padStart(2,'0')}`,
+    seq: nextSeq, label: '신규 업무', group_name: SETTLE_GROUPS[0],
+    due_biz_day: 10, assignee: '', is_active: true
+  });
+  await loadSettle();
+}
+
+// ───────── 점수 규칙 (rule_type은 kpi_definitions(quant)에서 동적 로드) ─────────
+let RULE_TYPES = []; // [[code, label], ...]
+async function loadRuleTypes() {
+  const kpis = await apiList('kpi_definitions');
+  const curYear = new Date().getFullYear();
+  RULE_TYPES = kpis
+    .filter(k => k.is_active !== false && k.category === 'quant' && k.year === curYear)
+    .sort((a,b) => (a.code||'').localeCompare(b.code||''))
+    .map(k => [k.code, `${k.label} (${k.weight_pct}%)`]);
+}
+async function loadScore() {
+  await loadRuleTypes();
+  const rows = await apiList('score_rules');
+  rows.sort((a,b)=> a.rule_type.localeCompare(b.rule_type) || (b.threshold||0)-(a.threshold||0));
+  const tbody = document.querySelector('#tbl-score tbody');
+  if (!RULE_TYPES.length) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:24px;">
+      KPI 정의 탭에서 정량 KPI를 먼저 추가해주세요.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const known = RULE_TYPES.some(([v]) => v === r.rule_type);
+    const orphanOpt = known ? '' : `<option value="${escapeHtml(r.rule_type)}" selected>(미정의: ${escapeHtml(r.rule_type)})</option>`;
+    return `
+    <tr data-id="${r.id}">
+      <td>
+        <select data-f="rule_type">
+          ${orphanOpt}
+          ${RULE_TYPES.map(([v,l])=>`<option value="${v}" ${r.rule_type===v?'selected':''}>${l}</option>`).join('')}
+        </select>
+      </td>
+      <td><input type="number" data-f="threshold" value="${r.threshold??0}"></td>
+      <td><input type="number" data-f="score" value="${r.score??0}"></td>
+      <td><input type="text" data-f="label" value="${escapeHtml(r.label||'')}"></td>
+      <td class="col-act">
+        <button class="btn-mini" onclick="saveRow('score_rules', this)">저장</button>
+        <button class="btn-mini danger" onclick="delRow('score_rules', this, loadScore)">삭제</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+async function addScoreRule() {
+  await loadRuleTypes();
+  if (!RULE_TYPES.length) {
+    Portal.showToast('KPI 정의 탭에서 정량 KPI를 먼저 추가하세요.', 'error');
+    return;
+  }
+  await apiCreate('score_rules', { rule_type: RULE_TYPES[0][0], threshold:0, score:80, label:'' });
+  await loadScore();
+}
+
+// ───────── KPI ─────────
+async function loadKpi() {
+  const rows = (await apiList('kpi_definitions'))
+    .sort((a,b)=> (b.year||0)-(a.year||0) || (a.code||'').localeCompare(b.code||''));
+  const tbody = document.querySelector('#tbl-kpi tbody');
+  tbody.innerHTML = rows.map(r => `
+    <tr data-id="${r.id}">
+      <td><input type="number" data-f="year" value="${r.year||new Date().getFullYear()}"></td>
+      <td><input type="text" data-f="code" value="${escapeHtml(r.code||'')}"></td>
+      <td><input type="text" data-f="label" value="${escapeHtml(r.label||'')}"></td>
+      <td><input type="number" data-f="weight_pct" value="${r.weight_pct??0}"></td>
+      <td>
+        <select data-f="category">
+          <option value="qual" ${r.category==='qual'?'selected':''}>정성(KPI)</option>
+          <option value="quant" ${r.category==='quant'?'selected':''}>정량</option>
+        </select>
+      </td>
+      <td style="text-align:center;"><input type="checkbox" data-f="is_active" ${r.is_active!==false?'checked':''}></td>
+      <td class="col-act">
+        <button class="btn-mini" onclick="saveRow('kpi_definitions', this)">저장</button>
+        <button class="btn-mini danger" onclick="delRow('kpi_definitions', this, loadKpi)">삭제</button>
+      </td>
+    </tr>`).join('');
+}
+async function addKpi() {
+  const year = new Date().getFullYear();
+  await apiCreate('kpi_definitions', {
+    year, code:'new', label:'신규 KPI', weight_pct:10, category:'qual', is_active:true
+  });
+  await loadKpi();
+}
+
+// ───────── 카테고리 ─────────
+async function loadCat() {
+  const rows = (await apiList('task_categories')).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  const tbody = document.querySelector('#tbl-cat tbody');
+  tbody.innerHTML = rows.map(r => `
+    <tr data-id="${r.id}">
+      <td><input type="number" data-f="sort_order" value="${r.sort_order||0}"></td>
+      <td><input type="text" data-f="label" value="${escapeHtml(r.label||'')}"></td>
+      <td style="text-align:center;"><input type="checkbox" data-f="is_active" ${r.is_active!==false?'checked':''}></td>
+      <td class="col-act">
+        <button class="btn-mini" onclick="saveRow('task_categories', this)">저장</button>
+        <button class="btn-mini danger" onclick="delRow('task_categories', this, loadCat)">삭제</button>
+      </td>
+    </tr>`).join('');
+}
+async function addCat() {
+  const list = await apiList('task_categories');
+  await apiCreate('task_categories', {
+    label: '신규 카테고리', sort_order: list.length + 1, is_active: true
+  });
+  await loadCat();
+}
+
+// ───────── 행 저장/삭제 공통 ─────────
+function rowToBody(tr) {
+  const body = {};
+  tr.querySelectorAll('[data-f]').forEach(el => {
+    const f = el.dataset.f;
+    if (el.type === 'checkbox') body[f] = el.checked;
+    else if (el.type === 'number') {
+      const v = el.value.trim();
+      body[f] = v === '' ? null : Number(v);
+    }
+    else body[f] = el.value;
+  });
+  return body;
+}
+async function saveRow(table, btn) {
+  const tr = btn.closest('tr');
+  const id = tr.dataset.id;
+  const body = rowToBody(tr);
+  await apiUpdate(table, id, body);
+  Portal.showToast('저장 완료', 'success');
+  // 연관 테이블 자동 새로고침: KPI 정의 변경 → 점수규칙 rule_type 갱신
+  if (table === 'kpi_definitions') await loadScore();
+}
+async function delRow(table, btn, reload) {
+  if (!confirm('삭제하시겠습니까?')) return;
+  const tr = btn.closest('tr');
+  await apiDelete(table, tr.dataset.id);
+  Portal.showToast('삭제 완료', 'success');
+  await reload();
+  if (table === 'kpi_definitions') await loadScore();
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// 초기 로드
+loadSettle(); loadScore(); loadKpi(); loadCat();
+</script>
+</body>
+</html>
