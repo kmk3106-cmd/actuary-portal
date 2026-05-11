@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=20">
+  <link rel="stylesheet" href="css/main.css?v=21">
   <style>
     .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
     .yr-sel, .month-sel, .member-sel {
@@ -203,6 +203,41 @@
         </div>
       </div>
 
+      <!-- 결산외 업무 입력 -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <div class="section-icon icon-green"><i class="fas fa-clipboard-list"></i></div>
+            결산외 업무 입력
+          </div>
+          <span class="section-badge" id="otherBadge">0건</span>
+        </div>
+        <div class="col-header">
+          <div>구분</div>
+          <div>업무 내용</div>
+          <div>시작일</div>
+          <div>종료일</div>
+          <div>시작시간</div>
+          <div>종료시간</div>
+          <div></div>
+        </div>
+        <div class="other-task-list" id="otherTaskList"></div>
+        <button class="btn-add-row" onclick="addOtherTask()">
+          <i class="fas fa-plus"></i> 항목 추가
+        </button>
+        <div class="action-row">
+          <button class="btn-cancel" onclick="loadCurrentRecord()">
+            <i class="fas fa-undo"></i> 취소
+          </button>
+          <button class="btn-save" onclick="saveWorkTask()">
+            <i class="fas fa-save"></i> 저장
+          </button>
+          <button class="btn-reflect" onclick="reflectToPerformance()">
+            <i class="fas fa-sync-alt"></i> 팀 성과에 반영
+          </button>
+        </div>
+      </div>
+
       <!-- 성과목표업무 입력 -->
       <div class="section-card" id="kpiSection">
         <div class="section-header">
@@ -361,41 +396,6 @@
         </div>
       </div>
 
-      <!-- 결산외 업무 입력 -->
-      <div class="section-card">
-        <div class="section-header">
-          <div class="section-title">
-            <div class="section-icon icon-green"><i class="fas fa-clipboard-list"></i></div>
-            결산외 업무 입력
-          </div>
-          <span class="section-badge" id="otherBadge">0건</span>
-        </div>
-        <div class="col-header">
-          <div>구분</div>
-          <div>업무 내용</div>
-          <div>시작일</div>
-          <div>종료일</div>
-          <div>시작시간</div>
-          <div>종료시간</div>
-          <div></div>
-        </div>
-        <div class="other-task-list" id="otherTaskList"></div>
-        <button class="btn-add-row" onclick="addOtherTask()">
-          <i class="fas fa-plus"></i> 항목 추가
-        </button>
-        <div class="action-row">
-          <button class="btn-cancel" onclick="loadCurrentRecord()">
-            <i class="fas fa-undo"></i> 취소
-          </button>
-          <button class="btn-save" onclick="saveWorkTask()">
-            <i class="fas fa-save"></i> 저장
-          </button>
-          <button class="btn-reflect" onclick="reflectToPerformance()">
-            <i class="fas fa-sync-alt"></i> 팀 성과에 반영
-          </button>
-        </div>
-      </div>
-
       <!-- 입력 이력 -->
       <div class="section-card">
         <div class="section-header">
@@ -415,7 +415,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=20"></script>
+<script src="js/portal.js?v=21"></script>
 <script>
 Portal.init();
 
