@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=22">
+  <link rel="stylesheet" href="css/main.css?v=23">
   <style>
     /* ── KB 이슈 사례집 전용 스타일 ── */
 
@@ -900,13 +900,13 @@ function renderIssueDetail(issue) {
     ? `<div class="issue-tags">${tags.map(t => `<span class="tag-chip"><i class="fas fa-hashtag"></i>${escHtml(t)}</span>`).join('')}</div>`
     : '';
 
-  // 수정/삭제 버튼
+  // 수정/삭제 버튼 (issue.id는 문자열이라 따옴표 필수)
   const editBtns = canEdit ? `
-    <button class="btn btn-secondary btn-sm" onclick="openEditIssueModal(${issue.id})">
+    <button class="btn btn-secondary btn-sm" onclick="openEditIssueModal('${issue.id}')">
       <i class="fas fa-edit"></i> <span>수정</span>
     </button>` : '';
   const deleteBtns = canDelete ? `
-    <button class="btn btn-danger btn-sm" onclick="deleteIssue(${issue.id})">
+    <button class="btn btn-danger btn-sm" onclick="deleteIssue('${issue.id}')">
       <i class="fas fa-trash"></i> <span>삭제</span>
     </button>` : '';
 
