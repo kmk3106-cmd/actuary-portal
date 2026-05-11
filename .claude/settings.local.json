@@ -72,7 +72,8 @@
       "Bash(powershell *)",
       "Bash(curl -s \"http://localhost:8888/tables/work_tasks?limit=50\")",
       "Bash(curl -s \"http://localhost:8888/tables/daily_work_entries?limit=500\")",
-      "Bash(curl -s \"http://localhost:8888/tables/workload_daily_cache?limit=200\")"
+      "Bash(curl -s \"http://localhost:8888/tables/workload_daily_cache?limit=200\")",
+      "Bash(curl -s \"http://localhost:8888/tables/work_tasks?limit=100\")"
     ],
     "defaultMode": "bypassPermissions"
   }
