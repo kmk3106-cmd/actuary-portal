@@ -1309,6 +1309,22 @@
 
   async function saveChecklist() {
     if (!chkMember) { Portal.showToast('팀원을 선택하세요.', 'error'); return; }
+
+    // ── sanitize: 체크 해제된 항목의 잔존 키를 모든 맵에서 제거 (안전장치) ──
+    const doneSet = chkDone;
+    const sanitize = (obj) => {
+      if (!obj) return {};
+      const out = {};
+      for (const k in obj) if (doneSet.has(k)) out[k] = obj[k];
+      return out;
+    };
+    chkTimes           = sanitize(chkTimes);
+    chkDates           = sanitize(chkDates);
+    chkDeadlineDaysMap = sanitize(chkDeadlineDaysMap);
+    if (chkStartDates) chkStartDates = sanitize(chkStartDates);
+    if (chkStartTimes) chkStartTimes = sanitize(chkStartTimes);
+    if (chkEndTimes)   chkEndTimes   = sanitize(chkEndTimes);
+
     const body = {
       year: chkYear, month: chkMonth, member_name: chkMember,
       settlement_done:          [...chkDone],

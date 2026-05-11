@@ -69,7 +69,10 @@
       "Bash(read id *)",
       "Bash(echo \"rows: $\\(python -c \"import json; print\\(len\\(json.load\\(open\\('/tmp/r3.json'\\)\\)['rows']\\)\\)\"\\)\")",
       "Bash(awk '{print $2}')",
-      "Bash(powershell *)"
+      "Bash(powershell *)",
+      "Bash(curl -s \"http://localhost:8888/tables/work_tasks?limit=50\")",
+      "Bash(curl -s \"http://localhost:8888/tables/daily_work_entries?limit=500\")",
+      "Bash(curl -s \"http://localhost:8888/tables/workload_daily_cache?limit=200\")"
     ],
     "defaultMode": "bypassPermissions"
   }
