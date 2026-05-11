@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=24">
+  <link rel="stylesheet" href="css/main.css?v=27">
   <style>
     .year-tabs { display:flex; gap:8px; margin-bottom:20px; }
     .year-tab { padding:8px 20px; border-radius:20px; border:2px solid #e5e7eb; background:#fff;
@@ -80,9 +80,7 @@
     .stat-value.green { color:#10b981; }
     .stat-value.red { color:#ef4444; }
     /* Modal */
-    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000;
-      align-items:center; justify-content:center; }
-    .modal-overlay.open { display:flex; }
+    /* 모달 시스템은 main.css에서 단독 관리 (.modal-overlay + .show/.open 클래스) */
     .modal-box { background:#fff; border-radius:20px; width:520px; max-width:95vw; max-height:90vh;
       overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2); }
     .modal-header { padding:24px 28px 0; display:flex; justify-content:space-between; align-items:center; }

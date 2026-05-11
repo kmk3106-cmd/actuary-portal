@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>운영 점검 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css?v=27">
+  <style>
+    .audit-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+    .audit-summary-card { background:#fff; border-radius:14px; padding:16px 20px; border:1.5px solid #f3f4f6; }
+    .audit-summary-label { font-size:11px; color:#9ca3af; font-weight:500; margin-bottom:6px; }
+    .audit-summary-val   { font-size:26px; font-weight:800; color:#111827; }
+    .audit-summary-val.green  { color:#15803d; }
+    .audit-summary-val.amber  { color:#92400e; }
+    .audit-summary-val.red    { color:#b91c1c; }
+    .audit-meta { font-size:12px; color:#6b7280; margin-top:4px; }
+
+    .audit-toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:18px; }
+    .audit-toolbar-spacer { flex:1; }
+    .btn-run-audit { padding:8px 16px; border-radius:8px; border:1.5px solid #4f86f7;
+      background:#4f86f7; color:#fff; font-weight:600; font-size:13px; cursor:pointer;
+      display:flex; align-items:center; gap:7px; }
+    .btn-run-audit:hover { background:#3b73e0; }
+    .btn-run-audit:disabled { opacity:0.6; cursor:wait; }
+
+    .issue-group { background:#fff; border-radius:14px; border:1.5px solid #f3f4f6; margin-bottom:14px; overflow:hidden; }
+    .issue-group-header {
+      padding:14px 20px; display:flex; align-items:center; gap:10px;
+      font-size:14px; font-weight:700; color:#111827; background:#fafbfc;
+      border-bottom:1px solid #f3f4f6;
+    }
+    .issue-group-header .count-chip { font-size:11px; font-weight:700;
+      padding:2px 9px; border-radius:10px; background:#fef2f2; color:#b91c1c; }
+    .issue-group-header.medium .count-chip { background:#fef3c7; color:#92400e; }
+    .issue-group-header.low .count-chip { background:#dbeafe; color:#1e40af; }
+
+    .issue-row { padding:11px 20px; border-bottom:1px solid #f9fafb; font-size:13px;
+      display:flex; gap:12px; align-items:flex-start; }
+    .issue-row:last-child { border-bottom:none; }
+    .issue-msg { flex:1; color:#374151; line-height:1.6; }
+    .issue-hint { font-size:11.5px; color:#6b7280; margin-top:3px; font-style:italic; }
+
+    .empty-state { text-align:center; padding:60px 20px; color:#9ca3af; }
+    .empty-state i { font-size:48px; margin-bottom:12px; display:block; opacity:.4; }
+
+    .history-table { width:100%; border-collapse:collapse; background:#fff;
+      border-radius:14px; overflow:hidden; border:1.5px solid #f3f4f6; }
+    .history-table th, .history-table td { padding:10px 16px; text-align:left;
+      font-size:13px; border-bottom:1px solid #f3f4f6; }
+    .history-table th { background:#fafbfc; font-weight:700; color:#374151; }
+    .history-table tr:last-child td { border-bottom:none; }
+    .history-status { padding:2px 9px; border-radius:10px; font-size:11px; font-weight:700; }
+    .history-status.clean { background:#dcfce7; color:#15803d; }
+    .history-status.issues { background:#fee2e2; color:#b91c1c; }
+    .history-status.partial { background:#fef3c7; color:#92400e; }
+
+    @media(max-width:768px) {
+      .audit-summary { grid-template-columns:1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-shield-alt" style="color:#4f86f7;margin-right:8px;"></i> 운영 점검</h1>
+    </header>
+    <main class="content-body">
+
+      <!-- 도구 모음 -->
+      <div class="audit-toolbar">
+        <div id="lastRunMeta" class="audit-meta">로딩 중...</div>
+        <div class="audit-toolbar-spacer"></div>
+        <button class="btn-run-audit" onclick="runAuditNow()" id="runBtn">
+          <i class="fas fa-play"></i> 지금 점검 실행
+        </button>
+      </div>
+
+      <!-- 요약 카드 -->
+      <div class="audit-summary" id="summaryRow">
+        <div class="audit-summary-card">
+          <div class="audit-summary-label">총 이슈</div>
+          <div class="audit-summary-val" id="sumTotal">-</div>
+        </div>
+        <div class="audit-summary-card">
+          <div class="audit-summary-label">HIGH (긴급)</div>
+          <div class="audit-summary-val red" id="sumHigh">-</div>
+        </div>
+        <div class="audit-summary-card">
+          <div class="audit-summary-label">MEDIUM</div>
+          <div class="audit-summary-val amber" id="sumMedium">-</div>
+        </div>
+        <div class="audit-summary-card">
+          <div class="audit-summary-label">상태</div>
+          <div class="audit-summary-val" id="sumStatus">-</div>
+        </div>
+      </div>
+
+      <!-- 이슈 리스트 (카테고리별) -->
+      <div id="issueList">
+        <div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>점검 결과 로딩 중...</p></div>
+      </div>
+
+      <!-- 최근 30일 점검 이력 -->
+      <h2 style="font-size:16px;font-weight:700;color:#374151;margin:32px 0 12px;">최근 점검 이력</h2>
+      <table class="history-table" id="historyTable">
+        <thead>
+          <tr>
+            <th>실행 시각</th>
+            <th>트리거</th>
+            <th>상태</th>
+            <th>이슈 수</th>
+            <th>HIGH</th>
+            <th>MEDIUM</th>
+            <th>소요</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody">
+          <tr><td colspan="7" style="text-align:center;padding:30px;color:#9ca3af;">로딩 중...</td></tr>
+        </tbody>
+      </table>
+
+    </main>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js?v=27"></script>
+<script>
+Portal.init();
+
+const CATEGORY_LABELS = {
+  perf_orphan_quant:    { label: '정량 점수 잔존',          severity: 'high',   icon: 'fa-percent' },
+  perf_orphan_deadline: { label: '마감일 점수 잔존',        severity: 'high',   icon: 'fa-calendar-times' },
+  perf_inactive:        { label: '비활성 사용자 성과 record', severity: 'medium', icon: 'fa-user-slash' },
+  dwe_inactive:         { label: '비활성 사용자 daily 행',  severity: 'medium', icon: 'fa-user-clock' },
+  work_task_zombie:     { label: 'work_tasks 잔존 키',     severity: 'medium', icon: 'fa-broom' },
+};
+
+let allReports = [];
+let latestReport = null;
+
+async function loadReports() {
+  try {
+    const r = await fetch('/tables/audit_reports?limit=50');
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    const reports = (data.rows || data.data || []).slice();
+    reports.sort((a, b) => (b.run_at || 0) - (a.run_at || 0));
+    allReports = reports;
+    latestReport = reports[0] || null;
+    renderSummary();
+    renderIssueList();
+    renderHistory();
+  } catch (e) {
+    document.getElementById('issueList').innerHTML =
+      '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>점검 결과를 불러오지 못했습니다.</p></div>';
+  }
+}
+
+function fmtTime(ms) {
+  if (!ms) return '-';
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+function renderSummary() {
+  if (!latestReport) {
+    document.getElementById('lastRunMeta').textContent = '아직 점검 이력이 없습니다.';
+    document.getElementById('sumTotal').textContent = '-';
+    document.getElementById('sumHigh').textContent = '-';
+    document.getElementById('sumMedium').textContent = '-';
+    document.getElementById('sumStatus').textContent = '-';
+    return;
+  }
+  const r = latestReport;
+  const s = r.summary || {};
+  document.getElementById('lastRunMeta').textContent =
+    `마지막 점검: ${fmtTime(r.run_at)} (${r.trigger || '?'}, ${r.duration_ms}ms)`;
+  document.getElementById('sumTotal').textContent = s.total_issues ?? 0;
+  document.getElementById('sumHigh').textContent  = s.by_severity?.high   ?? 0;
+  document.getElementById('sumMedium').textContent = s.by_severity?.medium ?? 0;
+  const statusEl = document.getElementById('sumStatus');
+  if (r.status === 'clean') {
+    statusEl.textContent = '✓ 정상';
+    statusEl.className = 'audit-summary-val green';
+  } else if (r.status === 'issues') {
+    statusEl.textContent = '⚠ 이슈';
+    statusEl.className = 'audit-summary-val red';
+  } else {
+    statusEl.textContent = '⚠ 일부 실패';
+    statusEl.className = 'audit-summary-val amber';
+  }
+}
+
+function renderIssueList() {
+  const container = document.getElementById('issueList');
+  if (!latestReport || !latestReport.issues || latestReport.issues.length === 0) {
+    container.innerHTML = '<div class="empty-state"><i class="fas fa-check-circle" style="color:#15803d;"></i><p>이슈가 발견되지 않았습니다. 정상입니다.</p></div>';
+    return;
+  }
+  // 카테고리별 그룹화
+  const grouped = {};
+  for (const it of latestReport.issues) {
+    const cat = it.category || 'other';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(it);
+  }
+  let html = '';
+  for (const [cat, issues] of Object.entries(grouped)) {
+    const meta = CATEGORY_LABELS[cat] || { label: cat, severity: 'low', icon: 'fa-info-circle' };
+    html += `<div class="issue-group">
+      <div class="issue-group-header ${meta.severity}">
+        <i class="fas ${meta.icon}"></i>
+        ${escHtml(meta.label)}
+        <span class="count-chip">${issues.length}건</span>
+      </div>
+      ${issues.map(it => `<div class="issue-row">
+        <div class="issue-msg">
+          ${escHtml(it.message || '(메시지 없음)')}
+          ${it.fix_hint ? `<div class="issue-hint"><i class="fas fa-lightbulb"></i> ${escHtml(it.fix_hint)}</div>` : ''}
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }
+  container.innerHTML = html;
+}
+
+function renderHistory() {
+  const tbody = document.getElementById('historyBody');
+  if (!allReports.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#9ca3af;">점검 이력 없음</td></tr>';
+    return;
+  }
+  tbody.innerHTML = allReports.map(r => {
+    const s = r.summary || {};
+    const status = r.status || '-';
+    return `<tr>
+      <td>${fmtTime(r.run_at)}</td>
+      <td style="color:#6b7280;">${r.trigger || '-'}</td>
+      <td><span class="history-status ${status}">${status}</span></td>
+      <td>${s.total_issues ?? '-'}</td>
+      <td>${s.by_severity?.high ?? '-'}</td>
+      <td>${s.by_severity?.medium ?? '-'}</td>
+      <td style="color:#9ca3af;">${r.duration_ms ?? '-'}ms</td>
+    </tr>`;
+  }).join('');
+}
+
+async function runAuditNow() {
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 점검 중...';
+  try {
+    const r = await fetch('/api/audit/run', { method: 'POST' });
+    if (!r.ok) throw new Error();
+    Portal.showToast('점검이 완료되었습니다.', 'success');
+    await loadReports();
+  } catch (e) {
+    Portal.showToast('점검 실행에 실패했습니다.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-play"></i> 지금 점검 실행';
+  }
+}
+
+function escHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+loadReports();
+</script>
+</body>
+</html>

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=24">
+  <link rel="stylesheet" href="css/main.css?v=27">
   <style>
     /* 툴바 */
     .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
@@ -97,11 +97,7 @@
     .empty-state-title { font-size:16px; font-weight:700; color:#374151; margin-bottom:6px; }
 
     /* 모달 */
-    .modal-overlay {
-      display:none; position:fixed; inset:0; background:rgba(0,0,0,.45);
-      z-index:1000; align-items:center; justify-content:center;
-    }
-    .modal-overlay.open { display:flex; }
+    /* 모달 시스템은 main.css에서 단독 관리 (.modal-overlay + .show/.open 클래스) */
     .modal-box {
       background:#fff; border-radius:20px; width:560px; max-width:96vw;
       max-height:92vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2);

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=24">
+  <link rel="stylesheet" href="css/main.css?v=27">
   <style>
     .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
     .yr-sel, .month-sel, .member-sel {
@@ -523,9 +523,44 @@ async function saveQuantitative() {
       if (res.ok) { const d = await res.json(); currentRecordId = d.id; }
     }
     if (!res.ok) throw new Error();
+    // 자동 동기화: performance_records의 raw_* + score_* 도 같이 갱신 (DATA_SYNC_RULES §3 버그 F)
+    await syncQuantRawToPerf();
     Portal.showToast('정량평가 데이터가 저장되었습니다.', 'success');
     await loadHistory();
   } catch(e) { Portal.showToast('저장에 실패했습니다.', 'error'); }
+}
+
+/**
+ * work_tasks의 raw_* 변경에 맞춰 performance_records의 raw_* 와 score_* 도 동기화.
+ * "반영"(pushQuantToPerf) 과 달리 사용자 클릭 없이 자동 실행되므로 가드 없음.
+ * raw가 null이면 score도 null로 명시 PATCH (옛 점수 잔존 방지).
+ * score_deadline은 settlement.pushDeadlineToPerf가 책임지므로 건드리지 않음.
+ */
+async function syncQuantRawToPerf() {
+  const s1 = calcQDirective(quantData.directive_done);
+  const s2 = calcQCsm(quantData.csm_amount);
+  const s4 = calcQMeeting(quantData.meeting_count);
+  try {
+    const res  = await fetch('/tables/performance_records?limit=500');
+    const data = await res.json();
+    const match = (data.rows||[]).find(r =>
+      r.target_name === currentMember &&
+      String(r.year) === String(currentYear) &&
+      String(r.month) === String(currentMonth));
+    if (!match) return;  // record 없으면 굳이 생성 안 함 ("반영" 시점에 pushQuantToPerf가 처리)
+    const patchBody = {
+      raw_directive:     quantData.directive_done ?? null,
+      raw_csm_amount:    quantData.csm_amount ?? null,
+      raw_meeting_count: quantData.meeting_count ?? null,
+      score_directive:   s1,
+      score_csm:         s2,
+      score_meeting:     s4,
+    };
+    await fetch('/tables/performance_records/'+match.id, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(patchBody)
+    });
+  } catch(e) { /* silent */ }
 }
 
 async function pushQuantToPerf() {

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=24">
+  <link rel="stylesheet" href="css/main.css?v=27">
   <style>
     /* Layout */
     .cal-wrapper { display:grid; grid-template-columns:1fr 300px; gap:24px; align-items:start; }
@@ -1352,7 +1352,8 @@
       buildChklChipMap();
       renderCalendar();
       if (selectedDate) showDayPanel(selectedDate);
-      if (Object.keys(chkDeadlineDaysMap).length > 0) pushDeadlineToPerf();
+      // pushDeadlineToPerf는 항상 호출 (체크 해제 시 score_deadline:null로 명시 갱신 — DATA_SYNC_RULES §3 버그 F)
+      pushDeadlineToPerf();
       /* daily_work_entries 동기화 (완료된 항목 + 시간 입력된 항목) */
       syncSettleToDwe();
     } catch(e) { Portal.showToast('저장에 실패했습니다.', 'error'); }
@@ -1433,8 +1434,8 @@
   }
 
   async function pushDeadlineToPerf() {
+    // score가 null이면 명시적으로 null PATCH (옛 점수 잔존 방지 — DATA_SYNC_RULES §3 버그 F)
     const score = calcDeadlineAvgScore();
-    if (score == null) return;
     try {
       const res  = await fetch('/tables/performance_records?limit=500');
       const data = await res.json();
@@ -1443,11 +1444,13 @@
         String(r.year) === String(chkYear) &&
         String(r.month) === String(chkMonth));
       if (match) {
+        // 기존 record가 있으면 score_deadline 만 명시적으로 PATCH (null이면 null로 비움)
         await fetch('/tables/performance_records/'+match.id, {
-          method:'PUT', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({...match, score_deadline: score})
+          method:'PATCH', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ score_deadline: score })
         });
-      } else {
+      } else if (score != null) {
+        // 기존 record가 없고 score도 null이면 굳이 빈 record 생성 안 함
         await fetch('/tables/performance_records', {
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ year:chkYear, month:chkMonth, target_name:chkMember, score_deadline: score })

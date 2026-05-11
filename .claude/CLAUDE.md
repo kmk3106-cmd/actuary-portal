@@ -93,3 +93,40 @@ HTML/CSS/UI 디자인·반응형·레이아웃 개선 작업은 직접 수정하
   요청을 할 때는 즉시 Agent 도구로 html-ui-designer 호출
 - 매번 사용자 신고를 받고 수정하지 말고, UI 작업이 들어오면 가능한 한
   전 페이지 일괄 점검을 함께 위임할 것
+
+## 규칙 14: 공통 UI 컴포넌트 CSS는 main.css 단독 SSOT
+모든 페이지에서 공유하는 UI 컴포넌트(`.modal-overlay`, `.modal-box`, `.sidebar`, `.toast`,
+`.btn-*` 등)의 CSS는 **`css/main.css` 한 곳에서만 정의**한다.
+페이지 인라인 `<style>` 에서 같은 셀렉터를 재정의 금지.
+
+### 14-1. 모달 시스템 약속
+- 비표시 상태: `.modal-overlay` (main.css가 `opacity:0; visibility:hidden`)
+- 표시 상태: `.modal-overlay.show` 또는 `.modal-overlay.open` 추가 → `opacity:1; visibility:visible`
+- main.css는 **`.show`, `.open` 둘 다 인식**하도록 selector 그룹으로 작성. 페이지 JS는
+  둘 중 어느 클래스를 써도 정상 작동.
+- 페이지 인라인에서 `.modal-overlay { display:none; ... }` 같은 재정의 절대 금지
+  (인라인 `display:none`이 main.css의 `display:flex`를 덮어쓰면 `.open` 추가해도
+  opacity/visibility는 main.css 기본값 그대로라 모달이 떠도 화면에 안 보임).
+
+### 14-2. 발견 사례 (2026-05-11)
+인사카드/성과관리/지시사항/개인목표/팀목표 5개 페이지에서 수정·등록 모달이
+"버튼 누르면 함수는 정상으로 실행되는데 모달이 화면에 안 보이는" 증상.
+- 원인: main.css는 `.show` 시스템, 5개 페이지 인라인은 `.open` 시스템으로 명명 불일치
+- `.modal-overlay.open { display:flex }` 만 적용되고 main.css의
+  `opacity:0; visibility:hidden`이 살아남아 invisible 상태로 유지
+- 진단 핵심: `getComputedStyle(modal).opacity / .visibility` 확인. `'0'` / `'hidden'`이면
+  CSS 충돌. `classList.contains('open')` 이 `true`인데 안 보이면 100% 이 패턴
+
+### 14-3. main.css 수정 후 캐시 버스트 필수
+공유 CSS 파일(`main.css` 등)을 수정한 직후 반드시 모든 HTML의 `?v=N` 쿼리를 +1 한다.
+- 브라우저는 동일 URL의 CSS를 캐시하므로 버전을 안 올리면 변경 사항 미반영
+- 일괄 변경: `find <루트> -name "*.html" -exec sed -i 's/main\.css?v=N/main.css?v=N+1/g' {} \;`
+- HTML 자체는 서버가 `Cache-Control: no-cache` 헤더 보내므로 매 요청마다 새로 받음.
+  단 인라인 `<style>` 변경은 HTML 재로드만으로 적용되고 v 쿼리는 불필요.
+
+### 14-4. 새 페이지 작성 / 모달 추가 시 체크리스트
+- [ ] 인라인 `<style>` 에 `.modal-overlay { ... }` 정의를 넣지 않았는가?
+- [ ] JS는 `classList.add('show')` 또는 `classList.add('open')` 사용 (둘 다 main.css가 인식)
+- [ ] main.css를 건드렸다면 모든 HTML의 `?v=` 쿼리 +1 했는가?
+- [ ] 같은 패턴(인라인이 main.css 덮어쓰는 케이스)이 카드/툴팁/드롭다운 등 다른 공통
+      컴포넌트에 잠재해 있는지 점검했는가?

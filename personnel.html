@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=24">
+  <link rel="stylesheet" href="css/main.css?v=27">
   <style>
     .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:24px; }
     .toolbar-spacer { flex:1; }
@@ -63,15 +63,15 @@
     .extra-edit:hover { color:#4f86f7; }
 
     /* 카드 푸터 */
-    .card-footer { padding:10px 20px; border-top:1px solid #f3f4f6; display:flex; justify-content:flex-end; gap:6px; }
+    .card-footer { padding:10px 20px; border-top:1px solid #f3f4f6; display:flex; justify-content:flex-end; gap:6px;
+      position:relative; z-index:2; }
     .btn-card-edit { padding:5px 12px; border-radius:7px; border:1.5px solid #e5e7eb; background:#fff;
-      font-size:12px; font-weight:600; color:#374151; cursor:pointer; transition:all .15s; }
+      font-size:12px; font-weight:600; color:#374151; cursor:pointer; transition:all .15s;
+      position:relative; z-index:3; }
     .btn-card-edit:hover { border-color:#4f86f7; color:#4f86f7; background:#eff6ff; }
 
     /* 모달 */
-    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000;
-      align-items:center; justify-content:center; }
-    .modal-overlay.open { display:flex; }
+    /* 모달 시스템은 main.css에서 단독 관리 (.modal-overlay + .show/.open 클래스) */
     .modal-box { background:#fff; border-radius:20px; width:520px; max-width:95vw; max-height:92vh;
       overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2); }
     .modal-header { padding:24px 28px 0; display:flex; justify-content:space-between; align-items:center; }

@@ -136,6 +136,68 @@
 - 마이그레이션이 생성한 데이터는 **사용자가 만든 데이터와 동등하게 취급**되어야 함
 - "마이그레이션 라벨(is_estimated 같은)"은 표시용일 뿐, 동기화 책임은 똑같이 짊어진다
 
+### 버그 패턴 F: push*ToPerf 의 null 가드로 옛 점수 잔존 ★★
+**증상** (2026-05-11): 성과관리표·개인평가카드에 옛 점수 잔존
+- 이상현 5월 score_deadline=12, 한인석 45, 오정택 4, 강세진 4, 이동민 90, 김채린 70 등 6명
+- 마혜원 5월 score_directive/csm/meeting=100 일률 잔존
+- 분기 record(`pr_2026q2_XX`) 13건도 score_deadline=80, score_csm=50 잔존
+- 사용자가 결산 체크 해제·work_task 정리 후에도 옛 점수 그대로
+
+**원인** (`settlement.html` `pushDeadlineToPerf`):
+```js
+if (Object.keys(chkDeadlineDaysMap).length > 0) pushDeadlineToPerf();  // ← 비면 호출 안 함
+async function pushDeadlineToPerf() {
+  const score = calcDeadlineAvgScore();
+  if (score == null) return;  // ← 또 막힘. 옛 점수 영구 잔존
+  ...
+}
+```
+- raw 데이터가 비어 score가 null이 되어도 **명시적으로 null PATCH 안 함**
+- 호출 조건도 "맵에 키가 있을 때만" — 모든 키 정리하면 호출 자체가 스킵
+
+**해결**:
+- 호출 조건 제거: `pushDeadlineToPerf()` 항상 호출
+- 함수 내 가드 제거: `score == null` 인 경우에도 명시적으로 `score_deadline: null` 로 PATCH
+- 기존 PUT(전체 record 덮어쓰기) → PATCH(해당 필드만)로 변경. 다른 필드(정성 KPI 등) 보존.
+- 기존 record가 없고 score도 null이면 빈 record 생성은 안 함 (의미 없음)
+
+**일반 원칙 (push*ToPerf 패턴 전체)**:
+- raw 데이터 → score 변환 결과가 null이어도 **명시적 null PATCH** 필수
+- "raw가 비었으면 호출 스킵" 패턴 금지 → 옛 점수 영구 잔존의 원인
+- 동일 패턴이 `pushQuantToPerf` (work-personal.html line 531), `pushKpiToPerf` (work-personal.html line 640) 에도 잠재할 수 있으니 신규 점수 동기화 함수 작성 시 같은 원칙 적용
+
+### 버그 F 보완 — work-personal 정량 raw 자동 동기화 (2026-05-11 추가)
+**증상**: 마혜원 5월 work_task의 raw_directive=None인데 performance_records.raw_directive=1
+("반영" 누른 후 사용자가 work-personal에서 raw 값을 다시 비웠지만 performance_records 미갱신)
+- raw_directive=1 / raw_csm_amount=1900 / raw_meeting_count=1 잔존
+- score_directive/csm/meeting = 100/100/100 (옛 값) 잔존
+- basic_score=30, final_score=36, grade=D 도 옛 값 잔존
+
+**원인**: `work-personal.saveQuantitative()` 가 **work_tasks 만 PUT/POST 하고 performance_records 동기화 안 함**.
+`pushQuantToPerf()` 는 "반영" 버튼 클릭 시에만 호출되므로 raw를 다시 비우고 저장만 하면 performance_records는 옛 값 그대로.
+
+**해결** (work-personal.html):
+```js
+async function saveQuantitative() {
+  // ... work_tasks 저장 ...
+  await syncQuantRawToPerf();   // ← 자동 동기화 추가
+  // ...
+}
+
+async function syncQuantRawToPerf() {
+  // raw_* + score_directive/csm/meeting 자동 PATCH (raw가 null이면 score도 null)
+  // 가드 없음: 사용자 클릭 없이 자동 실행
+  // record 없으면 생성 안 함 ("반영" 시점에 pushQuantToPerf가 처리)
+}
+```
+- `pushQuantToPerf` ("반영" 버튼) 는 그대로. basic_score/final_score/grade 등 종합 점수까지 산출하는 책임.
+- `syncQuantRawToPerf` (자동) 는 raw + 정량 score 3개만 동기화. 가벼운 일관성 유지 책임.
+- score_deadline은 settlement의 책임이므로 syncQuantRawToPerf에서 건드리지 않음.
+
+**일반 원칙 (저장 함수의 동기화 책임)**:
+- 어떤 입력 화면의 "저장" 액션이 SoT(work_tasks)를 갱신하면, **그 변경이 영향 주는 모든 파생 테이블도 같은 트랜잭션에 동기화** 해야 함.
+- "반영" 같은 별도 액션을 추가로 누르게 하는 UX는 사용자 실수로 잔존 발생 → 자동화 필수.
+
 ---
 
 ## 4. 신규 기능 추가/수정 체크리스트
