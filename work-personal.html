@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=21">
+  <link rel="stylesheet" href="css/main.css?v=22">
   <style>
     .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
     .yr-sel, .month-sel, .member-sel {
@@ -415,7 +415,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=21"></script>
+<script src="js/portal.js?v=22"></script>
 <script>
 Portal.init();
 
@@ -856,10 +856,12 @@ async function saveWorkTask() {
     } catch(_) {}
   }
 
-  /* 3. work_tasks 업데이트 (호환용 other_tasks 보존) */
+  /* 3. work_tasks 업데이트 (시간대 정보까지 함께 저장 — 화면 재로드 일치 보장) */
   const legacyTasks = valid.map(t => ({
     cat: t.cat, desc: t.desc, diff: 3,
-    minutes: calcRowMinutes(t)
+    minutes: calcRowMinutes(t),
+    start_date: t.start_date, end_date: t.end_date,
+    start_time: t.start_time, end_time: t.end_time,
   }));
   const body = {
     year: currentYear, month: currentMonth, member_name: currentMember,
@@ -964,15 +966,36 @@ async function loadCurrentRecord() {
     if (match) {
       currentRecordId = match.id;
       const today2 = Portal.todayStr();
-      otherTasks = (match.other_tasks || []).map(t => ({
-        cat: t.cat || OTHER_CATEGORIES[0],
-        desc: t.desc || '',
-        // 시간대 필드: 기존 레코드는 없을 수 있어 오늘 날짜/기본시간으로 채움
-        start_date: t.start_date || today2,
-        end_date:   t.end_date   || today2,
-        start_time: t.start_time || '09:00',
-        end_time:   t.end_time   || '18:00',
-      }));
+
+      // 과거 레코드에 시간대가 없으면 daily_work_entries에서 보강 (단일 일자 매칭만 적용)
+      let dweByLabel = {};
+      try {
+        const dr = await fetch('/tables/daily_work_entries?limit=500');
+        if (dr.ok) {
+          const dd = await dr.json();
+          const ymPrefix = `${currentYear}-${String(currentMonth).padStart(2,'0')}`;
+          for (const e of (dd.rows || [])) {
+            if (e.member_name !== currentMember) continue;
+            if (e.source !== 'manual') continue;
+            const ed = (e.end_date || e.work_date || '');
+            if (!ed.startsWith(ymPrefix)) continue;
+            if (!dweByLabel[e.task_label]) dweByLabel[e.task_label] = e;
+          }
+        }
+      } catch(_) {}
+
+      otherTasks = (match.other_tasks || []).map(t => {
+        const dwe = dweByLabel[t.desc];
+        return {
+          cat: t.cat || OTHER_CATEGORIES[0],
+          desc: t.desc || '',
+          // 우선: work_tasks의 시간대 → 없으면 daily_work_entries에서 보강 → 없으면 default
+          start_date: t.start_date || dwe?.start_date || dwe?.work_date || today2,
+          end_date:   t.end_date   || dwe?.end_date   || dwe?.work_date || today2,
+          start_time: t.start_time || (dwe?.time_entries?.[0]?.start) || '09:00',
+          end_time:   t.end_time   || (dwe?.time_entries?.[dwe.time_entries.length-1]?.end) || '18:00',
+        };
+      });
       kpiTasks      = match.kpi_tasks   || { kpi1:[], kpi2:[], kpi3:[] };
       kpiScores     = match.kpi_scores  || { kpi1:null, kpi2:null, kpi3:null };
       kpiCommentVal = match.kpi_comment || '';
