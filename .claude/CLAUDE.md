@@ -71,6 +71,14 @@ curl -s -o /dev/null -w "%{http_code}" http://localhost:8888/페이지명.html
   실제로 수정 → 새로고침 흐름으로 검증한다. API 200 응답만으로는 부족하다.
 - 연관 매트릭스: 변경 위치 / 반영 위치 / 트리거(저장 / 새로고침 / 즉시) 를 작업 전 표로 정리한다.
 
+## 규칙 13: 데이터 동기화 작업 시 docs/DATA_SYNC_RULES.md 필수 참조
+`work_tasks` / `daily_work_entries` / `workload_daily_cache` / `performance_records` 등
+**입력 → 정규화 → 집계 흐름**에 영향 주는 모든 작업은 시작 전에
+`docs/DATA_SYNC_RULES.md` 를 정독한다.
+- 핵심 원칙 4가지: SoT는 work_tasks / 저장은 전체 교체 / 체크해제=삭제 / 캐시는 서버 책임
+- 신규 기능 추가 시 §4 체크리스트 통과 후 커밋
+- 새 버그 패턴 발견 시 §3에 추가하여 미래 회귀 방지
+
 ## 규칙 12: 프론트 작업은 html-ui-designer 서브에이전트에게 위임
 HTML/CSS/UI 디자인·반응형·레이아웃 개선 작업은 직접 수정하지 말고
 반드시 `html-ui-designer` 서브에이전트에게 위임한다.
