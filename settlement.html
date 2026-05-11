@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=15">
+  <link rel="stylesheet" href="css/main.css?v=16">
   <style>
     /* Layout */
     .cal-wrapper { display:grid; grid-template-columns:1fr 300px; gap:24px; align-items:start; }
@@ -448,7 +448,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=15"></script>
+<script src="js/portal.js?v=16"></script>
 <script>
   Portal.init();
 
@@ -1205,7 +1205,22 @@
   }
 
   function toggleChkTask(id, checked) {
-    if (checked) chkDone.add(id); else chkDone.delete(id);
+    if (checked) {
+      chkDone.add(id);
+    } else {
+      // 체크 해제 = 삭제. 관련된 모든 상태 정리
+      chkDone.delete(id);
+      delete chkDates[id];
+      delete chkTimes[id];
+      delete chkDeadlineDaysMap[id];
+      if (chkStartDates) delete chkStartDates[id];
+      if (chkStartTimes) delete chkStartTimes[id];
+      if (chkEndTimes)   delete chkEndTimes[id];
+      // 화면 즉시 재렌더 (필드 값들 초기화)
+      renderChecklist();
+      buildChklChipMap();
+      renderCalendar();
+    }
     const label = document.querySelector(`label[for="chk_${id}"]`);
     if (label) label.className = 'chk-label' + (checked ? ' done' : '');
     updateChkStats();
@@ -1216,7 +1231,8 @@
     const memberTasks = SETTLE_SCHEDULE.filter(t =>
       t.assignee && t.assignee.split('/').map(s=>s.trim()).includes(chkMember)
     );
-    const scored = memberTasks.filter(t => chkDeadlineDaysMap[t.id] != null);
+    // 체크된 항목만 + 단축/지연 값이 있어야 점수 반영 (해제된 항목 점수 잔존 버그 방지)
+    const scored = memberTasks.filter(t => chkDone.has(t.id) && chkDeadlineDaysMap[t.id] != null);
     if (!scored.length) return null;
     const scores = scored.map(t => calcDeadlinePerfScore(chkDeadlineDaysMap[t.id]));
     return Math.round(scores.reduce((a,b)=>a+b,0) / scores.length * 10) / 10;
@@ -1326,17 +1342,45 @@
     } catch(e) { Portal.showToast('저장에 실패했습니다.', 'error'); }
   }
 
-  /* ── daily_work_entries 동기화 ── */
+  /* ── daily_work_entries 동기화 (체크 완료 upsert + 체크 해제된 잔존 행 삭제) ── */
   async function syncSettleToDwe() {
     if (!chkMember) return;
-    // 완료된 항목 중 시간 정보가 있는 것만 upsert
+    // 1) 기존 멤버 결산 daily 행 모두 로드
+    let existing = [];
+    try {
+      const r = await fetch('/tables/daily_work_entries?limit=500');
+      if (r.ok) {
+        const d = await r.json();
+        const ymPrefix = `${chkYear}-${String(chkMonth).padStart(2,'0')}`;
+        existing = (d.rows || d.data || []).filter(e =>
+          e.member_name === chkMember &&
+          e.source === 'settlement' &&
+          e.settle_item_id &&
+          (e.end_date || e.work_date || '').startsWith(ymPrefix)
+        );
+      }
+    } catch(_) {}
+
+    // 2) 체크된 항목 ID 집합
+    const checkedIds = new Set();
+    for (const t of SETTLE_SCHEDULE) {
+      if (chkDone.has(t.id) && chkDates[t.id]) checkedIds.add(t.id);
+    }
+
+    // 3) 체크 해제된 (DB엔 있지만 chkDone에 없거나 endDate 없는) 항목 삭제
+    const toDelete = existing.filter(e => !checkedIds.has(e.settle_item_id));
+    await Promise.all(toDelete.map(e =>
+      fetch(`/tables/daily_work_entries/${encodeURIComponent(e.id)}`, { method: 'DELETE' })
+    ));
+
+    // 4) 완료된 항목 upsert
     for (const t of SETTLE_SCHEDULE) {
       if (!chkDone.has(t.id)) continue;
       const endDate   = chkDates[t.id];
       const startDate = chkStartDates[t.id] || endDate;
       const startTime = chkStartTimes[t.id] || '09:00';
       const endTime   = chkEndTimes[t.id]   || '18:00';
-      if (!endDate) continue; // 완료일 없으면 스킵
+      if (!endDate) continue;
       const dweId = `dwe_settle_${chkMember}_${t.id}_${endDate}`;
       const dweBody = {
         id: dweId,
@@ -1351,7 +1395,6 @@
         note:        '',
       };
       try {
-        // PUT (upsert 시도 — 없으면 POST fallback)
         const pr = await fetch(`/tables/daily_work_entries/${encodeURIComponent(dweId)}`, {
           method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(dweBody)
         });
@@ -1404,10 +1447,42 @@
   }
 
   function resetChecklist() {
-    Portal.confirm('체크리스트를 초기화하시겠습니까?', () => {
-      chkDone = new Set(); chkTimes = {}; chkDates = {};
+    Portal.confirm('체크리스트를 초기화하시겠습니까? (저장된 daily_work_entries도 함께 삭제)', async () => {
+      // 모든 in-memory 상태 비우기
+      chkDone = new Set();
+      chkTimes = {};
+      chkDates = {};
+      chkDeadlineDaysMap = {};
+      if (chkStartDates) chkStartDates = {};
+      if (chkStartTimes) chkStartTimes = {};
+      if (chkEndTimes)   chkEndTimes = {};
+      // 화면 즉시 갱신
       renderChecklist();
+      buildChklChipMap();
+      renderCalendar();
+      updateChkStats();
+      // 서버 측 daily_work_entries 동기화 삭제 (해당 멤버의 결산 자동 변환 행)
+      if (chkMember) await deleteAllSettleDweForMember();
+      Portal.showToast('체크리스트가 초기화되었습니다.', 'success');
     });
+  }
+
+  /* 결산 daily_work_entries 일괄 삭제 (해당 멤버 + 이번 년월) */
+  async function deleteAllSettleDweForMember() {
+    try {
+      const r = await fetch(`/tables/daily_work_entries?limit=500`);
+      if (!r.ok) return;
+      const d = await r.json();
+      const ymPrefix = `${chkYear}-${String(chkMonth).padStart(2,'0')}`;
+      const targets = (d.rows || d.data || []).filter(e =>
+        e.member_name === chkMember &&
+        e.source === 'settlement' &&
+        (e.end_date || e.work_date || '').startsWith(ymPrefix)
+      );
+      await Promise.all(targets.map(t =>
+        fetch(`/tables/daily_work_entries/${encodeURIComponent(t.id)}`, { method: 'DELETE' })
+      ));
+    } catch(_) {}
   }
 
   buildChkSelects();
