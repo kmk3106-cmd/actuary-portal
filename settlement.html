@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=19">
+  <link rel="stylesheet" href="css/main.css?v=20">
   <style>
     /* Layout */
     .cal-wrapper { display:grid; grid-template-columns:1fr 300px; gap:24px; align-items:start; }
@@ -448,7 +448,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=19"></script>
+<script src="js/portal.js?v=20"></script>
 <script>
   Portal.init();
 
@@ -1370,7 +1370,7 @@
         const ymPrefix = `${chkYear}-${String(chkMonth).padStart(2,'0')}`;
         existing = (d.rows || d.data || []).filter(e =>
           e.member_name === chkMember &&
-          e.source === 'settlement' &&
+          (e.source === 'settlement' || e.source === 'settlement_auto') &&
           e.settle_item_id &&
           (e.end_date || e.work_date || '').startsWith(ymPrefix)
         );
@@ -1492,7 +1492,7 @@
       const ymPrefix = `${chkYear}-${String(chkMonth).padStart(2,'0')}`;
       const targets = (d.rows || d.data || []).filter(e =>
         e.member_name === chkMember &&
-        e.source === 'settlement' &&
+        (e.source === 'settlement' || e.source === 'settlement_auto') &&
         (e.end_date || e.work_date || '').startsWith(ymPrefix)
       );
       await Promise.all(targets.map(t =>
