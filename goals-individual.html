@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=16">
+  <link rel="stylesheet" href="css/main.css?v=17">
   <style>
     .toolbar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:24px; }
     .toolbar-spacer { flex:1; }
@@ -214,7 +214,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=16"></script>
+<script src="js/portal.js?v=17"></script>
 <script>
   Portal.init();
 
@@ -308,7 +308,7 @@
               <span class="badge badge-status-${g.status || 'planned'}">${STATUS_LABEL[g.status] || '계획중'}</span>
             </div>
           </div>
-          ${isLeader ? `<div class="smart-actions">
+          ${(isLeader || g.target_user_id === currentUser?.user_id) ? `<div class="smart-actions">
             <button class="btn-edit-smart" onclick="openEditModal('${g.id}')"><i class="fas fa-pen"></i> 수정</button>
             <button class="btn-del-smart" onclick="deleteGoal('${g.id}')"><i class="fas fa-trash"></i></button>
           </div>` : ''}
@@ -372,13 +372,13 @@
 
   async function saveGoal() {
     const specific = document.getElementById('fSpecific').value.trim();
-    if (!specific) { showToast('S(Specific) 목표를 입력하세요', 'error'); return; }
+    if (!specific) { Portal.showToast('S(Specific) 목표를 입력하세요', 'error'); return; }
     const id = document.getElementById('editId').value;
     const body = {
       year: parseInt(document.getElementById('fYear').value),
       status: document.getElementById('fStatus').value,
       target_user_id: isLeader ? document.getElementById('fTargetId').value.trim() : currentUser?.user_id,
-      target_name: isLeader ? document.getElementById('fTargetName').value.trim() : currentUser?.full_name,
+      target_name: isLeader ? document.getElementById('fTargetName').value.trim() : (currentUser?.full_name || ''),
       specific,
       measurable: document.getElementById('fMeasurable').value.trim(),
       achievable: document.getElementById('fAchievable').value.trim(),
@@ -400,10 +400,10 @@
       }
       if (!res.ok) throw new Error();
       closeModal();
-      showToast(id ? '목표가 수정되었습니다.' : '목표가 추가되었습니다.', 'success');
+      Portal.showToast(id ? '목표가 수정되었습니다.' : '목표가 추가되었습니다.', 'success');
       await loadGoals();
     } catch(e) {
-      showToast('저장에 실패했습니다.', 'error');
+      Portal.showToast('저장에 실패했습니다.', 'error');
     }
   }
 
@@ -411,10 +411,10 @@
     Portal.confirm('이 목표를 삭제하시겠습니까?', async () => {
       try {
         await fetch('/tables/individual_goals/' + id, { method:'DELETE' });
-        showToast('삭제되었습니다.', 'success');
+        Portal.showToast('삭제되었습니다.', 'success');
         await loadGoals();
       } catch(e) {
-        showToast('삭제 실패', 'error');
+        Portal.showToast('삭제 실패', 'error');
       }
     });
   }
@@ -432,10 +432,9 @@
     }
   }
 
-  if (isLeader) {
-    document.getElementById('addBtnWrap').innerHTML =
-      '<button class="btn btn-primary" onclick="openAddModal()"><i class="fas fa-plus"></i> 목표 추가</button>';
-  }
+  // 팀장 + 일반 직원 모두 자신의 목표 추가 가능
+  document.getElementById('addBtnWrap').innerHTML =
+    '<button class="btn btn-primary" onclick="openAddModal()"><i class="fas fa-plus"></i> 목표 추가</button>';
 
   document.getElementById('smartModal').addEventListener('click', e => {
     if (e.target === document.getElementById('smartModal')) closeModal();

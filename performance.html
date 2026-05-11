@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=16">
+  <link rel="stylesheet" href="css/main.css?v=17">
   <style>
     /* Toolbar */
     .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
@@ -136,8 +136,9 @@
     .stat-value.green { color:#10b981; }
 
     /* Modal */
-    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000;
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000;
       align-items:center; justify-content:center; }
+    .modal-overlay.open { display:flex; }
     .modal-box { background:#fff; border-radius:20px; width:640px; max-width:96vw; max-height:90vh;
       overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2); }
     .modal-header { padding:24px 28px 0; display:flex; justify-content:space-between; align-items:center; }
@@ -386,7 +387,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=16"></script>
+<script src="js/portal.js?v=17"></script>
 <script>
 Portal.init();
 
@@ -851,6 +852,30 @@ window.addEventListener('resize', () => {
   _perfResizeTimer = setTimeout(() => { autoSwitchTabForScreen(); }, 200);
 });
 
+function openAddModal() {
+  document.getElementById('modalTitle').textContent = '성과 기록 추가';
+  document.getElementById('editId').value = '';
+  document.getElementById('fYear').value = currentYear;
+  document.getElementById('fMonth').value = currentMonth || thisMonth;
+  document.getElementById('fTargetName').value = '';
+  clearQuantDisplay();
+  for (const k of QUAL_KPIS) {
+    const el = document.getElementById('fScore_' + k.code);
+    if (el) el.value = '';
+  }
+  document.getElementById('fBasicScore').value = '';
+  document.getElementById('fBonusProject').value = 'false';
+  document.getElementById('fBonusPromotion').value = 'false';
+  document.getElementById('fFinalScore').value = '';
+  document.getElementById('fGrade').value = 'B';
+  document.getElementById('fLeaderScore').value = '';
+  document.getElementById('fSelfComment').value = '';
+  document.getElementById('fLeaderComment').value = '';
+  document.getElementById('targetNameRow').style.display = isLeader ? 'block' : 'none';
+  document.getElementById('kpiSection').style.display = isLeader ? 'block' : 'none';
+  document.getElementById('perfModal').classList.add('open');
+}
+
 function openEditModal(id) {
   const r = allRecords.find(x => x.id === id);
   if (!r) return;
@@ -879,10 +904,10 @@ function openEditModal(id) {
   document.getElementById('fLeaderComment').value = r.leader_comment || '';
   document.getElementById('targetNameRow').style.display = isLeader ? 'block' : 'none';
   document.getElementById('kpiSection').style.display = isLeader ? 'block' : 'none';
-  document.getElementById('perfModal').classList.add('show');
+  document.getElementById('perfModal').classList.add('open');
 }
 
-function closeModal() { document.getElementById('perfModal').classList.remove('show'); }
+function closeModal() { document.getElementById('perfModal').classList.remove('open'); }
 
 function nv(id) {
   const v = document.getElementById(id).value;
@@ -1071,7 +1096,7 @@ async function loadRecords() {
 
 if (isLeader) {
   document.getElementById('addBtnWrap').innerHTML =
-    '<button class="btn btn-primary" onclick="openEditModal(\'\')"><i class="fas fa-plus"></i> 기록 추가</button>';
+    '<button class="btn btn-primary" onclick="openAddModal()"><i class="fas fa-plus"></i> 기록 추가</button>';
 }
 
 document.getElementById('perfModal').addEventListener('click', e => {

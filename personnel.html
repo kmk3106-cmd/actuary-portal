@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=16">
+  <link rel="stylesheet" href="css/main.css?v=17">
   <style>
     .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:24px; }
     .toolbar-spacer { flex:1; }
@@ -91,6 +91,32 @@
     .section-divider { font-size:12px; font-weight:700; color:#6b7280; margin:16px 0 10px;
       padding-bottom:5px; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; gap:6px; }
 
+    /* 활성 필터 토글 */
+    .status-filter { display:flex; gap:6px; align-items:center; }
+    .status-btn { padding:6px 16px; border-radius:20px; border:1.5px solid #e5e7eb; background:#fff;
+      font-size:13px; font-weight:600; color:#6b7280; cursor:pointer; transition:all .2s; }
+    .status-btn.active { border-color:#4f86f7; background:#4f86f7; color:#fff; }
+    .status-btn.inactive-btn.active { border-color:#9ca3af; background:#6b7280; color:#fff; }
+
+    /* 퇴직 배지 */
+    .badge-retired { background:#f3f4f6; color:#9ca3af; font-size:11px; font-weight:700;
+      padding:2px 8px; border-radius:6px; }
+    .person-card.is-retired { opacity:.6; }
+    .person-card.is-retired .card-header { background:#f9fafb; }
+
+    /* 구분 섹션 헤더 */
+    .section-header { font-size:13px; font-weight:700; color:#6b7280; margin:24px 0 12px;
+      display:flex; align-items:center; gap:8px; }
+    .section-header::after { content:''; flex:1; height:1px; background:#e5e7eb; }
+
+    /* 카드 푸터 위험 버튼 */
+    .btn-card-retire { padding:5px 12px; border-radius:7px; border:1.5px solid #fecaca;
+      background:#fff; font-size:12px; font-weight:600; color:#ef4444; cursor:pointer; transition:all .15s; }
+    .btn-card-retire:hover { background:#fef2f2; border-color:#ef4444; }
+    .btn-card-delete { padding:5px 12px; border-radius:7px; border:1.5px solid #fee2e2;
+      background:#fff; font-size:12px; font-weight:600; color:#dc2626; cursor:pointer; transition:all .15s; }
+    .btn-card-delete:hover { background:#fee2e2; }
+
     @media(max-width:768px) {
       .team-summary { grid-template-columns:1fr 1fr; gap:10px; }
       .card-grid { grid-template-columns:1fr; }
@@ -113,7 +139,14 @@
   <div class="main-content">
     <header class="page-header">
       <h1 class="page-title"><i class="fas fa-id-card"></i> 인사카드</h1>
-      <div id="addBtnWrap"></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <div class="status-filter" id="statusFilter">
+          <button class="status-btn active" data-filter="active" onclick="setStatusFilter('active')">재직중</button>
+          <button class="status-btn" data-filter="all" onclick="setStatusFilter('all')">전체</button>
+          <button class="status-btn inactive-btn" data-filter="retired" onclick="setStatusFilter('retired')">퇴직</button>
+        </div>
+        <div id="addBtnWrap"></div>
+      </div>
     </header>
     <main class="content-body">
 
@@ -169,11 +202,23 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">직급</label>
-          <input type="text" class="form-input" id="fGrade">
+          <select class="form-input form-select" id="fGrade">
+            <option value="">-- 선택 --</option>
+            <option value="G1직급">G1직급</option>
+            <option value="G2직급">G2직급</option>
+            <option value="G3직급">G3직급</option>
+            <option value="G4직급">G4직급</option>
+          </select>
         </div>
         <div class="form-group">
           <label class="form-label">직위</label>
-          <input type="text" class="form-input" id="fPosition">
+          <select class="form-input form-select" id="fPosition">
+            <option value="">-- 선택 --</option>
+            <option value="매니저">매니저</option>
+            <option value="선임매니저">선임매니저</option>
+            <option value="책임매니저">책임매니저</option>
+            <option value="수석매니저">수석매니저</option>
+          </select>
         </div>
       </div>
       <div class="form-row">
@@ -225,14 +270,113 @@
   </div>
 </div>
 
+<!-- 신규 직원 추가 모달 (팀장 전용) -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">신규 직원 등록</span>
+      <button class="modal-close" onclick="closeAddModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="section-divider"><i class="fas fa-user"></i> 기본 정보</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">성명 <span style="color:#ef4444;">*</span></label>
+          <input type="text" class="form-input" id="nfName" placeholder="예: 홍길동">
+        </div>
+        <div class="form-group">
+          <label class="form-label">사번 <span style="color:#ef4444;">*</span></label>
+          <input type="text" class="form-input" id="nfEmpId" placeholder="예: A12345">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">직급</label>
+          <select class="form-input form-select" id="nfGrade">
+            <option value="">-- 선택 --</option>
+            <option value="G1직급">G1직급</option>
+            <option value="G2직급">G2직급</option>
+            <option value="G3직급">G3직급</option>
+            <option value="G4직급">G4직급</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">직위</label>
+          <select class="form-input form-select" id="nfPosition">
+            <option value="">-- 선택 --</option>
+            <option value="매니저">매니저</option>
+            <option value="선임매니저">선임매니저</option>
+            <option value="책임매니저">책임매니저</option>
+            <option value="수석매니저">수석매니저</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">역할</label>
+          <select class="form-input form-select" id="nfRole">
+            <option value="employee">직원 (employee)</option>
+            <option value="section_chief">파트장 (section_chief)</option>
+            <option value="team_leader">팀장 (team_leader)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">부서</label>
+          <input type="text" class="form-input" id="nfDept" placeholder="예: 계리결산팀" value="계리결산팀">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">입사일자</label>
+          <input type="date" class="form-input" id="nfJoinDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">부서 부임일자</label>
+          <input type="date" class="form-input" id="nfDeptDate">
+        </div>
+      </div>
+      <div class="section-divider"><i class="fas fa-lock"></i> 계정 설정</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">로그인 ID (username) <span style="color:#ef4444;">*</span></label>
+          <input type="text" class="form-input" id="nfUsername" placeholder="예: hong_gildong">
+        </div>
+        <div class="form-group">
+          <label class="form-label">초기 비밀번호</label>
+          <input type="text" class="form-input" id="nfPassword" placeholder="기본값: password">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeAddModal()">취소</button>
+        <button class="btn btn-primary" onclick="saveNewEmployee()"><i class="fas fa-user-plus"></i> 등록</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=16"></script>
+<script src="js/portal.js?v=17"></script>
 <script>
 Portal.init();
 
 const isLeader = RBAC.isTeamLeader();
 let allUsers = [];
+let statusFilter = 'active'; // 'active' | 'retired' | 'all'
+
+function setStatusFilter(f) {
+  statusFilter = f;
+  document.querySelectorAll('.status-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === f);
+  });
+  renderCards();
+}
+
+// 팀장에게만 신규 직원 버튼 표시
+if (isLeader) {
+  document.getElementById('addBtnWrap').innerHTML =
+    '<button class="btn btn-primary" onclick="openAddModal()"><i class="fas fa-user-plus"></i> 신규 직원</button>';
+}
 
 function gradeColor(grade) {
   if (grade >= 'G4') return 'G4';
@@ -261,79 +405,106 @@ function fmtDate(ds) {
 }
 
 async function loadUsers() {
-  const res = await fetch('/tables/users?limit=100');
+  const res = await fetch('/tables/users?limit=200');
   const data = await res.json();
-  allUsers = (data.rows || data.data || []).filter(u => u.is_active !== false && u.employee_id);
+  // 사번이 있는 모든 사용자 로드 (is_active 무관)
+  allUsers = (data.rows || data.data || []).filter(u => u.employee_id);
   renderCards();
+}
+
+function buildCardHtml(u) {
+  const gKey = (u.grade || 'G1직급').replace('직급','');
+  const isLdr = u.role === 'team_leader';
+  const isRetired = u.is_active === false;
+  const yrs = u.dept_date ? calcYears(u.dept_date) : (u.years ? u.years + '년' : '-');
+  const initial = (u.full_name || u.username || '?').slice(0, 1);
+
+  return `<div class="person-card${isRetired ? ' is-retired' : ''}">
+    <div class="card-header">
+      <div class="avatar avatar-${gKey}">${initial}</div>
+      <div class="card-header-info">
+        <h3>${u.full_name || u.username}</h3>
+        <div class="card-badges">
+          <span class="badge-grade bg-${gKey}">${u.grade || '-'}</span>
+          ${isLdr ? '<span class="badge-leader"><i class="fas fa-crown"></i> 팀장</span>' : ''}
+          <span class="badge-position">${u.position || '-'}</span>
+          ${isRetired ? '<span class="badge-retired"><i class="fas fa-user-slash"></i> 퇴직</span>' : ''}
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <i class="fas fa-id-badge info-icon"></i>
+        <span class="info-label">사번</span>
+        <span class="info-val">${u.employee_id || '-'}</span>
+      </div>
+      <div class="info-row">
+        <i class="fas fa-building info-icon"></i>
+        <span class="info-label">소속</span>
+        <span class="info-val">${u.division || '계리실'} / ${u.department || '계리결산팀'}</span>
+      </div>
+      <div class="info-row">
+        <i class="fas fa-calendar-plus info-icon"></i>
+        <span class="info-label">부임일</span>
+        <span class="info-val">${fmtDate(u.dept_date)}</span>
+      </div>
+      <div class="info-row">
+        <i class="fas fa-briefcase info-icon"></i>
+        <span class="info-label">연차</span>
+        <span class="info-val">${yrs}</span>
+      </div>
+      ${u.specialty ? `<div class="info-row"><i class="fas fa-star info-icon"></i><span class="info-label">전문분야</span><span class="info-val">${u.specialty}</span></div>` : ''}
+      ${u.certifications ? `<div class="info-row"><i class="fas fa-certificate info-icon"></i><span class="info-label">자격증</span><span class="info-val">${u.certifications}</span></div>` : ''}
+      ${u.task_area ? `<div class="info-row"><i class="fas fa-tasks info-icon"></i><span class="info-label">담당업무</span><span class="info-val">${u.task_area}</span></div>` : ''}
+    </div>
+    ${u.notes ? `<div class="card-extra">
+      <div class="extra-title"><i class="fas fa-sticky-note"></i> 메모</div>
+      <div class="extra-text">${u.notes}</div>
+    </div>` : ''}
+    ${isLeader ? `<div class="card-footer">
+      <button class="btn-card-edit" onclick="openEdit('${u.id}')"><i class="fas fa-pen"></i> 수정</button>
+      ${!isRetired ? `<button class="btn-card-retire" onclick="retireUser('${u.id}','${(u.full_name||u.username||'').replace(/'/g,"\\'")}')"><i class="fas fa-user-slash"></i> 퇴직처리</button>` : ''}
+      <button class="btn-card-delete" onclick="deleteUser('${u.id}','${(u.full_name||u.username||'').replace(/'/g,"\\'")}')"><i class="fas fa-trash"></i> 삭제</button>
+    </div>` : ''}
+  </div>`;
 }
 
 function renderCards() {
   const grid = document.getElementById('cardGrid');
-  const g4 = allUsers.filter(u => u.grade >= 'G4').length;
-  const g23 = allUsers.filter(u => u.grade === 'G3직급' || u.grade === 'G2직급').length;
-  const g1 = allUsers.filter(u => u.grade === 'G1직급').length;
-  document.getElementById('totalCount').textContent = allUsers.length + '명';
+  const activeUsers = allUsers.filter(u => u.is_active !== false);
+  const retiredUsers = allUsers.filter(u => u.is_active === false);
+
+  // 통계는 재직중 기준
+  const g4 = activeUsers.filter(u => (u.grade || '') >= 'G4').length;
+  const g23 = activeUsers.filter(u => u.grade === 'G3직급' || u.grade === 'G2직급').length;
+  const g1 = activeUsers.filter(u => u.grade === 'G1직급').length;
+  document.getElementById('totalCount').textContent = activeUsers.length + '명';
   document.getElementById('g4Count').textContent = g4 + '명';
   document.getElementById('g23Count').textContent = g23 + '명';
   document.getElementById('g1Count').textContent = g1 + '명';
 
-  if (!allUsers.length) {
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#9ca3af;">인사 데이터가 없습니다.</div>';
+  // 필터에 따라 표시할 목록 결정
+  let displayUsers;
+  if (statusFilter === 'active') displayUsers = activeUsers;
+  else if (statusFilter === 'retired') displayUsers = retiredUsers;
+  else displayUsers = allUsers; // 'all'
+
+  if (!displayUsers.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#9ca3af;">표시할 인사 데이터가 없습니다.</div>';
     return;
   }
 
-  grid.innerHTML = allUsers.map(u => {
-    const gKey = (u.grade || 'G1직급').replace('직급','');
-    const isLdr = u.role === 'team_leader';
-    const yrs = u.dept_date ? calcYears(u.dept_date) : (u.years ? u.years + '년' : '-');
-    const initial = (u.full_name || u.username || '?').slice(0, 1);
-
-    return `<div class="person-card">
-      <div class="card-header">
-        <div class="avatar avatar-${gKey}">${initial}</div>
-        <div class="card-header-info">
-          <h3>${u.full_name || u.username}</h3>
-          <div class="card-badges">
-            <span class="badge-grade bg-${gKey}">${u.grade || '-'}</span>
-            ${isLdr ? '<span class="badge-leader"><i class="fas fa-crown"></i> 팀장</span>' : ''}
-            <span class="badge-position">${u.position || '-'}</span>
-          </div>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="info-row">
-          <i class="fas fa-id-badge info-icon"></i>
-          <span class="info-label">사번</span>
-          <span class="info-val">${u.employee_id || '-'}</span>
-        </div>
-        <div class="info-row">
-          <i class="fas fa-building info-icon"></i>
-          <span class="info-label">소속</span>
-          <span class="info-val">${u.division || '계리실'} / ${u.department || '계리결산팀'}</span>
-        </div>
-        <div class="info-row">
-          <i class="fas fa-calendar-plus info-icon"></i>
-          <span class="info-label">부임일</span>
-          <span class="info-val">${fmtDate(u.dept_date)}</span>
-        </div>
-        <div class="info-row">
-          <i class="fas fa-briefcase info-icon"></i>
-          <span class="info-label">연차</span>
-          <span class="info-val">${yrs}</span>
-        </div>
-        ${u.specialty ? `<div class="info-row"><i class="fas fa-star info-icon"></i><span class="info-label">전문분야</span><span class="info-val">${u.specialty}</span></div>` : ''}
-        ${u.certifications ? `<div class="info-row"><i class="fas fa-certificate info-icon"></i><span class="info-label">자격증</span><span class="info-val">${u.certifications}</span></div>` : ''}
-        ${u.task_area ? `<div class="info-row"><i class="fas fa-tasks info-icon"></i><span class="info-label">담당업무</span><span class="info-val">${u.task_area}</span></div>` : ''}
-      </div>
-      ${u.notes ? `<div class="card-extra">
-        <div class="extra-title"><i class="fas fa-sticky-note"></i> 메모</div>
-        <div class="extra-text">${u.notes}</div>
-      </div>` : ''}
-      ${isLeader ? `<div class="card-footer">
-        <button class="btn-card-edit" onclick="openEdit('${u.id}')"><i class="fas fa-pen"></i> 수정</button>
-      </div>` : ''}
-    </div>`;
-  }).join('');
+  if (statusFilter === 'all' && retiredUsers.length > 0) {
+    // 전체 보기 시 재직중 / 퇴직 섹션 분리
+    const activeHtml = activeUsers.map(buildCardHtml).join('');
+    const retiredHtml = retiredUsers.map(buildCardHtml).join('');
+    grid.innerHTML =
+      `<div class="section-header" style="grid-column:1/-1;"><i class="fas fa-users" style="color:#4f86f7;"></i> 재직중 (${activeUsers.length}명)</div>` +
+      activeHtml +
+      (retiredUsers.length ? `<div class="section-header" style="grid-column:1/-1;"><i class="fas fa-user-slash" style="color:#9ca3af;"></i> 퇴직 (${retiredUsers.length}명)</div>` + retiredHtml : '');
+  } else {
+    grid.innerHTML = displayUsers.map(buildCardHtml).join('');
+  }
 }
 
 function openEdit(userId) {
@@ -343,8 +514,24 @@ function openEdit(userId) {
   document.getElementById('editUserId').value = userId;
   document.getElementById('fName').value = u.full_name || '';
   document.getElementById('fEmpId').value = u.employee_id || '';
-  document.getElementById('fGrade').value = u.grade || '';
-  document.getElementById('fPosition').value = u.position || '';
+  // grade/position은 select — 일치하는 option 선택, 없으면 빈값
+  const gradeEl = document.getElementById('fGrade');
+  gradeEl.value = u.grade || '';
+  if (!gradeEl.value && u.grade) {
+    // 기존 텍스트 값과 option이 다를 경우 직접 추가
+    const opt = document.createElement('option');
+    opt.value = u.grade; opt.textContent = u.grade;
+    gradeEl.appendChild(opt);
+    gradeEl.value = u.grade;
+  }
+  const posEl = document.getElementById('fPosition');
+  posEl.value = u.position || '';
+  if (!posEl.value && u.position) {
+    const opt = document.createElement('option');
+    opt.value = u.position; opt.textContent = u.position;
+    posEl.appendChild(opt);
+    posEl.value = u.position;
+  }
   document.getElementById('fJoinDate').value = fmtDate(u.join_date);
   document.getElementById('fDeptDate').value = fmtDate(u.dept_date);
   document.getElementById('fBirthDate').value = fmtDate(u.birth_date);
@@ -387,8 +574,105 @@ async function saveCard() {
   }
 }
 
+// ── 신규 직원 모달 ────────────────────────────────────────
+function openAddModal() {
+  if (!isLeader) return;
+  ['nfName','nfEmpId','nfUsername','nfPassword','nfDept'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = id === 'nfDept' ? '계리결산팀' : '';
+  });
+  document.getElementById('nfGrade').value = '';
+  document.getElementById('nfPosition').value = '';
+  document.getElementById('nfRole').value = 'employee';
+  document.getElementById('nfJoinDate').value = '';
+  document.getElementById('nfDeptDate').value = '';
+  document.getElementById('addModal').classList.add('open');
+}
+
+function closeAddModal() {
+  document.getElementById('addModal').classList.remove('open');
+}
+
+async function saveNewEmployee() {
+  if (!isLeader) return;
+  const name     = document.getElementById('nfName').value.trim();
+  const empId    = document.getElementById('nfEmpId').value.trim();
+  const username = document.getElementById('nfUsername').value.trim();
+  if (!name || !empId || !username) {
+    Portal.showToast('성명, 사번, 로그인 ID는 필수입니다.', 'error'); return;
+  }
+  const pw = document.getElementById('nfPassword').value.trim() || 'password';
+  // SHA-256 해시 생성 (브라우저 Crypto API)
+  const enc = new TextEncoder();
+  const hashBuf = await crypto.subtle.digest('SHA-256', enc.encode(pw));
+  const hashHex = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
+
+  const body = {
+    full_name:   name,
+    employee_id: empId,
+    username:    username,
+    password_hash: hashHex,
+    grade:       document.getElementById('nfGrade').value || null,
+    position:    document.getElementById('nfPosition').value || null,
+    role:        document.getElementById('nfRole').value || 'employee',
+    department:  document.getElementById('nfDept').value.trim() || '계리결산팀',
+    join_date:   document.getElementById('nfJoinDate').value || null,
+    dept_date:   document.getElementById('nfDeptDate').value || null,
+    is_active:   true,
+  };
+  try {
+    const res = await fetch('/tables/users', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error();
+    closeAddModal();
+    Portal.showToast('신규 직원이 등록되었습니다.', 'success');
+    await loadUsers();
+  } catch(e) {
+    Portal.showToast('등록에 실패했습니다.', 'error');
+  }
+}
+
+// ── 퇴직처리 (소프트 삭제) ────────────────────────────────
+async function retireUser(userId, name) {
+  if (!isLeader) return;
+  if (!confirm(`[${name}]을(를) 퇴직 처리하시겠습니까?\n(is_active=false 처리, 복구 가능)`)) return;
+  try {
+    const res = await fetch('/tables/users/' + userId, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ is_active: false })
+    });
+    if (!res.ok) throw new Error();
+    Portal.showToast(name + ' 퇴직 처리되었습니다.', 'success');
+    await loadUsers();
+  } catch(e) {
+    Portal.showToast('처리에 실패했습니다.', 'error');
+  }
+}
+
+// ── 완전 삭제 ─────────────────────────────────────────────
+async function deleteUser(userId, name) {
+  if (!isLeader) return;
+  const confirm1 = confirm(`[${name}]의 인사 데이터를 영구 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`);
+  if (!confirm1) return;
+  const confirm2 = confirm(`최종 확인: [${name}] 데이터를 정말 삭제합니까?`);
+  if (!confirm2) return;
+  try {
+    const res = await fetch('/tables/users/' + userId, { method: 'DELETE' });
+    if (!res.ok) throw new Error();
+    Portal.showToast(name + ' 데이터가 삭제되었습니다.', 'success');
+    await loadUsers();
+  } catch(e) {
+    Portal.showToast('삭제에 실패했습니다.', 'error');
+  }
+}
+
 document.getElementById('editModal').addEventListener('click', e => {
   if (e.target === document.getElementById('editModal')) closeModal();
+});
+
+document.getElementById('addModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('addModal')) closeAddModal();
 });
 
 loadUsers();

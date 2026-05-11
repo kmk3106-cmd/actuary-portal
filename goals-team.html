@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=16">
+  <link rel="stylesheet" href="css/main.css?v=17">
   <style>
     .year-tabs { display:flex; gap:8px; margin-bottom:20px; }
     .year-tab { padding:8px 20px; border-radius:20px; border:2px solid #e5e7eb; background:#fff;
@@ -229,7 +229,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=16"></script>
+<script src="js/portal.js?v=17"></script>
 <script>
   Portal.init();
 
@@ -367,7 +367,7 @@
 
   async function saveGoal() {
     const title = document.getElementById('fTitle').value.trim();
-    if (!title) { showToast('목표 제목을 입력하세요', 'error'); return; }
+    if (!title) { Portal.showToast('목표 제목을 입력하세요', 'error'); return; }
     const id = document.getElementById('editId').value;
     const body = {
       title,
@@ -394,10 +394,10 @@
       }
       if (!res.ok) throw new Error();
       closeModal();
-      showToast(id ? '목표가 수정되었습니다.' : '목표가 추가되었습니다.', 'success');
+      Portal.showToast(id ? '목표가 수정되었습니다.' : '목표가 추가되었습니다.', 'success');
       await loadGoals();
     } catch(e) {
-      showToast('저장에 실패했습니다.', 'error');
+      Portal.showToast('저장에 실패했습니다.', 'error');
     }
   }
 
@@ -406,10 +406,10 @@
       try {
         const res = await fetch('/tables/team_goals/' + id, { method:'DELETE' });
         if (!res.ok) throw new Error();
-        showToast('목표가 삭제되었습니다.', 'success');
+        Portal.showToast('목표가 삭제되었습니다.', 'success');
         await loadGoals();
       } catch(e) {
-        showToast('삭제에 실패했습니다.', 'error');
+        Portal.showToast('삭제에 실패했습니다.', 'error');
       }
     });
   }
