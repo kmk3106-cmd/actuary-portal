@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=24">
+  <link rel="stylesheet" href="css/main.css?v=27">
   <style>
     /* Layout */
     .cal-wrapper { display:grid; grid-template-columns:1fr 300px; gap:24px; align-items:start; }
@@ -80,6 +80,9 @@
     .chip-done { opacity:.55; text-decoration:line-through; }
     .chip-delayed { outline:2px solid #ef4444; outline-offset:-1px; }
     .chip-마감 { background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; }
+    .chip-마감-done { background:#d1fae5 !important; color:#065f46 !important; border-color:#86efac !important; font-weight:700; }
+    .cal-day.all-done { background:#f0fdf4 !important; }
+    .cal-day.all-done:hover { background:#dcfce7 !important; }
     .chip-조기완료 { background:#dbeafe; color:#1e40af; }
     .chip-기한준수 { background:#dcfce7; color:#166534; }
     .chip-지연완료 { background:#fee2e2; color:#991b1b; outline:2px solid #ef4444; outline-offset:-1px; }
@@ -448,7 +451,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=24"></script>
+<script src="js/portal.js?v=25"></script>
 <script>
   Portal.init();
 
@@ -755,16 +758,26 @@
       // Add due date chips
       const dueTasks = scheduleDueDates[dateStr] || [];
       const dueChipVisible = dueTasks.length > 0 && !isOther;
+      const doneCount = dueChipVisible ? dueTasks.filter(t => isSettleTaskCompleted(t.id)).length : 0;
+      const allDueDone = dueChipVisible && doneCount === dueTasks.length;
       if (dueChipVisible) {
         if (isMobileView) {
           // 모바일: 마감 칩도 +N으로 통합 (아래에서 합산)
         } else {
           const chip = document.createElement('div');
-          chip.className = 'day-task-chip chip-마감';
-          chip.textContent = dueTasks.length === 1 ? `D+${dueTasks[0].due} ${dueTasks[0].label}` : `마감 ${dueTasks.length}건`;
-          chip.title = dueTasks.map(t => `D+${t.due} ${t.label}`).join('\n');
+          chip.className = `day-task-chip chip-마감${allDueDone ? ' chip-마감-done' : ''}`;
+          if (dueTasks.length === 1) {
+            chip.textContent = `D+${dueTasks[0].due} ${dueTasks[0].label}` + (allDueDone ? ' ✓' : '');
+          } else {
+            chip.textContent = allDueDone
+              ? `마감 ${dueTasks.length}건 ✓`
+              : `마감 ${dueTasks.length}건 (${doneCount}/${dueTasks.length})`;
+          }
+          chip.title = dueTasks.map(t => `D+${t.due} ${t.label}${isSettleTaskCompleted(t.id) ? ' ✓ 완료' : ''}`).join('\n');
           taskWrap.appendChild(chip);
         }
+        // 전부 완료된 마감 셀은 배경도 살짝 초록 톤으로
+        if (allDueDone && !isMobileView) cell.classList.add('all-done');
       }
       // Add checklist completion chips
       const chklItemsForDay = !isOther ? (chklChipMap[dateStr] || []) : [];
@@ -775,8 +788,10 @@
           chklItemsForDay.forEach(ct => {
             const chip = document.createElement('div');
             chip.className = `day-task-chip chip-chkl-${ct.status}`;
-            chip.textContent = `(${ct.status}) ${ct.taskLabel}`;
-            chip.title = `결산업무 완료: ${ct.taskLabel}`;
+            // 팀장 뷰: 멤버명 함께 표시 (여러 멤버의 완료가 한 셀에 모이므로 식별 필요)
+            const prefix = ct.memberName ? `${ct.memberName} ` : '';
+            chip.textContent = `${prefix}(${ct.status}) ${ct.taskLabel}`;
+            chip.title = `${ct.memberName ? ct.memberName + ' — ' : ''}결산업무 완료: ${ct.taskLabel}`;
             taskWrap.appendChild(chip);
           });
         }
@@ -831,10 +846,10 @@
       const STATUS_COLOR = { '완': '#065f46', '개선': '#1e40af', '지연': '#991b1b' };
       const STATUS_BG    = { '완': '#d1fae5', '개선': '#dbeafe', '지연': '#fee2e2' };
       chklHtml = `<div class="panel-chkl-section">
-        <div class="panel-chkl-title"><i class="fas fa-clipboard-check"></i> 결산업무 완료 현황${chkMember ? ' — ' + chkMember : ''}</div>
+        <div class="panel-chkl-title"><i class="fas fa-clipboard-check"></i> 결산업무 완료 현황 — 전체 팀원</div>
         ${chklItems.map(ct => `
           <div class="panel-chkl-item st-${ct.status}">
-            <span>${ct.taskLabel}</span>
+            <span>${ct.memberName ? '<strong style=\"color:#374151;margin-right:6px\">' + ct.memberName + '</strong>' : ''}${ct.taskLabel}</span>
             <span style="font-weight:700;">(${ct.status})</span>
           </div>`).join('')}
       </div>`;
@@ -842,15 +857,27 @@
 
     let dueHtml = '';
     if (dueTasks.length > 0) {
+      const dueDoneCnt = dueTasks.filter(t => isSettleTaskCompleted(t.id)).length;
+      const dueAllDone = dueDoneCnt === dueTasks.length;
+      const headerColor = dueAllDone ? '#065f46' : '#c2410c';
+      const headerSuffix = dueAllDone
+        ? ' <span style="font-weight:700">✓ 전체 완료</span>'
+        : ` <span style="color:#6b7280;font-weight:600">(${dueDoneCnt}/${dueTasks.length} 완료)</span>`;
       dueHtml = `<div style="margin-bottom:12px">
-        <div style="font-size:11px;font-weight:700;color:#c2410c;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
-          <i class="fas fa-flag"></i> 결산 마감 업무
+        <div style="font-size:11px;font-weight:700;color:${headerColor};margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+          <i class="fas fa-flag"></i> 결산 마감 업무${headerSuffix}
         </div>
-        ${dueTasks.map(t => `
-          <div class="panel-task-item" style="border-left-color:#c2410c;background:#fff7ed;">
-            <div class="panel-task-cat" style="color:#c2410c;">D+${t.due} 영업일</div>
+        ${dueTasks.map(t => {
+          const done = isSettleTaskCompleted(t.id);
+          const bg     = done ? '#f0fdf4' : '#fff7ed';
+          const border = done ? '#10b981' : '#c2410c';
+          const cat    = done ? '#065f46' : '#c2410c';
+          return `
+          <div class="panel-task-item" style="border-left-color:${border};background:${bg};">
+            <div class="panel-task-cat" style="color:${cat};">D+${t.due} 영업일${done ? ' · ✓ 완료' : ''}</div>
             <div class="panel-task-title">${t.label}</div>
-          </div>`).join('')}
+          </div>`;
+        }).join('')}
       </div>`;
     }
     body.innerHTML = chklHtml + dueHtml + tasks.map(t => {
@@ -1034,24 +1061,63 @@
   let chklChipMap = {}; // completionDateStr -> [{taskLabel, status}]
   let chkDeadlineDaysMap = {}; // taskId -> 단축(+)/지연(-) 일수
 
+  // 캘린더의 완료 칩은 전체 멤버 통합 (체크리스트와 별개 — 모두에게 가시).
+  // 체크리스트(우측 패널의 체크박스 목록)는 본인에게 할당된 항목만 보임 (renderChecklist 의 assignee 필터).
+  let allMembersWorkTasks = [];
+
+  /** 결산업무 id 가 어느 한 멤버라도 완료 처리했는지.
+   *  본인(chkMember)에 대해서는 서버 캐시 대신 **로컬 chkDone** 을 사용해
+   *  체크/해제·취소·초기화 등 로컬 액션이 캘린더에 즉시 반영되도록 한다.
+   *  (DATA_SYNC_RULES §3 버그 패턴 I — 로컬 상태와 서버 캐시 분리)
+   */
+  function isSettleTaskCompleted(taskId) {
+    let selfSeen = false;
+    for (const wt of allMembersWorkTasks) {
+      if (wt.member_name === chkMember) {
+        selfSeen = true;
+        if (chkDone && chkDone.has(taskId)) return true;
+      } else {
+        if ((wt.settlement_done || []).includes(taskId)) return true;
+      }
+    }
+    // 본인 record 가 서버에 아직 없으면 로컬만 평가
+    if (!selfSeen && chkMember && chkDone && chkDone.has(taskId)) return true;
+    return false;
+  }
+
   function buildChklChipMap() {
     chklChipMap = {};
-    SETTLE_SCHEDULE.forEach(t => {
-      if (!chkDone.has(t.id)) return;
-      const completionDate = chkDates[t.id];
-      if (!completionDate) return;
-      const dueDate = getNthBizDay(chkYear, chkMonth, t.due);
-      let status;
-      if (!dueDate || completionDate === dueDate) {
-        status = '완';
-      } else if (completionDate < dueDate) {
-        status = '개선';
+    const classifyStatus = (completionDate, dueId) => {
+      const dueDate = getNthBizDay(chkYear, chkMonth, dueId);
+      if (!dueDate || completionDate === dueDate) return '완';
+      if (completionDate < dueDate) return '개선';
+      return '지연';
+    };
+    const addChips = (memberName, doneSet, datesMap) => {
+      SETTLE_SCHEDULE.forEach(t => {
+        if (!doneSet.has(t.id)) return;
+        const completionDate = datesMap[t.id];
+        if (!completionDate) return;
+        if (!chklChipMap[completionDate]) chklChipMap[completionDate] = [];
+        chklChipMap[completionDate].push({
+          taskLabel: t.label,
+          status: classifyStatus(completionDate, t.due),
+          memberName: memberName || null,
+        });
+      });
+    };
+
+    // 본인 행은 로컬 chkDone/chkDates 로, 다른 멤버는 서버 캐시로 (DATA_SYNC_RULES §3 버그 I).
+    let selfSeen = false;
+    for (const wt of allMembersWorkTasks) {
+      if (wt.member_name === chkMember) {
+        selfSeen = true;
+        addChips(chkMember, chkDone, chkDates);
       } else {
-        status = '지연';
+        addChips(wt.member_name, new Set(wt.settlement_done || []), wt.settlement_dates || {});
       }
-      if (!chklChipMap[completionDate]) chklChipMap[completionDate] = [];
-      chklChipMap[completionDate].push({ taskLabel: t.label, status });
-    });
+    }
+    if (!selfSeen && chkMember) addChips(chkMember, chkDone, chkDates);
   }
 
   function buildChkSelects() {
@@ -1218,9 +1284,11 @@
       if (chkEndTimes)   delete chkEndTimes[id];
       // 화면 즉시 재렌더 (필드 값들 초기화)
       renderChecklist();
-      buildChklChipMap();
-      renderCalendar();
     }
+    // 체크/해제 어느 쪽이든 마감 칩의 ✓ 표시와 셀 색상 갱신을 위해 캘린더 재빌드
+    buildChklChipMap();
+    renderCalendar();
+    if (selectedDate) showDayPanel(selectedDate);
     const label = document.querySelector(`label[for="chk_${id}"]`);
     if (label) label.className = 'chk-label' + (checked ? ' done' : '');
     updateChkStats();
@@ -1286,7 +1354,8 @@
     try {
       const res  = await fetch('/tables/work_tasks?limit=500');
       const data = await res.json();
-      const match = (data.rows || []).find(r =>
+      const allRows = data.rows || [];
+      const match = allRows.find(r =>
         r.member_name === chkMember &&
         String(r.year) === String(chkYear) &&
         String(r.month) === String(chkMonth)
@@ -1299,8 +1368,13 @@
       chkEndTimes   = match?.settlement_end_times   || {};
       chkRecordId   = match?.id || null;
       chkDeadlineDaysMap = match?.settlement_deadline_days || {};
+      // 팀장 캘린더용: 같은 년월 전체 멤버 work_tasks 캐시
+      allMembersWorkTasks = allRows.filter(r =>
+        String(r.year) === String(chkYear) && String(r.month) === String(chkMonth)
+      );
     } catch(e) {
       chkDone = new Set(); chkTimes = {}; chkDates = {}; chkRecordId = null; chkDeadlineDaysMap = {};
+      allMembersWorkTasks = [];
     }
     renderChecklist();
     buildChklChipMap();
@@ -1352,7 +1426,8 @@
       buildChklChipMap();
       renderCalendar();
       if (selectedDate) showDayPanel(selectedDate);
-      if (Object.keys(chkDeadlineDaysMap).length > 0) pushDeadlineToPerf();
+      // pushDeadlineToPerf는 항상 호출 (체크 해제 시 score_deadline:null로 명시 갱신 — DATA_SYNC_RULES §3 버그 F)
+      pushDeadlineToPerf();
       /* daily_work_entries 동기화 (완료된 항목 + 시간 입력된 항목) */
       syncSettleToDwe();
     } catch(e) { Portal.showToast('저장에 실패했습니다.', 'error'); }
@@ -1433,8 +1508,8 @@
   }
 
   async function pushDeadlineToPerf() {
+    // score가 null이면 명시적으로 null PATCH (옛 점수 잔존 방지 — DATA_SYNC_RULES §3 버그 F)
     const score = calcDeadlineAvgScore();
-    if (score == null) return;
     try {
       const res  = await fetch('/tables/performance_records?limit=500');
       const data = await res.json();
@@ -1443,14 +1518,22 @@
         String(r.year) === String(chkYear) &&
         String(r.month) === String(chkMonth));
       if (match) {
+        // 기존 record가 있으면 score_deadline + 파생 점수 함께 PATCH (DATA_SYNC_RULES §3 버그 G)
+        const patchBody = { score_deadline: score };
+        const derived = await Portal.recalcPerfBasicFinal({ ...match, ...patchBody });
+        Object.assign(patchBody, derived);
         await fetch('/tables/performance_records/'+match.id, {
-          method:'PUT', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({...match, score_deadline: score})
+          method:'PATCH', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(patchBody)
         });
-      } else {
+      } else if (score != null) {
+        // 기존 record가 없고 score도 null이면 굳이 빈 record 생성 안 함
+        const body = { year:chkYear, month:chkMonth, target_name:chkMember, score_deadline: score };
+        const derived = await Portal.recalcPerfBasicFinal(body);
+        Object.assign(body, derived);
         await fetch('/tables/performance_records', {
           method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ year:chkYear, month:chkMonth, target_name:chkMember, score_deadline: score })
+          body: JSON.stringify(body)
         });
       }
     } catch(e) { /* silent */ }

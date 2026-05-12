@@ -174,8 +174,18 @@ function computeByType(db, opts) {
   const bucket = {};
   for (const e of (db.daily_work_entries || [])) {
     if (memberName && e.member_name !== memberName) continue;
-    const key = e.task_category_id || 'uncategorized';
-    const label = cats[key] || e.task_label || '미분류';
+    // 도넛 그룹 키 우선순위: task_category_id(FK) > task_category(라벨) > source(결산) > 기타
+    // 개별 task_label 로 분산되지 않도록 대구분 단위만 사용 (DATA_SYNC_RULES §3 버그 J)
+    let label;
+    if (e.task_category_id && cats[e.task_category_id]) {
+      label = cats[e.task_category_id];
+    } else if (e.task_category) {
+      label = e.task_category;
+    } else if (e.source === 'settlement' || e.source === 'settlement_auto') {
+      label = '결산 업무';
+    } else {
+      label = '기타';
+    }
     // Phase 7-1: time_entries 기반 일자별 분리 합산
     if (Array.isArray(e.time_entries) && e.time_entries.length > 0) {
       for (const te of e.time_entries) {

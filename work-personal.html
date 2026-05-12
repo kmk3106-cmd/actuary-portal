@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=24">
+  <link rel="stylesheet" href="css/main.css?v=27">
   <style>
     .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
     .yr-sel, .month-sel, .member-sel {
@@ -65,11 +65,6 @@
     .kpi-block { border:1.5px solid #e0e7ff; border-radius:12px; padding:14px 18px; margin-bottom:12px; background:#f8faff; }
     .kpi-block-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:8px; }
     .kpi-block-title { font-size:13px; font-weight:700; color:#1d4ed8; display:flex; align-items:center; gap:6px; }
-    .kpi-score-wrap { display:flex; align-items:center; gap:6px; }
-    .kpi-score-label { font-size:11px; color:#6b7280; font-weight:500; white-space:nowrap; }
-    .kpi-score-input { width:64px; padding:5px 8px; border:1.5px solid #bfdbfe; border-radius:7px;
-      font-size:13px; font-weight:700; text-align:center; font-family:inherit; }
-    .kpi-score-input:focus { outline:none; border-color:#4f86f7; }
     .kpi-task-row { display:grid; grid-template-columns:1fr 64px 32px; gap:6px; align-items:center; margin-bottom:5px; }
     .kpi-task-row input[type="text"] { padding:6px 9px; border:1.5px solid #e5e7eb; border-radius:7px;
       font-size:12px; font-family:inherit; width:100%; box-sizing:border-box; }
@@ -253,12 +248,6 @@
           <div class="kpi-block" id="kpiBlock_kpi1">
             <div class="kpi-block-header">
               <div class="kpi-block-title"><i class="fas fa-robot"></i> KPI1 계리모델AI활용</div>
-              <div class="kpi-score-wrap">
-                <span class="kpi-score-label">자기평가</span>
-                <input type="number" class="kpi-score-input" id="kpiScore_kpi1" min="0" max="100" placeholder="-"
-                  oninput="kpiScores.kpi1=parseInt(this.value)||null;updateKpiBadge()">
-                <span style="font-size:11px;color:#6b7280;">점</span>
-              </div>
             </div>
             <div id="kpiList_kpi1"></div>
             <button class="btn-add-kpi" onclick="addKpiTask('kpi1')"><i class="fas fa-plus"></i> 업무 추가</button>
@@ -268,12 +257,6 @@
           <div class="kpi-block" id="kpiBlock_kpi2">
             <div class="kpi-block-header">
               <div class="kpi-block-title"><i class="fas fa-chart-line"></i> KPI2 재무수치분석</div>
-              <div class="kpi-score-wrap">
-                <span class="kpi-score-label">자기평가</span>
-                <input type="number" class="kpi-score-input" id="kpiScore_kpi2" min="0" max="100" placeholder="-"
-                  oninput="kpiScores.kpi2=parseInt(this.value)||null;updateKpiBadge()">
-                <span style="font-size:11px;color:#6b7280;">점</span>
-              </div>
             </div>
             <div id="kpiList_kpi2"></div>
             <button class="btn-add-kpi" onclick="addKpiTask('kpi2')"><i class="fas fa-plus"></i> 업무 추가</button>
@@ -283,20 +266,14 @@
           <div class="kpi-block" id="kpiBlock_kpi3">
             <div class="kpi-block-header">
               <div class="kpi-block-title"><i class="fas fa-hands-helping"></i> KPI3 계리지원강화</div>
-              <div class="kpi-score-wrap">
-                <span class="kpi-score-label">자기평가</span>
-                <input type="number" class="kpi-score-input" id="kpiScore_kpi3" min="0" max="100" placeholder="-"
-                  oninput="kpiScores.kpi3=parseInt(this.value)||null;updateKpiBadge()">
-                <span style="font-size:11px;color:#6b7280;">점</span>
-              </div>
             </div>
             <div id="kpiList_kpi3"></div>
             <button class="btn-add-kpi" onclick="addKpiTask('kpi3')"><i class="fas fa-plus"></i> 업무 추가</button>
           </div>
 
-          <!-- 자기평가 총평 -->
+          <!-- 자기 코멘트 (점수는 팀장이 성과관리에서 입력) -->
           <div class="kpi-comment-wrap">
-            <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:5px;">자기평가 총평</div>
+            <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:5px;">코멘트</div>
             <textarea class="form-control" id="kpiComment" rows="3" placeholder="이번 달 성과 및 기여 내용을 간략히 기술하세요..."
               style="width:100%;padding:9px 13px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box;"
               oninput="kpiCommentVal=this.value"></textarea>
@@ -309,9 +286,6 @@
           </button>
           <button class="btn-save" onclick="saveKpiSection()">
             <i class="fas fa-save"></i> 저장
-          </button>
-          <button class="btn-reflect" onclick="saveKpiSection(true)">
-            <i class="fas fa-sync-alt"></i> 성과관리에 반영
           </button>
         </div>
       </div>
@@ -415,7 +389,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=24"></script>
+<script src="js/portal.js?v=25"></script>
 <script>
 Portal.init();
 
@@ -523,9 +497,47 @@ async function saveQuantitative() {
       if (res.ok) { const d = await res.json(); currentRecordId = d.id; }
     }
     if (!res.ok) throw new Error();
+    // 자동 동기화: performance_records의 raw_* + score_* 도 같이 갱신 (DATA_SYNC_RULES §3 버그 F)
+    await syncQuantRawToPerf();
     Portal.showToast('정량평가 데이터가 저장되었습니다.', 'success');
     await loadHistory();
   } catch(e) { Portal.showToast('저장에 실패했습니다.', 'error'); }
+}
+
+/**
+ * work_tasks의 raw_* 변경에 맞춰 performance_records의 raw_* 와 score_* 도 동기화.
+ * "반영"(pushQuantToPerf) 과 달리 사용자 클릭 없이 자동 실행되므로 가드 없음.
+ * raw가 null이면 score도 null로 명시 PATCH (옛 점수 잔존 방지).
+ * score_deadline은 settlement.pushDeadlineToPerf가 책임지므로 건드리지 않음.
+ */
+async function syncQuantRawToPerf() {
+  const s1 = calcQDirective(quantData.directive_done);
+  const s2 = calcQCsm(quantData.csm_amount);
+  const s4 = calcQMeeting(quantData.meeting_count);
+  try {
+    const res  = await fetch('/tables/performance_records?limit=500');
+    const data = await res.json();
+    const match = (data.rows||[]).find(r =>
+      r.target_name === currentMember &&
+      String(r.year) === String(currentYear) &&
+      String(r.month) === String(currentMonth));
+    if (!match) return;  // record 없으면 굳이 생성 안 함 ("반영" 시점에 pushQuantToPerf가 처리)
+    const patchBody = {
+      raw_directive:     quantData.directive_done ?? null,
+      raw_csm_amount:    quantData.csm_amount ?? null,
+      raw_meeting_count: quantData.meeting_count ?? null,
+      score_directive:   s1,
+      score_csm:         s2,
+      score_meeting:     s4,
+    };
+    // basic/final/grade 도 재계산 (DATA_SYNC_RULES §3 버그 G)
+    const derived = await Portal.recalcPerfBasicFinal({ ...match, ...patchBody });
+    Object.assign(patchBody, derived);
+    await fetch('/tables/performance_records/'+match.id, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(patchBody)
+    });
+  } catch(e) { /* silent */ }
 }
 
 async function pushQuantToPerf() {
@@ -536,7 +548,6 @@ async function pushQuantToPerf() {
   if ([s1,s2,s4].some(v => v == null)) {
     Portal.showToast('지시수행, CSM, 임원회의를 모두 입력한 후 반영하세요.', 'error'); return;
   }
-  const basicQuant = Math.round((s1*0.05 + s2*0.10 + s3*0.20 + s4*0.15) * 10) / 10;
   try {
     await saveQuantitative();
     const res  = await fetch('/tables/performance_records?limit=500');
@@ -555,27 +566,28 @@ async function pushQuantToPerf() {
       score_csm:         s2,
       score_deadline:    s3,
       score_meeting:     s4,
-      basic_score:       basicQuant,
       rule_version:      '1.0.0',
     };
+    // basic/final/grade 재계산 (정량만이 아닌 KPI 정성 점수도 함께 합산 — DATA_SYNC_RULES §3 버그 G)
+    const merged = { ...(match || {}), ...perfBody };
+    const derived = await Portal.recalcPerfBasicFinal(merged);
+    Object.assign(perfBody, derived);
     if (match) {
       await fetch('/tables/performance_records/'+match.id, {
-        method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(perfBody)
+        method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(perfBody)
       });
     } else {
       await fetch('/tables/performance_records', {
         method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(perfBody)
       });
     }
-    Portal.showToast(`${currentMember} 정량평가 반영 완료 (정량소계: ${basicQuant}점)`, 'success');
+    Portal.showToast(`${currentMember} 정량평가 반영 완료 (총점: ${derived.basic_score ?? '-'}점)`, 'success');
   } catch(e) { Portal.showToast('반영에 실패했습니다.', 'error'); }
 }
 
 function updateKpiBadge() {
   const total = Object.values(kpiTasks).reduce((s,arr)=>s+(arr||[]).filter(t=>t.desc).length,0);
-  const scored = Object.values(kpiScores).filter(v=>v!=null).length;
-  document.getElementById('kpiBadge').textContent =
-    total > 0 || scored > 0 ? `${total}건 / ${scored}개 평가` : '미입력';
+  document.getElementById('kpiBadge').textContent = total > 0 ? `${total}건` : '미입력';
 }
 
 function renderKpiSection() {
@@ -611,11 +623,12 @@ function removeKpiTask(kId, idx) {
   renderKpiSection();
 }
 
-async function saveKpiSection(pushPerf = false) {
+async function saveKpiSection() {
+  // KPI 점수는 팀장이 performance.html 에서만 입력 → 여기서는 kpi_tasks/kpi_comment 만 저장.
+  // kpi_scores 는 더 이상 work-personal 에서 갱신하지 않음 (자기평가 입력란 제거).
   const body = {
     year: currentYear, month: currentMonth, member_name: currentMember,
     kpi_tasks:   kpiTasks,
-    kpi_scores:  kpiScores,
     kpi_comment: kpiCommentVal,
   };
   try {
@@ -631,35 +644,9 @@ async function saveKpiSection(pushPerf = false) {
       if (res.ok) { const d = await res.json(); currentRecordId = d.id; }
     }
     if (!res.ok) throw new Error();
-    if (pushPerf) await pushKpiToPerf();
-    Portal.showToast(pushPerf ? 'KPI 성과관리에 반영되었습니다.' : '저장되었습니다.', 'success');
+    Portal.showToast('저장되었습니다.', 'success');
     await loadHistory();
   } catch(e) { Portal.showToast('저장에 실패했습니다.', 'error'); }
-}
-
-async function pushKpiToPerf() {
-  const perfBody = {
-    year: currentYear, month: currentMonth, target_name: currentMember,
-    score_kpi1:    kpiScores.kpi1,
-    score_kpi2:    kpiScores.kpi2,
-    score_kpi3:    kpiScores.kpi3,
-    self_comment:  kpiCommentVal,
-  };
-  const res = await fetch('/tables/performance_records?limit=500');
-  const data = await res.json();
-  const match = (data.rows||[]).find(r =>
-    r.target_name === currentMember &&
-    String(r.year) === String(currentYear) &&
-    String(r.month) === String(currentMonth));
-  if (match) {
-    await fetch('/tables/performance_records/'+match.id, {
-      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(perfBody)
-    });
-  } else {
-    await fetch('/tables/performance_records', {
-      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(perfBody)
-    });
-  }
 }
 
 function buildSelects() {
@@ -715,13 +702,35 @@ function buildHalfHourOptions(startHH = '09:00', endHH = '18:00') {
 
 const HALF_HOUR_OPTS = buildHalfHourOptions('06:00', '22:00');
 
+// 09:00~18:00 근무 기준, 점심(12:00~13:00) 1h 제외. 표준 일일 업무시간 8h(480분).
+const _LUNCH_S = 12 * 60, _LUNCH_E = 13 * 60;
+const _DAY_START = 9 * 60, _DAY_END = 18 * 60, _DAY_MIN = 480;
+function _hhmmToMin(s) {
+  const [h, m] = String(s).split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+function _lunchOverlap(sM, eM) {
+  if (eM <= sM) return 0;
+  return Math.max(0, Math.min(eM, _LUNCH_E) - Math.max(sM, _LUNCH_S));
+}
 function calcRowMinutes(task) {
   if (!task.start_date || !task.end_date || !task.start_time || !task.end_time) return 0;
   try {
-    const s = new Date(`${task.start_date}T${task.start_time}:00`);
-    const e = new Date(`${task.end_date}T${task.end_time}:00`);
-    const diff = Math.round((e - s) / 60000);
-    return diff > 0 ? diff : 0;
+    const sM = _hhmmToMin(task.start_time);
+    const eM = _hhmmToMin(task.end_time);
+    if (task.start_date === task.end_date) {
+      if (eM <= sM) return 0;
+      return (eM - sM) - _lunchOverlap(sM, eM);
+    }
+    // 멀티데이: 첫날(sM~18:00) + 중간일 480분 × N + 마지막날(09:00~eM)
+    const sD = new Date(task.start_date + 'T00:00:00');
+    const eD = new Date(task.end_date + 'T00:00:00');
+    const days = Math.round((eD - sD) / (24 * 3600 * 1000));
+    if (days <= 0) return 0;
+    const firstMin = Math.max(0, (_DAY_END - sM) - _lunchOverlap(sM, _DAY_END));
+    const lastMin  = Math.max(0, (eM - _DAY_START) - _lunchOverlap(_DAY_START, eM));
+    const middleDays = Math.max(0, days - 1);
+    return firstMin + middleDays * _DAY_MIN + lastMin;
   } catch(_) { return 0; }
 }
 
@@ -811,7 +820,7 @@ async function saveWorkTask() {
   const totalMin = valid.reduce((s, t) => s + (calcRowMinutes(t) || 0), 0);
   const calcScore = Math.min(100, Math.min(50, Math.round(totalMin / 60)));
 
-  /* 1. 검증 API */
+  /* 검증·충돌 점검 — 붉은색 알림 최소화: 시간 오류만 한 번 차단, 경고/충돌은 무시 후 그냥 저장. */
   for (const t of valid) {
     if (!t.start_date || !t.end_date || !t.start_time || !t.end_time) continue;
     try {
@@ -823,38 +832,15 @@ async function saveWorkTask() {
       if (vr.ok) {
         const vd = await vr.json();
         if (!vd.ok && vd.errors && vd.errors.length) {
-          Portal.showToast(`[${t.desc}] 시간 오류: ${vd.errors[0]}`, 'error'); return;
+          Portal.showToast(`[${t.desc}] 시간 오류: ${vd.errors[0]}`, 'error');
+          return;
         }
-        if (vd.warnings && vd.warnings.length) {
-          const go = await new Promise(resolve => {
-            Portal.confirm(`[${t.desc}] 경고: ${vd.warnings[0]}\n계속 저장하시겠습니까?`, () => resolve(true), () => resolve(false));
-          });
-          if (!go) return;
-        }
+        // 경고(비영업일/업무시간 외)는 더 이상 모달로 차단하지 않음 — 그냥 저장
       }
     } catch(_) {}
   }
-
-  /* 2. 충돌 체크 */
-  for (const t of valid) {
-    if (!t.start_date || !t.start_time || !t.end_time) continue;
-    try {
-      const cr = await fetch('/api/tasks/conflicts', {
-        method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ member_name: currentMember,
-          time_entries: [{ date: t.start_date, start: t.start_time, end: t.end_time }] })
-      });
-      if (cr.ok) {
-        const cd = await cr.json();
-        if (cd.conflicts && cd.conflicts.length) {
-          const go = await new Promise(resolve => {
-            Portal.confirm(`[${t.desc}] 시간 충돌이 있습니다 (${cd.conflicts[0].against_label}). 계속 저장하시겠습니까?`, () => resolve(true), () => resolve(false));
-          });
-          if (!go) return;
-        }
-      }
-    } catch(_) {}
-  }
+  // 충돌 체크도 차단하지 않음 (사용자가 의도적으로 겹치게 입력할 수 있음).
+  // 필요 시 settlement-review 등에서 사후 검출.
 
   /* 3. work_tasks 업데이트 (시간대 정보까지 함께 저장 — 화면 재로드 일치 보장) */
   const legacyTasks = valid.map(t => ({
@@ -908,6 +894,7 @@ async function saveWorkTask() {
         member_name: currentMember,
         task_label: t.desc,
         task_category_id: null,
+        task_category: t.cat || '기타',  // 대구분 라벨 (computeByType 의 도넛 그룹 키)
         start_date: t.start_date,
         end_date: t.end_date || t.start_date,
         start_time: t.start_time,
@@ -1011,11 +998,8 @@ async function loadCurrentRecord() {
       kpiCommentVal = '';
       quantData = { directive_done:null, csm_amount:null, deadline_days:null, meeting_count:null };
     }
-    // Populate KPI UI
-    document.getElementById('kpiScore_kpi1').value = kpiScores.kpi1 ?? '';
-    document.getElementById('kpiScore_kpi2').value = kpiScores.kpi2 ?? '';
-    document.getElementById('kpiScore_kpi3').value = kpiScores.kpi3 ?? '';
-    document.getElementById('kpiComment').value    = kpiCommentVal;
+    // Populate KPI UI (자기평가 점수 입력란은 제거 — 팀장이 performance.html에서만 입력)
+    document.getElementById('kpiComment').value = kpiCommentVal;
     // Populate 정량평가 UI
     document.getElementById('qDirective').value    = quantData.directive_done  != null ? String(quantData.directive_done)  : '';
     document.getElementById('qCsmAmount').value    = quantData.csm_amount      ?? '';

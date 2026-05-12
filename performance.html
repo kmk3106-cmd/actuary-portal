@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=24">
+  <link rel="stylesheet" href="css/main.css?v=27">
   <style>
     /* Toolbar */
     .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
@@ -136,9 +136,7 @@
     .stat-value.green { color:#10b981; }
 
     /* Modal */
-    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000;
-      align-items:center; justify-content:center; }
-    .modal-overlay.open { display:flex; }
+    /* 모달 시스템은 main.css에서 단독 관리 (.modal-overlay + .show/.open 클래스) */
     .modal-box { background:#fff; border-radius:20px; width:640px; max-width:96vw; max-height:90vh;
       overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2); }
     .modal-header { padding:24px 28px 0; display:flex; justify-content:space-between; align-items:center; }
@@ -387,7 +385,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=24"></script>
+<script src="js/portal.js?v=25"></script>
 <script>
 Portal.init();
 
@@ -853,58 +851,86 @@ window.addEventListener('resize', () => {
 });
 
 function openAddModal() {
-  document.getElementById('modalTitle').textContent = '성과 기록 추가';
-  document.getElementById('editId').value = '';
-  document.getElementById('fYear').value = currentYear;
-  document.getElementById('fMonth').value = currentMonth || thisMonth;
-  document.getElementById('fTargetName').value = '';
-  clearQuantDisplay();
-  for (const k of QUAL_KPIS) {
-    const el = document.getElementById('fScore_' + k.code);
-    if (el) el.value = '';
-  }
-  document.getElementById('fBasicScore').value = '';
-  document.getElementById('fBonusProject').value = 'false';
-  document.getElementById('fBonusPromotion').value = 'false';
-  document.getElementById('fFinalScore').value = '';
-  document.getElementById('fGrade').value = 'B';
-  document.getElementById('fLeaderScore').value = '';
-  document.getElementById('fSelfComment').value = '';
-  document.getElementById('fLeaderComment').value = '';
-  document.getElementById('targetNameRow').style.display = isLeader ? 'block' : 'none';
-  document.getElementById('kpiSection').style.display = isLeader ? 'block' : 'none';
+  // 모달 먼저 열고 폼 채우기는 try-catch로 감싸기 (안전망)
   document.getElementById('perfModal').classList.add('open');
+  try {
+    document.getElementById('modalTitle').textContent = '성과 기록 추가';
+    document.getElementById('editId').value = '';
+    document.getElementById('fYear').value = currentYear;
+    document.getElementById('fMonth').value = currentMonth || thisMonth;
+    document.getElementById('fTargetName').value = '';
+    clearQuantDisplay();
+    for (const k of QUAL_KPIS) {
+      const el = document.getElementById('fScore_' + k.code);
+      if (el) el.value = '';
+    }
+    document.getElementById('fBasicScore').value = '';
+    document.getElementById('fBonusProject').value = 'false';
+    document.getElementById('fBonusPromotion').value = 'false';
+    document.getElementById('fFinalScore').value = '';
+    document.getElementById('fGrade').value = 'B';
+    document.getElementById('fLeaderScore').value = '';
+    document.getElementById('fSelfComment').value = '';
+    document.getElementById('fLeaderComment').value = '';
+    document.getElementById('targetNameRow').style.display = isLeader ? 'block' : 'none';
+    document.getElementById('kpiSection').style.display = isLeader ? 'block' : 'none';
+  } catch(e) {
+    console.error('openAddModal 폼 채우기 중 오류:', e);
+  }
 }
 
 function openEditModal(id) {
+  // 연간 집계 record (id가 'agg_' 접두) 는 합성 데이터라 직접 수정 불가
+  // → 그 멤버의 가장 최근 월 뷰로 자동 전환 + 그 월의 진짜 record를 다시 열기
+  if (typeof id === 'string' && id.startsWith('agg_')) {
+    const name = id.slice('agg_'.length);
+    const memberRecords = allRecords.filter(r =>
+      r.target_name === name && String(r.year) === String(currentYear)
+    );
+    if (memberRecords.length === 0) {
+      Portal.showToast(`${name}의 ${currentYear}년 데이터가 없습니다.`, 'warning');
+      return;
+    }
+    const latest = memberRecords.slice().sort((a,b) => (b.month||0) - (a.month||0))[0];
+    Portal.showToast(`연간 집계는 수정 불가 — ${latest.month}월 뷰로 이동합니다`, 'info');
+    selectedMember = name;
+    selectMonth(latest.month);   // currentMonth 변경 + 월 탭 active 갱신 + render()
+    openEditModal(latest.id);    // 실제 record id로 다시 호출 (재귀)
+    return;
+  }
   const r = allRecords.find(x => x.id === id);
   if (!r) return;
-  document.getElementById('modalTitle').textContent = (r.target_name || '') + ' 성과 수정';
-  document.getElementById('editId').value = id;
-  document.getElementById('fYear').value = r.year || currentYear;
-  document.getElementById('fMonth').value = r.month || currentMonth || thisMonth;
-  document.getElementById('fTargetName').value = r.target_name || '';
-  document.getElementById('fScoreDirective').value = r.score_directive ?? '';
-  document.getElementById('fScoreCsm').value       = r.score_csm ?? '';
-  document.getElementById('fScoreDeadline').value  = r.score_deadline ?? '';
-  document.getElementById('fScoreMeeting').value   = r.score_meeting ?? '';
-  populateQuantFromWorkTask(r);
-  fetchWorkTasksForModal();
-  for (const k of QUAL_KPIS) {
-    const el = document.getElementById('fScore_' + k.code);
-    if (el) el.value = r['score_' + k.code] ?? '';
-  }
-  document.getElementById('fBasicScore').value = r.basic_score ?? '';
-  document.getElementById('fBonusProject').value = String(!!r.bonus_project);
-  document.getElementById('fBonusPromotion').value = String(!!r.bonus_promotion);
-  document.getElementById('fFinalScore').value = r.final_score ?? '';
-  document.getElementById('fGrade').value = r.grade || 'D';
-  document.getElementById('fLeaderScore').value = r.leader_score ?? '';
-  document.getElementById('fSelfComment').value = r.self_comment || '';
-  document.getElementById('fLeaderComment').value = r.leader_comment || '';
-  document.getElementById('targetNameRow').style.display = isLeader ? 'block' : 'none';
-  document.getElementById('kpiSection').style.display = isLeader ? 'block' : 'none';
+  // 폼 채우기 도중 어떤 element/함수가 throw해도 모달은 일단 열도록 안전망 (DATA_SYNC_RULES §3 버그 F 재발 방지)
   document.getElementById('perfModal').classList.add('open');
+  try {
+    document.getElementById('modalTitle').textContent = (r.target_name || '') + ' 성과 수정';
+    document.getElementById('editId').value = id;
+    document.getElementById('fYear').value = r.year || currentYear;
+    document.getElementById('fMonth').value = r.month || currentMonth || thisMonth;
+    document.getElementById('fTargetName').value = r.target_name || '';
+    document.getElementById('fScoreDirective').value = r.score_directive ?? '';
+    document.getElementById('fScoreCsm').value       = r.score_csm ?? '';
+    document.getElementById('fScoreDeadline').value  = r.score_deadline ?? '';
+    document.getElementById('fScoreMeeting').value   = r.score_meeting ?? '';
+    populateQuantFromWorkTask(r);
+    fetchWorkTasksForModal();
+    for (const k of QUAL_KPIS) {
+      const el = document.getElementById('fScore_' + k.code);
+      if (el) el.value = r['score_' + k.code] ?? '';
+    }
+    document.getElementById('fBasicScore').value = r.basic_score ?? '';
+    document.getElementById('fBonusProject').value = String(!!r.bonus_project);
+    document.getElementById('fBonusPromotion').value = String(!!r.bonus_promotion);
+    document.getElementById('fFinalScore').value = r.final_score ?? '';
+    document.getElementById('fGrade').value = r.grade || 'D';
+    document.getElementById('fLeaderScore').value = r.leader_score ?? '';
+    document.getElementById('fSelfComment').value = r.self_comment || '';
+    document.getElementById('fLeaderComment').value = r.leader_comment || '';
+    document.getElementById('targetNameRow').style.display = isLeader ? 'block' : 'none';
+    document.getElementById('kpiSection').style.display = isLeader ? 'block' : 'none';
+  } catch(e) {
+    console.error('openEditModal 폼 채우기 중 오류:', e);
+  }
 }
 
 function closeModal() { document.getElementById('perfModal').classList.remove('open'); }

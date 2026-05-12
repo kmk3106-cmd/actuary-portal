@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=24">
+  <link rel="stylesheet" href="css/main.css?v=27">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
   <style>
     /* ── 내 업무량 전용 스타일 ── */
@@ -557,7 +557,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=24"></script>
+<script src="js/portal.js?v=25"></script>
 <script>
 /* ── 상태 ── */
 let currentUser    = null;
@@ -922,105 +922,16 @@ function renderPage(userData, alertData, name) {
       </div>
     </div>
 
-    <!-- 업무 입력 폼 (시간대 입력) -->
+    <!-- 업무 입력 목록 (조회 전용 — 입력은 '개인별 업무입력' 페이지에서) -->
     <div class="input-section">
       <div class="input-section-header">
         <div class="chart-icon green" style="width:28px;height:28px;border-radius:8px;font-size:13px;">
-          <i class="fas fa-plus-circle"></i>
+          <i class="fas fa-list-ul"></i>
         </div>
-        <div class="input-section-title">업무 입력 — ${year}년 ${monthNum}월</div>
+        <div class="input-section-title">${year}년 ${monthNum}월 업무 목록</div>
         <span style="font-size:12px;color:var(--gray-400);" id="entryCountBadge">${myEntries.length}건</span>
       </div>
       <div class="input-section-body">
-
-        <!-- 모드 토글 -->
-        <div class="time-mode-toggle">
-          <button class="time-mode-btn active" id="modeSingleBtn" onclick="switchEntryMode('single')">
-            단일일정
-          </button>
-          <button class="time-mode-btn" id="modeMultiBtn" onclick="switchEntryMode('multi')">
-            여러일정
-          </button>
-        </div>
-
-        <!-- 단일 모드 -->
-        <div id="singleModeForm">
-          <div class="single-mode-grid">
-            <div class="form-field">
-              <label>날짜</label>
-              <input type="date" id="entryDate" value="${defaultDate}">
-            </div>
-            <div class="form-field">
-              <label>시작시간</label>
-              <select id="entryStartTime">${buildHalfHourSelectOpts('09:00')}</select>
-            </div>
-            <div class="form-field">
-              <label>종료시간</label>
-              <select id="entryEndTime" onchange="updateSingleCalc()">${buildHalfHourSelectOpts('18:00')}</select>
-            </div>
-            <div class="form-field">
-              <label>카테고리</label>
-              <select id="entryCategory">
-                <option value="">-- 선택사항 --</option>
-                ${taskCategories.map(c =>
-                  `<option value="${c.id}">${c.name || c.label || c.task_name || c.id}</option>`
-                ).join('')}
-              </select>
-            </div>
-            <div class="form-field">
-              <label>업무 내용 *</label>
-              <input type="text" id="entryLabel" placeholder="업무 내용 자유 입력" style="min-width:120px;">
-            </div>
-            <div class="form-field">
-              <label>메모</label>
-              <input type="text" id="entryNote" placeholder="선택사항">
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-            <span style="font-size:13px;color:var(--gray-600);">소요시간: <strong id="singleCalcDisp" style="color:var(--primary);">-</strong></span>
-            <button class="btn-add" onclick="submitEntry()" id="btnAdd">
-              <i class="fas fa-plus"></i> 추가
-            </button>
-          </div>
-        </div>
-
-        <!-- 여러일정 모드 -->
-        <div id="multiModeForm" style="display:none;">
-          <div id="multiTimeRows"></div>
-          <button class="btn btn-secondary btn-sm" onclick="addMultiTimeRow()" style="margin-bottom:12px;">
-            <i class="fas fa-plus"></i> 시간대 추가
-          </button>
-          <div class="time-total-bar" id="multiTotalBar" style="display:none;">
-            총 <span class="time-total-val" id="multiTotalDisp">0h</span>
-            <span style="color:var(--gray-400);">|</span>
-            <span id="multiDaysDisp" style="font-size:12px;color:var(--gray-500);"></span>
-          </div>
-          <div class="single-mode-grid" style="grid-template-columns:1fr 1fr auto;">
-            <div class="form-field">
-              <label>카테고리</label>
-              <select id="multiEntryCategory">
-                <option value="">-- 선택사항 --</option>
-                ${taskCategories.map(c =>
-                  `<option value="${c.id}">${c.name || c.label || c.task_name || c.id}</option>`
-                ).join('')}
-              </select>
-            </div>
-            <div class="form-field">
-              <label>업무 내용 *</label>
-              <input type="text" id="multiEntryLabel" placeholder="업무 내용 자유 입력">
-            </div>
-            <div class="form-field">
-              <label>메모</label>
-              <input type="text" id="multiEntryNote" placeholder="선택사항">
-            </div>
-          </div>
-          <div>
-            <button class="btn-add" onclick="submitMultiEntry()" id="btnAddMulti">
-              <i class="fas fa-plus"></i> 추가
-            </button>
-          </div>
-        </div>
-
         <div class="entry-table-wrap">
           <table class="entry-table" id="entryTable">
             <thead>

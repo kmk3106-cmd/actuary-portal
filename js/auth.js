@@ -64,7 +64,10 @@ const Auth = (() => {
       return { success: true, message: '로그인 성공', user };
     } catch (err) {
       console.error('로그인 오류:', err);
-      return { success: false, message: '로그인 중 오류가 발생했습니다.' };
+      // 디버깅 친화적: 실제 에러 메시지를 사용자에게도 표시
+      // (카카오톡 인앱 같은 제약 환경에서 storage/crypto 차단 원인 파악 용이)
+      const detail = (err && err.message) ? ` (${String(err.message).slice(0, 100)})` : '';
+      return { success: false, message: '로그인 중 오류가 발생했습니다' + detail };
     }
   }
 

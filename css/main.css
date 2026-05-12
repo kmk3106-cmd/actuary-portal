@@ -51,11 +51,13 @@ body {
   border-right: 1px solid var(--gray-200);
   position: fixed;
   top: 0; left: 0;
-  height: 100vh;
+  height: 100vh;          /* 폴백 (구형 브라우저) */
+  height: 100dvh;          /* iOS Safari 주소창/탭바 제외 정확 viewport — 로그아웃 영역까지 보이게 */
   display: flex;
   flex-direction: column;
   z-index: 100;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* iOS 부드러운 관성 스크롤 */
 }
 
 /* 브랜드 영역 */
@@ -144,6 +146,23 @@ body {
   white-space: nowrap;
   flex-shrink: 0;
 }
+
+/* 자동 점검 알림 배지 (사이드바 사용자 영역 아래) */
+.audit-badge {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 16px; margin: 0 12px 8px;
+  border-radius: 8px; text-decoration: none;
+  font-size: 12px; font-weight: 600;
+  transition: filter 0.15s, transform 0.15s;
+  border: 1.5px solid transparent;
+}
+.audit-badge:hover { filter: brightness(0.96); transform: translateY(-1px); }
+.audit-badge i { font-size: 13px; flex-shrink: 0; }
+.audit-badge .audit-badge-text { flex: 1; }
+.audit-badge .audit-badge-time { font-size: 10.5px; font-weight: 500; opacity: 0.7; }
+.audit-badge.clean   { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+.audit-badge.warn    { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.audit-badge.danger  { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
 
 /* 사이드바 nav 영역 */
 .sidebar-nav { flex: 1; padding: 8px 8px 16px; overflow-y: auto; }
@@ -390,7 +409,8 @@ select.form-control { cursor: pointer; }
   padding: 20px; backdrop-filter: blur(4px);
   opacity: 0; visibility: hidden; transition: all 0.2s;
 }
-.modal-overlay.show { opacity: 1; visibility: visible; }
+.modal-overlay.show,
+.modal-overlay.open { opacity: 1; visibility: visible; }
 .modal {
   background: white; border-radius: 16px;
   width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto;

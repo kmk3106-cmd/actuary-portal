@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=24">
+  <link rel="stylesheet" href="css/main.css?v=27">
   <style>
     /* ── KB 이슈 사례집 전용 스타일 ── */
 
@@ -835,7 +835,7 @@ function renderIssueList(issues, query) {
     const tagHtml = tags.slice(0,3).map(t => `<span class="tag-chip" style="font-size:10.5px;padding:1px 7px;">#${escHtml(t)}</span>`).join('');
     const more = tags.length > 3 ? `<span style="font-size:10.5px;color:var(--gray-400);">+${tags.length-3}</span>` : '';
 
-    html += `<div class="issue-item${active}" onclick="openIssue(${issue.id})" id="issueItem_${issue.id}">
+    html += `<div class="issue-item${active}" onclick="openIssue('${issue.id}')" id="issueItem_${issue.id}">
       <div class="issue-item-top">
         <span class="sev-badge ${sevCls}">${sevLabel}</span>
         <span class="issue-title">${escHtml(issue.title || '(제목 없음)')}</span>
@@ -986,7 +986,7 @@ async function loadSimilarIssues(issueId) {
       return;
     }
     cardsEl.innerHTML = similars.map(s => `
-      <div class="similar-card" onclick="openIssue(${s.id})">
+      <div class="similar-card" onclick="openIssue('${s.id}')">
         <span class="sev-badge ${s.severity || 'low'}" style="font-size:10.5px;">${(s.severity||'LOW').toUpperCase()}</span>
         <span class="similar-card-title">${escHtml(s.title || '(제목 없음)')}</span>
         ${s.score ? `<span class="similar-score">유사도 ${Math.round(s.score * 100)}%</span>` : ''}

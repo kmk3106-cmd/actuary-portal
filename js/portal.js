@@ -4,7 +4,39 @@
  * - 토스트 알림
  * - 날짜 포맷
  * - 감사 로그용 X-Actor-* 헤더 자동 첨부 (모든 fetch에 적용)
+ * - 카카오톡 인앱 브라우저 → 외부 브라우저 자동 전환
  */
+
+// ── 카카오톡 인앱 브라우저 회피 (전역 즉시 실행) ──
+// 카카오톡 인앱 WebView는 storage/crypto 제약으로 portal 로그인·세션 동작 불가.
+// userAgent에 'KAKAOTALK' 포함 시 iOS=Safari, Android=Chrome 으로 강제 외부 전환.
+// login.html은 별도 inline script로도 처리 (페이지 콘텐츠 그리기 전 실행 보장).
+(function redirectFromKakaoInapp() {
+  if (typeof navigator === 'undefined' || !navigator.userAgent) return;
+  var ua = navigator.userAgent.toUpperCase();
+  if (ua.indexOf('KAKAOTALK') === -1) return;
+  var url = window.location.href;
+  var isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  try {
+    if (isIos) {
+      window.location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url);
+    } else {
+      var stripped = url.replace(/^https?:\/\//, '');
+      var scheme = url.indexOf('https://') === 0 ? 'https' : 'http';
+      window.location.href = 'intent://' + stripped + '#Intent;scheme=' + scheme + ';package=com.android.chrome;end';
+    }
+  } catch (_) { /* 일부 환경에서 URL 스킴 차단되면 아래 안내로 fallback */ }
+  // 1.5초 후에도 페이지가 살아있으면 안내 배너 (외부 전환 실패한 경우)
+  setTimeout(function() {
+    if (document.querySelector('.kakao-inapp-notice')) return;
+    var notice = document.createElement('div');
+    notice.className = 'kakao-inapp-notice';
+    notice.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#fef3c7;border-bottom:2px solid #f59e0b;padding:14px 18px;text-align:center;z-index:99999;font-size:13px;color:#92400e;font-family:sans-serif;line-height:1.5;';
+    notice.innerHTML = '<strong>⚠ 카카오톡 인앱 브라우저는 일부 기능이 제한됩니다.</strong><br>우측 상단 메뉴(⋮ 또는 ⋯) → <strong>"다른 브라우저로 열기"</strong> 권장.';
+    if (document.body) document.body.appendChild(notice);
+    else document.addEventListener('DOMContentLoaded', function(){ document.body.appendChild(notice); });
+  }, 1500);
+})();
 
 // ── 글로벌 fetch 인터셉터: 모든 /tables/, /api/ 요청에 actor 헤더 자동 첨부 ──
 (function installAuditHeaders() {
@@ -84,8 +116,9 @@ const Portal = (() => {
     {
       section: '시스템',
       items: [
-        { href: 'bot-status.html', icon: 'fa-paper-plane', label: '텔레그램 봇' },
-        { href: 'settings.html',   icon: 'fa-sliders-h',   label: '룰 설정', requiresLeader: true }
+        { href: 'bot-status.html',   icon: 'fa-paper-plane', label: '텔레그램 봇' },
+        { href: 'audit-report.html', icon: 'fa-shield-alt',  label: '운영 점검' },
+        { href: 'settings.html',     icon: 'fa-sliders-h',   label: '룰 설정', requiresLeader: true }
       ]
     }
   ];
@@ -173,6 +206,50 @@ const Portal = (() => {
       hamburger.onclick = Portal.toggleSidebar;
       pageHeader.insertBefore(hamburger, pageHeader.firstChild);
     }
+
+    // 자동 점검 알림 배지 — 비동기로 가져와서 사용자 카드 아래에 삽입
+    refreshAuditBadge();
+  }
+
+  /**
+   * 최신 audit_reports를 fetch하여 사이드바 사용자 영역 아래에 알림 배지를 그린다.
+   * - 'issues' 상태: 빨간 배지
+   * - 'clean' 상태: 초록 배지 (옅게)
+   * - 데이터 없음/실패: 표시 안 함
+   */
+  async function refreshAuditBadge() {
+    try {
+      const r = await fetch('/tables/audit_reports?limit=1');
+      if (!r.ok) return;
+      const data = await r.json();
+      const reports = data.rows || data.data || [];
+      if (!reports.length) return;
+      // 가장 최근 run_at으로 정렬
+      reports.sort((a, b) => (b.run_at || 0) - (a.run_at || 0));
+      const latest = reports[0];
+      const issuesCount = latest.summary?.total_issues || 0;
+      const isHigh = (latest.summary?.by_severity?.high || 0) > 0;
+      const status = latest.status || 'unknown';
+      const isClean = status === 'clean' || issuesCount === 0;
+      const runAt = latest.run_at ? new Date(latest.run_at) : null;
+      const timeLabel = runAt
+        ? `${runAt.getMonth() + 1}/${runAt.getDate()} ${String(runAt.getHours()).padStart(2,'0')}:${String(runAt.getMinutes()).padStart(2,'0')}`
+        : '?';
+      const badgeHtml = `
+        <a href="audit-report.html" class="audit-badge ${isClean ? 'clean' : (isHigh ? 'danger' : 'warn')}" onclick="Portal.closeSidebar()">
+          <i class="fas ${isClean ? 'fa-shield-alt' : 'fa-exclamation-triangle'}"></i>
+          <span class="audit-badge-text">
+            ${isClean ? '점검 정상' : `점검 이상 ${issuesCount}건`}
+          </span>
+          <span class="audit-badge-time">${timeLabel}</span>
+        </a>`;
+      const userBox = document.querySelector('.sidebar-user');
+      if (userBox) {
+        const existing = document.querySelector('.audit-badge');
+        if (existing) existing.remove();
+        userBox.insertAdjacentHTML('afterend', badgeHtml);
+      }
+    } catch (_) { /* 실패 시 배지 표시 안 함 — 사이드바 동작에 영향 없게 */ }
   }
 
   function toggleSidebar() {
@@ -278,6 +355,64 @@ const Portal = (() => {
     };
   }
 
+  // ── 성과 점수 파생 재계산 (DATA_SYNC_RULES §3 버그 G) ──────
+  // score_* 만 갱신하는 push*ToPerf 류가 basic/final/grade 도 함께 갱신하지 않으면
+  // 옛 파생 점수가 영구 잔존하므로, 공유 헬퍼로 한 곳에서 재계산.
+  let _kpiWeightCache = null;
+  async function _loadKpiWeights(year) {
+    if (_kpiWeightCache && _kpiWeightCache._year === String(year)) return _kpiWeightCache.weights;
+    const fallback = { directive:5, csm:10, deadline:20, meeting:15, kpi1:20, kpi2:20, kpi3:10 };
+    try {
+      const res  = await fetch('/tables/kpi_definitions?limit=100');
+      const data = await res.json();
+      const w = { ...fallback };
+      (data.rows || data.data || []).forEach(d => {
+        if (d.is_active === false) return;
+        if (year != null && String(d.year) !== String(year)) return;
+        if (d.code && d.weight_pct != null) w[d.code] = d.weight_pct;
+      });
+      _kpiWeightCache = { _year: String(year), weights: w };
+      return w;
+    } catch (_) {
+      return fallback;
+    }
+  }
+  function _gradeFromFinal(s) {
+    if (s == null) return 'D';
+    if (s >= 100) return 'S';
+    if (s >= 90)  return 'A';
+    if (s >= 80)  return 'B';
+    if (s >= 70)  return 'C';
+    return 'D';
+  }
+  /**
+   * record 의 score_* 와 bonus_* 로부터 basic_score / final_score / grade 재계산.
+   * 점수가 모두 비어있으면 셋 다 null 로 명시 (잔존 방지).
+   * @param {object} record - performance_records 행 (또는 merge된 본문)
+   * @returns {Promise<{basic_score:number|null, final_score:number|null, grade:string|null}>}
+   */
+  async function recalcPerfBasicFinal(record) {
+    const codes = ['directive','csm','deadline','meeting','kpi1','kpi2','kpi3'];
+    const present = codes.filter(c => {
+      const v = record['score_' + c];
+      return v != null && v !== '';
+    });
+    if (!present.length) {
+      return { basic_score: null, final_score: null, grade: null };
+    }
+    const w = await _loadKpiWeights(record.year);
+    const weighted = present.reduce((sum, c) => {
+      return sum + Number(record['score_' + c]) * ((w[c] || 0) / 100);
+    }, 0);
+    const basic = Math.round(weighted * 10) / 10;
+    let rate = record.bonus_rate;
+    if (rate == null || rate === '') {
+      rate = (record.bonus_project ? 0.1 : 0) + (record.bonus_promotion ? 0.1 : 0);
+    }
+    const final_score = Math.round(basic * (1 + Number(rate)) * 10) / 10;
+    return { basic_score: basic, final_score, grade: _gradeFromFinal(final_score) };
+  }
+
   // ── 초기화 ────────────────────────────────────────────────
 
   function init() {
@@ -287,5 +422,5 @@ const Portal = (() => {
     return true;
   }
 
-  return { init, buildSidebar, toggleSidebar, closeSidebar, showToast, formatDate, formatDateTime, todayStr, currentYearMonth, confirm };
+  return { init, buildSidebar, toggleSidebar, closeSidebar, showToast, formatDate, formatDateTime, todayStr, currentYearMonth, confirm, recalcPerfBasicFinal };
 })();

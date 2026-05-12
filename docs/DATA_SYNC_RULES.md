@@ -136,6 +136,179 @@
 - 마이그레이션이 생성한 데이터는 **사용자가 만든 데이터와 동등하게 취급**되어야 함
 - "마이그레이션 라벨(is_estimated 같은)"은 표시용일 뿐, 동기화 책임은 똑같이 짊어진다
 
+### 버그 패턴 F: push*ToPerf 의 null 가드로 옛 점수 잔존 ★★
+**증상** (2026-05-11): 성과관리표·개인평가카드에 옛 점수 잔존
+- 이상현 5월 score_deadline=12, 한인석 45, 오정택 4, 강세진 4, 이동민 90, 김채린 70 등 6명
+- 마혜원 5월 score_directive/csm/meeting=100 일률 잔존
+- 분기 record(`pr_2026q2_XX`) 13건도 score_deadline=80, score_csm=50 잔존
+- 사용자가 결산 체크 해제·work_task 정리 후에도 옛 점수 그대로
+
+**원인** (`settlement.html` `pushDeadlineToPerf`):
+```js
+if (Object.keys(chkDeadlineDaysMap).length > 0) pushDeadlineToPerf();  // ← 비면 호출 안 함
+async function pushDeadlineToPerf() {
+  const score = calcDeadlineAvgScore();
+  if (score == null) return;  // ← 또 막힘. 옛 점수 영구 잔존
+  ...
+}
+```
+- raw 데이터가 비어 score가 null이 되어도 **명시적으로 null PATCH 안 함**
+- 호출 조건도 "맵에 키가 있을 때만" — 모든 키 정리하면 호출 자체가 스킵
+
+**해결**:
+- 호출 조건 제거: `pushDeadlineToPerf()` 항상 호출
+- 함수 내 가드 제거: `score == null` 인 경우에도 명시적으로 `score_deadline: null` 로 PATCH
+- 기존 PUT(전체 record 덮어쓰기) → PATCH(해당 필드만)로 변경. 다른 필드(정성 KPI 등) 보존.
+- 기존 record가 없고 score도 null이면 빈 record 생성은 안 함 (의미 없음)
+
+**일반 원칙 (push*ToPerf 패턴 전체)**:
+- raw 데이터 → score 변환 결과가 null이어도 **명시적 null PATCH** 필수
+- "raw가 비었으면 호출 스킵" 패턴 금지 → 옛 점수 영구 잔존의 원인
+- 동일 패턴이 `pushQuantToPerf` (work-personal.html line 531), `pushKpiToPerf` (work-personal.html line 640) 에도 잠재할 수 있으니 신규 점수 동기화 함수 작성 시 같은 원칙 적용
+
+### 버그 F 보완 — work-personal 정량 raw 자동 동기화 (2026-05-11 추가)
+**증상**: 마혜원 5월 work_task의 raw_directive=None인데 performance_records.raw_directive=1
+("반영" 누른 후 사용자가 work-personal에서 raw 값을 다시 비웠지만 performance_records 미갱신)
+- raw_directive=1 / raw_csm_amount=1900 / raw_meeting_count=1 잔존
+- score_directive/csm/meeting = 100/100/100 (옛 값) 잔존
+- basic_score=30, final_score=36, grade=D 도 옛 값 잔존
+
+**원인**: `work-personal.saveQuantitative()` 가 **work_tasks 만 PUT/POST 하고 performance_records 동기화 안 함**.
+`pushQuantToPerf()` 는 "반영" 버튼 클릭 시에만 호출되므로 raw를 다시 비우고 저장만 하면 performance_records는 옛 값 그대로.
+
+**해결** (work-personal.html):
+```js
+async function saveQuantitative() {
+  // ... work_tasks 저장 ...
+  await syncQuantRawToPerf();   // ← 자동 동기화 추가
+  // ...
+}
+
+async function syncQuantRawToPerf() {
+  // raw_* + score_directive/csm/meeting 자동 PATCH (raw가 null이면 score도 null)
+  // 가드 없음: 사용자 클릭 없이 자동 실행
+  // record 없으면 생성 안 함 ("반영" 시점에 pushQuantToPerf가 처리)
+}
+```
+- `pushQuantToPerf` ("반영" 버튼) 는 그대로. basic_score/final_score/grade 등 종합 점수까지 산출하는 책임.
+- `syncQuantRawToPerf` (자동) 는 raw + 정량 score 3개만 동기화. 가벼운 일관성 유지 책임.
+- score_deadline은 settlement의 책임이므로 syncQuantRawToPerf에서 건드리지 않음.
+
+**일반 원칙 (저장 함수의 동기화 책임)**:
+- 어떤 입력 화면의 "저장" 액션이 SoT(work_tasks)를 갱신하면, **그 변경이 영향 주는 모든 파생 테이블도 같은 트랜잭션에 동기화** 해야 함.
+- "반영" 같은 별도 액션을 추가로 누르게 하는 UX는 사용자 실수로 잔존 발생 → 자동화 필수.
+
+### 버그 패턴 G: push*ToPerf 류가 score만 PATCH 하고 basic_score/final_score 재계산 누락 (2026-05-12)
+**증상**: 한인석 5월 score_kpi1=80 (KPI1 weight 20% → basic 기댓값 16) 인데
+performance_records.basic_score=34, final_score=37.4 잔존. 다른 점수(directive/csm/deadline/meeting)는
+모두 null. KPI score만 갱신된 시점의 옛 basic/final 가 그대로 남음.
+- 동일 시점 이성원 5월: score_deadline=0 입력했지만 basic_score=null 인 상태(0으로 재계산 안 됨).
+
+**원인**: `pushKpiToPerf` (work-personal.html L675), `syncQuantRawToPerf` (work-personal.html),
+`pushDeadlineToPerf` (settlement.html) 모두 score_* 필드만 PATCH/PUT 하고
+**basic_score / final_score / grade** 는 재계산하지 않음.
+- 사용자가 performance.html 모달을 열고 수동 저장해야만 autoCalcScores 가 돌면서 일치.
+- 그 사이엔 모니터링 화면(개인평가카드, 분기 집계 등)에서 옛 점수가 표시됨.
+
+**해결**:
+- 공유 가중합 헬퍼(예: `recalcBasicFinal(record)`) 한 곳에 두고 모든 push*ToPerf 끝부분에서 호출.
+  - basic_score = Σ(score_code × weight_pct/100)  (현재 record 의 score_* 만 합산)
+  - final_score = basic_score × (1 + bonus_rate)
+  - grade = gradeFromScore(final_score)
+- 점수가 모두 null 이면 basic/final/grade 도 null 로 명시적 세팅 (잔존 방지)
+- 가중치는 `kpi_definitions` API 에서 동적 로드 (하드코딩 금지 — 규칙 11 SSOT)
+
+**검증 스크립트**: `tmp/_check_04_perf_orphans.py` 의 F/G 케이스 (basic 가중합 불일치 / final≠basic×(1+rate))
+
+**일반 원칙**:
+- 파생 점수(basic/final/grade)는 원천 점수(score_*)에서 항상 도출 가능해야 함.
+- 원천 점수를 PATCH 하면서 파생 점수를 PATCH 하지 않으면, 다른 화면에서 옛 파생 점수가 무한히 살아남는다.
+- 새 점수 입력 경로 추가 시 반드시 "원천 → 파생" 전체 재계산을 트랜잭션에 포함시킬 것.
+
+### 버그 패턴 H: 멀티데이 time_entries 가 사용자 입력 시간을 무시하고 강제 변환 (2026-05-12)
+**증상**: 이성원 `5/11 08:00 ~ 5/12 17:00` 입력했는데 팀모니터링/daily_work_entries에서
+- 5/11: **08:00~18:00** (10시간) ← 첫날 끝이 강제로 18:00
+- 5/12: **09:00~17:00** (8시간)  ← 마지막날 시작이 강제로 09:00
+로 비대칭 변환되어 표시. 사용자 입력 시간과 일치하지 않음.
+
+**원인** (`server/lib/timeentry.js` 옛 `buildEntriesFromRange`):
+```js
+// 첫날: startTime ~ '18:00' (강제 18:00)
+// 중간일: '09:00' ~ '18:00'
+// 마지막날: '09:00' ~ endTime (강제 09:00)
+```
+"연속된 한 블록(start 시각부터 end 시각까지 쭉)" 모델로 해석한 옛 정책.
+하지만 실제 사용자 의도는 **"매일 같은 시간(start~end)에 일하는 일정"** 인 경우가 훨씬 일반적.
+
+**해결**:
+- 멀티데이도 **각 일자에 사용자 입력 startTime~endTime 동일 적용**.
+- 점심(12:00~13:00) 자동 차감은 유지 (8h 표준 정책, 패턴 H 별개).
+- 첫날/마지막날 시간 강제 변환 금지 — **사용자가 입력한 값을 그대로 신뢰**.
+
+```js
+// 새 정책 (개정 후)
+while (cur <= end) {
+  out.push({ date: toIso(cur), start: startTime, end: endTime,
+             minutes: netMinutesInRange(sM, eM) });
+  cur.setDate(cur.getDate() + 1);
+}
+```
+
+**일반 원칙 (시간/날짜 입력 처리)**:
+- **사용자 입력 시간/날짜는 변형하지 않는다.** 시작·종료시간을 임의로 09:00/18:00 같은 기본값으로 대체 금지.
+- 자동 보정이 필요한 항목은 **분(minutes)** 같은 파생값만. 그것도 명확한 정책(점심 차감 등) 하에서만.
+- 멀티데이 분산 시 "한 블록 연속" vs "매일 동일 시간" 두 모델 중 **사용자 직관에 가까운 후자**를 택한다.
+
+### 시간 정합성 정책 요약 (2026-05-12 합의)
+
+| 항목 | 정책 |
+|------|------|
+| 표준 근무시간 | 09:00~18:00 (점심 12:00~13:00 1h 제외 = 8h/day) |
+| 점심 차감 | **`netMinutesInRange()`** 가 자동 처리. 클라이언트가 보낸 minutes 신뢰 X — 항상 서버 재계산 |
+| 멀티데이 분산 | 각 일자에 동일 `start_time~end_time` 적용. 첫/마지막날 강제 변환 금지 |
+| start_time / end_time | 직원이 입력한 값 그대로 저장. 시스템이 09:00/18:00 등으로 덮어쓰지 않음 |
+| total_minutes / duration_minutes | `summarize(time_entries)` 결과 (점심 차감 반영된 합) |
+
+### 버그 패턴 J: 업무유형별 분포(by-type) 가 task_label 까지 분산 (2026-05-12)
+**증상**: 팀 업무량 모니터링 도넛 차트 "업무유형별 분포" 가 19개 이상의 개별 업무명으로
+잘게 쪼개져 표시. 사용자 의도는 대구분(프로젝트/데이터 분석/외부감사 등) 단위.
+
+**원인** (`server/lib/workload.js` 옛 `computeByType`):
+- `task_category_id` 가 `null` 인 manual 행에서 fallback이 `e.task_label` (업무명) 로 떨어짐
+- work-personal 입력은 카테고리(`t.cat`) 를 화면에서만 보유, daily_work_entries 에는 안 저장
+- → 카테고리 정보 손실 → 도넛이 업무명 단위로 분산
+
+**해결**:
+- `work-personal.html` daily_work_entries POST 에 **`task_category: t.cat`** (대구분 라벨) 추가
+- `computeByType` 우선순위: `task_category_id`(FK) > `task_category`(라벨) > `source=settlement* → '결산 업무'` > `'기타'`
+- 개별 `task_label` 은 도넛에서 절대 사용하지 않음 (legend·tooltip은 가능, 그룹키 X)
+- 기존 데이터: `tmp/_check_09_backfill_category.py` 로 work_tasks.other_tasks 와 매칭해 백필
+
+**일반 원칙 (집계 단위 보존)**:
+- 입력화면이 가진 분류 정보(카테고리/태그/대구분)는 **저장 시점에 daily_work_entries 까지 함께 전달** 필수
+- 집계/도넛/막대 같은 차트는 **항상 대구분 단위만** 사용. 개별 업무명 단위 그룹화 금지
+- 새 입력 화면 추가 시 daily_work_entries POST 본문에 분류 라벨 빠지지 않았는지 점검
+
+### 버그 패턴 I: 로컬 메모리 상태와 서버 캐시 분리 후 한쪽만 갱신 → 화면 불일치 (2026-05-12)
+**증상**: 결산캘린더에서 본인 체크박스를 켜거나 끄거나 "초기화"를 눌러도
+달력 셀의 마감 칩 색상(✓ / 셀 초록 배경)이 즉시 변하지 않음. 화면 새로고침 후에야 반영.
+
+**원인** (`settlement.html` `buildChklChipMap` + `isSettleTaskCompleted`):
+- 캘린더에 **모든 멤버의 완료 항목**을 표시하기 위해 `allMembersWorkTasks` (서버 work_tasks 캐시) 를 사용
+- 그런데 토글/초기화 등 본인 액션은 로컬 변수(`chkDone`, `chkDates`)만 갱신
+- 캘린더 빌드 함수는 `allMembersWorkTasks` (서버 상태) 만 읽음 → 본인의 로컬 변경이 화면에 안 보임
+
+**해결**:
+- `buildChklChipMap` / `isSettleTaskCompleted` 가 본인(`chkMember`)에 대해서는 **로컬 `chkDone`/`chkDates`를 사용**, 그 외 멤버는 서버 캐시 사용
+- 본인 record 가 서버에 없는 경우(신규)도 로컬 상태만으로 렌더
+- `toggleChkTask(true)` 도 항상 `buildChklChipMap + renderCalendar + showDayPanel` 호출 (체크 즉시 마감 칩 ✓ 표시)
+- `resetChecklist` / `cancelChecklist` 는 이미 호출하므로 그대로
+
+**일반 원칙 (로컬-캐시 혼합 시)**:
+- **본인 상태(편집 중)는 로컬이 SoT, 타인 상태는 서버 캐시가 SoT** — 한 함수에서 두 소스를 처리할 때 반드시 출처를 구분
+- 로컬 변경을 발생시키는 모든 액션(토글/취소/초기화/저장)이 **화면 재빌드 함수를 호출**하도록 점검
+- 단지 "저장 시 서버 fetch + 재렌더" 만 해두면 안 됨 — 저장 전 상태 변화도 화면에 즉시 반영되어야 사용자 신뢰
+
 ---
 
 ## 4. 신규 기능 추가/수정 체크리스트
@@ -146,6 +319,8 @@
   - YES → 저장 함수에 "전체 교체" 패턴 적용 (관련 기존 행 삭제 → 새로 POST)
 - [ ] **메모리 상태(배열/Set)에서만 삭제/취소하는 액션이 있는가?**
   - YES → 다음 "저장" 시점에 DB도 동기화되는지 확인 (sanitize 또는 replace)
+  - 또한 해당 액션 직후 **화면 재빌드(buildXxx + renderXxx)** 가 호출되는지 점검 (버그 패턴 I 참조)
+- [ ] **로컬 상태 / 서버 캐시 혼합 화면**(예: 본인 편집 + 타인 조회) 의 렌더 함수가 본인은 로컬 / 타인은 캐시를 사용하는가? (버그 패턴 I 참조)
 - [ ] **`source` 필드 일관성**: settlement / manual / settlement_auto / 외 새 source 만들 때 동기화·삭제·필터 함수 **모두** 그 source 포함하도록 확장 (버그 패턴 E 참조)
 - [ ] **`workload_daily_cache`** 는 절대 클라이언트에서 직접 쓰지 말 것. 서버 훅이 처리.
 - [ ] **잔존 키/행 일관성 검사 스크립트** 한 번 돌려보기 (§5 참조)

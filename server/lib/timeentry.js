@@ -21,8 +21,8 @@ const HOURS_PER_DAY = 8;
 const DAY_MINUTES = HOURS_PER_DAY * 60;       // 480
 const MORNING_MIN = 180;                       // 09~12 = 180분
 const AFTERNOON_MIN = 300;                     // 13~18 = 300분
-const MORNING_END_M = 12 * 60;                 // 720
-const AFTERNOON_START_M = 13 * 60;             // 780
+const MORNING_END_M = 12 * 60;                 // 720 (점심 시작)
+const AFTERNOON_START_M = 13 * 60;             // 780 (점심 종료)
 const AFTERNOON_END_M = 18 * 60;               // 1080
 const MORNING_START_M = 9 * 60;                // 540
 
@@ -30,6 +30,23 @@ const MORNING_START_M = 9 * 60;                // 540
 function timeToMin(hhmm) {
   const [h, m] = String(hhmm).split(':').map(Number);
   return h * 60 + m;
+}
+
+/**
+ * [startMin, endMin) 구간과 점심(12:00~13:00) 의 겹침 분 반환.
+ * 09:00~18:00 근무 기준, 점심 1h는 업무시간에서 제외.
+ */
+function lunchOverlap(startMin, endMin) {
+  if (endMin <= startMin) return 0;
+  return Math.max(0, Math.min(endMin, AFTERNOON_START_M) - Math.max(startMin, MORNING_END_M));
+}
+
+/**
+ * [startMin, endMin) 의 순수 업무시간(분). 점심 자동 차감.
+ */
+function netMinutesInRange(startMin, endMin) {
+  if (endMin <= startMin) return 0;
+  return (endMin - startMin) - lunchOverlap(startMin, endMin);
 }
 function minToTime(min) {
   const h = Math.floor(min / 60);
@@ -113,7 +130,6 @@ function spreadMinutesAcrossBusinessDays(totalMin, endDateStr, bizMap, opts) {
  * 사용자가 직접 from/to를 명시한 경우 균등 분산
  * (개인 업무 입력에서 시작일/종료일 + 시작시간~종료시간 직접 지정)
  *
- * @param {number} totalMin (필수 30분 정렬)
  * @param {string} startDate 'YYYY-MM-DD'
  * @param {string} endDate 'YYYY-MM-DD'
  * @param {string} startTime 'HH:MM'
@@ -121,8 +137,9 @@ function spreadMinutesAcrossBusinessDays(totalMin, endDateStr, bizMap, opts) {
  * @returns time_entries (단일 일자: 1개, 여러 일자: N개)
  *
  * 정책:
- *  - 단일일자(start==end): { date, start, end, minutes=end-start }
- *  - 여러일자: 첫날 = startTime~18:00, 중간일 = 09~18(점심 제외 480분), 마지막일 = 09:00~endTime
+ *  - 단일일자(start==end): { date, start, end, minutes=end-start-lunch }
+ *  - 여러일자: 각 일자에 동일한 startTime~endTime 적용 (사용자 입력 시간을 모든 날에 동일 적용).
+ *    점심(12:00~13:00)은 자동 차감.
  */
 function buildEntriesFromRange(startDate, endDate, startTime, endTime) {
   if (!startDate || !endDate || !startTime || !endTime) {
@@ -132,37 +149,23 @@ function buildEntriesFromRange(startDate, endDate, startTime, endTime) {
     throw new Error('30분 단위만 허용 (예: 09:00, 09:30)');
   }
   const sM = timeToMin(startTime), eM = timeToMin(endTime);
+  if (sM >= eM) throw new Error('시작시간 ≥ 종료시간');
   if (startDate > endDate) throw new Error('시작일이 종료일보다 늦음');
+  const dailyMin = netMinutesInRange(sM, eM);
   if (startDate === endDate) {
-    if (sM >= eM) throw new Error('단일일자에서 시작 ≥ 종료');
-    return [{
-      date: startDate, start: startTime, end: endTime,
-      minutes: eM - sM,
-    }];
+    return [{ date: startDate, start: startTime, end: endTime, minutes: dailyMin }];
   }
-  // 여러 일자
+  // 여러 일자: 각 날짜에 startTime~endTime 동일 적용
   const out = [];
-  // 첫날: startTime ~ 18:00 (또는 endTime이 더 늦으면? 보통 18:00)
-  out.push({
-    date: startDate, start: startTime, end: '18:00',
-    minutes: AFTERNOON_END_M - sM,
-  });
-  // 중간일: 09:00~18:00 - 점심 1시간 = 480분
   const cur = new Date(startDate + 'T00:00:00');
-  cur.setDate(cur.getDate() + 1);
   const end = new Date(endDate + 'T00:00:00');
-  while (cur < end) {
+  while (cur <= end) {
     out.push({
-      date: toIso(cur), start: '09:00', end: '18:00',
-      minutes: DAY_MINUTES,
+      date: toIso(cur), start: startTime, end: endTime,
+      minutes: dailyMin,
     });
     cur.setDate(cur.getDate() + 1);
   }
-  // 마지막날: 09:00 ~ endTime
-  out.push({
-    date: endDate, start: '09:00', end: endTime,
-    minutes: eM - MORNING_START_M,
-  });
   return out;
 }
 
@@ -264,4 +267,6 @@ module.exports = {
   timeToMin,
   minToTime,
   isHalfHour,
+  lunchOverlap,
+  netMinutesInRange,
 };

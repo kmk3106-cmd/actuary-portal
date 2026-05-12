@@ -8,6 +8,7 @@ const { execFile } = require('child_process');
 const bizday = require('./lib/bizday');
 const workload = require('./lib/workload');
 const timeentry = require('./lib/timeentry');
+const { runAudit } = require('./audit');
 
 // .env 로드 (dotenv 없이 직접 파싱)
 function loadEnv() {
@@ -534,6 +535,7 @@ const AUDIT_SKIP_TABLES = new Set([
   'audit_logs', 'sessions',
   'workload_daily_cache', 'business_days_monthly', 'kb_document_versions',
   'automation_logs', 'report_history',
+  'audit_reports',  // 자동 점검 결과는 시스템 테이블 — 일반 audit_logs에 기록 안 함
 ]);
 function appendAuditLog(db, table, action, route, before, after, reqHeaders) {
   if (AUDIT_SKIP_TABLES.has(table)) return;
@@ -577,12 +579,14 @@ function normalizeTimeEntries(db, body) {
   const bizMap = bizday.indexBusinessDays(db.business_days);
   let entries = null;
   if (Array.isArray(body.time_entries) && body.time_entries.length > 0) {
+    // minutes는 항상 점심 차감하여 재계산 (클라이언트가 보낸 값 신뢰 X — 표준 8h 정책)
     entries = body.time_entries.map(e => ({
       date: e.date,
       start: e.start,
       end: e.end,
-      minutes: Number(e.minutes) ||
-        (timeentry.timeToMin(e.end) - timeentry.timeToMin(e.start)),
+      minutes: timeentry.netMinutesInRange(
+        timeentry.timeToMin(e.start), timeentry.timeToMin(e.end)
+      ),
     }));
   } else if (body.start_date && body.end_date && body.start_time && body.end_time) {
     entries = timeentry.buildEntriesFromRange(
@@ -1114,6 +1118,30 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // ── 자동 무결성 점검 API ──
+  if (urlPath.startsWith('/api/audit/')) {
+    const u = new URL(urlPath, 'http://internal');
+    const subpath = u.pathname.slice('/api/audit/'.length);
+    const send = (status, body) => {
+      res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(body));
+    };
+    if (subpath === 'run' && req.method === 'POST') {
+      try {
+        runAuditAndSave('manual');
+        const db = readDb();
+        const reports = db.audit_reports || [];
+        const latest = reports[reports.length - 1] || null;
+        send(200, { ok: true, latest });
+      } catch (e) {
+        send(500, { error: 'audit failed', message: e.message });
+      }
+      return;
+    }
+    send(404, { error: 'unknown audit endpoint' });
+    return;
+  }
+
   // ── Phase 4: KB 전용 API ──
   if (urlPath.startsWith('/api/kb/')) {
     const u = new URL(urlPath, 'http://internal');
@@ -1397,4 +1425,68 @@ server.listen(PORT, HOST, () => {
   console.log(`  로컬:  http://127.0.0.1:${PORT}/login.html`);
   console.log(`  팀원:  http://${lanIp}:${PORT}/login.html`);
   console.log(`  DB:    ${DATA_PATH}\n`);
+
+  // ── 자동 무결성 점검 (매일 새벽 4시) ──
+  scheduleNextAudit();
+  // 서버 시작 직후 sanity 검사 — 마지막 audit이 24시간 이상 전이면 즉시 1회
+  setTimeout(maybeRunStartupAudit, 5000);
 });
+
+/**
+ * 다음 새벽 4시에 runAuditAndSave 실행하도록 setTimeout 등록.
+ * 실행 후 자기 자신을 다시 호출하여 매일 반복.
+ */
+function scheduleNextAudit() {
+  const now = new Date();
+  const next4am = new Date(now);
+  next4am.setHours(4, 0, 0, 0);
+  if (next4am <= now) next4am.setDate(next4am.getDate() + 1);
+  const ms = next4am - now;
+  setTimeout(() => {
+    runAuditAndSave('scheduled');
+    scheduleNextAudit();
+  }, ms);
+  console.log(`  Audit: 다음 자동 점검 → ${next4am.toLocaleString('ko-KR')}`);
+}
+
+/**
+ * 서버 시작 시 마지막 audit이 24시간 이상 전이면 즉시 1회 실행.
+ */
+function maybeRunStartupAudit() {
+  try {
+    const db = readDb();
+    const reports = db.audit_reports || [];
+    const latest = reports.length ? reports[reports.length - 1] : null;
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    if (!latest || (latest.run_at || 0) < oneDayAgo) {
+      runAuditAndSave('startup');
+    }
+  } catch (e) {
+    console.error('Startup audit 실패:', e.message);
+  }
+}
+
+/**
+ * 무결성 점검 실행 + audit_reports 에 저장 + 콘솔 요약 출력.
+ * @param {string} trigger - 'scheduled' | 'startup' | 'manual'
+ */
+function runAuditAndSave(trigger) {
+  try {
+    const db = readDb();
+    const report = runAudit(db);
+    report.trigger = trigger;
+    if (!Array.isArray(db.audit_reports)) db.audit_reports = [];
+    db.audit_reports.push(report);
+    // 최근 30건만 유지 (오래된 것은 정리)
+    if (db.audit_reports.length > 30) {
+      db.audit_reports = db.audit_reports.slice(-30);
+    }
+    writeDb(db);
+    console.log(`[Audit:${trigger}] ${report.status} — ${report.summary.total_issues}건 (high:${report.summary.by_severity.high} medium:${report.summary.by_severity.medium}) / ${report.duration_ms}ms`);
+  } catch (e) {
+    console.error(`[Audit:${trigger}] 실행 실패:`, e.message);
+  }
+}
+
+// 외부에서 수동 트리거 가능하게 export (테스트/디버그용)
+module.exports = { runAuditAndSave };
