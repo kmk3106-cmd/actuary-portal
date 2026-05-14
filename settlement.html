@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=28">
+  <link rel="stylesheet" href="css/main.css?v=29">
   <style>
     /* Layout */
     .cal-wrapper { display:grid; grid-template-columns:1fr 300px; gap:24px; align-items:start; }
@@ -153,9 +153,53 @@
     .chk-group { border-top:1px solid #f3f4f6; }
     .chk-group-header { padding:10px 24px; background:#f8faff; font-size:12px; font-weight:700;
       color:#6b7280; display:flex; align-items:center; gap:8px; }
-    /* 체크리스트 행: 체크박스 | 업무명 | 상태 | 시작일 | 완료일 | 시작시간 | 종료시간 | 기한별점 */
-    .chk-task-row { display:grid; grid-template-columns:auto 1fr 55px 110px 110px 80px 80px 48px;
-      gap:6px; align-items:center; padding:10px 24px; border-bottom:1px solid #f3f4f6; }
+    /* 체크리스트 행: 체크박스 | 업무명 | 상태 | 날짜그룹 | 시간그룹 | 기한별점
+       chk-task-row-top 은 display:contents 로 3개 자식을 그리드에 직접 노출 */
+    .chk-task-row { display:grid; grid-template-columns:auto 1fr 55px 230px 165px 48px;
+      gap:6px; align-items:start; padding:10px 24px; border-bottom:1px solid #f3f4f6; }
+    .chk-task-row-top { display: contents; } /* 데스크탑: 투명 래퍼 — 자식이 그리드 셀 차지 */
+    /* 데스크탑: 날짜·시간 그룹 내부 레이아웃 */
+    .chk-task-row .dt-pair-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f9fafb;
+    }
+    .chk-task-row .dt-date-group { border-left: 3px solid #4f86f7; }
+    .chk-task-row .dt-time-group { border-left: 3px solid #10b981; }
+    .chk-task-row .dt-group-title {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 10px; font-weight: 700; padding: 3px 8px 2px;
+    }
+    .chk-task-row .dt-date-group .dt-group-title { background: #eff6ff; color: #2563eb; }
+    .chk-task-row .dt-time-group .dt-group-title { background: #f0fdf4; color: #059669; }
+    .chk-task-row .dt-slot {
+      display: flex; align-items: center; gap: 6px;
+      padding: 3px 6px;
+      border-top: 1px solid #f3f4f6;
+    }
+    .chk-task-row .dt-slot:first-of-type { border-top: none; }
+    .chk-task-row .dt-slot-label {
+      display: inline-block;
+      font-size: 10px; font-weight: 700;
+      min-width: 24px; text-align: center;
+      padding: 1px 4px; border-radius: 3px; flex-shrink: 0;
+    }
+    .chk-task-row .dt-date-group .dt-slot-label { background:#dbeafe; color:#1d4ed8; }
+    .chk-task-row .dt-time-group .dt-slot-label { background:#d1fae5; color:#065f46; }
+    .chk-task-row .dt-slot input,
+    .chk-task-row .dt-slot select {
+      flex: 1; min-width: 0;
+      padding: 4px 6px; font-size: 12px;
+      border: 1.5px solid #e5e7eb; border-radius: 6px;
+      background: #fff; color: #111827; font-family: inherit;
+      box-sizing: border-box; width: 100%;
+    }
+    .chk-task-row .dt-slot input:focus,
+    .chk-task-row .dt-slot select:focus { outline: none; border-color: #4f86f7; }
     .chk-deadline-sel { padding:4px 4px; border:1.5px solid #e5e7eb; border-radius:7px; font-size:11px;
       font-family:inherit; width:100%; box-sizing:border-box; background:#fff; cursor:pointer; }
     .chk-deadline-sel:focus { outline:none; border-color:#4f86f7; }
@@ -198,29 +242,24 @@
       .stat-mini-label { font-size:10px; }
       /* 체크리스트 헤더행 숨김 */
       .chk-header-row { display:none !important; }
-      /* 체크리스트 행 → 3줄 카드 레이아웃 (시간대 추가) */
+      /* 체크리스트 행 → 모바일 플렉스 카드 (dt-pair-group 래퍼 기반) */
       .chk-task-row {
-        grid-template-columns: 22px 1fr auto;
-        grid-template-rows: auto auto auto;
-        gap: 4px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
         padding: 10px 12px;
       }
-      .chk-checkbox    { grid-area:1/1/2/2; align-self:center; }
-      .chk-label       { grid-area:1/2/2/3; font-size:12px; line-height:1.4; }
-      .chk-st          { grid-area:1/3/2/4; align-self:center; }
-      /* 2행: 시작일 + 완료일 */
-      .chk-date-input  { font-size:11px; padding:4px 6px; }
-      /* 3행: 시작시간 + 종료시간 + 기한별점 */
-      .chk-time-sel    { font-size:10px; padding:3px 1px; width:auto; }
-      .chk-deadline-sel{ font-size:10px; padding:3px 1px; width:auto; }
-      /* row 2: 두 날짜 입력 나란히 */
-      .chk-task-row .chk-date-start { grid-area:2/1/3/2; }
-      .chk-task-row .chk-date-end   { grid-area:2/2/3/3; }
-      .chk-task-row .chk-date-end-deadline { grid-area:2/3/3/4; }
-      /* row 3: 시작시간 + 종료시간 + 기한 */
-      .chk-task-row .chk-time-start-sel { grid-area:3/1/4/2; }
-      .chk-task-row .chk-time-end-sel   { grid-area:3/2/4/3; }
-      .chk-task-row .chk-deadline-col   { grid-area:3/3/4/4; }
+      /* 1행: 체크박스 + 업무명 + 상태 나란히 */
+      .chk-task-row-top {
+        display: flex !important; /* display:contents 를 모바일에서 override */
+        align-items: center; gap: 8px;
+      }
+      .chk-checkbox    { flex-shrink: 0; }
+      .chk-label       { flex: 1; font-size:12px; line-height:1.4; }
+      .chk-st          { flex-shrink: 0; }
+      /* 기한별점 셀 */
+      .chk-deadline-col { width: 100%; }
+      .chk-deadline-sel { font-size:16px !important; padding:8px 10px; min-height:44px; }
       /* 체크리스트 내부 여백 축소 */
       .chk-group-header { padding:8px 12px; font-size:11px; }
       .chk-stats { grid-template-columns:1fr 1fr; gap:8px; padding:12px 12px 8px; }
@@ -1112,14 +1151,12 @@
   function renderChecklist() {
     updateChkStats();
     const container = document.getElementById('chkTaskList');
-    const headerRow = `<div class="chk-header-row" style="display:grid;grid-template-columns:auto 1fr 55px 110px 110px 80px 80px 48px;gap:6px;padding:6px 24px;background:#f8faff;border-top:1px solid #f3f4f6;border-bottom:1px solid #f3f4f6;">
+    const headerRow = `<div class="chk-header-row" style="display:grid;grid-template-columns:auto 1fr 55px 230px 165px 48px;gap:6px;padding:6px 24px;background:#f8faff;border-top:1px solid #f3f4f6;border-bottom:1px solid #f3f4f6;">
       <span></span>
       <span style="font-size:11px;font-weight:700;color:#6b7280;">업무명</span>
       <span style="font-size:11px;font-weight:700;color:#6b7280;text-align:center;">상태</span>
-      <span style="font-size:11px;font-weight:700;color:#6b7280;text-align:center;">시작일</span>
-      <span style="font-size:11px;font-weight:700;color:#6b7280;text-align:center;">완료일</span>
-      <span style="font-size:11px;font-weight:700;color:#6b7280;text-align:center;">시작시간</span>
-      <span style="font-size:11px;font-weight:700;color:#6b7280;text-align:center;">종료시간</span>
+      <span style="font-size:11px;font-weight:700;color:#2563eb;text-align:center;">날짜 (시작 / 종료)</span>
+      <span style="font-size:11px;font-weight:700;color:#059669;text-align:center;">시간 (시작 / 종료)</span>
       <span style="font-size:11px;font-weight:700;color:#6366f1;text-align:center;">단축/지연</span>
     </div>`;
     // 비팀장은 자기 assignee 항목 + 미지정(assignee 없음) 항목만 표시
@@ -1161,21 +1198,41 @@
             const endSel   = halfOpts.map(v => `<option value="${v}"${sSend===v?' selected':''}>${v}</option>`).join('');
             return `
           <div class="chk-task-row">
-            <input type="checkbox" class="chk-checkbox" id="chk_${t.id}"
-              ${chkDone.has(t.id) ? 'checked' : ''}
-              onchange="toggleChkTask('${t.id}',this.checked)">
-            <label for="chk_${t.id}" class="chk-label${chkDone.has(t.id) ? ' done' : ''}">${t.label}</label>
-            <span class="chk-st ${stClass}">${stText}</span>
-            <input type="date" class="chk-date-input chk-date-start" id="chkstartdate_${t.id}"
-              value="${sStartDateVal}"
-              onchange="chkStartDates['${t.id}']=this.value">
-            <input type="date" class="chk-date-input chk-date-end" id="chkdate_${t.id}"
-              value="${sEndDateVal}"
-              onchange="chkDates['${t.id}']=this.value;autoCalcDeadline('${t.id}');renderChecklist();buildChklChipMap();renderCalendar();if(selectedDate)showDayPanel(selectedDate)">
-            <select class="chk-time-sel chk-time-start-sel" title="시작시간"
-              onchange="if(!chkStartTimes)chkStartTimes={};chkStartTimes['${t.id}']=this.value">${startSel}</select>
-            <select class="chk-time-sel chk-time-end-sel" title="종료시간"
-              onchange="if(!chkEndTimes)chkEndTimes={};chkEndTimes['${t.id}']=this.value">${endSel}</select>
+            <div class="chk-task-row-top">
+              <input type="checkbox" class="chk-checkbox" id="chk_${t.id}"
+                ${chkDone.has(t.id) ? 'checked' : ''}
+                onchange="toggleChkTask('${t.id}',this.checked)">
+              <label for="chk_${t.id}" class="chk-label${chkDone.has(t.id) ? ' done' : ''}">${t.label}</label>
+              <span class="chk-st ${stClass}">${stText}</span>
+            </div>
+            <div class="dt-pair-group dt-date-group">
+              <span class="dt-group-title"><i class="fas fa-calendar-alt"></i> 날짜</span>
+              <div class="dt-slot">
+                <span class="dt-slot-label">시작</span>
+                <input type="date" class="chk-date-input chk-date-start" id="chkstartdate_${t.id}"
+                  value="${sStartDateVal}"
+                  onchange="chkStartDates['${t.id}']=this.value">
+              </div>
+              <div class="dt-slot">
+                <span class="dt-slot-label">종료</span>
+                <input type="date" class="chk-date-input chk-date-end" id="chkdate_${t.id}"
+                  value="${sEndDateVal}"
+                  onchange="chkDates['${t.id}']=this.value;autoCalcDeadline('${t.id}');renderChecklist();buildChklChipMap();renderCalendar();if(selectedDate)showDayPanel(selectedDate)">
+              </div>
+            </div>
+            <div class="dt-pair-group dt-time-group">
+              <span class="dt-group-title"><i class="fas fa-clock"></i> 시간</span>
+              <div class="dt-slot">
+                <span class="dt-slot-label">시작</span>
+                <select class="chk-time-sel chk-time-start-sel" title="시작시간"
+                  onchange="if(!chkStartTimes)chkStartTimes={};chkStartTimes['${t.id}']=this.value">${startSel}</select>
+              </div>
+              <div class="dt-slot">
+                <span class="dt-slot-label">종료</span>
+                <select class="chk-time-sel chk-time-end-sel" title="종료시간"
+                  onchange="if(!chkEndTimes)chkEndTimes={};chkEndTimes['${t.id}']=this.value">${endSel}</select>
+              </div>
+            </div>
             ${t.due != null
               ? `<select class="chk-deadline-sel chk-deadline-col${chkDeadlineDaysMap[t.id]!=null?' auto-val':''}" disabled title="완료일 기준 자동계산">
                   <option value="">-</option>

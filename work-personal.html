@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=28">
+  <link rel="stylesheet" href="css/main.css?v=29">
   <style>
     .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
     .yr-sel, .month-sel, .member-sel {
@@ -31,12 +31,12 @@
     .icon-green  { background:#dcfce7; color:#166534; }
     .section-badge { font-size:12px; font-weight:600; padding:3px 10px; border-radius:10px; background:#eff6ff; color:#3b82f6; }
 
-    /* 결산외 업무 행 - 시간대 입력 (7컬럼) */
+    /* 결산외 업무 행 - 시간대 입력 (5컬럼: 카테고리 | 내용 | 날짜그룹 | 시간그룹 | 삭제) */
     .other-task-list { padding:0 24px 16px; }
     .other-task-row {
       display:grid;
-      grid-template-columns:150px 0.7fr 120px 120px 90px 90px 36px;
-      gap:8px; align-items:center; margin-bottom:8px;
+      grid-template-columns:150px 0.7fr 250px 185px 36px;
+      gap:8px; align-items:start; margin-bottom:8px;
     }
     .other-task-row input, .other-task-row select {
       padding:8px 10px; border:1.5px solid #e5e7eb; border-radius:8px;
@@ -44,10 +44,48 @@
       transition:border-color .2s; box-sizing:border-box; width:100%; }
     .other-task-row input:focus, .other-task-row select:focus {
       outline:none; border-color:#4f86f7; }
+    /* 데스크탑: 날짜·시간 그룹 내부 슬롯을 나란히 배치 */
+    .other-task-row .dt-pair-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f9fafb;
+    }
+    .other-task-row .dt-date-group { border-left: 3px solid #4f86f7; }
+    .other-task-row .dt-time-group { border-left: 3px solid #10b981; }
+    .other-task-row .dt-group-title {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 10px; font-weight: 700; padding: 3px 8px 2px;
+      background: #f3f4f6; color: #6b7280;
+    }
+    .other-task-row .dt-date-group .dt-group-title { background: #eff6ff; color: #2563eb; }
+    .other-task-row .dt-time-group .dt-group-title { background: #f0fdf4; color: #059669; }
+    .other-task-row .dt-slot {
+      display: flex; align-items: center; gap: 6px;
+      padding: 3px 6px;
+      border-top: 1px solid #f3f4f6;
+    }
+    .other-task-row .dt-slot:first-of-type { border-top: none; }
+    .other-task-row .dt-slot-label {
+      display: inline-block;
+      font-size: 10px; font-weight: 700;
+      min-width: 24px; text-align: center;
+      padding: 1px 4px; border-radius: 3px; flex-shrink: 0;
+    }
+    .other-task-row .dt-date-group .dt-slot-label { background:#dbeafe; color:#1d4ed8; }
+    .other-task-row .dt-time-group .dt-slot-label { background:#d1fae5; color:#065f46; }
+    .other-task-row .dt-slot input,
+    .other-task-row .dt-slot select {
+      flex: 1; min-width: 0;
+      padding: 5px 8px; font-size: 12px; border-radius: 6px;
+    }
     .col-header {
       padding:12px 24px 4px;
       display:grid;
-      grid-template-columns:150px 0.7fr 120px 120px 90px 90px 36px;
+      grid-template-columns:150px 0.7fr 250px 185px 36px;
       gap:8px;
     }
     .col-header > div { font-size:11px; font-weight:700; color:#9ca3af; text-transform:uppercase; }
@@ -124,30 +162,36 @@
       font-size:13px; font-weight:600; color:#374151; }
 
     @media(max-width:1200px) {
-      .other-task-row { grid-template-columns:130px 0.6fr 110px 110px 84px 84px 32px; }
-      .col-header    { grid-template-columns:130px 0.6fr 110px 110px 84px 84px 32px; }
+      .other-task-row { grid-template-columns:130px 0.6fr 220px 170px 32px; }
+      .col-header    { grid-template-columns:130px 0.6fr 220px 170px 32px; }
     }
     @media(max-width:900px) {
       .score-bar { grid-template-columns:1fr 1fr; }
-      .other-task-row { grid-template-columns:120px 1fr 100px 100px 80px 80px 32px; }
-      .col-header    { grid-template-columns:120px 1fr 100px 100px 80px 80px 32px; }
+      .other-task-row { grid-template-columns:120px 1fr 200px 155px 32px; }
+      .col-header    { grid-template-columns:120px 1fr 200px 155px 32px; }
     }
     @media(max-width:768px) {
-      /* 결산외 업무 행 — 모바일 2열 카드 */
+      /* 결산외 업무 행 — 모바일 플렉스 카드
+         (날짜·시간 그룹 래퍼를 dt-pair-group 으로 감싸므로
+          기존 nth-child 그리드 배치 대신 flex column 사용) */
       .other-task-row {
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: auto auto auto;
+        display: flex;
+        flex-direction: column;
         gap: 6px;
         background:#f8faff; border-radius:10px;
         border:1.5px solid #e5e7eb; padding:10px 12px; margin-bottom:10px;
       }
-      .other-task-row > *:nth-child(1) { grid-column: 1 / 3; }  /* 카테고리 full */
-      .other-task-row > *:nth-child(2) { grid-column: 1 / 3; }  /* 업무내용 full */
-      .other-task-row > *:nth-child(3) { grid-column: 1 / 2; }  /* 시작일 */
-      .other-task-row > *:nth-child(4) { grid-column: 2 / 3; }  /* 종료일 */
-      .other-task-row > *:nth-child(5) { grid-column: 1 / 2; }  /* 시작시간 */
-      .other-task-row > *:nth-child(6) { grid-column: 2 / 3; }  /* 종료시간 */
-      .other-task-row > *:nth-child(7) { grid-column: 2 / 3; justify-self:end; } /* 삭제 */
+      /* 카테고리 / 업무내용 — 전체 폭, 기본 스타일 유지 */
+      .other-task-row > select:first-child,
+      .other-task-row > input[type="text"] {
+        width: 100%; box-sizing: border-box;
+        font-size: 16px !important; /* iOS 줌 방지 */
+        min-height: 44px;
+      }
+      /* 삭제 버튼 — 오른쪽 정렬 */
+      .other-task-row > .btn-del-row {
+        align-self: flex-end;
+      }
       .col-header    { display:none; }
       .quant-grid    { grid-template-columns:1fr; }
       .other-task-list, .btn-add-row { padding-left:12px; padding-right:12px; margin-left:0; margin-right:0; }
@@ -215,10 +259,8 @@
         <div class="col-header">
           <div>구분</div>
           <div>업무 내용</div>
-          <div>시작일</div>
-          <div>종료일</div>
-          <div>시작시간</div>
-          <div>종료시간</div>
+          <div>날짜 (시작 / 종료)</div>
+          <div>시간 (시작 / 종료)</div>
           <div></div>
         </div>
         <div class="other-task-list" id="otherTaskList"></div>
@@ -814,12 +856,30 @@ function renderOtherTasks() {
       <select onchange="otherTasks[${i}].cat=this.value">${catOpts}</select>
       <input type="text" placeholder="업무 내용 입력" value="${esc(t.desc || '')}"
         oninput="otherTasks[${i}].desc=this.value;updateScores()">
-      <input type="date" value="${t.start_date || today}"
-        onchange="otherTasks[${i}].start_date=this.value;updateScores()">
-      <input type="date" value="${t.end_date || today}"
-        onchange="otherTasks[${i}].end_date=this.value;updateScores()">
-      ${startSel}
-      ${endSel}
+      <div class="dt-pair-group dt-date-group">
+        <span class="dt-group-title"><i class="fas fa-calendar-alt"></i> 날짜</span>
+        <div class="dt-slot">
+          <span class="dt-slot-label">시작</span>
+          <input type="date" value="${t.start_date || today}"
+            onchange="otherTasks[${i}].start_date=this.value;updateScores()">
+        </div>
+        <div class="dt-slot">
+          <span class="dt-slot-label">종료</span>
+          <input type="date" value="${t.end_date || today}"
+            onchange="otherTasks[${i}].end_date=this.value;updateScores()">
+        </div>
+      </div>
+      <div class="dt-pair-group dt-time-group">
+        <span class="dt-group-title"><i class="fas fa-clock"></i> 시간</span>
+        <div class="dt-slot">
+          <span class="dt-slot-label">시작</span>
+          ${startSel}
+        </div>
+        <div class="dt-slot">
+          <span class="dt-slot-label">종료</span>
+          ${endSel}
+        </div>
+      </div>
       <button class="btn-del-row" onclick="removeOtherTask(${i})"><i class="fas fa-times"></i></button>
     </div>`;
   }).join('');

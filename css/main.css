@@ -841,3 +841,121 @@ select.form-control { cursor: pointer; }
   /* month-btn 더 작게 */
   .month-btn { padding: 4px 6px !important; font-size: 11px !important; }
 }
+
+/* ─── 날짜·시간 from~to 그룹 (work-personal / settlement 공통) ─────────
+   데스크탑: 래퍼는 투명 — 기존 그리드 레이아웃 그대로 동작
+   모바일(≤768px): 날짜 그룹 / 시간 그룹을 카드 박스로 시각 분리
+   ─────────────────────────────────────────────────────────────────── */
+
+/* 데스크탑: contents로 풀어서 부모 그리드 컬럼 참여 */
+.dt-pair-group {
+  display: contents;
+}
+.dt-pair-group .dt-slot-label { display: none; }
+
+/* iOS Safari: input[type=date/time] 폰트 강제 16px (자동줌 방지)
+   — 16px 미만이면 iOS Safari가 폼 포커스 시 자동 줌인 발생
+   — min-height:44px 는 모바일 전용으로 제한 (하단 @media 블록에서 적용) */
+input[type="date"],
+input[type="time"] {
+  -webkit-appearance: none;
+}
+
+@media (max-width: 768px) {
+  input[type="date"],
+  input[type="time"] {
+    font-size: 16px !important;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 768px) {
+  /* 모바일: 그룹 래퍼를 실제 블록으로 전환 */
+  .dt-pair-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1.5px solid #e5e7eb;
+    background: #fff;
+  }
+
+  /* 날짜 그룹 — 파란 왼쪽 바 */
+  .dt-pair-group.dt-date-group {
+    border-left: 4px solid #4f86f7;
+  }
+
+  /* 시간 그룹 — 초록 왼쪽 바 */
+  .dt-pair-group.dt-time-group {
+    border-left: 4px solid #10b981;
+  }
+
+  /* 그룹 제목 배너 */
+  .dt-pair-group .dt-group-title {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #6b7280;
+    padding: 5px 10px 3px;
+    background: #f9fafb;
+    letter-spacing: 0.05em;
+  }
+  .dt-date-group .dt-group-title { color: #2563eb; background: #eff6ff; }
+  .dt-time-group .dt-group-title { color: #059669; background: #f0fdf4; }
+
+  /* 각 슬롯 (시작 / 종료) */
+  .dt-pair-group .dt-slot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-top: 1px solid #f3f4f6;
+  }
+  .dt-pair-group .dt-slot:first-of-type { border-top: none; }
+
+  /* 슬롯 라벨 */
+  .dt-pair-group .dt-slot-label {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 26px;
+    text-align: center;
+    padding: 2px 5px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .dt-date-group .dt-slot-label {
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
+  .dt-time-group .dt-slot-label {
+    background: #d1fae5;
+    color: #065f46;
+  }
+
+  /* 슬롯 내부 input / select */
+  .dt-pair-group .dt-slot input,
+  .dt-pair-group .dt-slot select {
+    flex: 1;
+    min-width: 0;
+    font-size: 16px !important; /* iOS 줌 방지 */
+    min-height: 44px;
+    padding: 8px 10px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+    color: #111827;
+    font-family: inherit;
+    box-sizing: border-box;
+    width: 100%;
+    -webkit-appearance: none;
+  }
+  .dt-pair-group .dt-slot input:focus,
+  .dt-pair-group .dt-slot select:focus {
+    outline: none;
+    border-color: #4f86f7;
+  }
+}
