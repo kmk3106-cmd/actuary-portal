@@ -548,8 +548,13 @@ async function loadChkSummary() {
     const records = (data.rows || []).filter(r =>
       String(r.year) === String(selYear) && String(r.month) === String(selMonth));
 
-    const GROUPS = ['계약/준비금','모델/가정','부채산출','ETL/데이터','재보험','무브먼트/전송'];
-    const SETTLE_TASKS_BY_GROUP = {
+    // 재보험은 분기결산이므로 3/6/9/12월에만 표시 (평달엔 group 제외 + s05/s25도 제외)
+    const isQuarter = [3,6,9,12].includes(parseInt(selMonth, 10));
+    const REINS_IDS = new Set(['s05','s22','s23','s25']);
+    const GROUPS = isQuarter
+      ? ['계약/준비금','모델/가정','부채산출','ETL/데이터','재보험','무브먼트/전송']
+      : ['계약/준비금','모델/가정','부채산출','ETL/데이터','무브먼트/전송'];
+    const SETTLE_TASKS_BY_GROUP_ALL = {
       '계약/준비금': ['s01','s02','s03','s04','s05','s06','s07','s08'],
       '모델/가정':   ['s09','s10','s11','s12'],
       '부채산출':    ['s13','s14','s15','s16','s17','s18'],
@@ -557,11 +562,18 @@ async function loadChkSummary() {
       '재보험':      ['s22','s23'],
       '무브먼트/전송':['s24','s25','s26'],
     };
+    const SETTLE_TASKS_BY_GROUP = {};
+    GROUPS.forEach(g => {
+      SETTLE_TASKS_BY_GROUP[g] = (SETTLE_TASKS_BY_GROUP_ALL[g] || [])
+        .filter(id => isQuarter || !REINS_IDS.has(id));
+    });
 
     // Aggregate all done tasks across records
     const allDone = new Set();
-    records.forEach(r => (r.settlement_done || []).forEach(id => allDone.add(id)));
-    const totalTasks = 26;
+    records.forEach(r => (r.settlement_done || []).forEach(id => {
+      if (isQuarter || !REINS_IDS.has(id)) allDone.add(id);
+    }));
+    const totalTasks = isQuarter ? 26 : 22;
     const totalDone = allDone.size;
     const pct = Math.round(totalDone / totalTasks * 100);
 

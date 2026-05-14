@@ -507,6 +507,20 @@
 
   // ========== 결산 D+N 영업일 스케줄 (DB 로드) ==========
   let SETTLE_SCHEDULE = [];
+
+  /* 재보험은 분기결산이므로 3/6/9/12월에만 표시.
+     평달에는 라벨에 "재보험" 포함 또는 group이 "재보험"인 항목 모두 숨김. */
+  function isReinsuranceTask(t) {
+    return /재보험/.test(t.label || '') || t.group === '재보험';
+  }
+  function isQuarterMonth(month1to12) {
+    const m = parseInt(month1to12, 10);
+    return m === 3 || m === 6 || m === 9 || m === 12;
+  }
+  function getMonthlySchedule(month1to12) {
+    if (isQuarterMonth(month1to12)) return SETTLE_SCHEDULE;
+    return SETTLE_SCHEDULE.filter(t => !isReinsuranceTask(t));
+  }
   async function loadSettleSchedule() {
     try {
       const r = await fetch('/tables/settle_items?limit=500');
@@ -626,7 +640,7 @@
 
   function buildScheduleDueDates(year, month) {
     const map = {};
-    SETTLE_SCHEDULE.forEach(t => {
+    getMonthlySchedule(month).forEach(t => {
       const ds = getNthBizDay(year, month, t.due);
       if (ds) { (map[ds] = map[ds] || []).push(t); }
     });
@@ -1075,7 +1089,7 @@
 
   function buildChklChipMap() {
     chklChipMap = {};
-    SETTLE_SCHEDULE.forEach(t => {
+    getMonthlySchedule(chkMonth).forEach(t => {
       if (!chkDone.has(t.id)) return;
       const completionDate = chkDates[t.id];
       if (!completionDate) return;
@@ -1160,14 +1174,16 @@
       <span style="font-size:11px;font-weight:700;color:#6366f1;text-align:center;">단축/지연</span>
     </div>`;
     // 비팀장은 자기 assignee 항목 + 미지정(assignee 없음) 항목만 표시
+    // 평달엔 재보험 업무 자동 제외 (분기결산: 3/6/9/12월만)
+    const monthlySchedule = getMonthlySchedule(chkMonth);
     const visibleIds = new Set(
-      SETTLE_SCHEDULE
+      monthlySchedule
         .filter(t => isLeader || !t.assignee || t.assignee.split('/').map(s=>s.trim()).includes(chkMember))
         .map(t => t.id)
     );
 
     container.innerHTML = headerRow + SETTLE_GROUPS.map(grp => {
-      const tasks = SETTLE_SCHEDULE.filter(t => t.group === grp && visibleIds.has(t.id));
+      const tasks = monthlySchedule.filter(t => t.group === grp && visibleIds.has(t.id));
       if (!tasks.length) return '';
       const grpDone = tasks.filter(t => chkDone.has(t.id)).length;
       return `<div class="chk-group">
@@ -1285,7 +1301,7 @@
 
   function calcDeadlineAvgScore() {
     if (!chkMember) return null;
-    const memberTasks = SETTLE_SCHEDULE.filter(t =>
+    const memberTasks = getMonthlySchedule(chkMonth).filter(t =>
       t.assignee && t.assignee.split('/').map(s=>s.trim()).includes(chkMember)
     );
     // 체크된 항목만 + 단축/지연 값이 있어야 점수 반영 (해제된 항목 점수 잔존 버그 방지)
@@ -1327,7 +1343,7 @@
 
   function updateChkStats() {
     const doneCount = chkDone.size;
-    const total = SETTLE_SCHEDULE.length;
+    const total = getMonthlySchedule(chkMonth).length;
     const pct = Math.round(doneCount / total * 100);
     const totalMin = Object.values(chkTimes).reduce((s, v) => s + (parseInt(v) || 0), 0);
     document.getElementById('chkPct').textContent = pct + '%';
@@ -1435,9 +1451,10 @@
       }
     } catch(_) {}
 
-    // 2) 체크된 항목 ID 집합
+    // 2) 체크된 항목 ID 집합 (평달엔 재보험 제외)
+    const monthlySchedule2 = getMonthlySchedule(chkMonth);
     const checkedIds = new Set();
-    for (const t of SETTLE_SCHEDULE) {
+    for (const t of monthlySchedule2) {
       if (chkDone.has(t.id) && chkDates[t.id]) checkedIds.add(t.id);
     }
 
@@ -1448,7 +1465,7 @@
     ));
 
     // 4) 완료된 항목 upsert
-    for (const t of SETTLE_SCHEDULE) {
+    for (const t of monthlySchedule2) {
       if (!chkDone.has(t.id)) continue;
       const endDate   = chkDates[t.id];
       const startDate = chkStartDates[t.id] || endDate;
