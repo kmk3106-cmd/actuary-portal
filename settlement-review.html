@@ -548,8 +548,8 @@ async function loadChkSummary() {
     const records = (data.rows || []).filter(r =>
       String(r.year) === String(selYear) && String(r.month) === String(selMonth));
 
-    // 재보험은 분기결산이므로 3/6/9/12월에만 표시 (평달엔 group 제외 + s05/s25도 제외)
-    const isQuarter = [3,6,9,12].includes(parseInt(selMonth, 10));
+    // 재보험은 분기결산(다음달 반영)이므로 1/4/7/10월에만 표시 (평달엔 group 제외 + s05/s25도 제외)
+    const isQuarter = [1,4,7,10].includes(parseInt(selMonth, 10));
     const REINS_IDS = new Set(['s05','s22','s23','s25']);
     const GROUPS = isQuarter
       ? ['계약/준비금','모델/가정','부채산출','ETL/데이터','재보험','무브먼트/전송']

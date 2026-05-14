@@ -508,14 +508,14 @@
   // ========== 결산 D+N 영업일 스케줄 (DB 로드) ==========
   let SETTLE_SCHEDULE = [];
 
-  /* 재보험은 분기결산이므로 3/6/9/12월에만 표시.
+  /* 재보험은 분기결산이며 결산 작업은 다음달에 반영되므로 1/4/7/10월에만 표시.
      평달에는 라벨에 "재보험" 포함 또는 group이 "재보험"인 항목 모두 숨김. */
   function isReinsuranceTask(t) {
     return /재보험/.test(t.label || '') || t.group === '재보험';
   }
   function isQuarterMonth(month1to12) {
     const m = parseInt(month1to12, 10);
-    return m === 3 || m === 6 || m === 9 || m === 12;
+    return m === 1 || m === 4 || m === 7 || m === 10;
   }
   function getMonthlySchedule(month1to12) {
     if (isQuarterMonth(month1to12)) return SETTLE_SCHEDULE;
