@@ -707,6 +707,37 @@ function syncVacationQuotaOnUpdate(db, before, updated) {
   }
 }
 
+/**
+ * 단건 DELETE 시 자식/적립 데이터 좀비 방지.
+ *  - daily_work_entries / kb_issues / kb_documents 삭제 → engagement_points 해당 적립 행 제거
+ *  - kb_documents 삭제 → kb_document_versions / kb_attachments(parent_id 매칭) 제거
+ *  - kb_issues   삭제 → kb_attachments(parent_id 매칭) 제거
+ */
+function cascadeDeleteRelated(db, table, removed) {
+  if (!removed || !removed.id) return;
+  const POINTS_ACTION_BY_TABLE = {
+    daily_work_entries: 'work_entry',
+    kb_issues: 'issue_register',
+    kb_documents: 'sop_create',
+  };
+  const action = POINTS_ACTION_BY_TABLE[table];
+  if (action && Array.isArray(db.engagement_points)) {
+    const key = `${action}:${removed.id}`;
+    db.engagement_points = db.engagement_points.filter(p => p.idempotency_key !== key);
+  }
+  if (table === 'kb_documents') {
+    if (Array.isArray(db.kb_document_versions)) {
+      db.kb_document_versions = db.kb_document_versions.filter(v => v.document_id !== removed.id);
+    }
+    if (Array.isArray(db.kb_attachments)) {
+      db.kb_attachments = db.kb_attachments.filter(a => a.parent_id !== removed.id);
+    }
+  }
+  if (table === 'kb_issues' && Array.isArray(db.kb_attachments)) {
+    db.kb_attachments = db.kb_attachments.filter(a => a.parent_id !== removed.id);
+  }
+}
+
 function syncVacationQuotaOnDelete(db, removed) {
   if (!removed || !removed.start_date) return;
   const y = parseInt(removed.start_date.slice(0, 4), 10);
@@ -742,6 +773,44 @@ function handleTablesRequest(route, method, bodyStr, reqHeaders) {
       // daily_work_entries: time_entries 자동 보정
       if (table === 'daily_work_entries') {
         payload = normalizeTimeEntries(db, payload);
+      }
+      // vacations: 직접 POST 도 /api/vacations/use 와 동일 안전망 적용
+      //  - status 강제 'approved' (audit `vacation_no_status` 차단)
+      //  - 시간대 있으면 buildEntriesFromRange 로 minutes/hours/days 서버 재계산
+      //  - quota 한도 검사 (초과 시 400)
+      if (table === 'vacations') {
+        const sd = payload.start_date || '';
+        const ed = payload.end_date || sd;
+        if (!payload.member_name || !sd || !ed || !payload.vacation_type) {
+          return { status: 400, body: { error: 'vacations 필수: member_name/start_date/end_date/vacation_type' } };
+        }
+        let minutes = 0, hours = 0, days = Number(payload.days) || 0;
+        let time_entries = Array.isArray(payload.time_entries) ? payload.time_entries : [];
+        if (payload.start_time && payload.end_time) {
+          try {
+            time_entries = timeentry.buildEntriesFromRange(sd, ed, payload.start_time, payload.end_time);
+            minutes = time_entries.reduce((s, te) => s + (Number(te.minutes) || 0), 0);
+            hours = Math.round((minutes / 60) * 10) / 10;
+            days  = Math.round((minutes / (8 * 60)) * 100) / 100;
+          } catch (e) {
+            return { status: 400, body: { error: e.message } };
+          }
+        } else {
+          if (!days || days <= 0) days = ['반차','2H','3H'].includes(payload.vacation_type) ? 0.5 : 1;
+          minutes = Math.round(days * 8 * 60);
+          hours = Math.round((minutes / 60) * 10) / 10;
+        }
+        const y = parseInt(sd.slice(0, 4), 10);
+        const q = getOrCreateQuota(db, y, payload.user_id, payload.member_name);
+        if ((Number(q.used) || 0) + days > q.annual_total + 0.001) {
+          return { status: 400, body: { error: '연차 한도 초과', quota: q, request_days: days } };
+        }
+        payload = {
+          ...payload,
+          minutes, hours, days,
+          time_entries,
+          status: 'approved',
+        };
       }
       const created = { ...payload, id, created_at: now(), updated_at: now() };
       db[table] = [...collection, created];
@@ -875,6 +944,10 @@ function handleTablesRequest(route, method, bodyStr, reqHeaders) {
           syncVacationQuotaOnDelete(db, removed);
         }
       } catch (e) { console.error('[points hook:delete]', e.message); }
+      // ── 정합성 cascade: 적립 포인트·버전·첨부 좀비 정리 ──
+      try {
+        cascadeDeleteRelated(db, table, removed);
+      } catch (e) { console.error('[cascade:delete]', e.message); }
       appendAuditLog(db, table, 'delete', route, removed, null, reqHeaders);
       writeDb(db);
       return { status: 200, body: { success: true } };

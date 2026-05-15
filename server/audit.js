@@ -34,6 +34,10 @@ const CATEGORIES = {
   vacation_quota_excess: { label: '휴가 한도 초과 (음수 잔액)', severity: 'high' },
   vacation_overlap_self: { label: '동일 일자 휴가 중복', severity: 'medium' },
   vacation_work_conflict: { label: '전일 휴가 일자 업무 입력 잔존', severity: 'medium' },
+  vacation_no_status: { label: '휴가 record status 누락', severity: 'medium' },
+  vacation_invalid_minutes: { label: '휴가 minutes 와 time_entries 불일치', severity: 'medium' },
+  points_orphan: { label: '적립 포인트 — 대상 record 사라짐', severity: 'medium' },
+  kb_version_orphan: { label: 'kb_document_versions — 부모 문서 사라짐', severity: 'medium' },
 };
 
 function createId() {
@@ -386,6 +390,101 @@ function checkVacationWorkConflict(db) {
 }
 
 /**
+ * 검사 11: 휴가 status 누락 — /tables/vacations 직접 POST 우회 검출
+ */
+function checkVacationNoStatus(db) {
+  const issues = [];
+  for (const v of db.vacations || []) {
+    if (!v.status) {
+      issues.push({
+        category: 'vacation_no_status',
+        severity: 'medium',
+        message: `${v.member_name || '?'} ${v.start_date || '?'} (${v.vacation_type || '?'}) — status 누락`,
+        details: { vac_id: v.id },
+        fix_hint: `status='approved' 또는 'cancelled' 로 PATCH`,
+      });
+    }
+  }
+  return issues;
+}
+
+/**
+ * 검사 12: 휴가 minutes / time_entries 합 불일치 (클라가 수동으로 채운 잔존값 검출)
+ */
+function checkVacationInvalidMinutes(db) {
+  const issues = [];
+  for (const v of db.vacations || []) {
+    if (v.status === 'cancelled') continue;
+    const entries = asArray(v.time_entries);
+    if (entries.length === 0) continue;
+    const sum = entries.reduce((s, e) => s + (Number(e.minutes) || 0), 0);
+    if (Math.abs(sum - (Number(v.minutes) || 0)) > 0.5) {
+      issues.push({
+        category: 'vacation_invalid_minutes',
+        severity: 'medium',
+        message: `${v.member_name} ${v.start_date} — vacations.minutes=${v.minutes} ≠ time_entries 합 ${sum}`,
+        details: { vac_id: v.id, recorded: v.minutes, computed: sum },
+        fix_hint: `/api/vacations/update 로 재계산 또는 직접 minutes 보정`,
+      });
+    }
+  }
+  return issues;
+}
+
+/**
+ * 검사 13: engagement_points 의 action_ref 대상 record 가 사라짐
+ *   (DELETE cascade 누락 검출 — 정상 흐름이면 0 이어야 함)
+ */
+function checkPointsOrphan(db) {
+  const issues = [];
+  const tableByAction = {
+    work_entry: 'daily_work_entries',
+    issue_register: 'kb_issues',
+    sop_create: 'kb_documents',
+  };
+  // O(1) lookup 용
+  const idSet = {};
+  for (const [, tbl] of Object.entries(tableByAction)) {
+    idSet[tbl] = new Set((db[tbl] || []).map(r => r.id));
+  }
+  for (const p of db.engagement_points || []) {
+    const tbl = tableByAction[p.action_type];
+    if (!tbl) continue;                      // KPI/settlement 등은 ref 매칭 대상 아님
+    if (!p.action_ref) continue;
+    if (!idSet[tbl].has(p.action_ref)) {
+      issues.push({
+        category: 'points_orphan',
+        severity: 'medium',
+        message: `${p.member_name || p.user_id} ${p.action_type} ${p.points}pt — 대상 ${tbl}[${p.action_ref}] 사라짐`,
+        details: { ep_id: p.id, action_type: p.action_type, action_ref: p.action_ref, points: p.points },
+        fix_hint: `engagement_points[${p.id}] 삭제 또는 대상 복원`,
+      });
+    }
+  }
+  return issues;
+}
+
+/**
+ * 검사 14: kb_document_versions 의 부모 문서가 사라짐
+ */
+function checkKbVersionOrphan(db) {
+  const issues = [];
+  const docIds = new Set((db.kb_documents || []).map(d => d.id));
+  for (const v of db.kb_document_versions || []) {
+    if (v.document_id && !docIds.has(v.document_id)) {
+      issues.push({
+        category: 'kb_version_orphan',
+        severity: 'medium',
+        message: `kb_document_versions[${v.id}] v${v.version} — 부모 문서 ${v.document_id} 사라짐`,
+        details: { ver_id: v.id, document_id: v.document_id, version: v.version },
+        fix_hint: `kb_document_versions[${v.id}] 삭제`,
+      });
+    }
+  }
+  return issues;
+}
+
+/**
  * 메인 entry point. server.js가 호출.
  * @param {object} db - 현재 DB (server.js의 readDb 결과)
  * @returns {object} report - audit_reports에 push할 객체
@@ -403,6 +502,10 @@ function runAudit(db) {
     ['vacation_quota_excess', checkVacationQuotaExcess],
     ['vacation_overlap_self', checkVacationOverlapSelf],
     ['vacation_work_conflict', checkVacationWorkConflict],
+    ['vacation_no_status', checkVacationNoStatus],
+    ['vacation_invalid_minutes', checkVacationInvalidMinutes],
+    ['points_orphan', checkPointsOrphan],
+    ['kb_version_orphan', checkKbVersionOrphan],
   ];
   const allIssues = [];
   const errors = [];

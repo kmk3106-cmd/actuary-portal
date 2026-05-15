@@ -145,6 +145,10 @@ const CATEGORY_LABELS = {
   vacation_quota_excess:    { label: '휴가 한도 초과 (음수 잔액)',  severity: 'high',   icon: 'fa-triangle-exclamation' },
   vacation_overlap_self:    { label: '동일 일자 휴가 중복',         severity: 'medium', icon: 'fa-layer-group' },
   vacation_work_conflict:   { label: '전일 휴가 일자 업무 입력 잔존', severity: 'medium', icon: 'fa-calendar-xmark' },
+  vacation_no_status:       { label: '휴가 record status 누락',     severity: 'medium', icon: 'fa-circle-question' },
+  vacation_invalid_minutes: { label: '휴가 minutes/time_entries 불일치', severity: 'medium', icon: 'fa-stopwatch' },
+  points_orphan:            { label: '적립 포인트 — 대상 사라짐',     severity: 'medium', icon: 'fa-coins' },
+  kb_version_orphan:        { label: 'kb_versions — 부모 문서 사라짐', severity: 'medium', icon: 'fa-file-circle-xmark' },
 };
 
 let allReports = [];
