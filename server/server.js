@@ -1493,7 +1493,7 @@ const server = http.createServer((req, res) => {
           return;
         }
         // POST /api/points/recompute — engagement_points 전체 재계산 (팀장만)
-        //   audit_logs 기반으로 actor=target & 비팀장 케이스만 소급 적립
+        //   현재 DB의 record를 직접 스캔 → 본인=target 가정 + audit_logs로 actor 보강 검증
         if (req.method === 'POST' && u.pathname === '/api/points/recompute') {
           const actorRole = req.headers && req.headers['x-actor-role'];
           if (actorRole && actorRole !== 'team_leader') {
@@ -1505,48 +1505,60 @@ const server = http.createServer((req, res) => {
             for (const u of (db.users || [])) {
               usersById[u.id] = u;
               if (u.full_name) usersByName[u.full_name] = u;
-              if (u.username) usersByName[u.username] = u;
+              if (u.username)  usersByName[u.username] = u;
             }
-            // 모든 engagement_points 삭제
-            db.engagement_points = [];
-            // audit_logs 스캔 — create:* 액션에 한해 소급 적립
-            const auditLogs = db.audit_logs || [];
-            const actionMap = {
-              'create:daily_work_entries': 'work_entry',
-              'create:kb_issues':          'issue_register',
-              'create:kb_documents':       'sop_create',
-            };
-            let awarded = 0, skipped = 0;
-            for (const log of auditLogs) {
-              const actionType = actionMap[log.action];
-              if (!actionType) continue;
-              // detail에서 id=xxx 파싱
+            // audit_logs에서 record_id별 마지막 actor 매핑 (감사 보강)
+            const recordActor = {};
+            for (const log of (db.audit_logs || [])) {
+              if (!log.action || !log.action.startsWith('create:')) continue;
               const m = (log.detail || '').match(/id=(\S+)/);
               if (!m) continue;
-              const recordId = m[1];
-              // actor (audit_logs.user_id) → users 조회
+              const rid = m[1];
               const actor = usersById[log.user_id];
-              if (!actor) { skipped++; continue; }
-              if (actor.role === 'team_leader') { skipped++; continue; }
-              // 본인이 본인 입력 — actor === target
-              // target은 record를 직접 보고 가져옴
-              const recordTable = log.action.split(':')[1];
-              const record = (db[recordTable] || []).find(x => String(x.id) === String(recordId));
-              if (!record) { skipped++; continue; }
-              // target identity 추출
-              const targetUserId = record.user_id || record.author_id || record.created_by || '';
-              const targetName   = record.member_name || record.author_name || record.created_by_name || '';
-              const isSelf = (targetUserId && targetUserId === actor.id) ||
-                             (targetName && targetName === (actor.full_name || actor.username));
-              if (!isSelf) { skipped++; continue; }
-              // 적립
-              const result = points.awardPoints(db, actor.id, actor.full_name || actor.username,
-                actionType, recordId, { actorId: actor.id, actorName: actor.full_name || actor.username });
-              if (result) awarded++;
-              else skipped++;
+              if (actor) recordActor[rid] = actor;
+            }
+
+            // 모든 engagement_points 삭제
+            db.engagement_points = [];
+
+            const tables = [
+              { name: 'daily_work_entries', action: 'work_entry' },
+              { name: 'kb_issues',          action: 'issue_register' },
+              { name: 'kb_documents',       action: 'sop_create' },
+            ];
+            let awarded = 0, skipped = 0;
+            const detail = {};
+            for (const tdef of tables) {
+              const list = db[tdef.name] || [];
+              for (const rec of list) {
+                const targetUserId = rec.user_id || rec.author_id || rec.created_by || '';
+                const targetName = rec.member_name || rec.author_name || rec.created_by_name || '';
+                if (!targetUserId && !targetName) { skipped++; continue; }
+                // target user 식별
+                const targetUser = usersById[targetUserId] || usersByName[targetName];
+                if (!targetUser) { skipped++; continue; }
+                if (targetUser.role === 'team_leader') { skipped++; continue; }
+                // actor 보강: audit_logs에서 record의 actor 찾기
+                const actor = recordActor[rec.id];
+                const actorOpts = actor
+                  ? { actorId: actor.id, actorName: actor.full_name || actor.username }
+                  : { actorId: targetUser.id, actorName: targetUser.full_name || targetUser.username };
+                // 대리 입력 차단 (actor가 있는데 target과 다르면 skip)
+                if (actor && actor.id !== targetUser.id) { skipped++; continue; }
+
+                const result = points.awardPoints(db, targetUser.id,
+                  targetUser.full_name || targetUser.username,
+                  tdef.action, rec.id, actorOpts);
+                if (result) {
+                  awarded++;
+                  detail[tdef.action] = (detail[tdef.action] || 0) + 1;
+                } else {
+                  skipped++;
+                }
+              }
             }
             writeDb(db);
-            send(200, { awarded, skipped, total_audit_logs: auditLogs.length });
+            send(200, { awarded, skipped, detail, total_audit_logs: (db.audit_logs || []).length });
           });
           return;
         }
