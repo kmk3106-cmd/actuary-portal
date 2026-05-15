@@ -107,6 +107,13 @@ const Portal = (() => {
       ]
     },
     {
+      section: '보상',
+      items: [
+        { href: 'rewards.html',  icon: 'fa-trophy',         label: '포인트 / 보상' },
+        { href: 'vacation.html', icon: 'fa-umbrella-beach', label: '휴가 관리' }
+      ]
+    },
+    {
       section: '지식관리',
       items: [
         { href: 'kb-sop.html',    icon: 'fa-book',                  label: 'SOP 문서' },

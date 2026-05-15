@@ -104,7 +104,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=28"></script>
+<script src="js/portal.js?v=29"></script>
 <script>
 if (!Portal.init()) throw 'AUTH';
 
@@ -124,6 +124,8 @@ root.innerHTML = `
     <button class="tab" data-tab="cat">기타 카테고리</button>
     <button class="tab" data-tab="issue-cat">이슈 카테고리</button>
     <button class="tab" data-tab="migration">마이그레이션</button>
+    <button class="tab" data-tab="point-rules">포인트 룰</button>
+    <button class="tab" data-tab="prize-rules">상금 룰</button>
   </div>
 
   <div class="tab-panel active" id="panel-settle">
@@ -224,6 +226,51 @@ root.innerHTML = `
     </div>
   </div>
 
+  <div class="tab-panel" id="panel-point-rules">
+    <div class="panel-header">
+      <div>
+        <h2>포인트 룰</h2>
+        <div class="panel-desc">액션별 적립 포인트 정의 — rewards.html에 실시간 반영</div>
+      </div>
+      <button class="btn-mini primary" onclick="addPointRule()"><i class="fas fa-plus"></i> 룰 추가</button>
+    </div>
+    <div class="table-scroll">
+    <table class="settings-table" id="tbl-point-rules">
+      <thead><tr>
+        <th style="width:140px;">액션 타입</th>
+        <th>라벨</th>
+        <th style="width:90px;">포인트</th>
+        <th>설명</th>
+        <th style="width:80px;">활성</th>
+        <th class="col-act">관리</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panel-prize-rules">
+    <div class="panel-header">
+      <div>
+        <h2>상금 룰</h2>
+        <div class="panel-desc">분기 시상 금액 정의 — rewards.html 포디움 prize_label에 반영</div>
+      </div>
+      <button class="btn-mini primary" onclick="addPrizeRule()"><i class="fas fa-plus"></i> 룰 추가</button>
+    </div>
+    <div class="table-scroll">
+    <table class="settings-table" id="tbl-prize-rules">
+      <thead><tr>
+        <th style="width:80px;">순위</th>
+        <th style="width:140px;">상금 (원)</th>
+        <th>내역 라벨</th>
+        <th style="width:80px;">활성</th>
+        <th class="col-act">관리</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    </div>
+  </div>
+
   <div class="tab-panel" id="panel-migration">
     <div class="panel-header">
       <div>
@@ -279,8 +326,10 @@ document.querySelectorAll('.tab').forEach(btn => {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
-    // 마이그레이션 탭 최초 진입 시 자동 로드
-    if (btn.dataset.tab === 'migration') loadMigration();
+    // 탭 최초 진입 시 자동 로드
+    if (btn.dataset.tab === 'migration')   loadMigration();
+    if (btn.dataset.tab === 'point-rules') loadPointRules();
+    if (btn.dataset.tab === 'prize-rules') loadPrizeRules();
   });
 });
 
@@ -506,6 +555,55 @@ async function delRow(table, btn, reload) {
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ───────── 포인트 룰 ─────────
+async function loadPointRules() {
+  const rows = (await apiList('point_rules')).sort((a,b) => (a.action_type||'').localeCompare(b.action_type||''));
+  const tbody = document.querySelector('#tbl-point-rules tbody');
+  tbody.innerHTML = rows.map(r => `
+    <tr data-id="${r.id}">
+      <td data-label="액션 타입"><input type="text" data-f="action_type" value="${escapeHtml(r.action_type||'')}"></td>
+      <td data-label="라벨"><input type="text" data-f="label" value="${escapeHtml(r.label||'')}"></td>
+      <td data-label="포인트"><input type="number" data-f="points" value="${r.points??0}" style="width:70px;"></td>
+      <td data-label="설명"><input type="text" data-f="description" value="${escapeHtml(r.description||'')}"></td>
+      <td data-label="활성" style="text-align:center;"><input type="checkbox" data-f="is_active" ${r.is_active!==false?'checked':''}></td>
+      <td class="col-act">
+        <button class="btn-mini" onclick="saveRow('point_rules', this)">저장</button>
+        <button class="btn-mini danger" onclick="delRow('point_rules', this, loadPointRules)">삭제</button>
+      </td>
+    </tr>`).join('');
+}
+async function addPointRule() {
+  await apiCreate('point_rules', { action_type: 'new_action', label: '신규 액션', points: 10, description: '', is_active: true });
+  await loadPointRules();
+}
+
+// ───────── 상금 룰 ─────────
+async function loadPrizeRules() {
+  const rows = (await apiList('prize_rules')).sort((a,b) => (a.rank||0)-(b.rank||0));
+  const tbody = document.querySelector('#tbl-prize-rules tbody');
+  tbody.innerHTML = rows.map(r => `
+    <tr data-id="${r.id}">
+      <td data-label="순위">
+        <select data-f="rank">
+          <option value="1" ${r.rank===1?'selected':''}>1등</option>
+          <option value="2" ${r.rank===2?'selected':''}>2등</option>
+          <option value="3" ${r.rank===3?'selected':''}>3등</option>
+        </select>
+      </td>
+      <td data-label="상금(원)"><input type="number" data-f="prize_amount" value="${r.prize_amount??0}"></td>
+      <td data-label="내역 라벨"><input type="text" data-f="label" value="${escapeHtml(r.label||'')}"></td>
+      <td data-label="활성" style="text-align:center;"><input type="checkbox" data-f="is_active" ${r.is_active!==false?'checked':''}></td>
+      <td class="col-act">
+        <button class="btn-mini" onclick="saveRow('prize_rules', this)">저장</button>
+        <button class="btn-mini danger" onclick="delRow('prize_rules', this, loadPrizeRules)">삭제</button>
+      </td>
+    </tr>`).join('');
+}
+async function addPrizeRule() {
+  await apiCreate('prize_rules', { rank: 1, prize_amount: 0, label: '신규 상금', is_active: true });
+  await loadPrizeRules();
 }
 
 // 초기 로드
