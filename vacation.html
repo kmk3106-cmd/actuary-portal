@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>휴가 관리 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css?v=29">
+  <style>
+    /* ── 연차 게이지 히어로 ── */
+    .quota-hero {
+      background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 50%, #0369a1 100%);
+      border-radius: 20px;
+      padding: 28px 32px;
+      margin-bottom: 28px;
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 8px 28px rgba(14,165,233,0.28);
+    }
+    .quota-hero::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 200px; height: 200px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.07);
+    }
+    .quota-hero::after {
+      content: '';
+      position: absolute;
+      bottom: -30px; left: 30%;
+      width: 130px; height: 130px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.05);
+    }
+    .quota-hero-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 20px;
+      position: relative;
+      z-index: 1;
+    }
+    .quota-hero-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      opacity: 0.7;
+      margin-bottom: 4px;
+    }
+    .quota-hero-name {
+      font-size: 22px;
+      font-weight: 800;
+    }
+    .quota-stats {
+      display: flex;
+      gap: 28px;
+      flex-wrap: wrap;
+      position: relative;
+      z-index: 1;
+    }
+    .quota-stat { text-align: center; }
+    .quota-stat .val {
+      font-size: 36px;
+      font-weight: 900;
+      line-height: 1;
+      display: block;
+    }
+    .quota-stat .lbl {
+      font-size: 11px;
+      opacity: 0.75;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 3px;
+      display: block;
+    }
+    .quota-stat.remaining .val { color: #bbf7d0; }
+    .quota-stat.used .val     { opacity: 0.8; }
+    .quota-divider { width: 1px; background: rgba(255,255,255,0.2); align-self: stretch; }
+
+    /* 진행 바 */
+    .quota-bar-wrap {
+      position: relative;
+      z-index: 1;
+      margin-top: 20px;
+    }
+    .quota-bar-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      opacity: 0.7;
+      margin-bottom: 6px;
+    }
+    .quota-bar-bg {
+      height: 10px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.2);
+      overflow: hidden;
+    }
+    .quota-bar-fill {
+      height: 100%;
+      border-radius: 10px;
+      background: linear-gradient(90deg, #bbf7d0, #34d399);
+      transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    /* ── 2컬럼 레이아웃 ── */
+    .vac-layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    /* ── 등록 폼 카드 ── */
+    .vac-form-card {
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 16px;
+      overflow: hidden;
+      position: sticky;
+      top: 80px;
+    }
+    .vac-form-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #f3f4f6;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .vac-form-header h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111827;
+      margin: 0;
+    }
+    .vac-form-body { padding: 20px; }
+
+    .form-field { margin-bottom: 16px; }
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #374151;
+      margin-bottom: 6px;
+    }
+    .form-input, .form-select {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 10px;
+      color: #111827;
+      background: #fff;
+      box-sizing: border-box;
+      transition: border-color 0.15s;
+    }
+    .form-input:focus, .form-select:focus {
+      outline: none;
+      border-color: #0ea5e9;
+      box-shadow: 0 0 0 3px rgba(14,165,233,0.12);
+    }
+    .form-row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .days-auto-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .days-auto-wrap .form-input { max-width: 80px; }
+    .days-auto-note {
+      font-size: 11px;
+      color: #9ca3af;
+      flex: 1;
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #0ea5e9, #0284c7);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: inherit;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-submit:hover { opacity: 0.88; transform: translateY(-1px); }
+    .btn-submit:active { transform: translateY(0); }
+    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* ── 이력 카드 ── */
+    .vac-list-card {
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .vac-list-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #f3f4f6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .vac-list-header h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111827;
+      margin: 0;
+    }
+    .vac-filter-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .vac-year-select {
+      padding: 6px 10px;
+      font-size: 13px;
+      font-family: inherit;
+      font-weight: 600;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+    }
+    .vac-year-select:focus { outline: none; border-color: #0ea5e9; }
+
+    /* 팀장 전체 보기 토글 */
+    .toggle-all-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #6b7280;
+      cursor: pointer;
+      user-select: none;
+    }
+    .toggle-all-wrap input[type=checkbox] { cursor: pointer; }
+
+    .vac-table { width: 100%; border-collapse: collapse; min-width: 560px; }
+    .vac-table th {
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #9ca3af;
+      text-align: left;
+      background: #f9fafb;
+      border-bottom: 1px solid #f3f4f6;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .vac-table td {
+      padding: 11px 14px;
+      font-size: 13px;
+      color: #374151;
+      border-bottom: 1px solid #f9fafb;
+      vertical-align: middle;
+    }
+    .vac-table tr:last-child td { border-bottom: none; }
+    .vac-table tr:hover td { background: #f9fafb; }
+
+    .vac-type-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .vac-type-연차    { background: #dbeafe; color: #1d4ed8; }
+    .vac-type-반차오전 { background: #ede9fe; color: #6d28d9; }
+    .vac-type-반차오후 { background: #fce7f3; color: #9d174d; }
+    .vac-type-병가    { background: #fef3c7; color: #b45309; }
+    .vac-type-경조사  { background: #d1fae5; color: #065f46; }
+
+    .vac-status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .vac-status-approved { background: #d1fae5; color: #065f46; }
+    .vac-status-pending  { background: #fef3c7; color: #b45309; }
+    .vac-status-cancelled { background: #f3f4f6; color: #9ca3af; text-decoration: line-through; }
+
+    .btn-cancel-vac {
+      padding: 4px 10px;
+      font-size: 11px;
+      font-family: inherit;
+      font-weight: 600;
+      border: 1px solid #fecaca;
+      background: #fff;
+      color: #ef4444;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .btn-cancel-vac:hover { background: #fef2f2; }
+
+    .loading-state, .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #9ca3af;
+      font-size: 14px;
+    }
+
+    /* ── fade-in ── */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in   { animation: fadeInUp 0.35s ease forwards; }
+    .fade-in-2 { animation: fadeInUp 0.35s 0.08s ease both; }
+
+    /* ── 모바일 반응형 ── */
+    @media (max-width: 768px) {
+      .vac-layout { grid-template-columns: 1fr; }
+      .vac-form-card { position: static; }
+      .quota-stats { gap: 16px; }
+      .quota-stat .val { font-size: 28px; }
+    }
+
+    @media (max-width: 480px) {
+      .quota-hero { padding: 20px; }
+      .form-row-2 { grid-template-columns: 1fr; }
+      .vac-table { min-width: 0; }
+      .vac-table thead { display: none; }
+      .vac-table, .vac-table tbody, .vac-table tr, .vac-table td { display: block; }
+      .vac-table tr {
+        background: #fff;
+        border: 1.5px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+      }
+      .vac-table td { border: none; padding: 4px 0; display: flex; align-items: center; gap: 8px; }
+      .vac-table td::before {
+        content: attr(data-label);
+        font-size: 10px;
+        font-weight: 700;
+        color: #9ca3af;
+        flex: 0 0 55px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-umbrella-beach"></i> 휴가 관리</h1>
+    </header>
+    <main class="content-body">
+
+      <!-- 연차 게이지 히어로 -->
+      <div class="quota-hero fade-in" id="quotaHero">
+        <div class="quota-hero-top">
+          <div>
+            <div class="quota-hero-title">Annual Leave Quota</div>
+            <div class="quota-hero-name" id="quotaName">-</div>
+          </div>
+          <div class="quota-stats">
+            <div class="quota-stat">
+              <span class="val" id="quotaTotal">-</span>
+              <span class="lbl">연차 총일수</span>
+            </div>
+            <div class="quota-divider"></div>
+            <div class="quota-stat used">
+              <span class="val" id="quotaUsed">-</span>
+              <span class="lbl">사용</span>
+            </div>
+            <div class="quota-divider"></div>
+            <div class="quota-stat remaining">
+              <span class="val" id="quotaRemaining">-</span>
+              <span class="lbl">잔여</span>
+            </div>
+          </div>
+        </div>
+        <div class="quota-bar-wrap">
+          <div class="quota-bar-labels">
+            <span>사용</span>
+            <span id="quotaPct">0%</span>
+          </div>
+          <div class="quota-bar-bg">
+            <div class="quota-bar-fill" id="quotaBarFill" style="width:0%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2컬럼: 폼 + 이력 -->
+      <div class="vac-layout">
+
+        <!-- 휴가 등록 폼 -->
+        <div class="vac-form-card fade-in">
+          <div class="vac-form-header">
+            <i class="fas fa-plus-circle" style="color:#0ea5e9;font-size:16px;"></i>
+            <h3>휴가 등록</h3>
+          </div>
+          <div class="vac-form-body">
+            <!-- 팀장: 직원 선택 (본인은 숨김) -->
+            <div class="form-field" id="memberFieldWrap" style="display:none;">
+              <label class="form-label">직원</label>
+              <select id="formMember" class="form-select">
+                <option value="">본인</option>
+              </select>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">휴가 유형</label>
+              <select id="formType" class="form-select" onchange="onTypeChange()">
+                <option value="연차">연차</option>
+                <option value="반차오전">반차오전</option>
+                <option value="반차오후">반차오후</option>
+                <option value="병가">병가</option>
+                <option value="경조사">경조사</option>
+              </select>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-field">
+                <label class="form-label">시작일</label>
+                <input type="date" id="formStart" class="form-input" onchange="calcDays()">
+              </div>
+              <div class="form-field">
+                <label class="form-label">종료일</label>
+                <input type="date" id="formEnd" class="form-input" onchange="calcDays()">
+              </div>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">일수</label>
+              <div class="days-auto-wrap">
+                <input type="number" id="formDays" class="form-input" min="0.5" step="0.5" value="1">
+                <span class="days-auto-note" id="daysNote">영업일 자동 계산</span>
+              </div>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">사유 (선택)</label>
+              <input type="text" id="formNote" class="form-input" placeholder="예: 개인 사유, 가족 행사 등">
+            </div>
+
+            <button class="btn-submit" id="submitBtn" onclick="submitVacation()">
+              <i class="fas fa-calendar-plus"></i>
+              휴가 등록
+            </button>
+          </div>
+        </div>
+
+        <!-- 휴가 이력 -->
+        <div class="vac-list-card fade-in-2">
+          <div class="vac-list-header">
+            <h3><i class="fas fa-calendar-alt" style="color:#6b7280;margin-right:8px;"></i>휴가 이력</h3>
+            <div class="vac-filter-row">
+              <select id="yearSelect" class="vac-year-select" onchange="loadVacations()"></select>
+              <!-- 팀장 전체 보기 토글 -->
+              <label class="toggle-all-wrap" id="allToggleWrap" style="display:none;">
+                <input type="checkbox" id="showAllToggle" onchange="loadVacations()">
+                전체 직원 보기
+              </label>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="vac-table">
+              <thead>
+                <tr>
+                  <th style="width:80px;">유형</th>
+                  <th id="thMember" style="display:none;">직원</th>
+                  <th>기간</th>
+                  <th style="width:60px;">일수</th>
+                  <th>사유</th>
+                  <th style="width:70px;">상태</th>
+                  <th style="width:60px;">관리</th>
+                </tr>
+              </thead>
+              <tbody id="vacTbody">
+                <tr><td colspan="7" class="loading-state"><i class="fas fa-spinner fa-spin"></i></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js?v=29"></script>
+<script>
+if (!Portal.init()) throw 'AUTH';
+
+const currentUser = RBAC.getCurrentUser();
+const isLeader = currentUser.role === 'team_leader';
+
+// ── 연도 선택 빌드 ──
+function buildYearOptions() {
+  const sel = document.getElementById('yearSelect');
+  const year = new Date().getFullYear();
+  const opts = [];
+  for (let y = year; y >= year - 2; y--) {
+    opts.push(`<option value="${y}">${y}년</option>`);
+  }
+  sel.innerHTML = opts.join('');
+}
+
+// ── 팀장 UI 확장 ──
+if (isLeader) {
+  document.getElementById('allToggleWrap').style.display = 'flex';
+  document.getElementById('thMember').style.display = '';
+  loadMemberOptions();
+}
+
+async function loadMemberOptions() {
+  try {
+    const r = await fetch('/tables/personnel?limit=100');
+    const d = await r.json();
+    const members = (d.rows || d.data || []).filter(m => m.status !== 'inactive');
+    const myName = currentUser.full_name || currentUser.username || '';
+    const sel = document.getElementById('formMember');
+    sel.innerHTML = `<option value="">본인 (${myName})</option>` +
+      members
+        .filter(m => m.full_name !== myName)
+        .map(m => `<option value="${m.user_id || m.id}">${escHtml(m.full_name || m.username)}</option>`)
+        .join('');
+    document.getElementById('memberFieldWrap').style.display = '';
+  } catch (_) {}
+}
+
+// ── 연차 quota 로드 ──
+async function loadQuota(memberName, year) {
+  try {
+    const member = encodeURIComponent(memberName);
+    const r = await fetch(`/api/vacations/quota?member=${member}&year=${year}`);
+    const d = await r.json();
+    renderQuota(d, memberName);
+  } catch (e) {
+    renderQuota(null, memberName);
+  }
+}
+
+function renderQuota(data, memberName) {
+  document.getElementById('quotaName').textContent = memberName + ' — ' + new Date().getFullYear() + '년';
+  if (!data) return;
+  const total     = data.annual_total || 0;
+  const used      = data.used || 0;
+  const remaining = data.remaining != null ? data.remaining : (total - used);
+  const pct = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
+
+  document.getElementById('quotaTotal').textContent     = total;
+  document.getElementById('quotaUsed').textContent      = used;
+  document.getElementById('quotaRemaining').textContent = remaining;
+  document.getElementById('quotaPct').textContent       = pct + '%';
+  document.getElementById('quotaBarFill').style.width   = pct + '%';
+}
+
+// ── 일수 자동 계산 ──
+function onTypeChange() {
+  const t = document.getElementById('formType').value;
+  const isHalf = t === '반차오전' || t === '반차오후';
+  if (isHalf) {
+    document.getElementById('formDays').value = 0.5;
+    document.getElementById('daysNote').textContent = '반차 = 0.5일';
+    document.getElementById('formEnd').value = document.getElementById('formStart').value;
+    document.getElementById('formEnd').disabled = true;
+  } else {
+    document.getElementById('formEnd').disabled = false;
+    document.getElementById('daysNote').textContent = '영업일 자동 계산';
+    calcDays();
+  }
+}
+
+function calcDays() {
+  const t = document.getElementById('formType').value;
+  const isHalf = t === '반차오전' || t === '반차오후';
+  if (isHalf) { document.getElementById('formDays').value = 0.5; return; }
+
+  const sd = document.getElementById('formStart').value;
+  const ed = document.getElementById('formEnd').value;
+  if (!sd) return;
+  const endVal = ed && ed >= sd ? ed : sd;
+  if (!ed || ed < sd) document.getElementById('formEnd').value = endVal;
+
+  // 주말 제외 평일 카운트 (공휴일 제외는 서버 검증으로 커버)
+  let count = 0;
+  const cur = new Date(sd + 'T00:00:00');
+  const end = new Date(endVal + 'T00:00:00');
+  while (cur <= end) {
+    const day = cur.getDay();
+    if (day !== 0 && day !== 6) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  document.getElementById('formDays').value = count || 1;
+  document.getElementById('daysNote').textContent = `${count}영업일 계산됨`;
+}
+
+// ── 휴가 등록 제출 ──
+async function submitVacation() {
+  const btn = document.getElementById('submitBtn');
+  const vacType  = document.getElementById('formType').value;
+  const startDate = document.getElementById('formStart').value;
+  const endDate   = document.getElementById('formEnd').value || startDate;
+  const days     = parseFloat(document.getElementById('formDays').value);
+  const note     = document.getElementById('formNote').value.trim();
+
+  if (!startDate) { Portal.showToast('시작일을 입력해주세요.', 'error'); return; }
+  if (isNaN(days) || days <= 0) { Portal.showToast('일수를 입력해주세요.', 'error'); return; }
+
+  // 등록 대상자 결정
+  let userId = currentUser.user_id || currentUser.id;
+  let memberName = currentUser.full_name || currentUser.username || '';
+
+  if (isLeader) {
+    const sel = document.getElementById('formMember');
+    const selVal = sel.value;
+    if (selVal) {
+      userId = selVal;
+      memberName = sel.options[sel.selectedIndex].textContent;
+    }
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 등록 중...';
+
+  try {
+    const r = await fetch('/api/vacations/use', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: userId,
+        member_name: memberName,
+        vacation_type: vacType,
+        start_date: startDate,
+        end_date: endDate,
+        days: days,
+        note: note
+      })
+    });
+    const d = await r.json();
+
+    if (!r.ok) {
+      if (r.status === 400 && d.quota) {
+        const q = d.quota;
+        Portal.showToast(
+          `연차 한도 초과 — 잔여 ${q.remaining}일, 신청 ${d.request_days}일`,
+          'error'
+        );
+      } else {
+        throw new Error(d.error || `오류 (${r.status})`);
+      }
+      return;
+    }
+
+    Portal.showToast(
+      `휴가 ${days}일 등록 완료. 워크로드 표준시간이 자동 보정됩니다.`,
+      'success'
+    );
+
+    // 폼 초기화
+    document.getElementById('formStart').value = '';
+    document.getElementById('formEnd').value = '';
+    document.getElementById('formDays').value = 1;
+    document.getElementById('formNote').value = '';
+    document.getElementById('daysNote').textContent = '영업일 자동 계산';
+
+    // 데이터 새로고침
+    await Promise.all([
+      loadVacations(),
+      loadQuota(memberName, new Date().getFullYear())
+    ]);
+  } catch (e) {
+    Portal.showToast('등록 실패: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-calendar-plus"></i> 휴가 등록';
+  }
+}
+
+// ── 휴가 이력 로드 ──
+async function loadVacations() {
+  const year = document.getElementById('yearSelect').value;
+  const showAll = isLeader && document.getElementById('showAllToggle').checked;
+  const myName = encodeURIComponent(currentUser.full_name || currentUser.username || '');
+
+  // 직원 컬럼 토글
+  document.getElementById('thMember').style.display = (isLeader && showAll) ? '' : 'none';
+
+  const tbody = document.getElementById('vacTbody');
+  tbody.innerHTML = '<tr><td colspan="7" class="loading-state"><i class="fas fa-spinner fa-spin"></i></td></tr>';
+
+  try {
+    const memberQ = showAll ? '' : `member=${myName}&`;
+    const r = await fetch(`/api/vacations/list?${memberQ}year=${year}`);
+    const d = await r.json();
+    renderVacations(d.rows || [], showAll);
+
+    // quota 갱신 (본인)
+    if (!showAll) {
+      loadQuota(currentUser.full_name || currentUser.username, year);
+    }
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">데이터를 불러오지 못했습니다.</td></tr>';
+  }
+}
+
+function renderVacations(rows, showAll) {
+  const tbody = document.getElementById('vacTbody');
+  const myName = currentUser.full_name || currentUser.username || '';
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><i class="fas fa-umbrella-beach" style="margin-right:8px;"></i>등록된 휴가가 없습니다.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => {
+    const period = r.start_date === r.end_date ? r.start_date : `${r.start_date} ~ ${r.end_date}`;
+    const isCancelled = r.status === 'cancelled';
+    const canCancel = !isCancelled && (r.member_name === myName || isLeader);
+
+    const statusClass = r.status === 'approved' ? 'vac-status-approved'
+                      : r.status === 'cancelled' ? 'vac-status-cancelled'
+                      : 'vac-status-pending';
+    const statusLabel = r.status === 'approved' ? '승인'
+                      : r.status === 'cancelled' ? '취소됨'
+                      : '대기';
+    const typeKey = (r.vacation_type || '').replace(/\s/g, '');
+    const memberCol = showAll
+      ? `<td data-label="직원" style="font-weight:600;">${escHtml(r.member_name || '-')}</td>` : '';
+
+    return `<tr style="${isCancelled ? 'opacity:0.55;' : ''}">
+      <td data-label="유형"><span class="vac-type-badge vac-type-${typeKey}">${escHtml(r.vacation_type || '-')}</span></td>
+      ${memberCol}
+      <td data-label="기간" style="font-size:12px;white-space:nowrap;">${escHtml(period)}</td>
+      <td data-label="일수" style="font-weight:700;text-align:center;">${r.days}</td>
+      <td data-label="사유" style="color:#6b7280;">${escHtml(r.note || '-')}</td>
+      <td data-label="상태"><span class="vac-status-badge ${statusClass}">${statusLabel}</span></td>
+      <td data-label="관리">
+        ${canCancel
+          ? `<button class="btn-cancel-vac" onclick="cancelVacation(${r.id})">취소</button>`
+          : '-'}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── 휴가 취소 ──
+async function cancelVacation(id) {
+  if (!confirm('이 휴가를 취소하시겠습니까?')) return;
+  try {
+    const r = await fetch(`/tables/vacations/${id}`, { method: 'DELETE' });
+    if (!r.ok) throw new Error(`서버 오류 (${r.status})`);
+    Portal.showToast('휴가가 취소되었습니다.', 'success');
+    await loadVacations();
+    const year = document.getElementById('yearSelect').value;
+    loadQuota(currentUser.full_name || currentUser.username, year);
+  } catch (e) {
+    Portal.showToast('취소 실패: ' + e.message, 'error');
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── 초기화 ──
+function init() {
+  buildYearOptions();
+  // 오늘 날짜 기본값
+  const today = Portal.todayStr();
+  document.getElementById('formStart').value = today;
+  document.getElementById('formEnd').value = today;
+  document.getElementById('formDays').value = 1;
+
+  const year = new Date().getFullYear();
+  const myName = currentUser.full_name || currentUser.username || '';
+  loadQuota(myName, year);
+  loadVacations();
+}
+
+init();
+</script>
+</body>
+</html>

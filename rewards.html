@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>포인트 / 보상 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css?v=29">
+  <style>
+    /* ── 분기 선택 헤더 ── */
+    .rewards-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .rewards-header h2 {
+      font-size: 18px;
+      font-weight: 800;
+      color: #111827;
+      margin: 0;
+    }
+    .quarter-select {
+      padding: 8px 14px;
+      font-size: 14px;
+      font-family: inherit;
+      font-weight: 600;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 8px;
+      background: #fff;
+      color: #374151;
+      cursor: pointer;
+      min-width: 160px;
+    }
+    .quarter-select:focus { outline: none; border-color: #4f86f7; }
+
+    /* ── 컨페티 SVG 배경 ── */
+    .confetti-wrap {
+      position: relative;
+      overflow: hidden;
+    }
+    .confetti-svg {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.55;
+    }
+
+    /* ── 포디움 영역 ── */
+    .podium-section {
+      background: linear-gradient(160deg, #1e1b4b 0%, #312e81 40%, #1e3a5f 100%);
+      border-radius: 20px;
+      padding: 36px 28px 0;
+      margin-bottom: 28px;
+      position: relative;
+      overflow: hidden;
+      min-height: 300px;
+    }
+    .podium-title {
+      text-align: center;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.55);
+      margin-bottom: 28px;
+      position: relative;
+      z-index: 1;
+    }
+    .podium-stage {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 0;
+      position: relative;
+      z-index: 1;
+    }
+    .podium-slot {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      max-width: 220px;
+    }
+    .podium-avatar-wrap {
+      position: relative;
+      margin-bottom: 10px;
+    }
+    .podium-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      font-weight: 800;
+      color: #fff;
+      position: relative;
+      z-index: 1;
+      transition: transform 0.2s ease;
+    }
+    .podium-slot:hover .podium-avatar { transform: translateY(-4px) scale(1.05); }
+    .podium-slot.rank-1 .podium-avatar {
+      width: 80px;
+      height: 80px;
+      font-size: 28px;
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%);
+      box-shadow: 0 0 0 4px rgba(245,158,11,0.35), 0 12px 32px rgba(245,158,11,0.45);
+    }
+    .podium-slot.rank-2 .podium-avatar {
+      background: linear-gradient(135deg, #9ca3af 0%, #6b7280 50%, #4b5563 100%);
+      box-shadow: 0 0 0 3px rgba(156,163,175,0.3), 0 8px 24px rgba(107,114,128,0.35);
+    }
+    .podium-slot.rank-3 .podium-avatar {
+      background: linear-gradient(135deg, #cd7c3b 0%, #a16030 50%, #7a4723 100%);
+      box-shadow: 0 0 0 3px rgba(205,124,59,0.3), 0 8px 24px rgba(161,96,48,0.3);
+    }
+    .podium-crown {
+      position: absolute;
+      top: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 22px;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+      animation: crown-bob 2.5s ease-in-out infinite;
+    }
+    @keyframes crown-bob {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50%       { transform: translateX(-50%) translateY(-4px); }
+    }
+    .podium-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+    .podium-slot.rank-1 .podium-name { font-size: 16px; }
+    .podium-points {
+      font-size: 22px;
+      font-weight: 900;
+      text-align: center;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .podium-slot.rank-1 .podium-points { font-size: 28px; color: #fbbf24; }
+    .podium-slot.rank-2 .podium-points { color: #d1d5db; }
+    .podium-slot.rank-3 .podium-points { color: #d97706; }
+    .podium-prize-chip {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-bottom: 14px;
+      white-space: nowrap;
+    }
+    .podium-slot.rank-1 .podium-prize-chip {
+      background: rgba(251,191,36,0.2);
+      color: #fbbf24;
+      border: 1px solid rgba(251,191,36,0.4);
+    }
+    .podium-slot.rank-2 .podium-prize-chip {
+      background: rgba(209,213,219,0.15);
+      color: #d1d5db;
+      border: 1px solid rgba(209,213,219,0.3);
+    }
+    .podium-slot.rank-3 .podium-prize-chip {
+      background: rgba(217,119,6,0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(217,119,6,0.3);
+    }
+    /* 포디움 단(step) */
+    .podium-step {
+      width: 100%;
+      border-radius: 10px 10px 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 900;
+      color: rgba(255,255,255,0.4);
+    }
+    .podium-slot.rank-1 .podium-step {
+      height: 110px;
+      background: linear-gradient(180deg, rgba(245,158,11,0.25) 0%, rgba(245,158,11,0.12) 100%);
+      border: 1px solid rgba(245,158,11,0.2);
+    }
+    .podium-slot.rank-2 .podium-step {
+      height: 80px;
+      background: linear-gradient(180deg, rgba(156,163,175,0.2) 0%, rgba(156,163,175,0.08) 100%);
+      border: 1px solid rgba(156,163,175,0.15);
+    }
+    .podium-slot.rank-3 .podium-step {
+      height: 60px;
+      background: linear-gradient(180deg, rgba(205,124,59,0.2) 0%, rgba(205,124,59,0.08) 100%);
+      border: 1px solid rgba(205,124,59,0.15);
+    }
+    /* 포디움 순서: 2등 좌, 1등 중앙, 3등 우 */
+    .podium-stage { order: 0; }
+
+    /* ── 하단 2컬럼 그리드 ── */
+    .rewards-bottom {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 20px;
+      align-items: start;
+      margin-bottom: 28px;
+    }
+
+    /* ── 랭킹 테이블 카드 ── */
+    .ranking-card {
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .ranking-card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #f3f4f6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .ranking-card-header h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111827;
+      margin: 0;
+    }
+    .ranking-table { width: 100%; border-collapse: collapse; }
+    .ranking-table th {
+      padding: 10px 16px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #9ca3af;
+      text-align: left;
+      background: #f9fafb;
+      border-bottom: 1px solid #f3f4f6;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .ranking-table td {
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #374151;
+      border-bottom: 1px solid #f9fafb;
+      vertical-align: middle;
+    }
+    .ranking-table tr:last-child td { border-bottom: none; }
+    .ranking-table tr:hover td { background: #f9fafb; }
+    .rank-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .rank-badge.gold   { background: linear-gradient(135deg,#fef3c7,#fbbf24); color: #92400e; }
+    .rank-badge.silver { background: linear-gradient(135deg,#f3f4f6,#9ca3af); color: #374151; }
+    .rank-badge.bronze { background: linear-gradient(135deg,#fef3c7,#cd7c3b); color: #7a4723; }
+    .rank-badge.normal { background: #f3f4f6; color: #6b7280; }
+    .pts-strong { font-weight: 800; color: #111827; }
+    .breakdown-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .bchip {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 10px;
+      white-space: nowrap;
+    }
+    .bchip-kpi    { background: #ede9fe; color: #6d28d9; }
+    .bchip-task   { background: #dbeafe; color: #1d4ed8; }
+    .bchip-issue  { background: #fef3c7; color: #b45309; }
+    .bchip-sop    { background: #d1fae5; color: #065f46; }
+    .bchip-settle { background: #fce7f3; color: #9d174d; }
+    .bchip-other  { background: #f3f4f6; color: #6b7280; }
+
+    /* ── 내 점수 사이드카드 ── */
+    .my-score-card {
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .my-score-header {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .my-score-header h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111827;
+      margin: 0 0 2px;
+    }
+    .my-score-header .sub {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+    .my-score-body { padding: 16px 20px; }
+    .my-total-pts {
+      text-align: center;
+      padding: 16px 0 12px;
+    }
+    .my-total-pts .num {
+      font-size: 48px;
+      font-weight: 900;
+      color: #111827;
+      line-height: 1;
+      display: block;
+    }
+    .my-total-pts .unit {
+      font-size: 13px;
+      color: #9ca3af;
+      margin-top: 4px;
+      display: block;
+    }
+    .my-rank-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      color: #0369a1;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin: 0 auto 16px;
+      display: flex;
+      justify-content: center;
+    }
+    .my-breakdown { margin-bottom: 14px; }
+    .my-breakdown-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 10px;
+    }
+    .my-breakdown-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid #f9fafb;
+      font-size: 13px;
+    }
+    .my-breakdown-row:last-child { border-bottom: none; }
+    .my-breakdown-label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: #374151;
+    }
+    .my-breakdown-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .my-breakdown-pts { font-weight: 700; color: #111827; }
+    .gap-hint {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #166534;
+      line-height: 1.6;
+    }
+    .gap-hint .highlight {
+      font-weight: 700;
+      color: #15803d;
+    }
+
+    /* ── 분기 시상 확정 버튼 (팀장 전용) ── */
+    .finalize-section {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 8px;
+    }
+    .btn-finalize {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.15s;
+      font-family: inherit;
+      box-shadow: 0 4px 12px rgba(245,158,11,0.3);
+    }
+    .btn-finalize:hover { opacity: 0.88; transform: translateY(-1px); }
+    .btn-finalize:active { transform: translateY(0); }
+
+    /* ── 시상 히스토리 타임라인 ── */
+    .history-section {
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .history-section-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .history-section-header h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111827;
+      margin: 0;
+    }
+    .history-table { width: 100%; border-collapse: collapse; }
+    .history-table th {
+      padding: 10px 16px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #9ca3af;
+      text-align: left;
+      background: #f9fafb;
+      border-bottom: 1px solid #f3f4f6;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .history-table td {
+      padding: 11px 16px;
+      font-size: 13px;
+      color: #374151;
+      border-bottom: 1px solid #f9fafb;
+      vertical-align: middle;
+    }
+    .history-table tr:last-child td { border-bottom: none; }
+    .history-table tr:hover td { background: #f9fafb; }
+    .prize-amount-chip {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 8px;
+      background: #f0fdf4;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+    }
+
+    /* ── 로딩/빈 상태 ── */
+    .loading-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #9ca3af;
+      font-size: 14px;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #9ca3af;
+      font-size: 14px;
+    }
+
+    /* ── fade-in 애니메이션 ── */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in { animation: fadeInUp 0.4s ease forwards; }
+    .fade-in-2 { animation: fadeInUp 0.4s 0.1s ease both; }
+    .fade-in-3 { animation: fadeInUp 0.4s 0.2s ease both; }
+
+    /* ── 모바일 반응형 ── */
+    @media (max-width: 900px) {
+      .rewards-bottom { grid-template-columns: 1fr; }
+    }
+
+    /* 포디움 모바일 (≤640px): 세로 스택, 1등 위 */
+    @media (max-width: 640px) {
+      .podium-stage {
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding-bottom: 20px;
+      }
+      .podium-slot { max-width: 100%; width: 100%; flex-direction: row; gap: 14px; padding-bottom: 0; }
+      .podium-slot.rank-1 { order: -1; }
+      .podium-slot.rank-2 { order: 0; }
+      .podium-slot.rank-3 { order: 1; }
+      .podium-step { display: none; }
+      .podium-slot { align-items: center; justify-content: flex-start; padding: 14px 16px;
+        background: rgba(255,255,255,0.05); border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.1); }
+      .podium-avatar-wrap { margin-bottom: 0; flex-shrink: 0; }
+      .podium-slot .podium-name { text-align: left; }
+      .podium-slot .podium-points { text-align: left; }
+      .podium-slot .podium-prize-chip { margin-bottom: 0; }
+      .podium-info { display: flex; flex-direction: column; gap: 2px; }
+      .podium-section { padding: 24px 16px 20px; }
+    }
+
+    /* 랭킹 테이블 카드형 (≤480px) */
+    @media (max-width: 480px) {
+      .ranking-table thead { display: none; }
+      .ranking-table, .ranking-table tbody,
+      .ranking-table tr, .ranking-table td { display: block; }
+      .ranking-table tr {
+        background: #fff;
+        border: 1.5px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin: 0 0 8px;
+      }
+      .ranking-table td { border: none; padding: 4px 0; }
+      .ranking-table td::before {
+        content: attr(data-label);
+        font-size: 10px;
+        font-weight: 700;
+        color: #9ca3af;
+        display: block;
+        margin-bottom: 2px;
+      }
+      .rewards-bottom { gap: 14px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-trophy"></i> 포인트 / 보상</h1>
+    </header>
+    <main class="content-body">
+
+      <!-- 헤더: 제목 + 분기 선택 -->
+      <div class="rewards-header fade-in">
+        <h2>이번 분기 보상 현황</h2>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <select id="quarterSelect" class="quarter-select" onchange="loadAll()"></select>
+          <span id="participantsLabel" style="font-size:12px;color:#9ca3af;"></span>
+        </div>
+      </div>
+
+      <!-- 팀장 전용: 분기 시상 확정 -->
+      <div class="finalize-section fade-in" id="finalizeSection" style="display:none;">
+        <button class="btn-finalize" onclick="finalizeQuarter()">
+          <i class="fas fa-award"></i>
+          분기 시상 확정
+        </button>
+      </div>
+
+      <!-- TOP3 포디움 -->
+      <div class="podium-section confetti-wrap fade-in-2" id="podiumSection">
+        <!-- 컨페티 SVG -->
+        <svg class="confetti-svg" viewBox="0 0 800 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <circle cx="80"  cy="40"  r="5"  fill="#fbbf24" opacity="0.7"/>
+          <circle cx="200" cy="20"  r="4"  fill="#a78bfa" opacity="0.6"/>
+          <circle cx="350" cy="55"  r="6"  fill="#34d399" opacity="0.5"/>
+          <circle cx="520" cy="30"  r="4"  fill="#f87171" opacity="0.6"/>
+          <circle cx="660" cy="15"  r="5"  fill="#60a5fa" opacity="0.7"/>
+          <circle cx="740" cy="60"  r="4"  fill="#fbbf24" opacity="0.5"/>
+          <rect x="130" y="25" width="8"  height="8"  rx="2" fill="#f472b6" opacity="0.55" transform="rotate(30 130 25)"/>
+          <rect x="290" y="45" width="7"  height="7"  rx="2" fill="#34d399" opacity="0.5" transform="rotate(-20 290 45)"/>
+          <rect x="430" y="18" width="9"  height="9"  rx="2" fill="#fbbf24" opacity="0.6" transform="rotate(45 430 18)"/>
+          <rect x="590" y="50" width="7"  height="7"  rx="2" fill="#a78bfa" opacity="0.55" transform="rotate(15 590 50)"/>
+          <rect x="700" y="35" width="8"  height="8"  rx="2" fill="#f87171" opacity="0.5" transform="rotate(-35 700 35)"/>
+          <polygon points="170,70 175,85 185,85" fill="#60a5fa" opacity="0.45"/>
+          <polygon points="470,65 476,80 486,80" fill="#fbbf24" opacity="0.4"/>
+          <polygon points="620,25 625,40 635,40" fill="#34d399" opacity="0.45"/>
+        </svg>
+        <div class="podium-title">QUARTERLY LEADERBOARD</div>
+        <div class="podium-stage" id="podiumStage">
+          <div class="loading-state"><i class="fas fa-spinner fa-spin"></i> 로딩 중...</div>
+        </div>
+      </div>
+
+      <!-- 하단: 랭킹 테이블 + 내 점수 카드 -->
+      <div class="rewards-bottom">
+        <!-- 전체 랭킹 -->
+        <div class="ranking-card fade-in-2">
+          <div class="ranking-card-header">
+            <h3><i class="fas fa-list-ol" style="color:#4f86f7;margin-right:8px;"></i>전체 랭킹</h3>
+            <span id="rankingCount" style="font-size:12px;color:#9ca3af;"></span>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="ranking-table" id="rankingTable">
+              <thead>
+                <tr>
+                  <th style="width:50px;">순위</th>
+                  <th>이름</th>
+                  <th style="width:90px;">포인트</th>
+                  <th>적립 내역</th>
+                </tr>
+              </thead>
+              <tbody id="rankingTbody">
+                <tr><td colspan="4" class="loading-state"><i class="fas fa-spinner fa-spin"></i></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 내 점수 카드 -->
+        <div class="my-score-card fade-in-3" id="myScoreCard">
+          <div class="my-score-header">
+            <h3><i class="fas fa-user" style="color:#4f86f7;margin-right:6px;"></i>내 점수</h3>
+            <div class="sub" id="myScoreSub">이번 분기 누적</div>
+          </div>
+          <div class="my-score-body" id="myScoreBody">
+            <div class="loading-state"><i class="fas fa-spinner fa-spin"></i></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 분기별 시상 히스토리 -->
+      <div class="history-section fade-in-3">
+        <div class="history-section-header">
+          <h3><i class="fas fa-history" style="color:#6b7280;margin-right:8px;"></i>역대 시상 기록</h3>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>분기</th>
+                <th style="width:50px;">순위</th>
+                <th>수상자</th>
+                <th style="width:90px;">포인트</th>
+                <th>상금</th>
+                <th>내역</th>
+              </tr>
+            </thead>
+            <tbody id="historyTbody">
+              <tr><td colspan="6" class="loading-state"><i class="fas fa-spinner fa-spin"></i></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="js/rbac.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js?v=29"></script>
+<script>
+if (!Portal.init()) throw 'AUTH';
+
+const currentUser = RBAC.getCurrentUser();
+const isLeader = currentUser.role === 'team_leader';
+
+// ── 분기 선택 드롭다운 빌드 ──
+function buildQuarterOptions() {
+  const sel = document.getElementById('quarterSelect');
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth(); // 0-based
+  const currentQ = Math.floor(month / 3) + 1;
+  const opts = [];
+  // 이번 분기부터 작년 4분기까지
+  for (let y = year; y >= year - 1; y--) {
+    const maxQ = (y === year) ? currentQ : 4;
+    const minQ = 1;
+    for (let q = maxQ; q >= minQ; q--) {
+      opts.push({ value: `${y}-Q${q}`, label: `${y}년 ${q}분기` });
+    }
+  }
+  sel.innerHTML = opts.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+  sel.value = opts[0].value;
+}
+
+function currentQuarter() {
+  return document.getElementById('quarterSelect').value;
+}
+
+// ── 팀장 전용 버튼 표시 ──
+if (isLeader) {
+  document.getElementById('finalizeSection').style.display = 'flex';
+}
+
+// ── 포디움 렌더 ──
+function renderPodium(top3) {
+  const stage = document.getElementById('podiumStage');
+  if (!top3 || !top3.length) {
+    stage.innerHTML = '<div class="empty-state" style="color:rgba(255,255,255,0.45);">아직 포인트 데이터가 없습니다.</div>';
+    return;
+  }
+
+  // 순서: 2등 좌, 1등 중앙, 3등 우
+  const order = [
+    top3.find(x => x.rank === 2),
+    top3.find(x => x.rank === 1),
+    top3.find(x => x.rank === 3)
+  ].filter(Boolean);
+
+  const rankClass = { 1: 'rank-1', 2: 'rank-2', 3: 'rank-3' };
+  const rankEmoji = { 1: '<span class="podium-crown">&#x1F451;</span>', 2: '', 3: '' };
+  const rankNum   = { 1: '1st', 2: '2nd', 3: '3rd' };
+
+  stage.innerHTML = order.map(p => {
+    const initials = (p.member_name || '?').slice(0, 1);
+    const prizeLabel = p.prize_label || '-';
+    const pts = (p.points || 0).toLocaleString();
+    const breakdownHtml = buildBreakdownChips(p.breakdown || {});
+    return `
+      <div class="podium-slot ${rankClass[p.rank]}">
+        <div class="podium-avatar-wrap">
+          ${rankEmoji[p.rank]}
+          <div class="podium-avatar">${initials}</div>
+        </div>
+        <div class="podium-info">
+          <div class="podium-name">${escHtml(p.member_name || '-')}</div>
+          <div class="podium-points">${pts}<span style="font-size:0.45em;opacity:0.7;margin-left:2px;">pt</span></div>
+          <div class="podium-prize-chip">${escHtml(prizeLabel)}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:3px;">${breakdownHtml}</div>
+        </div>
+        <div class="podium-step">${rankNum[p.rank]}</div>
+      </div>`;
+  }).join('');
+}
+
+// ── 랭킹 테이블 렌더 ──
+function renderRanking(ranking) {
+  const tbody = document.getElementById('rankingTbody');
+  document.getElementById('rankingCount').textContent = `${ranking.length}명`;
+
+  if (!ranking.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty-state">데이터가 없습니다.</td></tr>';
+    return;
+  }
+
+  const rankBadgeClass = r => r === 1 ? 'gold' : r === 2 ? 'silver' : r === 3 ? 'bronze' : 'normal';
+
+  tbody.innerHTML = ranking.map((r, i) => {
+    const rank = i + 1;
+    const pts = (r.points || 0).toLocaleString();
+    const breakdown = buildBreakdownChips(r.breakdown || {});
+    return `<tr>
+      <td data-label="순위"><span class="rank-badge ${rankBadgeClass(rank)}">${rank}</span></td>
+      <td data-label="이름" style="font-weight:600;color:#111827;">${escHtml(r.member_name || '-')}</td>
+      <td data-label="포인트"><span class="pts-strong">${pts}</span></td>
+      <td data-label="내역"><div class="breakdown-chips">${breakdown}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── 내 점수 카드 렌더 ──
+function renderMyScore(me, top3) {
+  const body = document.getElementById('myScoreBody');
+  const sub  = document.getElementById('myScoreSub');
+
+  if (!me) {
+    body.innerHTML = '<div class="empty-state">데이터가 없습니다.</div>';
+    return;
+  }
+
+  const total = me.current_total || 0;
+  const myRank = me.rank || '-';
+
+  // 1등까지 gap
+  const topPts = (top3 && top3[0]) ? (top3[0].points || 0) : 0;
+  const gap = topPts - total;
+
+  sub.textContent = currentQuarter() + ' 누적';
+
+  const BREAKDOWN_LABELS = {
+    kpi:    { label: 'KPI', dotColor: '#6d28d9', chipClass: 'bchip-kpi' },
+    task:   { label: '업무', dotColor: '#1d4ed8', chipClass: 'bchip-task' },
+    issue:  { label: '이슈', dotColor: '#b45309', chipClass: 'bchip-issue' },
+    sop:    { label: 'SOP', dotColor: '#065f46', chipClass: 'bchip-sop' },
+    settle: { label: '결산', dotColor: '#9d174d', chipClass: 'bchip-settle' }
+  };
+
+  const bd = me.breakdown || {};
+  const breakdownRows = Object.entries(BREAKDOWN_LABELS).map(([key, meta]) => {
+    const pts = bd[key] || 0;
+    return `<div class="my-breakdown-row">
+      <span class="my-breakdown-label">
+        <span class="my-breakdown-dot" style="background:${meta.dotColor};"></span>
+        ${meta.label}
+      </span>
+      <span class="my-breakdown-pts">+${pts}pt</span>
+    </div>`;
+  }).join('');
+
+  // 동기부여 힌트
+  let hintHtml = '';
+  if (gap > 0) {
+    const issueNeeded = Math.ceil(gap / 20);
+    hintHtml = `<div class="gap-hint">
+      1위까지 <span class="highlight">${gap.toLocaleString()}pt</span> 남았습니다.
+      이슈 <span class="highlight">${issueNeeded}건</span> 더 등록하면 역전 가능!
+    </div>`;
+  } else if (gap === 0 && total > 0) {
+    hintHtml = `<div class="gap-hint" style="background:#fef3c7;border-color:#fcd34d;color:#b45309;">
+      현재 공동 1위입니다! 리드를 유지하세요.
+    </div>`;
+  } else if (gap < 0) {
+    hintHtml = `<div class="gap-hint">
+      현재 <span class="highlight">1위</span>를 달리고 있습니다!
+      <span class="highlight">${Math.abs(gap).toLocaleString()}pt</span> 앞서 있습니다.
+    </div>`;
+  }
+
+  body.innerHTML = `
+    <div class="my-total-pts">
+      <span class="num">${total.toLocaleString()}</span>
+      <span class="unit">포인트 누적</span>
+    </div>
+    <div class="my-rank-pill">
+      <i class="fas fa-medal"></i>
+      현재 순위 ${myRank}위
+    </div>
+    <div class="my-breakdown">
+      <div class="my-breakdown-title">액션별 적립</div>
+      ${breakdownRows}
+    </div>
+    ${hintHtml}`;
+}
+
+// ── 시상 히스토리 렌더 ──
+function renderHistory(rows) {
+  const tbody = document.getElementById('historyTbody');
+  if (!rows || !rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">시상 기록이 없습니다.</td></tr>';
+    return;
+  }
+
+  const rankBadgeClass = r => r === 1 ? 'gold' : r === 2 ? 'silver' : r === 3 ? 'bronze' : 'normal';
+
+  tbody.innerHTML = rows.map(r => {
+    const amt = r.prize_amount ? `${Number(r.prize_amount).toLocaleString()}원` : '-';
+    return `<tr>
+      <td>${escHtml(r.quarter || '-')}</td>
+      <td><span class="rank-badge ${rankBadgeClass(r.rank)}">${r.rank || '-'}</span></td>
+      <td style="font-weight:600;">${escHtml(r.member_name || '-')}</td>
+      <td><span class="pts-strong">${(r.points || 0).toLocaleString()}</span></td>
+      <td><span class="prize-amount-chip">${amt}</span></td>
+      <td style="color:#6b7280;">${escHtml(r.prize_label || '-')}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── 브레이크다운 칩 빌드 ──
+function buildBreakdownChips(bd) {
+  const map = {
+    kpi: { label: 'KPI', cls: 'bchip-kpi' },
+    task: { label: '업무', cls: 'bchip-task' },
+    issue: { label: '이슈', cls: 'bchip-issue' },
+    sop: { label: 'SOP', cls: 'bchip-sop' },
+    settle: { label: '결산', cls: 'bchip-settle' }
+  };
+  return Object.entries(map)
+    .filter(([k]) => bd[k] > 0)
+    .map(([k, m]) => `<span class="bchip ${m.cls}">${m.label} +${bd[k]}</span>`)
+    .join('');
+}
+
+// ── 전체 데이터 로드 ──
+async function loadAll() {
+  const quarter = currentQuarter();
+  const memberParam = encodeURIComponent(currentUser.full_name || currentUser.username || '');
+
+  document.getElementById('podiumStage').innerHTML =
+    '<div class="loading-state" style="color:rgba(255,255,255,0.5);"><i class="fas fa-spinner fa-spin"></i></div>';
+  document.getElementById('rankingTbody').innerHTML =
+    '<tr><td colspan="4" class="loading-state"><i class="fas fa-spinner fa-spin"></i></td></tr>';
+  document.getElementById('myScoreBody').innerHTML =
+    '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i></div>';
+
+  try {
+    const [top3Res, rankRes, meRes] = await Promise.all([
+      fetch(`/api/points/top3?quarter=${encodeURIComponent(quarter)}`).then(r => r.json()),
+      fetch(`/api/points/ranking?quarter=${encodeURIComponent(quarter)}`).then(r => r.json()),
+      fetch(`/api/points/me?member=${memberParam}&quarter=${encodeURIComponent(quarter)}`).then(r => r.json())
+    ]);
+
+    const top3    = top3Res.top3 || [];
+    const ranking = rankRes.ranking || [];
+    const me      = meRes;
+
+    // 참가자 수
+    const total = top3Res.total_participants || ranking.length;
+    document.getElementById('participantsLabel').textContent = total ? `총 ${total}명 참가` : '';
+
+    // 내 rank 계산 (ranking 배열 기반)
+    const myName = currentUser.full_name || currentUser.username || '';
+    const myRankIdx = ranking.findIndex(r => r.member_name === myName);
+    if (me && myRankIdx >= 0) me.rank = myRankIdx + 1;
+
+    renderPodium(top3);
+    renderRanking(ranking);
+    renderMyScore(me, top3);
+  } catch (e) {
+    document.getElementById('podiumStage').innerHTML =
+      '<div class="empty-state" style="color:rgba(255,255,255,0.5);">데이터를 불러오지 못했습니다.</div>';
+    Portal.showToast('랭킹 로드 실패: ' + e.message, 'error');
+  }
+}
+
+async function loadHistory() {
+  try {
+    const r = await fetch('/api/prizes/history');
+    const d = await r.json();
+    renderHistory(d.rows || []);
+  } catch (e) {
+    document.getElementById('historyTbody').innerHTML =
+      '<tr><td colspan="6" class="empty-state">기록을 불러오지 못했습니다.</td></tr>';
+  }
+}
+
+async function finalizeQuarter() {
+  const quarter = currentQuarter();
+  if (!confirm(`"${quarter}" 분기 시상을 확정하시겠습니까?\n확정 후에는 prize_history에 기록됩니다.`)) return;
+  try {
+    const r = await fetch(`/api/prizes/finalize?quarter=${encodeURIComponent(quarter)}`, { method: 'POST' });
+    if (!r.ok) {
+      const d = await r.json();
+      throw new Error(d.error || `서버 오류 (${r.status})`);
+    }
+    Portal.showToast(`${quarter} 분기 시상이 확정되었습니다.`, 'success');
+    await loadHistory();
+    await loadAll();
+  } catch (e) {
+    Portal.showToast('시상 확정 실패: ' + e.message, 'error');
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── 초기 실행 ──
+buildQuarterOptions();
+loadAll();
+loadHistory();
+</script>
+</body>
+</html>
