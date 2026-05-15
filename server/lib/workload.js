@@ -48,19 +48,48 @@ function computeDayLoad(db, memberName, dateStr, thr, bizMap) {
       total_minutes += (Number(e.duration_minutes) || 0);
     }
   }
+  // 휴가 정보 — 해당 날짜에 걸친 vacation 행 모두 수집
+  const vacations = [];
+  for (const v of (db.vacations || [])) {
+    if (v.member_name !== memberName) continue;
+    if (v.status && v.status !== 'approved') continue;
+    const sd = v.start_date || '';
+    const ed = v.end_date || sd;
+    if (!sd) continue;
+    if (dateStr >= sd && dateStr <= ed) {
+      vacations.push({
+        id: v.id,
+        vacation_type: v.vacation_type,
+        start_time: v.start_time || '',
+        end_time: v.end_time || '',
+        hours: Number(v.hours) || 0,
+        days: Number(v.days) || 0,
+        is_full_day: (Number(v.hours) || 0) >= thr.hoursPerDay - 0.1,
+        note: v.note || '',
+      });
+    }
+  }
+  const has_vacation = vacations.length > 0;
+  const is_full_vacation = has_vacation && vacations.some(v => v.is_full_day);
   const dailyMin = thr.hoursPerDay * 60;
   const load_pct = dailyMin > 0 ? (total_minutes / dailyMin) * 100 : 0;
   const isBiz = bizday.isBusinessDay(dateStr, bizMap);
   const bd = bizMap.get(dateStr);
+  // 전일 휴가면 status='vacation', 부분 휴가면 work load 그대로 + 별도 vacation 정보
+  let status = classifyStatus(load_pct, thr);
+  if (is_full_vacation) status = 'vacation';
   return {
     member_name: memberName,
     work_date: dateStr,
     total_minutes,
     load_pct: Math.round(load_pct * 10) / 10,
-    status: classifyStatus(load_pct, thr),
+    status,
     is_business_day: isBiz,
     holiday_name: bd ? (bd.holiday_name || '') : '',
     day_type: bd ? bd.day_type : (bizday.isWeekend(dateStr) ? 'weekend' : 'workday'),
+    vacations,
+    has_vacation,
+    is_full_vacation,
   };
 }
 

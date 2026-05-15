@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=28">
+  <link rel="stylesheet" href="css/main.css?v=30">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
   <!-- 엑셀 다운로드 (스타일 지원 fork: xlsx-js-style) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
@@ -241,6 +241,7 @@
       );
       border: 1px solid #d1d5db;
     }
+    .legend-dot.vacation { background: #1f2937; }
 
     /* 모달 - 일별 상세 */
     .entry-list { display: flex; flex-direction: column; gap: 8px; }
@@ -288,6 +289,52 @@
     }
     .detail-stat { font-size: 13px; color: var(--gray-600); }
     .detail-stat strong { color: var(--gray-900); font-weight: 700; }
+
+    /* 휴가 섹션 (모달 내) */
+    .vacation-section {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-top: 12px;
+    }
+    .vacation-section-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #374151;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .vacation-badge-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .vacation-entry {
+      font-size: 12.5px;
+      color: #4b5563;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .vacation-type-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      background: #e5e7eb;
+      color: #374151;
+      flex-shrink: 0;
+    }
+    .vacation-time {
+      color: #6b7280;
+      font-size: 12px;
+    }
 
     /* 접근 거부 */
     .access-gate {
@@ -388,7 +435,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=29"></script>
+<script src="js/portal.js?v=30"></script>
 <script>
 /* ── 초기화 ── */
 let currentUser = null;
@@ -480,6 +527,7 @@ function renderPageShell() {
           <div class="legend-item"><div class="legend-dot idle"></div>유휴</div>
           <div class="legend-item"><div class="legend-dot empty"></div>미입력</div>
           <div class="legend-item"><div class="legend-dot holiday"></div>비영업일</div>
+          <div class="legend-item"><div class="legend-dot vacation"></div>휴가</div>
         </div>
       </div>
       <div class="chart-card-body">
@@ -685,14 +733,14 @@ function renderHeatmap(data) {
   // ApexCharts heatmap: series = [{name: member, data: [{x: date, y: colorValue}]}]
   // colorValue: 0=비영업일, 1=미입력, 2=유휴, 3=정상, 4=과중
 
-  const STATUS_VAL = { empty: 1, idle: 2, normal: 3, overload: 4 };
+  const STATUS_VAL = { empty: 1, idle: 2, normal: 3, overload: 4, vacation: 5 };
 
   const series = members.map(member => ({
     name: member,
     data: dates.map(date => {
       const cell = cells[member] && cells[member][date];
       if (!cell) return { x: date, y: 0, meta: { status: 'empty', is_business_day: false } };
-      const y = cell.is_business_day ? (STATUS_VAL[cell.status] || 1) : 0;
+      const y = cell.is_business_day ? (STATUS_VAL[cell.status] || 1) : (cell.has_vacation ? 5 : 0);
       return {
         x: date,
         y: y,
@@ -729,15 +777,51 @@ function renderHeatmap(data) {
         const dt   = heatmapData.dates[di];
         const cell = heatmapData.cells[pt] && heatmapData.cells[pt][dt];
         if (!cell) return `<div style="padding:8px 12px;font-size:12px;">${pt}<br>${dt}<br>데이터 없음</div>`;
-        const statusLabel = { overload: '과중', normal: '정상', idle: '유휴', empty: '미입력' };
-        const statusColor = { overload: '#ef4444', normal: '#10b981', idle: '#f59e0b', empty: '#9ca3af' };
-        const hours = Math.round(cell.total_minutes / 6) / 10;
-        return `<div style="padding:10px 14px;font-size:12.5px;line-height:1.8;min-width:160px;">
+
+        const statusLabel = { overload: '과중', normal: '정상', idle: '유휴', empty: '미입력', vacation: '휴가' };
+        const statusColor = { overload: '#ef4444', normal: '#10b981', idle: '#f59e0b', empty: '#9ca3af', vacation: '#1f2937' };
+        const hours = cell.total_minutes ? Math.round(cell.total_minutes / 6) / 10 : 0;
+        const vacations = Array.isArray(cell.vacations) ? cell.vacations : [];
+
+        // 툴팁 상단: 이름 + 날짜
+        let tip = `<div style="padding:10px 14px;font-size:12.5px;line-height:1.8;min-width:180px;max-width:260px;">
           <strong style="font-size:13.5px;">${pt}</strong><br>
           ${dt}${cell.holiday_name ? ` (${cell.holiday_name})` : ''}<br>
-          <span style="color:${statusColor[cell.status] || '#9ca3af'};font-weight:700;">${statusLabel[cell.status] || '-'}</span>
-          ${cell.is_business_day ? ` · ${hours}h (부하 ${Math.round(cell.load_pct)}%)` : ' · 비영업일'}
-        </div>`;
+          <span style="color:${statusColor[cell.status] || '#9ca3af'};font-weight:700;">${statusLabel[cell.status] || '-'}</span>`;
+
+        // 업무 시간 (비영업일/휴가 아닌 경우)
+        if (cell.is_business_day && cell.status !== 'vacation') {
+          tip += ` · ${hours}h (부하 ${Math.round(cell.load_pct || 0)}%)`;
+        } else if (!cell.is_business_day) {
+          tip += ' · 비영업일';
+        }
+
+        // 휴가 정보
+        if (vacations.length) {
+          tip += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #e5e7eb;font-size:12px;">`;
+          if (cell.is_full_vacation) {
+            const v = vacations[0];
+            tip += `<span style="color:#1f2937;font-weight:700;">🏖️ 휴가 (${v.vacation_type || '-'})</span><br>`;
+            tip += `<span style="color:#6b7280;">${v.start_time || '-'}~${v.end_time || '-'} / ${v.hours != null ? v.hours + 'h' : ''}</span>`;
+            for (let i = 1; i < vacations.length; i++) {
+              const vi = vacations[i];
+              tip += `<br>· ${vi.vacation_type} ${vi.start_time}~${vi.end_time} (${vi.hours}h)`;
+            }
+          } else {
+            // 부분 휴가
+            if (hours > 0) {
+              tip += `<span style="color:#374151;">업무 ${hours}h</span><br>`;
+            }
+            tip += `<span style="color:#1f2937;font-weight:700;">부분 휴가:</span>`;
+            for (const v of vacations) {
+              tip += `<br>· ${v.vacation_type} ${v.start_time}~${v.end_time} (${v.hours}h)`;
+            }
+          }
+          tip += `</div>`;
+        }
+
+        tip += '</div>';
+        return tip;
       }
     },
     plotOptions: {
@@ -750,7 +834,8 @@ function renderHeatmap(data) {
             { from: 1, to: 1, color: '#e5e7eb', name: '미입력' },     // empty
             { from: 2, to: 2, color: '#f59e0b', name: '유휴' },       // idle (주황)
             { from: 3, to: 3, color: '#10b981', name: '정상' },       // normal
-            { from: 4, to: 4, color: '#ef4444', name: '과중' }        // overload
+            { from: 4, to: 4, color: '#ef4444', name: '과중' },       // overload
+            { from: 5, to: 5, color: '#1f2937', name: '휴가' }         // vacation
           ]
         }
       }
@@ -773,8 +858,8 @@ function renderHeatmap(data) {
       labels: { style: { fontSize: '12px', fontWeight: 600, colors: '#374151' } }
     },
     states: {
-      hover:    { filter: { type: 'lighten', value: 0.1 } },
-      active:   { filter: { type: 'darken',  value: 0.15 } }
+      hover:    { filter: { type: 'lighten', value: 0.08 } },
+      active:   { filter: { type: 'darken',  value: 0.12 } }
     },
     series: series
   };
@@ -1091,8 +1176,8 @@ async function openDetailModal(member, date, meta) {
   const title = document.getElementById('detailModalTitle');
   const body  = document.getElementById('detailModalBody');
 
-  const statusLabel = { overload: '과중', normal: '정상', idle: '유휴', empty: '미입력' };
-  const statusColor = { overload: '#ef4444', normal: '#10b981', idle: '#9ca3af', empty: '#9ca3af' };
+  const statusLabel = { overload: '과중', normal: '정상', idle: '유휴', empty: '미입력', vacation: '휴가' };
+  const statusColor = { overload: '#ef4444', normal: '#10b981', idle: '#9ca3af', empty: '#9ca3af', vacation: '#1f2937' };
 
   // 요일 이름
   const DOW = ['일','월','화','수','목','금','토'];
@@ -1192,7 +1277,32 @@ async function openDetailModal(member, date, meta) {
       </div>`;
     }
 
-    body.innerHTML = html;
+
+    // 휴가 섹션 추가
+    const vacations = (meta && Array.isArray(meta.vacations)) ? meta.vacations : [];
+    if (vacations.length) {
+      const isFullVac = meta && meta.is_full_vacation;
+      html += `<div class="vacation-section">
+        <div class="vacation-section-title">
+          <span>🏖️</span>
+          <span>${isFullVac ? '전일 휴가' : '부분 휴가'}</span>
+        </div>
+        <div class="vacation-badge-row">`;
+      for (const v of vacations) {
+        const timeStr = (v.start_time && v.end_time) ? `${v.start_time}~${v.end_time}` : '';
+        const hStr = v.hours != null ? `${v.hours}h` : '';
+        html += `<div class="vacation-entry">
+          <span class="vacation-type-chip">${v.vacation_type || '-'}</span>
+          ${timeStr ? `<span class="vacation-time">${timeStr}</span>` : ''}
+          ${hStr ? `<span style="font-weight:700;color:#374151;">${hStr}</span>` : ''}
+          ${v.note ? `<span style="color:#9ca3af;font-size:11px;">${escapeHtml(v.note)}</span>` : ''}
+        </div>`;
+      }
+      html += `</div>
+      </div>`;
+    }
+
+        body.innerHTML = html;
   } catch(e) {
     body.innerHTML = `<div class="entry-empty">데이터를 불러오지 못했습니다.</div>`;
   }

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=29">
+  <link rel="stylesheet" href="css/main.css?v=30">
   <style>
     /* ── 연차 게이지 히어로 ── */
     .quota-hero {
@@ -469,10 +469,13 @@
           </div>
           <div class="vac-form-body">
 
-            <!-- 팀장: 직원 선택 (본인은 숨김) -->
+            <!-- 팀장: 직원 선택 -->
             <div class="form-field" id="memberFieldWrap" style="display:none;">
-              <label class="form-label">직원</label>
-              <select id="formMember" class="form-select">
+              <label class="form-label" style="display:flex;align-items:center;gap:6px;">
+                <span style="background:#fef3c7;color:#b45309;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;letter-spacing:0.04em;">팀장</span>
+                대상 직원 선택
+              </label>
+              <select id="formMember" class="form-select" onchange="onMemberChange()">
                 <option value="">본인</option>
               </select>
             </div>
@@ -578,7 +581,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=29"></script>
+<script src="js/portal.js?v=30"></script>
 <script>
 if (!Portal.init()) throw 'AUTH';
 
@@ -725,27 +728,42 @@ if (isLeader) {
 
 async function loadMemberOptions() {
   try {
-    const r = await fetch('/tables/personnel?limit=100');
+    const r = await fetch('/tables/users?limit=200');
     const d = await r.json();
-    const members = (d.rows || d.data || []).filter(m => m.status !== 'inactive');
+    const members = (d.rows || d.data || []).filter(m => m.is_active !== false && m.full_name);
     const myName = currentUser.full_name || currentUser.username || '';
     const sel = document.getElementById('formMember');
-    sel.innerHTML = `<option value="">본인 (${myName})</option>` +
+    sel.innerHTML = `<option value="" data-name="${escHtml(myName)}">본인 (${escHtml(myName)})</option>` +
       members
         .filter(m => m.full_name !== myName)
-        .map(m => `<option value="${m.user_id || m.id}">${escHtml(m.full_name || m.username)}</option>`)
+        .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '', 'ko'))
+        .map(m => `<option value="${m.user_id || m.id}" data-name="${escHtml(m.full_name)}">${escHtml(m.full_name)}</option>`)
         .join('');
     document.getElementById('memberFieldWrap').style.display = '';
   } catch (_) {}
 }
 
+/* 팀장: 대상 직원 변경 시 quota 갱신 */
+function onMemberChange() {
+  if (!isLeader) return;
+  const sel = document.getElementById('formMember');
+  const opt = sel.options[sel.selectedIndex];
+  const userId = sel.value || null;
+  const name = opt ? (opt.dataset.name || '') : '';
+  const targetName = name || currentUser.full_name || currentUser.username || '';
+  const year = document.getElementById('yearSelect').value || new Date().getFullYear();
+  loadQuota(targetName, year, userId || undefined);
+}
+
 /* ──────────────────────────────────────────────
    연차 quota 로드
 ────────────────────────────────────────────── */
-async function loadQuota(memberName, year) {
+async function loadQuota(memberName, year, userId) {
   try {
     const member = encodeURIComponent(memberName);
-    const r = await fetch(`/api/vacations/quota?member=${member}&year=${year}`);
+    // userId가 있으면 user= 파라미터도 함께 전달 (서버가 지원 시 더 정확)
+    const userQ = userId ? `&user=${encodeURIComponent(userId)}` : '';
+    const r = await fetch(`/api/vacations/quota?member=${member}&year=${year}${userQ}`);
     const d = await r.json();
     renderQuota(d, memberName);
   } catch (e) {
@@ -828,7 +846,8 @@ async function submitVacation() {
     const selVal = sel.value;
     if (selVal) {
       userId     = selVal;
-      memberName = sel.options[sel.selectedIndex].textContent;
+      const opt  = sel.options[sel.selectedIndex];
+      memberName = (opt && opt.dataset.name) ? opt.dataset.name : opt.textContent;
     }
   }
 
@@ -886,7 +905,7 @@ async function submitVacation() {
     // 데이터 새로고침
     await Promise.all([
       loadVacations(),
-      loadQuota(memberName, new Date().getFullYear())
+      loadQuota(memberName, new Date().getFullYear(), (isLeader ? userId : undefined))
     ]);
   } catch (e) {
     Portal.showToast('등록 실패: ' + e.message, 'error');
