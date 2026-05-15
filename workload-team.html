@@ -7,8 +7,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/main.css?v=27">
+  <link rel="stylesheet" href="css/main.css?v=28">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <!-- 엑셀 다운로드 (스타일 지원 fork: xlsx-js-style) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <style>
     /* ── 팀 업무량 모니터링 전용 스타일 ── */
 
@@ -386,7 +388,7 @@
 
 <script src="js/rbac.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=25"></script>
+<script src="js/portal.js?v=28"></script>
 <script>
 /* ── 초기화 ── */
 let currentUser = null;
@@ -422,6 +424,18 @@ function bootPage() {
   initDateRange();
   renderPageShell();
   loadAll();
+
+  // 팀장 전용: 월별 종합 엑셀 다운로드 버튼 주입
+  const isTeamLeader = currentUser && currentUser.role === 'team_leader';
+  if (isTeamLeader) {
+    const bar = document.getElementById('exportBar');
+    if (bar) {
+      bar.innerHTML =
+        '<span style="font-size:12px;color:#6b7280;">팀장 전용</span>' +
+        '<button class="btn btn-primary" onclick="exportTeamReport()" id="btnExportXlsx">' +
+        '<i class="fas fa-file-excel"></i> 월별 종합 엑셀 다운로드</button>';
+    }
+  }
 }
 
 /* ── 날짜 범위 초기화 (최근 30일) ── */
@@ -476,6 +490,9 @@ function renderPageShell() {
         </div>
       </div>
     </div>
+
+    <!-- 월별 종합 엑셀 다운로드 (팀장 전용, JS에서 권한 확인 후 주입) -->
+    <div id="exportBar" style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-bottom:16px;"></div>
 
     <!-- 개인별 비교 + 도넛 -->
     <div class="section-row three-col" style="margin-bottom:24px;">
@@ -1188,6 +1205,352 @@ function closeDetailModal() {
 document.getElementById('detailModal').addEventListener('click', function(e) {
   if (e.target === this) closeDetailModal();
 });
+
+/* ──────────────────────────────────────────────────────────────────
+   월별 종합 엑셀 다운로드 (팀장 전용) — 보고서 스타일 템플릿
+   현재 연도 1월 ~ 현재 월까지 각 시트:
+     - 상단 타이틀 + 4종 KPI 카드
+     - 01 일자별 투입시간 히트맵 (멤버 × 일자, 색 강도)
+     - 02 개인별 · 카테고리별 투입시간
+     - 03 개인별 업무리스트 (결산 + 결산외 + 정량)
+     - 04 개인별 월합계 요약
+   파스텔 블루/그린 톤. xlsx-js-style 사용으로 셀 색·폰트·테두리 적용.
+   ────────────────────────────────────────────────────────────────── */
+
+// ── 스타일 팔레트 (파스텔 블루/그린 톤) ──
+const BORDER_THIN = { style: 'thin', color: { rgb: 'E5E7EB' } };
+const BORDER_ALL = { top: BORDER_THIN, bottom: BORDER_THIN, left: BORDER_THIN, right: BORDER_THIN };
+
+const ST = {
+  title:      { font:{ bold:true, sz:18, color:{ rgb:'FFFFFF' } }, fill:{ fgColor:{ rgb:'1E40AF' } }, alignment:{ horizontal:'left', vertical:'center', indent:1 } },
+  subtitle:   { font:{ sz:10, italic:true, color:{ rgb:'6B7280' } }, alignment:{ horizontal:'left', vertical:'center', indent:1 } },
+  kpiLabel:   { font:{ sz:10, bold:true, color:{ rgb:'6B7280' } }, fill:{ fgColor:{ rgb:'F9FAFB' } }, alignment:{ horizontal:'center', vertical:'center' }, border:BORDER_ALL },
+  kpiValue:   { font:{ bold:true, sz:22, color:{ rgb:'2563EB' } }, fill:{ fgColor:{ rgb:'F9FAFB' } }, alignment:{ horizontal:'center', vertical:'center' }, border:BORDER_ALL },
+  section:    { font:{ bold:true, sz:12, color:{ rgb:'FFFFFF' } }, fill:{ fgColor:{ rgb:'1E3A8A' } }, alignment:{ horizontal:'left', vertical:'center', indent:1 }, border:BORDER_ALL },
+  tHead:      { font:{ bold:true, sz:11, color:{ rgb:'1E3A8A' } }, fill:{ fgColor:{ rgb:'DBEAFE' } }, alignment:{ horizontal:'center', vertical:'center' }, border:BORDER_ALL },
+  tHeadTot:   { font:{ bold:true, sz:11, color:{ rgb:'92400E' } }, fill:{ fgColor:{ rgb:'FEF3C7' } }, alignment:{ horizontal:'center', vertical:'center' }, border:BORDER_ALL },
+  rowName:    { font:{ bold:true, sz:11, color:{ rgb:'111827' } }, fill:{ fgColor:{ rgb:'F9FAFB' } }, alignment:{ horizontal:'left', vertical:'center', indent:1 }, border:BORDER_ALL },
+  cellEmpty:  { fill:{ fgColor:{ rgb:'FFFFFF' } }, alignment:{ horizontal:'center', vertical:'center' }, border:BORDER_ALL },
+  cellLow:    { font:{ sz:11, color:{ rgb:'1E40AF' } }, fill:{ fgColor:{ rgb:'EFF6FF' } }, alignment:{ horizontal:'center', vertical:'center' }, border:BORDER_ALL },
+  cellMid:    { font:{ sz:11, bold:true, color:{ rgb:'1E3A8A' } }, fill:{ fgColor:{ rgb:'BFDBFE' } }, alignment:{ horizontal:'center', vertical:'center' }, border:BORDER_ALL },
+  cellHigh:   { font:{ sz:11, bold:true, color:{ rgb:'FFFFFF' } }, fill:{ fgColor:{ rgb:'3B82F6' } }, alignment:{ horizontal:'center', vertical:'center' }, border:BORDER_ALL },
+  cellGreenLow:  { font:{ sz:11, color:{ rgb:'065F46' } }, fill:{ fgColor:{ rgb:'D1FAE5' } }, alignment:{ horizontal:'center', vertical:'center' }, border:BORDER_ALL },
+  cellGreenMid:  { font:{ sz:11, bold:true, color:{ rgb:'064E3B' } }, fill:{ fgColor:{ rgb:'6EE7B7' } }, alignment:{ horizontal:'center', vertical:'center' }, border:BORDER_ALL },
+  cellGreenHigh: { font:{ sz:11, bold:true, color:{ rgb:'FFFFFF' } }, fill:{ fgColor:{ rgb:'10B981' } }, alignment:{ horizontal:'center', vertical:'center' }, border:BORDER_ALL },
+  cellTotal:  { font:{ bold:true, sz:11, color:{ rgb:'92400E' } }, fill:{ fgColor:{ rgb:'FEF3C7' } }, alignment:{ horizontal:'center', vertical:'center' }, border:BORDER_ALL },
+  cellText:   { font:{ sz:10, color:{ rgb:'374151' } }, alignment:{ horizontal:'left', vertical:'center', wrapText:true, indent:1 }, border:BORDER_ALL },
+  cellCenter: { font:{ sz:10, color:{ rgb:'374151' } }, alignment:{ horizontal:'center', vertical:'center' }, border:BORDER_ALL },
+  cellTag:    { font:{ bold:true, sz:10, color:{ rgb:'1E40AF' } }, fill:{ fgColor:{ rgb:'EFF6FF' } }, alignment:{ horizontal:'center', vertical:'center' }, border:BORDER_ALL },
+  cellTagGreen:{font:{ bold:true, sz:10, color:{ rgb:'065F46' } }, fill:{ fgColor:{ rgb:'D1FAE5' } }, alignment:{ horizontal:'center', vertical:'center' }, border:BORDER_ALL },
+};
+
+async function exportTeamReport() {
+  const btn = document.getElementById('btnExportXlsx');
+  const orig = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 생성 중...'; }
+  try {
+    const today = new Date();
+    const year = today.getFullYear();
+    const curMonth = today.getMonth() + 1;
+    const [users, dwes, tasks, caches, items] = await Promise.all([
+      fetchTbl('users', 500),
+      fetchTbl('daily_work_entries', 20000),
+      fetchTbl('work_tasks', 1000),
+      fetchTbl('workload_daily_cache', 20000),
+      fetchTbl('settle_items', 200),
+    ]);
+    const members = users
+      .filter(u => u.is_active !== false && u.full_name)
+      .sort((a,b) => (a.full_name||'').localeCompare(b.full_name||'','ko'));
+    const itemMap = Object.fromEntries(items.map(s => [s.id, s]));
+    const wb = XLSX.utils.book_new();
+    for (let m = 1; m <= curMonth; m++) {
+      const ws = buildMonthSheet(year, m, members, dwes, tasks, caches, itemMap);
+      XLSX.utils.book_append_sheet(wb, ws, `${year}년 ${m}월`);
+    }
+    XLSX.writeFile(wb, `팀_업무_종합리포트_${year}.xlsx`);
+    Portal.showToast('엑셀 다운로드 완료', 'success');
+  } catch (e) {
+    console.error('엑셀 생성 실패:', e);
+    Portal.showToast('엑셀 생성 실패: ' + (e.message || '알 수 없음'), 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+  }
+}
+
+async function fetchTbl(name, limit) {
+  const r = await fetch(`/tables/${name}?limit=${limit || 500}`);
+  if (!r.ok) throw new Error(`${name} fetch 실패`);
+  const d = await r.json();
+  return d.rows || d.data || [];
+}
+function parseArr(v) {
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'string') { try { const p = JSON.parse(v); return Array.isArray(p) ? p : []; } catch { return []; } }
+  return [];
+}
+function parseObj(v) {
+  if (v && typeof v === 'object' && !Array.isArray(v)) return v;
+  if (typeof v === 'string') { try { const p = JSON.parse(v); return (p && typeof p === 'object' && !Array.isArray(p)) ? p : {}; } catch { return {}; } }
+  return {};
+}
+function hr(min) { return min ? Math.round(min / 60 * 10) / 10 : 0; }
+
+// 셀 한 칸 세팅 — v가 빈 문자열이면 빈 셀이지만 스타일(테두리) 유지
+function putCell(ws, r, c, v, s) {
+  const addr = XLSX.utils.encode_cell({ r, c });
+  const cell = { v: v == null ? '' : v };
+  if (typeof v === 'number') cell.t = 'n';
+  else cell.t = 's';
+  if (s) cell.s = s;
+  ws[addr] = cell;
+}
+function mergeRange(ws, r1, c1, r2, c2) {
+  ws['!merges'] = ws['!merges'] || [];
+  ws['!merges'].push({ s: { r: r1, c: c1 }, e: { r: r2, c: c2 } });
+}
+
+function pickHeatStyle(h) {
+  if (!h || h === 0) return ST.cellEmpty;
+  if (h >= 8) return ST.cellHigh;
+  if (h >= 4) return ST.cellMid;
+  return ST.cellLow;
+}
+function pickCatStyle(h) {
+  if (!h || h === 0) return ST.cellEmpty;
+  if (h >= 16) return ST.cellGreenHigh;
+  if (h >= 8) return ST.cellGreenMid;
+  return ST.cellGreenLow;
+}
+
+function buildMonthSheet(year, month, members, dwes, tasks, caches, itemMap) {
+  const ymPrefix = `${year}-${String(month).padStart(2,'0')}`;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const dwesMonth = dwes.filter(e => (e.end_date || e.work_date || '').startsWith(ymPrefix));
+
+  // ── 데이터 사전 계산 ──
+  const heatData = {};
+  for (const u of members) {
+    heatData[u.full_name] = { total: 0, byDay: {} };
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = `${ymPrefix}-${String(d).padStart(2,'0')}`;
+      const c = caches.find(x => x.member_name === u.full_name && (x.work_date || x.date || x.day) === date);
+      const min = (c && c.total_minutes) || 0;
+      heatData[u.full_name].byDay[d] = min;
+      heatData[u.full_name].total += min;
+    }
+  }
+  const catSet = new Set();
+  for (const e of dwesMonth) catSet.add(e.task_category || '기타');
+  const catList = Array.from(catSet).sort((a,b) => a.localeCompare(b, 'ko'));
+  const catData = {};
+  for (const u of members) {
+    catData[u.full_name] = { total: 0, byCat: {} };
+    for (const e of dwesMonth) {
+      if (e.member_name !== u.full_name) continue;
+      const cat = e.task_category || '기타';
+      catData[u.full_name].byCat[cat] = (catData[u.full_name].byCat[cat] || 0) + (e.duration_minutes || 0);
+      catData[u.full_name].total += (e.duration_minutes || 0);
+    }
+  }
+  // KPI
+  const totalMin = members.reduce((s, u) => s + heatData[u.full_name].total, 0);
+  const taskCount = dwesMonth.length;
+  const activeCount = members.filter(u => heatData[u.full_name].total > 0).length;
+  let topName = '-', topMin = 0;
+  for (const u of members) {
+    if (heatData[u.full_name].total > topMin) { topMin = heatData[u.full_name].total; topName = u.full_name; }
+  }
+
+  // 업무리스트 데이터
+  const workList = [];
+  for (const u of members) {
+    const task = tasks.find(t =>
+      (t.member_name || t.target_name) === u.full_name &&
+      String(t.year) === String(year) && String(t.month) === String(month));
+    if (!task) { workList.push({ name: u.full_name, kind:'(이번 달 작업 없음)', title:'', cat:'', start:'', end:'', hr:'', note:'' }); continue; }
+    const done = parseArr(task.settlement_done);
+    const dates = parseObj(task.settlement_dates);
+    const stDates = parseObj(task.settlement_start_dates);
+    const deadlines = parseObj(task.settlement_deadline_days);
+    for (const sid of done) {
+      const item = itemMap[sid] || {};
+      const dd = deadlines[sid];
+      const ddLabel = (dd == null || dd === '') ? '' : (Number(dd) > 0 ? `D+${dd}` : (Number(dd) < 0 ? `D${dd}` : 'D-day'));
+      workList.push({
+        name: u.full_name, kind:'결산',
+        title: item.label || sid,
+        cat: item.group_name || '결산',
+        start: stDates[sid] || dates[sid] || '',
+        end: dates[sid] || '',
+        hr: '', note: ddLabel,
+      });
+    }
+    const others = parseArr(task.other_tasks);
+    for (const ot of others) {
+      workList.push({
+        name: u.full_name, kind:'결산외',
+        title: ot.desc || ot.label || ot.title || ot.name || '',
+        cat: ot.cat || ot.category || ot.task_category || '기타',
+        start: ot.start_date || ot.start || '',
+        end: ot.end_date || ot.end || '',
+        hr: ot.minutes ? hr(ot.minutes) : (ot.hours || ''),
+        note: ot.note || '',
+      });
+    }
+    if (task.raw_directive != null || task.raw_csm_amount != null ||
+        task.raw_meeting_count != null || task.raw_deadline_days != null) {
+      workList.push({
+        name: u.full_name, kind:'정량 raw',
+        title: `지시 ${task.raw_directive ?? '-'} / CSM ${task.raw_csm_amount ?? '-'}억 / 회의 ${task.raw_meeting_count ?? '-'}회`,
+        cat: '정량 KPI', start:'', end:'', hr:'', note: `마감 ${task.raw_deadline_days ?? '-'}`,
+      });
+    }
+  }
+
+  // ── 시트 구성 ──
+  const ws = {};
+  ws['!merges'] = [];
+  const heatCols = daysInMonth + 2;     // 멤버 + 일자 + 월합계 (히트맵 너비)
+  const widestCol = Math.max(heatCols, catList.length + 2, 8);  // 8 = 업무리스트 열 수
+  let r = 0;
+
+  // [Row 0] 타이틀
+  putCell(ws, r, 0, `팀 업무 종합 리포트  |  ${year}년 ${month}월`, ST.title);
+  mergeRange(ws, r, 0, r, widestCol - 1);
+  ws['!rows'] = ws['!rows'] || [];
+  ws['!rows'][r] = { hpt: 32 };
+  r++;
+
+  // [Row 1] 서브타이틀
+  putCell(ws, r, 0, `기준 시트: ${year}년 ${month}월 · 일자별 투입시간 / 카테고리별 합계 / 개인별 업무리스트`, ST.subtitle);
+  mergeRange(ws, r, 0, r, widestCol - 1);
+  ws['!rows'][r] = { hpt: 18 };
+  r++;
+
+  // [Row 2] 빈 행
+  r++;
+
+  // [Rows 3-4] KPI 4종 카드 — 4개 컬럼 분할
+  const kpis = [
+    { label: '총 투입시간', value: `${hr(totalMin)}h`,    color: '2563EB' },
+    { label: '업무 등록건수', value: `${taskCount}건`,     color: '059669' },
+    { label: '참여 인원',    value: `${activeCount}명`,    color: 'D97706' },
+    { label: '최다 투입자',  value: `${topName} (${hr(topMin)}h)`, color: '7C3AED' },
+  ];
+  const kpiBlockWidth = Math.floor(widestCol / 4);
+  for (let i = 0; i < 4; i++) {
+    const c1 = i * kpiBlockWidth;
+    const c2 = (i === 3) ? widestCol - 1 : (i + 1) * kpiBlockWidth - 1;
+    putCell(ws, r, c1, kpis[i].label, ST.kpiLabel);
+    mergeRange(ws, r, c1, r, c2);
+    putCell(ws, r + 1, c1, kpis[i].value, { ...ST.kpiValue, font: { ...ST.kpiValue.font, color: { rgb: kpis[i].color } } });
+    mergeRange(ws, r + 1, c1, r + 1, c2);
+  }
+  ws['!rows'][r] = { hpt: 22 };
+  ws['!rows'][r + 1] = { hpt: 40 };
+  r += 3;  // 카드 2줄 + 빈 줄
+
+  // [01] 일자별 투입시간 히트맵 ──────────────────────
+  putCell(ws, r, 0, '  01  일자별 투입시간 히트맵', ST.section);
+  mergeRange(ws, r, 0, r, heatCols - 1);
+  ws['!rows'][r] = { hpt: 26 };
+  r++;
+  // 헤더 행
+  putCell(ws, r, 0, '멤버명', ST.tHead);
+  for (let d = 1; d <= daysInMonth; d++) putCell(ws, r, d, `${d}일`, ST.tHead);
+  putCell(ws, r, daysInMonth + 1, '월합계(h)', ST.tHeadTot);
+  ws['!rows'][r] = { hpt: 22 };
+  r++;
+  // 멤버 데이터
+  for (const u of members) {
+    putCell(ws, r, 0, u.full_name, ST.rowName);
+    for (let d = 1; d <= daysInMonth; d++) {
+      const h = hr(heatData[u.full_name].byDay[d]);
+      putCell(ws, r, d, h > 0 ? h : '', pickHeatStyle(h));
+    }
+    const tot = hr(heatData[u.full_name].total);
+    putCell(ws, r, daysInMonth + 1, tot > 0 ? tot : '', ST.cellTotal);
+    r++;
+  }
+  r++;  // 빈 행
+
+  // [02] 개인별 · 카테고리별 투입시간 ──────────────────────
+  const catCols = catList.length + 2;  // 멤버 + 카테고리들 + 총합
+  putCell(ws, r, 0, '  02  개인별 · 카테고리별 투입시간', ST.section);
+  mergeRange(ws, r, 0, r, Math.max(catCols, heatCols) - 1);
+  ws['!rows'][r] = { hpt: 26 };
+  r++;
+  putCell(ws, r, 0, '멤버명', ST.tHead);
+  for (let i = 0; i < catList.length; i++) putCell(ws, r, i + 1, catList[i], ST.tHead);
+  putCell(ws, r, catList.length + 1, '총합(h)', ST.tHeadTot);
+  ws['!rows'][r] = { hpt: 22 };
+  r++;
+  for (const u of members) {
+    putCell(ws, r, 0, u.full_name, ST.rowName);
+    for (let i = 0; i < catList.length; i++) {
+      const h = hr(catData[u.full_name].byCat[catList[i]] || 0);
+      putCell(ws, r, i + 1, h > 0 ? h : '', pickCatStyle(h));
+    }
+    const tot = hr(catData[u.full_name].total);
+    putCell(ws, r, catList.length + 1, tot > 0 ? tot : '', ST.cellTotal);
+    r++;
+  }
+  r++;
+
+  // [03] 개인별 업무리스트 ──────────────────────
+  putCell(ws, r, 0, '  03  개인별 업무리스트', ST.section);
+  mergeRange(ws, r, 0, r, 7);
+  ws['!rows'][r] = { hpt: 26 };
+  r++;
+  const workHeaders = ['멤버명', '구분', '업무명', '카테고리/분류', '시작', '종료', '시간(h)', '비고'];
+  for (let i = 0; i < workHeaders.length; i++) putCell(ws, r, i, workHeaders[i], ST.tHead);
+  ws['!rows'][r] = { hpt: 22 };
+  r++;
+  for (const w of workList) {
+    putCell(ws, r, 0, w.name, ST.rowName);
+    const kindStyle = w.kind === '결산' ? ST.cellTag : (w.kind === '결산외' ? ST.cellTagGreen : ST.cellCenter);
+    putCell(ws, r, 1, w.kind, kindStyle);
+    putCell(ws, r, 2, w.title, ST.cellText);
+    putCell(ws, r, 3, w.cat, ST.cellCenter);
+    putCell(ws, r, 4, w.start, ST.cellCenter);
+    putCell(ws, r, 5, w.end, ST.cellCenter);
+    putCell(ws, r, 6, w.hr || '', ST.cellCenter);
+    putCell(ws, r, 7, w.note || '', ST.cellCenter);
+    ws['!rows'][r] = { hpt: 20 };
+    r++;
+  }
+  r++;
+
+  // [04] 개인별 월합계 요약 ──────────────────────
+  putCell(ws, r, 0, '  04  개인별 월합계 요약', ST.section);
+  mergeRange(ws, r, 0, r, 1);
+  ws['!rows'][r] = { hpt: 26 };
+  r++;
+  putCell(ws, r, 0, '멤버명', ST.tHead);
+  putCell(ws, r, 1, '월합계(h)', ST.tHeadTot);
+  ws['!rows'][r] = { hpt: 22 };
+  r++;
+  for (const u of members) {
+    putCell(ws, r, 0, u.full_name, ST.rowName);
+    const tot = hr(heatData[u.full_name].total);
+    putCell(ws, r, 1, tot > 0 ? tot : '', ST.cellTotal);
+    r++;
+  }
+
+  // 컬럼 너비
+  const cols = [{ wch: 14 }];                       // A: 멤버명
+  for (let d = 1; d <= daysInMonth; d++) cols.push({ wch: 5 });  // 일자
+  cols.push({ wch: 12 });                            // 월합계
+  // 카테고리 영역이 더 넓을 수 있으므로 max로 확장
+  while (cols.length < Math.max(catCols, 8)) cols.push({ wch: 10 });
+  ws['!cols'] = cols;
+
+  // 시트 범위
+  ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: r - 1, c: widestCol - 1 } });
+
+  return ws;
+}
 </script>
 </body>
 </html>

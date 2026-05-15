@@ -8,6 +8,7 @@ const { execFile } = require('child_process');
 const bizday = require('./lib/bizday');
 const workload = require('./lib/workload');
 const timeentry = require('./lib/timeentry');
+const points = require('./lib/points');
 const { runAudit } = require('./audit');
 
 // .env 로드 (dotenv 없이 직접 파싱)
@@ -181,7 +182,10 @@ function migrateDb(db) {
     'kb_handovers','kb_handover_items',
     'kb_onboarding_tracks','kb_onboarding_milestones',
     // ── Phase 6: 이슈 카테고리 SSOT ──
-    'issue_categories'
+    'issue_categories',
+    // ── Phase 8: 휴가 + 게이미피케이션 ──
+    'vacations', 'vacation_quotas',
+    'engagement_points', 'point_rules', 'prize_rules', 'prize_history',
   ];
   for (const table of requiredTables) {
     if (!Array.isArray(db[table])) {
@@ -389,6 +393,10 @@ function migrateDb(db) {
       id, label, sort_order: i + 1, is_active: true,
       created_at: t, updated_at: t,
     }));
+    changed = true;
+  }
+  // ── Phase 8: 포인트/상금 룰 시드 ──
+  if (points.seedPointsConfig(db)) {
     changed = true;
   }
   // ── Phase 4: KB 카테고리 시드 (계층) ──
@@ -639,6 +647,73 @@ function recomputeMonthlyCache(db, affectedYears) {
   db.business_days_monthly = [...kept, ...fresh.map(r => ({ ...r, updated_at: now() }))];
 }
 
+// ── Phase 8: 휴가 한도 동기화 ──
+const DEFAULT_ANNUAL_QUOTA = 15;
+
+function getOrCreateQuota(db, year, userId, memberName) {
+  if (!Array.isArray(db.vacation_quotas)) db.vacation_quotas = [];
+  let q = db.vacation_quotas.find(x =>
+    x.year === year &&
+    ((userId && x.user_id === userId) || (memberName && x.member_name === memberName))
+  );
+  if (!q) {
+    q = {
+      id: createId('vq'),
+      year, user_id: userId || '',
+      member_name: memberName || '',
+      annual_total: DEFAULT_ANNUAL_QUOTA,
+      used: 0,
+      remaining: DEFAULT_ANNUAL_QUOTA,
+      created_at: now(), updated_at: now(),
+    };
+    db.vacation_quotas.push(q);
+  }
+  return q;
+}
+
+function recomputeQuotaForYear(db, year, userId, memberName) {
+  const q = getOrCreateQuota(db, year, userId, memberName);
+  const usedSum = (db.vacations || [])
+    .filter(v => v && (v.status === 'approved' || !v.status))
+    .filter(v => {
+      const matchUser = userId && v.user_id === userId;
+      const matchName = memberName && v.member_name === memberName;
+      return matchUser || matchName;
+    })
+    .filter(v => v.start_date && v.start_date.slice(0, 4) === String(year))
+    .reduce((s, v) => s + (Number(v.days) || 0), 0);
+  q.used = Math.round(usedSum * 10) / 10;
+  q.remaining = Math.round((q.annual_total - q.used) * 10) / 10;
+  q.updated_at = now();
+  return q;
+}
+
+function syncVacationQuotaOnCreate(db, vacation) {
+  if (!vacation || !vacation.start_date) return;
+  const y = parseInt(vacation.start_date.slice(0, 4), 10);
+  if (!Number.isFinite(y)) return;
+  recomputeQuotaForYear(db, y, vacation.user_id, vacation.member_name);
+}
+
+function syncVacationQuotaOnUpdate(db, before, updated) {
+  const years = new Set();
+  if (before && before.start_date) years.add(parseInt(before.start_date.slice(0, 4), 10));
+  if (updated && updated.start_date) years.add(parseInt(updated.start_date.slice(0, 4), 10));
+  for (const y of years) {
+    if (!Number.isFinite(y)) continue;
+    recomputeQuotaForYear(db, y,
+      updated.user_id || before.user_id,
+      updated.member_name || before.member_name);
+  }
+}
+
+function syncVacationQuotaOnDelete(db, removed) {
+  if (!removed || !removed.start_date) return;
+  const y = parseInt(removed.start_date.slice(0, 4), 10);
+  if (!Number.isFinite(y)) return;
+  recomputeQuotaForYear(db, y, removed.user_id, removed.member_name);
+}
+
 function handleTablesRequest(route, method, bodyStr, reqHeaders) {
   return withDb(db => {
     const table = route.table;
@@ -679,6 +754,21 @@ function handleTablesRequest(route, method, bodyStr, reqHeaders) {
       if (table === 'daily_work_entries') {
         refreshDailyCacheFor(db, created);
       }
+      // ── Phase 8: 포인트 적립 훅 (POST 성공 시) ──
+      try {
+        if (table === 'daily_work_entries') {
+          points.awardPoints(db, created.user_id, created.member_name, 'work_entry', created.id);
+        } else if (table === 'kb_issues') {
+          const memberName = created.member_name || created.created_by_name || created.author_name || '';
+          points.awardPoints(db, created.created_by || created.user_id, memberName, 'issue_register', created.id);
+        } else if (table === 'kb_documents') {
+          const memberName = created.author_name || created.created_by_name || '';
+          points.awardPoints(db, created.author_id || created.created_by, memberName, 'sop_create', created.id);
+        } else if (table === 'vacations') {
+          // 휴가 등록 시 vacation_quotas.used 자동 증가 (table 직접 POST 경로)
+          syncVacationQuotaOnCreate(db, created);
+        }
+      } catch (e) { console.error('[points hook:create]', e.message); }
       appendAuditLog(db, table, 'create', route, null, created, reqHeaders);
       writeDb(db);
       return { status: 201, body: created };
@@ -730,6 +820,22 @@ function handleTablesRequest(route, method, bodyStr, reqHeaders) {
         refreshDailyCacheFor(db, before);
         refreshDailyCacheFor(db, updated);
       }
+      // ── Phase 8: KPI 입력 적립 훅 (work_tasks PATCH 시) ──
+      try {
+        if (table === 'work_tasks') {
+          // KPI 정성 필드(kpi1/kpi2/kpi3 평가 or 가중치 등) 또는 정량(kpi_csm/kpi_deadline/...) 채워졌는지 검사
+          const kpiFields = ['kpi1_score','kpi2_score','kpi3_score','kpi1_eval','kpi2_eval','kpi3_eval'];
+          const filled = kpiFields.some(f => updated[f] != null && updated[f] !== '' && (before[f] == null || before[f] === ''));
+          if (filled) {
+            const userId = updated.user_id || updated.member_id || '';
+            const memberName = updated.member_name || updated.target_name || '';
+            points.awardPointsOncePerQuarter(db, userId, memberName, 'kpi_entry', updated.id);
+          }
+        } else if (table === 'vacations') {
+          // 휴가 PATCH (예: status 변경) → quotas 재계산
+          syncVacationQuotaOnUpdate(db, before, updated);
+        }
+      } catch (e) { console.error('[points hook:update]', e.message); }
       appendAuditLog(db, table, 'update', route, before, updated, reqHeaders);
       writeDb(db);
       return { status: 200, body: updated };
@@ -747,6 +853,12 @@ function handleTablesRequest(route, method, bodyStr, reqHeaders) {
       if (table === 'daily_work_entries' && removed) {
         refreshDailyCacheFor(db, removed);
       }
+      // ── Phase 8: 휴가 삭제 시 quotas.used 복원 ──
+      try {
+        if (table === 'vacations' && removed) {
+          syncVacationQuotaOnDelete(db, removed);
+        }
+      } catch (e) { console.error('[points hook:delete]', e.message); }
       appendAuditLog(db, table, 'delete', route, removed, null, reqHeaders);
       writeDb(db);
       return { status: 200, body: { success: true } };
@@ -1283,6 +1395,180 @@ const server = http.createServer((req, res) => {
         }
 
         send(404, { error: 'Unknown KB endpoint' });
+      } catch (e) {
+        send(500, { error: String(e.message || e) });
+      }
+    })();
+    return;
+  }
+
+  // ── Phase 8: 게이미피케이션 (points / prizes) API ──
+  if (urlPath.startsWith('/api/points/') || urlPath.startsWith('/api/prizes/') || urlPath.startsWith('/api/vacations/')) {
+    const u = new URL(urlPath, 'http://internal');
+    const sp = u.searchParams;
+    const send = (status, body) => {
+      res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(body));
+    };
+    const readBody = () => new Promise(resolve => {
+      const cs = [];
+      req.on('data', c => cs.push(c));
+      req.on('end', () => {
+        const s = Buffer.concat(cs).toString('utf8');
+        try { resolve(s ? JSON.parse(s) : {}); } catch (_) { resolve({}); }
+      });
+    });
+
+    (async () => {
+      try {
+        // GET /api/points/me?user=<id>&member=<name>
+        if (req.method === 'GET' && u.pathname === '/api/points/me') {
+          const userId = sp.get('user') || '';
+          const memberName = sp.get('member') || '';
+          await withDb(db => {
+            const q = sp.get('quarter') || points.currentQuarter();
+            const mine = (db.engagement_points || []).filter(p =>
+              (userId && p.user_id === userId) || (memberName && p.member_name === memberName)
+            );
+            const byQuarter = {};
+            for (const p of mine) {
+              byQuarter[p.quarter] = (byQuarter[p.quarter] || 0) + (Number(p.points) || 0);
+            }
+            const currentTotal = mine.filter(p => p.quarter === q).reduce((s, p) => s + (Number(p.points) || 0), 0);
+            send(200, {
+              user_id: userId, member_name: memberName,
+              quarter: q,
+              current_total: currentTotal,
+              entries: mine.filter(p => p.quarter === q).sort((a, b) => b.awarded_at - a.awarded_at),
+              by_quarter: byQuarter,
+            });
+          });
+          return;
+        }
+        // GET /api/points/ranking?quarter=YYYY-Qn
+        if (req.method === 'GET' && u.pathname === '/api/points/ranking') {
+          const q = sp.get('quarter') || points.currentQuarter();
+          await withDb(db => {
+            const ranking = points.getQuarterRanking(db, q);
+            send(200, { quarter: q, ranking });
+          });
+          return;
+        }
+        // GET /api/points/top3?quarter=...
+        if (req.method === 'GET' && u.pathname === '/api/points/top3') {
+          const q = sp.get('quarter') || points.currentQuarter();
+          await withDb(db => {
+            send(200, points.top3WithPrizes(db, q));
+          });
+          return;
+        }
+        // POST /api/prizes/finalize?quarter=...
+        if (req.method === 'POST' && u.pathname === '/api/prizes/finalize') {
+          const q = sp.get('quarter') || points.currentQuarter();
+          const role = (req.headers['x-actor-role'] || '').toLowerCase();
+          if (role && role !== 'team_leader') {
+            return send(403, { error: '팀장만 시상 확정 가능' });
+          }
+          await withDb(db => {
+            const r = points.finalizeQuarter(db, q);
+            writeDb(db);
+            send(200, r);
+          });
+          return;
+        }
+        // GET /api/prizes/history
+        if (req.method === 'GET' && u.pathname === '/api/prizes/history') {
+          await withDb(db => {
+            const rows = [...(db.prize_history || [])].sort((a, b) =>
+              String(b.quarter).localeCompare(String(a.quarter)) || a.rank - b.rank);
+            send(200, { rows });
+          });
+          return;
+        }
+        // POST /api/vacations/use — { user_id, member_name, vacation_type, start_date, end_date, days, note }
+        if (req.method === 'POST' && u.pathname === '/api/vacations/use') {
+          const body = await readBody();
+          const { user_id, member_name, vacation_type, start_date, end_date, note } = body || {};
+          let days = Number(body && body.days);
+          if (!member_name || !start_date || !end_date || !vacation_type) {
+            return send(400, { error: 'member_name, vacation_type, start_date, end_date 필수' });
+          }
+          // days 자동 추정 (영업일 기준) — 없거나 0이면
+          if (!Number.isFinite(days) || days <= 0) {
+            await withDb(db => {
+              const bizMap = bizday.indexBusinessDays(db.business_days);
+              const startD = new Date(start_date + 'T00:00:00');
+              const endD = new Date(end_date + 'T00:00:00');
+              let count = 0;
+              const cur = new Date(startD);
+              while (cur <= endD) {
+                if (bizday.isBusinessDay(isoOf(cur), bizMap)) count++;
+                cur.setDate(cur.getDate() + 1);
+              }
+              days = vacation_type === '반차오전' || vacation_type === '반차오후' ? 0.5 : count;
+            });
+          }
+          let result = null;
+          let errOut = null;
+          await withDb(db => {
+            const y = parseInt(start_date.slice(0, 4), 10);
+            const q = getOrCreateQuota(db, y, user_id, member_name);
+            if (q.used + days > q.annual_total) {
+              errOut = { status: 400, body: { error: '연차 한도 초과', quota: q, request_days: days } };
+              return;
+            }
+            const t = now();
+            const row = {
+              id: createId('vac'),
+              user_id: user_id || '',
+              member_name,
+              vacation_type,
+              start_date, end_date,
+              days,
+              note: note || '',
+              status: 'approved',
+              approved_by: '',
+              created_at: t, updated_at: t,
+            };
+            db.vacations = [...(db.vacations || []), row];
+            recomputeQuotaForYear(db, y, user_id, member_name);
+            writeDb(db);
+            result = { vacation: row, quota: db.vacation_quotas.find(x =>
+              x.year === y && ((user_id && x.user_id === user_id) || x.member_name === member_name)) };
+          });
+          if (errOut) return send(errOut.status, errOut.body);
+          return send(201, result);
+        }
+        // GET /api/vacations/list?member=NAME&year=YYYY
+        if (req.method === 'GET' && u.pathname === '/api/vacations/list') {
+          const memberName = sp.get('member') || '';
+          const year = sp.get('year') || String(new Date().getFullYear());
+          await withDb(db => {
+            const rows = (db.vacations || []).filter(v =>
+              (!memberName || v.member_name === memberName) &&
+              (!year || (v.start_date && v.start_date.slice(0, 4) === String(year)))
+            ).sort((a, b) => String(b.start_date).localeCompare(String(a.start_date)));
+            const quota = memberName
+              ? (db.vacation_quotas || []).find(x => x.year === parseInt(year, 10) && x.member_name === memberName) || null
+              : null;
+            send(200, { rows, quota });
+          });
+          return;
+        }
+        // GET /api/vacations/quota?member=NAME&year=YYYY
+        if (req.method === 'GET' && u.pathname === '/api/vacations/quota') {
+          const memberName = sp.get('member') || '';
+          const userId = sp.get('user') || '';
+          const year = parseInt(sp.get('year') || String(new Date().getFullYear()), 10);
+          await withDb(db => {
+            const q = getOrCreateQuota(db, year, userId, memberName);
+            recomputeQuotaForYear(db, year, userId, memberName);
+            writeDb(db);
+            send(200, q);
+          });
+          return;
+        }
+        send(404, { error: 'Unknown endpoint', path: u.pathname });
       } catch (e) {
         send(500, { error: String(e.message || e) });
       }

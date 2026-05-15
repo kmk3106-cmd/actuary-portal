@@ -425,4 +425,50 @@ Phase 7-1에서 source='settlement_auto'로 7건 생성. 하지만 syncSettleToD
 
 **문서 갱신 정책**: 새 버그 패턴 발견 시 §3에 추가. 데이터 모델 변경 시 §1 다이어그램 갱신. **새 source/type 도입 시 §7.2 체크리스트 통과 후 머지**.
 
-마지막 갱신: 2026-05-11 — Phase 7 동기화 + 마이그레이션 규칙 §7 추가
+---
+
+## 8. Phase 8 — 게이미피케이션 + 휴가 시스템
+
+### 8.1 신규 테이블
+
+| 테이블 | 역할 | 동기화 트리거 |
+|--------|------|---------------|
+| `vacations` | 휴가 사용 이력 (개별 row) | 등록·수정·삭제 시 `vacation_quotas.used/remaining` 자동 재계산 |
+| `vacation_quotas` | 연도/사용자별 한도 (annual_total/used/remaining) | 서버에서만 갱신, 클라이언트 직접 수정 금지 |
+| `engagement_points` | 포인트 적립 ledger | 멱등키 `idempotency_key = actionType + ':' + actionRef`로 중복 방지 |
+| `point_rules` | 적립 룰 SSOT (action_type / points / is_active) | settings 페이지에서 편집 → 다음 적립부터 즉시 반영 |
+| `prize_rules` | 분기 시상 룰 (rank / prize_amount / label) | settings에서 편집 |
+| `prize_history` | 분기별 TOP3 확정 기록 | `/api/prizes/finalize` 멱등 INSERT |
+
+### 8.2 적립 훅 위치 (server.js handleTablesRequest)
+
+| 트리거 | action_type | 멱등 키 | 비고 |
+|--------|-------------|---------|------|
+| POST `/tables/daily_work_entries` | `work_entry` | entry.id | 5pt/건 |
+| POST `/tables/kb_issues` | `issue_register` | issue.id | 20pt/건 |
+| POST `/tables/kb_documents` | `sop_create` | doc.id | 30pt/건 |
+| PATCH `/tables/work_tasks` (KPI 필드 신규 채움) | `kpi_entry` | quarter + member | **분기당 1회** (`awardPointsOncePerQuarter`) |
+| 결산 체크리스트 완료 | `settlement_check` | settle_item.id + month | 클라이언트가 별도 호출 (UI 시 추가 예정) |
+
+### 8.3 휴가 → 업무 모니터링 연동 (분모 보정)
+
+`server/lib/workload.js` `computeMonthlyForUser`:
+- 입력: 그 월에 겹치는 `vacations.status='approved'` 행 일수 합산
+- 영업일 차감: `effective_business_days = business_days - vacation_days`
+- `standard_hours = effective_business_days × 8h` → `load_pct` 분모 축소
+- 결과: 휴가일은 부하율 분모에서 빠지므로 같은 업무량이면 휴가자의 부하율이 상승 (정확)
+- **휴가는 별도 테이블 유지** — `daily_work_entries`에 자동 row 생성 X (잔존 좀비 방지, §7.4 교훈 적용)
+
+### 8.4 SSOT 원칙
+
+- **point_rules** 단일 SSOT: 적립 점수 하드코딩 금지. `server/lib/points.js`의 `DEFAULT_RULES`는 시드 전용. 룰 변경은 `/tables/point_rules` PATCH로만.
+- **prize_rules**: 1/2/3등 상금 액수는 settings 페이지에서 편집 가능해야 함 (CLAUDE.md §11).
+- 팀장(`role='team_leader'`)은 적립·랭킹 대상에서 자동 제외 (룰 변경 X).
+
+### 8.5 위험 패턴 (예방)
+
+- **취소된 휴가**: status를 'rejected' / 'cancelled'로 PATCH할 시 `syncVacationQuotaOnUpdate`가 used 자동 재계산. 단순 DELETE 시 `syncVacationQuotaOnDelete` 호출.
+- **멤버명 변경**: `vacation_quotas`는 user_id 우선, fallback이 member_name. 이름 바뀌면 quotas는 옛 이름으로 남음 → 새 이름으로 quota 새로 생성됨 (이중 quota 발생 가능). 사용자 마스터 이름 변경 시 quotas 마이그레이션 필요.
+- **분기 경계 적립**: `awardPoints`는 항상 `currentQuarter()` 기준. 분기 종료 직후 첫 적립부터 새 분기. `prize_history`는 직전 분기 수동 finalize 후 잠금.
+
+마지막 갱신: 2026-05-12 — Phase 8 게이미피케이션 + 휴가 추가 §8

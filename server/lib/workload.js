@@ -114,12 +114,45 @@ function computeMonthlyForUser(db, memberName, yearMonth) {
   const y = +yStr, m = +mStr;
   const total = bizday.fmtDate ? null : null; // unused, remove
   const days = bizday.getBusinessDaysInMonth(yearMonth, bizMap);
-  const stdHours = days * thr.hoursPerDay;
-  const stdMin = stdHours * 60;
 
   const monthFrom = `${yearMonth}-01`;
   const lastDay = new Date(y, m, 0).getDate();
   const monthTo = `${yearMonth}-${String(lastDay).padStart(2, '0')}`;
+
+  // 휴가 보정: 승인된 휴가의 월 내 일수 합산 → 표준시간 분모에서 차감
+  // (DATA_SYNC_RULES §1 추가: vacations → workload 분모 영향)
+  let vacationDays = 0;
+  const vacs = (db.vacations || []).filter(v =>
+    v && v.member_name === memberName &&
+    (v.status === 'approved' || !v.status) &&
+    v.start_date && v.end_date
+  );
+  for (const v of vacs) {
+    const s = v.start_date < monthFrom ? monthFrom : v.start_date;
+    const e = v.end_date > monthTo ? monthTo : v.end_date;
+    if (s > e) continue;
+    // 전체 휴가 영업일 수
+    let totalBiz = 0;
+    let inRangeBiz = 0;
+    const cur = new Date(v.start_date + 'T00:00:00');
+    const end = new Date(v.end_date + 'T00:00:00');
+    while (cur <= end) {
+      const ds = toIso(cur);
+      if (bizday.isBusinessDay(ds, bizMap)) {
+        totalBiz++;
+        if (ds >= s && ds <= e) inRangeBiz++;
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+    if (totalBiz === 0) continue;
+    // days 가 0.5 같은 분수일 경우 비율 적용
+    const dayWeight = (Number(v.days) || totalBiz) / totalBiz;
+    vacationDays += inRangeBiz * dayWeight;
+  }
+  // 보정 후 분모
+  const effectiveBizDays = Math.max(0, days - vacationDays);
+  const stdHours = effectiveBizDays * thr.hoursPerDay;
+  const stdMin = stdHours * 60;
   // Phase 7-1: time_entries 우선
   let total_minutes = 0;
   for (const e of (db.daily_work_entries || [])) {
@@ -154,6 +187,8 @@ function computeMonthlyForUser(db, memberName, yearMonth) {
     member_name: memberName,
     year_month: yearMonth,
     business_days: days,
+    vacation_days: Math.round(vacationDays * 10) / 10,
+    effective_business_days: Math.round(effectiveBizDays * 10) / 10,
     standard_hours: stdHours,
     elapsed_business_days: elapsedBizDays,
     total_minutes,
