@@ -727,11 +727,16 @@ function cascadeDeleteRelated(db, table, removed) {
     db.engagement_points = db.engagement_points.filter(p => p.idempotency_key !== key);
   }
   // work_tasks 삭제 → kpi_entry / settlement_check 적립 좀비 정리
-  // (idempotency_key 가 `kpi_entry:<quarter>:<member>:<work_task.id>` 또는 action_ref 매칭)
+  // - kpi_entry:   idempotency_key ends with ':<work_task.id>'
+  // - settlement_check: idempotency_key starts with 'settlement_check:<work_task.id>:'
   if (table === 'work_tasks' && Array.isArray(db.engagement_points)) {
+    const wtId = removed.id;
     db.engagement_points = db.engagement_points.filter(p => {
-      if (p.action_ref === removed.id) return false; // direct ref
-      if (typeof p.idempotency_key === 'string' && p.idempotency_key.endsWith(':' + removed.id)) return false;
+      if (p.action_ref === wtId) return false; // direct ref (kpi_entry 등)
+      if (typeof p.idempotency_key === 'string') {
+        if (p.idempotency_key.endsWith(':' + wtId)) return false; // kpi_entry
+        if (p.idempotency_key.startsWith(`settlement_check:${wtId}:`)) return false; // settlement_check
+      }
       return true;
     });
   }
@@ -859,7 +864,14 @@ function handleTablesRequest(route, method, bodyStr, reqHeaders) {
         }
         const actorOpts = { actorId, actorName: actorFullName };
         if (table === 'daily_work_entries') {
-          points.awardPoints(db, created.user_id, created.member_name, 'work_entry', created.id, actorOpts);
+          // work_entry: 그룹 멱등 — (member × 월 × task_label × task_category) 당 1회만 적립
+          // 시간대 분할 입력으로 부풀리기 차단 (DATA_SYNC_RULES §8.6)
+          const ym = (created.start_date || created.end_date || '').slice(0, 7); // 'YYYY-MM'
+          points.awardWorkEntryGrouped(
+            db, created.id, created.user_id, created.member_name,
+            ym, created.task_label || '', created.task_category || '',
+            actorOpts
+          );
         } else if (table === 'kb_issues') {
           const memberName = created.member_name || created.created_by_name || created.author_name || '';
           points.awardPoints(db, created.created_by || created.user_id, memberName, 'issue_register', created.id, actorOpts);
@@ -932,12 +944,22 @@ function handleTablesRequest(route, method, bodyStr, reqHeaders) {
         }
         const actorOpts = { actorId, actorName: actorFullName };
         if (table === 'work_tasks') {
+          // KPI 입력 적립 (분기당 1회)
           const kpiFields = ['kpi1_score','kpi2_score','kpi3_score','kpi1_eval','kpi2_eval','kpi3_eval'];
           const filled = kpiFields.some(f => updated[f] != null && updated[f] !== '' && (before[f] == null || before[f] === ''));
           if (filled) {
             const userId = updated.user_id || updated.member_id || '';
             const memberName = updated.member_name || updated.target_name || '';
             points.awardPointsOncePerQuarter(db, userId, memberName, 'kpi_entry', updated.id, actorOpts);
+          }
+          // settlement_check 적립·회수 — settlement_done 배열 변경 감지 (DATA_SYNC_RULES §8.6)
+          const prevDone = Array.isArray(before.settlement_done) ? before.settlement_done : [];
+          const nextDone = Array.isArray(updated.settlement_done) ? updated.settlement_done : [];
+          const doneChanged = prevDone.length !== nextDone.length ||
+            nextDone.some(k => !prevDone.includes(k)) ||
+            prevDone.some(k => !nextDone.includes(k));
+          if (doneChanged) {
+            points.syncSettlementCheckPoints(db, updated, before, actorOpts);
           }
         } else if (table === 'vacations') {
           syncVacationQuotaOnUpdate(db, before, updated);
@@ -1712,6 +1734,98 @@ const server = http.createServer((req, res) => {
               awarded++;
               detail.kpi_entry = (detail.kpi_entry || 0) + 1;
             }
+            // settlement_check (work_tasks) — settlement_done 배열 키당 3pt, 분기당 30건 캡
+            for (const t of wt_list) {
+              const doneDone = Array.isArray(t.settlement_done) ? t.settlement_done : [];
+              if (doneDone.length === 0) continue;
+              const targetUserId = t.user_id || t.member_id || '';
+              const targetName = t.member_name || t.target_name || '';
+              const targetUser = usersById[targetUserId] || usersByName[targetName];
+              if (!targetUser) { skipped += doneDone.length; skipReasons.no_target += doneDone.length; continue; }
+              if (targetUser.role === 'team_leader') { skipped += doneDone.length; skipReasons.team_leader += doneDone.length; continue; }
+              // actor 검증은 strict 모드에서만
+              const actor = recordActor[t.id];
+              if (actor && actor.id !== targetUser.id) {
+                skipped += doneDone.length; skipReasons.actor_mismatch += doneDone.length; continue;
+              }
+              if (strictMode && !actor) {
+                skipped += doneDone.length; skipReasons.actor_unknown_strict += doneDone.length; continue;
+              }
+              const actorOpts2 = actor
+                ? { actorId: actor.id, actorName: actor.full_name || actor.username }
+                : { actorId: targetUser.id, actorName: targetUser.full_name || targetUser.username };
+              // syncSettlementCheckPoints 는 before/after diff 기반이라 recompute에선 직접 삽입
+              const rule_sc = (db.point_rules || []).find(r => r.action_type === 'settlement_check' && r.is_active !== false);
+              const sc_pts = rule_sc ? (Number(rule_sc.points) || 0) : 3;
+              const QUARTER_CAP = 30;
+              // work_task 의 연/월에서 분기 추정
+              let wt_quarter = t.quarter;
+              if (!wt_quarter && t.year && t.month) wt_quarter = toQuarter(Number(t.year), Number(t.month));
+              if (!wt_quarter) { skipped += doneDone.length; skipReasons.no_member += doneDone.length; continue; }
+              for (const key of doneDone) {
+                const ikey = `settlement_check:${t.id}:${key}`;
+                if ((db.engagement_points || []).some(p => p.idempotency_key === ikey)) {
+                  skipped++; skipReasons.dedup++; continue;
+                }
+                // 분기 캡
+                const quarterCount = (db.engagement_points || []).filter(p =>
+                  p.action_type === 'settlement_check' && p.quarter === wt_quarter &&
+                  (p.user_id === targetUser.id || p.member_name === (targetUser.full_name || targetUser.username))
+                ).length;
+                if (quarterCount >= QUARTER_CAP) { skipped++; skipReasons.dedup++; continue; }
+                if (sc_pts <= 0) { skipped++; continue; }
+                const t_ms2 = Date.now();
+                db.engagement_points.push({
+                  id: 'ep_sc_' + Math.random().toString(16).slice(2, 14),
+                  user_id: targetUser.id,
+                  member_name: targetUser.full_name || targetUser.username,
+                  action_type: 'settlement_check',
+                  action_ref: `${t.id}:${key}`,
+                  points: sc_pts,
+                  quarter: wt_quarter,
+                  awarded_at: t_ms2,
+                  idempotency_key: ikey,
+                  actor_user_id: actorOpts2.actorId || '',
+                  actor_name: actorOpts2.actorName || '',
+                  created_at: t_ms2, updated_at: t_ms2,
+                });
+                awarded++;
+                detail.settlement_check = (detail.settlement_check || 0) + 1;
+              }
+            }
+
+            // work_entry 재계산: 그룹 멱등 반영 — recompute 시 group_key 기반 중복 제거
+            // (위 tables 루프에서 awardPoints를 직접 호출하므로 group_key 미부여. 사후에 정규화)
+            // daily_work_entries 를 재스캔해서 group 중복된 ep row를 제거
+            {
+              const groupSeen = new Set();
+              const toRemoveIds = new Set();
+              // awarded 된 work_entry rows (위에서 이미 삽입됨) 를 후처리
+              const epList = db.engagement_points || [];
+              const weRows = epList.filter(p => p.action_type === 'work_entry');
+              for (const ep of weRows) {
+                // group_key 없는 경우(레거시) → dwe record에서 group_key 유추
+                if (!ep.group_key) {
+                  const dwe = (db.daily_work_entries || []).find(e => e.id === ep.action_ref);
+                  if (dwe) {
+                    const ym = (dwe.start_date || dwe.end_date || '').slice(0, 7);
+                    ep.group_key = `${ep.member_name}:${ym}:${dwe.task_label || ''}:${dwe.task_category || ''}`;
+                  }
+                }
+                if (!ep.group_key) continue;
+                if (groupSeen.has(ep.group_key)) {
+                  toRemoveIds.add(ep.id); // 그룹 중복 → 제거
+                } else {
+                  groupSeen.add(ep.group_key);
+                }
+              }
+              if (toRemoveIds.size > 0) {
+                db.engagement_points = db.engagement_points.filter(p => !toRemoveIds.has(p.id));
+                skipped += toRemoveIds.size;
+                skipReasons.dedup += toRemoveIds.size;
+              }
+            }
+
             writeDb(db);
             send(200, { awarded, skipped, detail, skip_reasons: skipReasons,
                         total_audit_logs: (db.audit_logs || []).length,

@@ -471,4 +471,40 @@ Phase 7-1에서 source='settlement_auto'로 7건 생성. 하지만 syncSettleToD
 - **멤버명 변경**: `vacation_quotas`는 user_id 우선, fallback이 member_name. 이름 바뀌면 quotas는 옛 이름으로 남음 → 새 이름으로 quota 새로 생성됨 (이중 quota 발생 가능). 사용자 마스터 이름 변경 시 quotas 마이그레이션 필요.
 - **분기 경계 적립**: `awardPoints`는 항상 `currentQuarter()` 기준. 분기 종료 직후 첫 적립부터 새 분기. `prize_history`는 직전 분기 수동 finalize 후 잠금.
 
-마지막 갱신: 2026-05-12 — Phase 8 게이미피케이션 + 휴가 추가 §8
+### 8.6 포인트 적립 룰 정비 (2026-05-15)
+
+#### settlement_check 정책 (안건 1 — B5)
+
+| 항목 | 내용 |
+|------|------|
+| 트리거 | `work_tasks PATCH` 시 `settlement_done` 배열에 **새 키가 추가**될 때 |
+| 적립 | 추가된 키 1개당 3pt (`point_rules.settlement_check` 기준) |
+| 멱등 키 | `settlement_check:<work_task.id>:<done_key>` — 해제 후 재체크해도 1회 |
+| 분기 캡 | 분기당 30건(90pt) 초과 시 추가 적립 스킵 |
+| 회수 | 체크 해제(`settlement_done`에서 키 제거)시 해당 `idempotency_key` 행 즉시 DELETE |
+| cascade | `work_tasks DELETE` 시 `settlement_check:<wtId>:*` 패턴 전체 회수 (`startsWith` 필터) |
+| 팀장 | 팀장 본인 또는 팀장이 대리 체크 시 적립 X (기존 가드 동일 적용) |
+
+**구현 위치**: `server/lib/points.js` `syncSettlementCheckPoints()` + `server/server.js` PATCH work_tasks 훅
+
+#### work_entry 그룹 멱등 정책 (안건 2 — B8)
+
+| 항목 | 내용 |
+|------|------|
+| 문제 | work-personal.html에서 동일 작업을 시간대로 쪼개 입력 → POST 건수만큼 중복 적립 |
+| 판별 단위 | `(member_name × YYYY-MM × task_label × task_category)` 그룹 |
+| 적립 룰 | 그룹당 1회만 5pt — 그룹 내 두 번째 이후 entry는 skip |
+| 멱등 키 | `work_entry:<entry.id>` 유지 (entry 레벨 중복은 기존 방식) |
+| 그룹 키 저장 | `engagement_points.group_key` 컬럼에 `member:YM:label:category` 기록 |
+| 전체 교체 패턴 | DELETE cascade → 해당 그룹 ep 삭제 → 새 POST → 그룹 첫 entry가 다시 적립 획득 → 안정적 |
+| 다른 작업 여러 개 | task_label/category 가 다르면 각각 정상 적립 (차단 X) |
+
+**구현 위치**: `server/lib/points.js` `awardWorkEntryGrouped()` + `server/server.js` POST daily_work_entries 훅
+
+#### recompute (`/api/points/recompute`) 반영
+
+- `settlement_check`: work_tasks 스캔 → settlement_done 배열 키당 분기 캡 적용하여 재적립
+- `work_entry`: tables 루프 후 group_key 기반 중복 제거 후처리 (groupSeen set)
+- 두 변경 모두 strict 모드(`?strict=1`) 하에서 actor 미상 record skip 정책 동일 적용
+
+마지막 갱신: 2026-05-15 — settlement_check 실현 + work_entry 그룹 멱등 §8.6

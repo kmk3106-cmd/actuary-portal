@@ -14,11 +14,11 @@
 const crypto = require('crypto');
 
 const DEFAULT_RULES = [
-  { action_type: 'kpi_entry',        label: 'KPI 입력',          points: 10, description: 'work_tasks PATCH 시 KPI 필드 채워졌을 때 (분기당 1회)' },
-  { action_type: 'work_entry',       label: '개인업무 저장',     points: 5,  description: 'daily_work_entries POST 1건당' },
+  { action_type: 'kpi_entry',        label: 'KPI 입력',          points: 10, description: 'work_tasks PATCH 시 KPI 필드 최초 채워졌을 때 (분기당 1회)' },
+  { action_type: 'work_entry',       label: '개인업무 저장',     points: 5,  description: 'daily_work_entries POST 시 (member × 월 × task_label × task_category) 그룹당 1회 — 시간대 분할로 부풀리기 차단' },
   { action_type: 'issue_register',   label: '이슈 사례 등록',     points: 20, description: 'kb_issues POST 1건당' },
   { action_type: 'sop_create',       label: 'SOP 작성',          points: 30, description: 'kb_documents POST 1건당' },
-  { action_type: 'settlement_check', label: '결산 체크리스트',   points: 3,  description: 'settle_done 1건당' },
+  { action_type: 'settlement_check', label: '결산 체크리스트',   points: 3,  description: 'work_tasks PATCH 시 settlement_done 배열에 새 키 추가될 때 1키당 3pt (분기당 30건·90pt 캡). 체크 해제 시 해당 적립 회수.' },
 ];
 
 const DEFAULT_PRIZES = [
@@ -156,6 +156,158 @@ function awardPoints(db, userId, memberName, actionType, actionRef, actorOpts) {
 }
 
 /**
+ * 개인업무(work_entry) 그룹 멱등 적립.
+ *
+ * 같은 (member_name × YYYY-MM × task_label × task_category) 조합이 이미 해당 분기에
+ * 적립되어 있으면 skip — 시간대 분할 입력으로 포인트를 부풀리는 행위 차단.
+ * 멱등 키는 entry.id 를 그대로 사용(표준 awardPoints 경유), 단 skip 판단만 그룹 기준.
+ *
+ * @param {object}  db
+ * @param {string}  entryId       newly created daily_work_entries.id
+ * @param {string}  userId
+ * @param {string}  memberName
+ * @param {string}  ymPrefix      'YYYY-MM'
+ * @param {string}  taskLabel     e.task_label
+ * @param {string}  taskCategory  e.task_category
+ * @param {object}  actorOpts
+ */
+function awardWorkEntryGrouped(db, entryId, userId, memberName, ymPrefix, taskLabel, taskCategory, actorOpts) {
+  if (!entryId || !memberName) return null;
+  if (isTeamLeader(db, userId, memberName)) return null;
+  // 이미 동일 그룹 적립이 있는지 — engagement_points 의 action_type='work_entry' 를 스캔
+  const list = db.engagement_points || [];
+  const groupAlreadyAwarded = list.some(p => {
+    if (p.action_type !== 'work_entry') return false;
+    if (p.member_name !== memberName) return false;
+    // action_ref 는 다른 entry.id 이지만, meta에 그룹 키를 박아뒀음
+    return p.group_key === `${memberName}:${ymPrefix}:${taskLabel}:${taskCategory}`;
+  });
+  if (groupAlreadyAwarded) return null;
+  // 표준 awardPoints 호출 — 멱등 키는 entry.id 기반
+  const rules = db.point_rules || [];
+  const rule = rules.find(r => r.action_type === 'work_entry' && r.is_active !== false);
+  if (!rule) return null;
+  const pointsVal = Number(rule.points) || 0;
+  if (pointsVal <= 0) return null;
+  const idempotency_key = `work_entry:${entryId}`;
+  if (list.some(p => p.idempotency_key === idempotency_key)) return null;
+  const t = now();
+  const row = {
+    id: createId('ep'),
+    user_id: userId || '',
+    member_name: memberName || '',
+    action_type: 'work_entry',
+    action_ref: String(entryId),
+    points: pointsVal,
+    quarter: currentQuarter(),
+    awarded_at: t,
+    idempotency_key,
+    group_key: `${memberName}:${ymPrefix}:${taskLabel}:${taskCategory}`,
+    actor_user_id: (actorOpts && actorOpts.actorId) || '',
+    actor_name:    (actorOpts && actorOpts.actorName) || '',
+    created_at: t,
+    updated_at: t,
+  };
+  db.engagement_points = [...list, row];
+  return row;
+}
+
+/**
+ * 결산 체크리스트 체크/해제 처리.
+ *
+ * - 체크(newDone 에 있고 beforeDone 에 없는 키) → settlement_check:<wtId>:<key> 로 적립.
+ * - 해제(beforeDone 에 있고 newDone 에 없는 키) → 해당 멱등 키의 engagement_points 삭제(회수).
+ * - 분기당 30건(90pt) 캡: 현재 분기에 이미 30건 이상이면 추가 적립 스킵.
+ *
+ * @param {object}   db
+ * @param {object}   updated   work_tasks PATCH 결과
+ * @param {object}   before    work_tasks 이전 값
+ * @param {object}   actorOpts { actorId, actorName }
+ * @returns {{ awarded: string[], revoked: string[] }}
+ */
+function syncSettlementCheckPoints(db, updated, before, actorOpts) {
+  const awarded = [];
+  const revoked = [];
+  if (!updated || !updated.id) return { awarded, revoked };
+
+  const userId = updated.user_id || updated.member_id || '';
+  const memberName = updated.member_name || updated.target_name || '';
+  if (isTeamLeader(db, userId, memberName)) return { awarded, revoked };
+
+  // actor 가드 — 본인 입력인지 확인 (팀장이 대리 체크 시 적립 X)
+  if (actorOpts && (actorOpts.actorId || actorOpts.actorName)) {
+    const actorIsLeader = isTeamLeader(db, actorOpts.actorId, actorOpts.actorName);
+    if (actorIsLeader) return { awarded, revoked };
+    const sameUser = actorOpts.actorId && userId && actorOpts.actorId === userId;
+    const sameName = actorOpts.actorName && memberName && actorOpts.actorName === memberName;
+    if (!sameUser && !sameName) return { awarded, revoked };
+  }
+
+  const beforeDone = new Set(Array.isArray(before.settlement_done) ? before.settlement_done : []);
+  const newDone    = new Set(Array.isArray(updated.settlement_done) ? updated.settlement_done : []);
+
+  // 분기당 캡 — 현재 분기 settlement_check 적립 건수 조회
+  const QUARTER_CAP = 30; // 30건 × 3pt = 90pt
+  const q = currentQuarter();
+  const list = db.engagement_points || [];
+
+  // 체크 해제된 키 → 회수
+  for (const key of beforeDone) {
+    if (!newDone.has(key)) {
+      const ikey = `settlement_check:${updated.id}:${key}`;
+      const before_len = list.length;
+      db.engagement_points = db.engagement_points.filter(p => p.idempotency_key !== ikey);
+      if (db.engagement_points.length < before_len) {
+        revoked.push(key);
+      }
+    }
+  }
+
+  // 새로 체크된 키 → 적립
+  const rules = db.point_rules || [];
+  const rule = rules.find(r => r.action_type === 'settlement_check' && r.is_active !== false);
+  if (!rule) return { awarded, revoked };
+  const pointsVal = Number(rule.points) || 0;
+  if (pointsVal <= 0) return { awarded, revoked };
+
+  for (const key of newDone) {
+    if (beforeDone.has(key)) continue; // 기존 체크 — skip
+    const ikey = `settlement_check:${updated.id}:${key}`;
+    const currentList = db.engagement_points || [];
+    if (currentList.some(p => p.idempotency_key === ikey)) continue; // 이미 적립됨
+
+    // 분기 캡 검사
+    const quarterCount = currentList.filter(p =>
+      p.action_type === 'settlement_check' &&
+      p.quarter === q &&
+      ((memberName && p.member_name === memberName) || (userId && p.user_id === userId))
+    ).length;
+    if (quarterCount >= QUARTER_CAP) continue; // 캡 초과 — skip
+
+    const t = now();
+    const row = {
+      id: createId('ep'),
+      user_id: userId || '',
+      member_name: memberName || '',
+      action_type: 'settlement_check',
+      action_ref: `${updated.id}:${key}`,
+      points: pointsVal,
+      quarter: q,
+      awarded_at: t,
+      idempotency_key: ikey,
+      actor_user_id: (actorOpts && actorOpts.actorId) || '',
+      actor_name:    (actorOpts && actorOpts.actorName) || '',
+      created_at: t,
+      updated_at: t,
+    };
+    db.engagement_points = [...(db.engagement_points || []), row];
+    awarded.push(key);
+  }
+
+  return { awarded, revoked };
+}
+
+/**
  * 분기당 1회만 적립 (action_type 단위) — 예: KPI 입력
  * actionRef 는 무시되고 quarter + actionType + memberName 기준으로 멱등
  */
@@ -264,6 +416,8 @@ module.exports = {
   quarterRange,
   awardPoints,
   awardPointsOncePerQuarter,
+  awardWorkEntryGrouped,
+  syncSettlementCheckPoints,
   getQuarterRanking,
   top3WithPrizes,
   finalizeQuarter,
