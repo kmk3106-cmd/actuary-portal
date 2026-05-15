@@ -467,6 +467,15 @@
             <i class="fas fa-plus-circle" style="color:#0ea5e9;font-size:16px;"></i>
             <h3>휴가 등록</h3>
           </div>
+          <!-- 변경(편집) 모드 배너 -->
+          <div id="editModeBanner" style="display:none;align-items:center;justify-content:space-between;gap:10px;
+               padding:10px 16px;background:#fef3c7;border-bottom:1px solid #fde68a;color:#92400e;font-size:13px;font-weight:600;">
+            <span><i class="fas fa-pen" style="margin-right:6px;"></i>변경 모드 — 저장하면 기존 휴가가 갱신됩니다.</span>
+            <button type="button" onclick="exitEditMode()"
+                    style="background:#fff;border:1px solid #fde68a;color:#92400e;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;">
+              <i class="fas fa-times"></i> 변경 취소
+            </button>
+          </div>
           <div class="vac-form-body">
 
             <!-- 팀장: 직원 선택 -->
@@ -868,24 +877,25 @@ async function submitVacation() {
     }
   }
 
+  const isEdit = !!editingVacationId;
   btn.disabled  = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 등록 중...';
+  btn.innerHTML = isEdit
+    ? '<i class="fas fa-spinner fa-spin"></i> 변경 중...'
+    : '<i class="fas fa-spinner fa-spin"></i> 등록 중...';
 
   try {
-    const r = await fetch('/api/vacations/use', {
+    const url = isEdit ? '/api/vacations/update' : '/api/vacations/use';
+    const payload = isEdit
+      ? { id: editingVacationId, vacation_type: vacType,
+          start_date: startDate, end_date: endDate,
+          start_time: startTime, end_time: endTime, note }
+      : { user_id: userId, member_name: memberName, vacation_type: vacType,
+          start_date: startDate, end_date: endDate,
+          start_time: startTime, end_time: endTime, note };
+    const r = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id:       userId,
-        member_name:   memberName,
-        vacation_type: vacType,
-        start_date:    startDate,
-        end_date:      endDate,
-        start_time:    startTime,
-        end_time:      endTime,
-        note:          note
-        // days 는 서버가 시간대로 자동 산출
-      })
+      body: JSON.stringify(payload)
     });
     const d = await r.json();
 
@@ -908,11 +918,14 @@ async function submitVacation() {
     const summary = [hVal, dVal].filter(Boolean).join(' / ');
 
     Portal.showToast(
-      `휴가 등록 완료${summary ? ' (' + summary + ')' : ''}. 워크로드 표준시간이 자동 보정됩니다.`,
+      `${isEdit ? '휴가 변경' : '휴가 등록'} 완료${summary ? ' (' + summary + ')' : ''}. 워크로드 표준시간이 자동 보정됩니다.`,
       'success'
     );
 
-    // 폼 초기화
+    // 폼 초기화 / 편집 모드 해제
+    if (isEdit) {
+      exitEditMode();
+    }
     document.getElementById('formStart').value = '';
     document.getElementById('formEnd').value   = '';
     document.getElementById('formNote').value  = '';
@@ -925,10 +938,15 @@ async function submitVacation() {
       loadQuota(memberName, new Date().getFullYear(), (isLeader ? userId : undefined))
     ]);
   } catch (e) {
-    Portal.showToast('등록 실패: ' + e.message, 'error');
+    Portal.showToast((isEdit ? '변경' : '등록') + ' 실패: ' + e.message, 'error');
   } finally {
     btn.disabled  = false;
-    btn.innerHTML = '<i class="fas fa-calendar-plus"></i> 휴가 등록';
+    // 편집 모드 해제 후 finally 시점엔 editingVacationId가 null이므로 등록 라벨로 복귀
+    if (editingVacationId) {
+      btn.innerHTML = '<i class="fas fa-save"></i> 변경 저장';
+    } else {
+      btn.innerHTML = '<i class="fas fa-calendar-plus"></i> 휴가 등록';
+    }
   }
 }
 
@@ -1018,7 +1036,10 @@ function renderVacations(rows, showAll) {
       <td data-label="상태"><span class="vac-status-badge ${statusClass}">${statusLabel}</span></td>
       <td data-label="관리">
         ${canCancel
-          ? `<button class="btn-cancel-vac" onclick="cancelVacation(${r.id})">취소</button>`
+          ? `<div style="display:flex;gap:4px;flex-wrap:wrap;">
+               <button class="btn-cancel-vac" style="background:#f0f9ff;color:#1d4ed8;border-color:#bfdbfe;" onclick="editVacation('${escHtml(r.id)}')">수정</button>
+               <button class="btn-cancel-vac" onclick="cancelVacation('${escHtml(r.id)}')">취소</button>
+             </div>`
           : '-'}
       </td>
     </tr>`;
@@ -1029,10 +1050,15 @@ function renderVacations(rows, showAll) {
    휴가 취소
 ────────────────────────────────────────────── */
 async function cancelVacation(id) {
-  if (!confirm('이 휴가를 취소하시겠습니까?')) return;
+  if (!confirm('이 휴가를 취소하시겠습니까?\n(이력은 유지되며 사용량은 자동 복원됩니다.)')) return;
   try {
-    const r = await fetch(`/tables/vacations/${id}`, { method: 'DELETE' });
-    if (!r.ok) throw new Error(`서버 오류 (${r.status})`);
+    const r = await fetch(`/api/vacations/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || `서버 오류 (${r.status})`);
     Portal.showToast('휴가가 취소되었습니다.', 'success');
     await loadVacations();
     const year = document.getElementById('yearSelect').value;
@@ -1040,6 +1066,65 @@ async function cancelVacation(id) {
   } catch (e) {
     Portal.showToast('취소 실패: ' + e.message, 'error');
   }
+}
+
+/* ──────────────────────────────────────────────
+   휴가 변경 (수정)
+────────────────────────────────────────────── */
+let editingVacationId = null;
+
+async function editVacation(id) {
+  try {
+    const r = await fetch(`/tables/vacations/${encodeURIComponent(id)}`);
+    if (!r.ok) throw new Error('휴가 조회 실패');
+    const v = await r.json();
+    if (v.status === 'cancelled') {
+      Portal.showToast('취소된 휴가는 수정할 수 없습니다. 새로 등록하세요.', 'error');
+      return;
+    }
+    // 폼 채우기
+    editingVacationId = id;
+    document.getElementById('formType').value      = v.vacation_type || '연차';
+    document.getElementById('formStart').value     = v.start_date || '';
+    document.getElementById('formEnd').value       = v.end_date   || '';
+    document.getElementById('formNote').value      = v.note       || '';
+    // 시간 select 옵션 갱신 후 값 설정
+    initTimeSelects(v.start_time || '09:00', v.end_time || '18:00');
+    if (v.start_time) document.getElementById('formStartTime').value = v.start_time;
+    if (v.end_time)   document.getElementById('formEndTime').value   = v.end_time;
+    // 팀장: formMember도 맞춤 (변경은 본인은 안 됨 — 대상자 고정)
+    const fm = document.getElementById('formMember');
+    if (fm) {
+      // user_id 가 있으면 그 옵션 선택, 아니면 이름 매칭
+      const opt = Array.from(fm.options).find(o =>
+        (v.user_id && o.value === v.user_id) ||
+        (!v.user_id && o.dataset.name === v.member_name)
+      );
+      if (opt) fm.value = opt.value;
+      fm.disabled = true; // 변경 중에는 대상자 고정
+    }
+    calcPreview();
+    // 등록 버튼을 "변경 저장" 으로 전환 + 취소 버튼 표시
+    const btn = document.getElementById('submitBtn');
+    btn.innerHTML = '<i class="fas fa-save"></i> 변경 저장';
+    btn.dataset.mode = 'edit';
+    document.getElementById('editModeBanner').style.display = 'flex';
+    // 폼 영역으로 스크롤
+    document.querySelector('.vac-form-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (e) {
+    Portal.showToast('수정 준비 실패: ' + e.message, 'error');
+  }
+}
+
+function exitEditMode() {
+  editingVacationId = null;
+  const btn = document.getElementById('submitBtn');
+  btn.innerHTML = '<i class="fas fa-calendar-plus"></i> 휴가 등록';
+  btn.dataset.mode = '';
+  document.getElementById('editModeBanner').style.display = 'none';
+  const fm = document.getElementById('formMember');
+  if (fm) fm.disabled = false;
+  document.getElementById('formNote').value = '';
 }
 
 function escHtml(s) {

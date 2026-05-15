@@ -886,30 +886,43 @@ async function loadBarChart(period) {
     const data = await r.json();
     console.log('[DIAG-BAR] data: members=' + data.members.length + ' dates=' + data.dates.length);
 
-    // 멤버별 합산
-    const totals = {};
+    // 멤버별 합산 — 업무 시간(분→시간) + 휴가 시간(hours)
+    const stats = {};
     for (const member of data.members) {
-      let sum = 0;
+      let workMin = 0, vacH = 0;
       for (const date of data.dates) {
         const cell = data.cells[member] && data.cells[member][date];
-        if (cell && cell.is_business_day) sum += (cell.total_minutes || 0);
+        if (!cell) continue;
+        if (cell.is_business_day) workMin += (cell.total_minutes || 0);
+        for (const v of (cell.vacations || [])) {
+          vacH += Number(v.hours) || 0;
+        }
       }
-      totals[member] = Math.round(sum / 6) / 10;
+      // 총 입력시간(daily) 중에서 휴가시간만큼은 "휴가" 세그먼트로 떼어내고
+      // 나머지를 "순 업무" 세그먼트로 표시. (휴가는 daily와 별도 테이블이지만
+      // 사용자 멘탈모델은 "정규근무 시간 안에서 휴가가 차지한 부분")
+      const totalH = workMin / 60;
+      const vacSeg = Math.min(vacH, totalH);                 // 휴가는 총합 안에서만
+      const workSeg = Math.max(0, totalH - vacSeg);
+      stats[member] = {
+        work: Math.round(workSeg * 10) / 10,
+        vac:  Math.round(vacSeg * 10) / 10,
+      };
+      stats[member].total = Math.round(totalH * 10) / 10;
     }
 
-    const sorted = Object.entries(totals).sort((a, b) =>
-      barSort === 'desc' ? b[1] - a[1] : a[1] - b[1]
+    const sorted = Object.entries(stats).sort((a, b) =>
+      barSort === 'desc' ? b[1].total - a[1].total : a[1].total - b[1].total
     );
-    const names  = sorted.map(x => x[0]);
-    const values = sorted.map(x => x[1]);
-    console.log('[DIAG-BAR] values=' + JSON.stringify(values));
+    const names      = sorted.map(x => x[0]);
+    const vacValues  = sorted.map(x => x[1].vac);
+    const workValues = sorted.map(x => x[1].work);
+    console.log('[DIAG-BAR] work=' + JSON.stringify(workValues) + ' vac=' + JSON.stringify(vacValues));
 
     if (barChart) { barChart.destroy(); barChart = null; }
 
-    const hasData = values.some(v => v > 0);
-    console.log('[DIAG-BAR] hasData=' + hasData);
+    const hasData = workValues.some(v => v > 0) || vacValues.some(v => v > 0);
     if (!hasData) {
-      console.log('[DIAG-BAR] showing empty state');
       document.getElementById('barChart').innerHTML =
         '<div style="text-align:center;padding:60px 20px;color:var(--gray-400);">' +
         '<i class="fas fa-chart-bar" style="font-size:32px;margin-bottom:10px;display:block;opacity:0.3;"></i>' +
@@ -920,6 +933,7 @@ async function loadBarChart(period) {
     const opts = {
       chart: {
         type: 'bar',
+        stacked: true,
         height: Math.max(300, names.length * 32 + 60),
         toolbar: { show: false },
         animations: { enabled: false }
@@ -929,30 +943,30 @@ async function loadBarChart(period) {
           horizontal: true,
           borderRadius: 5,
           barHeight: '60%',
-          distributed: true
         }
       },
-      colors: values.map(v => {
-        if (v === 0) return '#e5e7eb';
-        const maxH = 50;
-        const pct  = (v / maxH) * 100;
-        if (pct > 110) return '#ef4444';
-        if (pct > 70)  return '#10b981';
-        return '#9ca3af';
-      }),
+      // 휴가(왼쪽) = 검정, 업무(오른쪽) = 초록
+      colors: ['#1f2937', '#10b981'],
       dataLabels: {
         enabled: true,
         formatter: v => v > 0 ? `${v}h` : '',
-        style: { fontSize: '12px', fontWeight: 600 }
+        style: { fontSize: '11.5px', fontWeight: 700, colors: ['#fff'] }
       },
-      series: [{ name: '투입시간', data: values }],
+      series: [
+        { name: '휴가', data: vacValues },
+        { name: '업무', data: workValues },
+      ],
       xaxis: {
         categories: names,
-        labels: { style: { fontSize: '12px', fontWeight: 600, colors: '#374151' } }
+        labels: { style: { fontSize: '12px', fontWeight: 600, colors: '#374151' }, formatter: v => `${v}h` }
       },
       yaxis: { labels: { style: { fontSize: '12.5px', fontWeight: 600 } } },
-      legend: { show: false },
-      tooltip: { y: { formatter: v => `${v}h` } },
+      legend: { show: true, position: 'top', horizontalAlign: 'right', fontSize: '12px', fontWeight: 600,
+                markers: { width: 12, height: 12, radius: 3 } },
+      tooltip: {
+        shared: true, intersect: false,
+        y: { formatter: v => `${v}h` }
+      },
       grid: { borderColor: '#f3f4f6' }
     };
 

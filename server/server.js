@@ -1651,6 +1651,105 @@ const server = http.createServer((req, res) => {
           if (errOut) return send(errOut.status, errOut.body);
           return send(201, result);
         }
+        // POST /api/vacations/update
+        // body: { id, vacation_type, start_date, end_date, start_time?, end_time?, note? }
+        // 기존 휴가 row 재계산(time_entries / minutes / hours / days) + quota 한도 검사 + recompute.
+        // status='cancelled' 인 row 는 수정 불가 (재등록 필요).
+        if (req.method === 'POST' && u.pathname === '/api/vacations/update') {
+          const body = await readBody();
+          const { id, vacation_type, start_date, end_date, start_time, end_time, note } = body || {};
+          if (!id) return send(400, { error: 'id 필수' });
+          if (!vacation_type || !start_date || !end_date) {
+            return send(400, { error: 'vacation_type, start_date, end_date 필수' });
+          }
+          let result = null, errOut = null;
+          await withDb(db => {
+            const idx = (db.vacations || []).findIndex(v => v.id === id);
+            if (idx < 0) { errOut = { status: 404, body: { error: '휴가 없음' } }; return; }
+            const before = db.vacations[idx];
+            if (before.status === 'cancelled') {
+              errOut = { status: 400, body: { error: '취소된 휴가는 수정할 수 없습니다. 새로 등록하세요.' } };
+              return;
+            }
+            // 1) 시간/일수 재계산
+            let minutes = 0, hours = 0, days = 0, time_entries = [];
+            if (start_time && end_time) {
+              try {
+                time_entries = timeentry.buildEntriesFromRange(start_date, end_date, start_time, end_time);
+                minutes = time_entries.reduce((s, te) => s + (Number(te.minutes) || 0), 0);
+                hours = Math.round((minutes / 60) * 10) / 10;
+                days = Math.round((minutes / (8 * 60)) * 100) / 100;
+              } catch (e) {
+                errOut = { status: 400, body: { error: e.message } };
+                return;
+              }
+            } else {
+              const bizMap = bizday.indexBusinessDays(db.business_days);
+              const startD = new Date(start_date + 'T00:00:00');
+              const endD = new Date(end_date + 'T00:00:00');
+              let count = 0;
+              const cur = new Date(startD);
+              while (cur <= endD) {
+                if (bizday.isBusinessDay(isoOf(cur), bizMap)) count++;
+                cur.setDate(cur.getDate() + 1);
+              }
+              days = ['반차','2H','3H'].includes(vacation_type) ? 0.5 : count;
+              minutes = Math.round(days * 8 * 60);
+              hours = Math.round((minutes / 60) * 10) / 10;
+            }
+            // 2) 한도 체크 — (현재 used) - (기존 days) + (새 days)
+            const y = parseInt(start_date.slice(0, 4), 10);
+            const q = getOrCreateQuota(db, y, before.user_id, before.member_name);
+            const projectedUsed = (Number(q.used) || 0) - (Number(before.days) || 0) + days;
+            if (projectedUsed > q.annual_total + 0.001) {
+              errOut = { status: 400, body: { error: '연차 한도 초과', quota: q, projected_used: projectedUsed } };
+              return;
+            }
+            // 3) row 업데이트
+            const updated = {
+              ...before,
+              vacation_type,
+              start_date, end_date,
+              start_time: start_time || '',
+              end_time: end_time || '',
+              minutes, hours, days,
+              time_entries,
+              note: note != null ? note : (before.note || ''),
+              updated_at: now(),
+            };
+            db.vacations[idx] = updated;
+            // 4) quota 재계산 (before/after 연도 모두)
+            syncVacationQuotaOnUpdate(db, before, updated);
+            writeDb(db);
+            result = { vacation: updated, quota: db.vacation_quotas.find(x =>
+              x.year === y && ((before.user_id && x.user_id === before.user_id) || x.member_name === before.member_name)) };
+          });
+          if (errOut) return send(errOut.status, errOut.body);
+          return send(200, result);
+        }
+        // POST /api/vacations/cancel — status='cancelled' 로 PATCH (이력 보존 + quota 복원)
+        if (req.method === 'POST' && u.pathname === '/api/vacations/cancel') {
+          const body = await readBody();
+          const { id } = body || {};
+          if (!id) return send(400, { error: 'id 필수' });
+          let result = null, errOut = null;
+          await withDb(db => {
+            const idx = (db.vacations || []).findIndex(v => v.id === id);
+            if (idx < 0) { errOut = { status: 404, body: { error: '휴가 없음' } }; return; }
+            const before = db.vacations[idx];
+            if (before.status === 'cancelled') {
+              errOut = { status: 400, body: { error: '이미 취소된 휴가입니다.' } };
+              return;
+            }
+            const updated = { ...before, status: 'cancelled', cancelled_at: now(), updated_at: now() };
+            db.vacations[idx] = updated;
+            syncVacationQuotaOnUpdate(db, before, updated);
+            writeDb(db);
+            result = { vacation: updated };
+          });
+          if (errOut) return send(errOut.status, errOut.body);
+          return send(200, result);
+        }
         // GET /api/vacations/list?member=NAME&year=YYYY
         if (req.method === 'GET' && u.pathname === '/api/vacations/list') {
           const memberName = sp.get('member') || '';
