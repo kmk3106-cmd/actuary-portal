@@ -194,6 +194,22 @@ function seedPointsConfig(db) {
     }
   }
 
+  // Phase 9-2 마이그레이션: 참여상/성장상/카테고리 MVP 운용 중단 (운영자 결정 2026-05-15)
+  //  → is_active=false 로 비활성화. 1·2·3등 식사권만 운용.
+  //  추후 다시 운용하고 싶으면 settings 등에서 활성화 가능.
+  const DEPRECATED_PRIZE_IDS = new Set([
+    'pz_participation',
+    'pz_growth_1', 'pz_growth_2', 'pz_growth_3',
+    'pz_mvp_sop', 'pz_mvp_issue', 'pz_mvp_settlement',
+  ]);
+  for (const row of db.prize_rules) {
+    if (DEPRECATED_PRIZE_IDS.has(row.id) && row.is_active !== false) {
+      row.is_active = false;
+      row.updated_at = t;
+      changed = true;
+    }
+  }
+
   return changed;
 }
 

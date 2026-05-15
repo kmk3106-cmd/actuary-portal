@@ -508,7 +508,44 @@
       .podium-section { padding: 24px 16px 20px; }
     }
 
-    /* ── Phase 9: 추가 보상 섹션 ── */
+    /* ── 포인트 적립 규칙 카드 ── */
+    .point-rules-card {
+      background: #fff; border-radius: 14px; padding: 18px 20px; margin-bottom: 22px;
+      border: 1.5px solid #f3f4f6;
+    }
+    .point-rules-header {
+      display: flex; align-items: center; gap: 10px;
+      padding-bottom: 12px; border-bottom: 1px solid #f3f4f6; margin-bottom: 14px;
+    }
+    .point-rules-header h3 { font-size: 15px; font-weight: 700; color: #111827; margin: 0; }
+    .point-rules-sub { font-size: 11.5px; color: #9ca3af; margin-left: auto; }
+    .point-rules-body { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .point-rule-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 12px; background: #fafbfc; border-radius: 8px;
+      border: 1px solid #f3f4f6;
+    }
+    .point-rule-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 5px;
+    }
+    .point-rule-row-content { flex: 1; min-width: 0; }
+    .point-rule-label-line { display: flex; align-items: center; gap: 8px; }
+    .point-rule-label { flex: 1; font-size: 13px; font-weight: 700; color: #111827; }
+    .point-rule-pts {
+      font-size: 12px; font-weight: 800; color: #4f86f7;
+      background: #eff6ff; padding: 3px 10px; border-radius: 999px;
+      white-space: nowrap;
+    }
+    .point-rule-desc { font-size: 11px; color: #6b7280; margin-top: 4px; line-height: 1.5; }
+    @media (max-width: 900px) {
+      .point-rules-body { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 600px) {
+      .point-rules-body { grid-template-columns: 1fr; }
+      .point-rules-sub { display: none; }
+    }
+
+    /* ── Phase 9: 추가 보상 섹션 (deprecated — UI 미사용, 코드만 유지) ── */
     .extra-awards-section {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -643,40 +680,14 @@
         </div>
       </div>
 
-      <!-- Phase 9: 추가 보상 (참여상 / 성장상 / 카테고리 MVP) -->
-      <div class="extra-awards-section fade-in-2" id="extraAwardsSection">
-        <!-- 참여상 -->
-        <div class="extra-award-card">
-          <div class="extra-award-header">
-            <span class="extra-award-icon"><i class="fas fa-star"></i></span>
-            <h3>참여상</h3>
-            <span class="extra-award-sub">분기 50pt 이상 전원</span>
-          </div>
-          <div id="participationList" class="extra-award-body">
-            <div class="loading-state"><i class="fas fa-spinner fa-spin"></i></div>
-          </div>
+      <!-- 포인트 적립 규칙 (point_rules 활성 룰 동적 로드) -->
+      <div class="point-rules-card fade-in-2">
+        <div class="point-rules-header">
+          <h3><i class="fas fa-coins" style="color:#b45309;margin-right:8px;"></i>포인트 적립 규칙</h3>
+          <span class="point-rules-sub">활성화된 적립 규칙만 표시</span>
         </div>
-        <!-- 성장상 -->
-        <div class="extra-award-card">
-          <div class="extra-award-header">
-            <span class="extra-award-icon"><i class="fas fa-chart-line"></i></span>
-            <h3>성장상</h3>
-            <span class="extra-award-sub">직전 분기 대비 증가율 TOP3</span>
-          </div>
-          <div id="growthList" class="extra-award-body">
-            <div class="loading-state"><i class="fas fa-spinner fa-spin"></i></div>
-          </div>
-        </div>
-        <!-- 카테고리 MVP -->
-        <div class="extra-award-card">
-          <div class="extra-award-header">
-            <span class="extra-award-icon"><i class="fas fa-crown"></i></span>
-            <h3>카테고리 MVP</h3>
-            <span class="extra-award-sub">SOP / 이슈 / 결산 부문별</span>
-          </div>
-          <div id="mvpList" class="extra-award-body">
-            <div class="loading-state"><i class="fas fa-spinner fa-spin"></i></div>
-          </div>
+        <div id="pointRulesBody" class="point-rules-body">
+          <div class="loading-state"><i class="fas fa-spinner fa-spin"></i></div>
         </div>
       </div>
 
@@ -1052,12 +1063,8 @@ async function loadAll() {
     '<tr><td colspan="4" class="loading-state"><i class="fas fa-spinner fa-spin"></i></td></tr>';
   document.getElementById('myScoreBody').innerHTML =
     '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i></div>';
-  document.getElementById('participationList').innerHTML =
-    '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i></div>';
-  document.getElementById('growthList').innerHTML =
-    '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i></div>';
-  document.getElementById('mvpList').innerHTML =
-    '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i></div>';
+  // 포인트 규칙 카드는 별도 비동기 로드
+  loadPointRules();
 
   try {
     const [awardsRes, rankRes, meRes] = await Promise.all([
@@ -1082,15 +1089,52 @@ async function loadAll() {
     renderPodium(top3);
     renderRanking(ranking);
     renderMyScore(me, top3);
-
-    // Phase 9: 추가 보상 렌더
-    renderParticipation(awardsRes.participation || []);
-    renderGrowth(awardsRes.growth || []);
-    renderMvp(awardsRes.category_mvp || []);
   } catch (e) {
     document.getElementById('podiumStage').innerHTML =
       '<div class="empty-state" style="color:rgba(255,255,255,0.5);">데이터를 불러오지 못했습니다.</div>';
     Portal.showToast('랭킹 로드 실패: ' + e.message, 'error');
+  }
+}
+
+/* ──────────────────────────────────────────────
+   포인트 적립 규칙 카드 — point_rules 에서 활성 룰 동적 로드
+────────────────────────────────────────────── */
+async function loadPointRules() {
+  const body = document.getElementById('pointRulesBody');
+  if (!body) return;
+  try {
+    const r = await fetch('/tables/point_rules?limit=50');
+    const d = await r.json();
+    const rules = (d.rows || d.data || [])
+      .filter(p => p.is_active !== false)
+      .sort((a, b) => (a.sort_order || 99) - (b.sort_order || 99));
+    if (rules.length === 0) {
+      body.innerHTML = '<div class="empty-state" style="grid-column:1/-1;">활성화된 적립 규칙이 없습니다.</div>';
+      return;
+    }
+    // action_type → 도트 색
+    const DOT_COLOR = {
+      kpi_entry: '#6d28d9', work_entry: '#1d4ed8', issue_register: '#b45309',
+      sop_create: '#065f46', settlement_check: '#9d174d',
+      streak_bonus: '#0891b2', quarterly_mission: '#7c3aed',
+      first_sop: '#065f46', first_issue: '#b45309',
+    };
+    body.innerHTML = rules.map(r => {
+      const color = DOT_COLOR[r.action_type] || '#6b7280';
+      const ptsLabel = (Number(r.points) || 0) > 0 ? `+${r.points}pt` : '동적';
+      return `<div class="point-rule-row">
+        <span class="point-rule-dot" style="background:${color};"></span>
+        <div class="point-rule-row-content">
+          <div class="point-rule-label-line">
+            <span class="point-rule-label">${escHtml(r.label || r.action_type)}</span>
+            <span class="point-rule-pts">${escHtml(ptsLabel)}</span>
+          </div>
+          ${r.description ? `<div class="point-rule-desc">${escHtml(r.description)}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    body.innerHTML = '<div class="empty-state" style="grid-column:1/-1;">규칙을 불러오지 못했습니다.</div>';
   }
 }
 
