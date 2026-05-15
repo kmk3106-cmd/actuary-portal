@@ -389,7 +389,6 @@ function tryAwardStreakBonus(db, userId, memberName, entryDate, actorOpts) {
     (db.daily_work_entries || [])
       .filter(e => e.member_name === memberName)
       .flatMap(e => {
-        // time_entries 에서 날짜 추출, 없으면 start_date/end_date
         try {
           const te = typeof e.time_entries === 'string' ? JSON.parse(e.time_entries) : e.time_entries;
           if (Array.isArray(te) && te.length > 0) return te.map(t => t.date).filter(Boolean);
@@ -399,35 +398,78 @@ function tryAwardStreakBonus(db, userId, memberName, entryDate, actorOpts) {
       })
   );
 
-  // 오늘 기준 N일 연속 카운트 (단순 달력일 기준 — business_days 없으면 7일 범위)
+  // ── 휴가 시간 맵 (날짜별 휴가 시간(h) 합산) ──
+  // 정책 (2026-05-15 운영자 결정):
+  //  - 전일 휴가일: streak 끊김 방지 + 가중치 0 (연속만 유지)
+  //  - 부분 휴가일에 업무 입력 시: 가중치 = (1 - 휴가분/8)
+  //  - 표준 근무 8h 기준, time_entries 우선 / 없으면 start_date~end_date 를 8h씩 카운트
+  const vacByDate = {};
+  for (const v of (db.vacations || [])) {
+    if (v.member_name !== memberName) continue;
+    if (v.status === 'cancelled') continue;
+    let te = v.time_entries;
+    try { if (typeof te === 'string') te = JSON.parse(te); } catch (_) { te = null; }
+    if (Array.isArray(te) && te.length > 0) {
+      for (const t of te) {
+        if (!t || !t.date) continue;
+        vacByDate[t.date] = (vacByDate[t.date] || 0) + ((Number(t.minutes) || 0) / 60);
+      }
+    } else if (v.start_date && v.end_date) {
+      // 전일 휴가 (시간대 없음) — 각 일자에 8h 누적
+      const s = new Date(v.start_date + 'T00:00:00');
+      const e = new Date(v.end_date + 'T00:00:00');
+      while (s <= e) {
+        const ds = s.toISOString().slice(0, 10);
+        vacByDate[ds] = (vacByDate[ds] || 0) + 8;
+        s.setDate(s.getDate() + 1);
+      }
+    }
+  }
+  const FULL_DAY_H = 8;
+  const FULL_VAC_THRESHOLD = 7.5; // ≥7.5h 면 사실상 전일 휴가로 간주
+
   const toMs = s => new Date(s + 'T00:00:00').getTime();
   const today = toMs(entryDate);
   const DAY_MS = 86400000;
 
+  // streak 는 가중치 누적 float (예: 풀근무 4일 + 반차 1일 = 4 + 0.5 = 4.5)
   let streak = 0;
   let check = today;
-  // 최대 60일 전까지 소급 (무한 방지)
   for (let i = 0; i < 60; i++) {
     const ds = new Date(check).toISOString().slice(0, 10);
     const dow = new Date(check).getDay();
     if (dow === 0 || dow === 6) {
-      // 주말은 streak 단절 안 함 (영업일만 카운트)
+      check -= DAY_MS;
+      continue; // 주말 skip
+    }
+    const vacH = vacByDate[ds] || 0;
+    const isFullVac = vacH >= FULL_VAC_THRESHOLD;
+    const hasWork = workDates.has(ds);
+
+    if (isFullVac) {
+      // 전일 휴가 → 연속 끊김 방지, streak 가산 없음
       check -= DAY_MS;
       continue;
     }
-    if (workDates.has(ds)) {
-      streak += 1;
+    if (hasWork) {
+      // 업무 입력 있음 — 부분휴가시 가중치 (1 - 휴가분/8)
+      const weight = Math.max(0, 1 - (vacH / FULL_DAY_H));
+      streak += weight;
       check -= DAY_MS;
-    } else if (i === 0) {
-      // 오늘(entryDate) 에 work_entry 가 아직 반영 전일 수 있음 → 1로 강제 시작
-      streak = 1;
-      check -= DAY_MS;
-    } else {
-      break;
+      continue;
     }
+    if (i === 0) {
+      // 오늘은 아직 work_entry 반영 전일 수 있음 → 부분휴가 가중치 적용
+      streak = Math.max(0, 1 - (vacH / FULL_DAY_H));
+      check -= DAY_MS;
+      continue;
+    }
+    // 평일 + 업무 없음 + 휴가 없음 → 단절
+    break;
   }
 
-  if (streak < 2) return; // 1일차는 보너스 없음 (연속 2일부터)
+  // 정수 1일 미만이면 단순 그 날만 입력한 것 → 보너스 없음
+  if (streak < 2) return;
 
   const bonusPts = Math.min(Math.ceil(streak * 0.5), STREAK_MAX_PER_DAY);
   if (bonusPts <= 0) return;
@@ -443,7 +485,7 @@ function tryAwardStreakBonus(db, userId, memberName, entryDate, actorOpts) {
     quarter: currentQuarter(),
     awarded_at: t,
     idempotency_key: ikey,
-    streak_days: streak,
+    streak_days: Math.round(streak * 10) / 10,  // 가중치 누적이라 소수1자리
     actor_user_id: (actorOpts && actorOpts.actorId) || '',
     actor_name:    (actorOpts && actorOpts.actorName) || '',
     created_at: t,

@@ -70,52 +70,66 @@
 
     /* ── 포디움 영역 ── */
     .podium-section {
-      background: linear-gradient(160deg, #0f0c29 0%, #24243e 38%, #1a1060 70%, #0f2657 100%);
+      background: linear-gradient(170deg, #080612 0%, #0d0a1f 25%, #111630 55%, #0a1228 80%, #060e1e 100%);
       border-radius: 24px;
-      padding: 40px 32px 0;
+      padding: 36px 32px 0;
       margin-bottom: 28px;
       position: relative;
       overflow: hidden;
-      min-height: 320px;
-      box-shadow: 0 20px 60px rgba(15,12,41,0.35), 0 4px 16px rgba(0,0,0,0.2);
+      min-height: 340px;
+      box-shadow:
+        0 24px 72px rgba(5,3,15,0.55),
+        0 4px 16px rgba(0,0,0,0.3),
+        inset 0 1px 0 rgba(255,255,255,0.04);
     }
-    /* 포디움 배경 글로우 장식 */
+    /* 중앙 금빛 글로우 */
     .podium-section::before {
       content: '';
       position: absolute;
-      top: -60px; left: 50%; transform: translateX(-50%);
-      width: 520px; height: 260px;
-      background: radial-gradient(ellipse, rgba(245,158,11,0.12) 0%, transparent 70%);
+      top: -40px; left: 50%; transform: translateX(-50%);
+      width: 600px; height: 300px;
+      background: radial-gradient(ellipse at 50% 40%, rgba(251,191,36,0.09) 0%, rgba(180,83,9,0.06) 40%, transparent 70%);
       pointer-events: none; z-index: 0;
     }
+    /* 하단 그라데이션 페이드 */
     .podium-section::after {
       content: '';
       position: absolute;
       bottom: 0; left: 0; right: 0;
-      height: 60px;
-      background: linear-gradient(to top, rgba(0,0,0,0.15), transparent);
+      height: 80px;
+      background: linear-gradient(to top, rgba(0,0,0,0.25), transparent);
       pointer-events: none; z-index: 0;
     }
 
-    .podium-title {
+    /* ── 포디움 헤더 텍스트 ── */
+    .podium-header-wrap {
       text-align: center;
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.4em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,0.35);
-      margin-bottom: 32px;
       position: relative;
       z-index: 1;
+      margin-bottom: 28px;
     }
-    .podium-title::before,
-    .podium-title::after {
-      content: '——';
-      margin: 0 10px;
-      opacity: 0.4;
-      letter-spacing: 0;
+    .podium-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.28);
+      margin-bottom: 6px;
+      display: block;
+    }
+    .podium-main-title {
+      font-size: 30px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      display: block;
+      background: linear-gradient(135deg, #ffffff 0%, #e2d9c0 40%, #f5e9c0 70%, #ffffff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 2px 12px rgba(251,191,36,0.18));
     }
 
+    /* ── 포디움 스테이지 ── */
     .podium-stage {
       display: flex;
       align-items: flex-end;
@@ -129,94 +143,118 @@
       flex-direction: column;
       align-items: center;
       flex: 1;
-      max-width: 240px;
+      max-width: 260px;
       transition: transform 0.25s ease;
     }
-    .podium-slot:hover { transform: translateY(-6px); }
+    .podium-slot:hover { transform: translateY(-7px); }
 
+    /* ── 아바타 래퍼 ── */
     .podium-avatar-wrap {
       position: relative;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
     }
-    /* 아바타 글로우 링 */
+    /* 호버 글로우 */
     .podium-avatar-glow {
       position: absolute;
-      inset: -8px;
+      inset: -10px;
       border-radius: 50%;
       opacity: 0;
       transition: opacity 0.3s ease;
+      pointer-events: none;
     }
     .podium-slot:hover .podium-avatar-glow { opacity: 1; }
     .podium-slot.rank-1 .podium-avatar-glow {
-      background: radial-gradient(circle, rgba(251,191,36,0.3) 0%, transparent 70%);
+      background: radial-gradient(circle, rgba(251,191,36,0.35) 0%, transparent 70%);
     }
     .podium-slot.rank-2 .podium-avatar-glow {
-      background: radial-gradient(circle, rgba(156,163,175,0.25) 0%, transparent 70%);
+      background: radial-gradient(circle, rgba(156,163,175,0.28) 0%, transparent 70%);
     }
     .podium-slot.rank-3 .podium-avatar-glow {
-      background: radial-gradient(circle, rgba(205,124,59,0.25) 0%, transparent 70%);
+      background: radial-gradient(circle, rgba(205,124,59,0.28) 0%, transparent 70%);
     }
 
+    /* ── 아바타 원형 ── */
     .podium-avatar {
-      width: 64px;
-      height: 64px;
+      width: 68px;
+      height: 68px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 22px;
+      font-size: 24px;
       font-weight: 900;
       color: #fff;
       position: relative;
       z-index: 1;
       letter-spacing: -0.02em;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.4);
     }
+    /* 1등: 황금 아바타 — 두꺼운 링 + 강한 글로우 */
     .podium-slot.rank-1 .podium-avatar {
-      width: 88px;
-      height: 88px;
-      font-size: 32px;
-      background: linear-gradient(145deg, #fde68a 0%, #f59e0b 40%, #b45309 100%);
+      width: 96px;
+      height: 96px;
+      font-size: 36px;
+      background: linear-gradient(145deg, #fff0b0 0%, #f7c948 30%, #d4870a 70%, #8b5000 100%);
       box-shadow:
-        0 0 0 4px rgba(251,191,36,0.25),
-        0 0 0 8px rgba(251,191,36,0.1),
-        0 16px 40px rgba(245,158,11,0.5);
+        0 0 0 5px rgba(251,191,36,0.55),
+        0 0 0 10px rgba(251,191,36,0.15),
+        0 0 0 16px rgba(251,191,36,0.05),
+        0 20px 50px rgba(212,135,10,0.55);
     }
+    /* 2등: 은빛 아바타 */
     .podium-slot.rank-2 .podium-avatar {
-      background: linear-gradient(145deg, #e2e8f0 0%, #94a3b8 45%, #475569 100%);
+      background: linear-gradient(145deg, #eaf0f8 0%, #a8b8cc 40%, #5a7080 80%, #2c3e50 100%);
       box-shadow:
-        0 0 0 3px rgba(148,163,184,0.25),
-        0 10px 28px rgba(71,85,105,0.4);
+        0 0 0 4px rgba(168,184,204,0.45),
+        0 0 0 8px rgba(168,184,204,0.12),
+        0 12px 32px rgba(71,85,105,0.45);
     }
+    /* 3등: 동빛 아바타 */
     .podium-slot.rank-3 .podium-avatar {
-      background: linear-gradient(145deg, #fed7aa 0%, #c2783a 45%, #7c2d12 100%);
+      background: linear-gradient(145deg, #f5d9b0 0%, #c8833a 40%, #8b4c14 80%, #5a2d06 100%);
       box-shadow:
-        0 0 0 3px rgba(194,120,58,0.25),
-        0 10px 28px rgba(124,45,18,0.4);
+        0 0 0 4px rgba(194,131,58,0.45),
+        0 0 0 8px rgba(194,131,58,0.12),
+        0 12px 32px rgba(124,45,18,0.45);
     }
 
-    /* 크라운 (1등 전용 bob 애니메이션) */
-    .podium-crown {
+    /* ── 왕관 SVG (1등 전용) ── */
+    .podium-crown-svg {
       position: absolute;
-      top: -24px;
+      top: -32px;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 24px;
-      filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));
+      width: 40px;
+      height: 32px;
+      filter: drop-shadow(0 4px 10px rgba(212,135,10,0.7));
       animation: crown-bob 2.8s ease-in-out infinite;
-      z-index: 2;
+      z-index: 3;
     }
     @keyframes crown-bob {
-      0%, 100% { transform: translateX(-50%) translateY(0) rotate(-3deg); }
-      50%       { transform: translateX(-50%) translateY(-5px) rotate(3deg); }
+      0%, 100% { transform: translateX(-50%) translateY(0) rotate(-2deg); }
+      50%       { transform: translateX(-50%) translateY(-6px) rotate(2deg); }
     }
 
-    /* 2·3등 트로피 아이콘 뱃지 */
-    .podium-rank-icon {
+    /* ── 월계관 SVG (1등 좌우) ── */
+    .podium-laurel-wrap {
       position: absolute;
-      bottom: -4px;
-      right: -4px;
-      width: 22px;
-      height: 22px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 48px;
+      height: 48px;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .podium-laurel-wrap.left  { left: -44px; }
+    .podium-laurel-wrap.right { right: -44px; transform: translateY(-50%) scaleX(-1); }
+
+    /* ── 순위 뱃지 (2·3등 우하단 원형) ── */
+    .podium-rank-badge {
+      position: absolute;
+      bottom: -3px;
+      right: -3px;
+      width: 24px;
+      height: 24px;
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -224,138 +262,191 @@
       font-size: 11px;
       font-weight: 900;
       color: #fff;
-      z-index: 2;
-      border: 2px solid rgba(255,255,255,0.15);
+      z-index: 3;
+      border: 2px solid rgba(10,10,20,0.8);
     }
-    .podium-slot.rank-2 .podium-rank-icon {
-      background: linear-gradient(135deg, #94a3b8, #475569);
+    .podium-slot.rank-1 .podium-rank-badge {
+      background: linear-gradient(135deg, #fde68a, #d97706);
+      border-color: rgba(10,10,20,0.9);
     }
-    .podium-slot.rank-3 .podium-rank-icon {
-      background: linear-gradient(135deg, #c2783a, #7c2d12);
+    .podium-slot.rank-2 .podium-rank-badge {
+      background: linear-gradient(135deg, #a0b0c0, #4a5f72);
+    }
+    .podium-slot.rank-3 .podium-rank-badge {
+      background: linear-gradient(135deg, #c8833a, #6b2e06);
     }
 
+    /* ── 이름 ── */
     .podium-name {
       font-size: 14px;
       font-weight: 700;
-      color: #fff;
+      color: rgba(255,255,255,0.88);
       text-align: center;
-      margin-bottom: 4px;
-      text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+      margin-bottom: 5px;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.5);
     }
     .podium-slot.rank-1 .podium-name {
-      font-size: 17px;
-      font-weight: 800;
-      background: linear-gradient(135deg, #fde68a, #fbbf24);
+      font-size: 18px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #fff8dc 0%, #fde68a 40%, #f59e0b 80%, #fde68a 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
+      filter: drop-shadow(0 2px 6px rgba(251,191,36,0.35));
     }
+
+    /* ── 점수 ── */
     .podium-points {
-      font-size: 22px;
+      font-size: 24px;
       font-weight: 900;
       text-align: center;
       line-height: 1;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
       font-variant-numeric: tabular-nums;
+      color: rgba(255,255,255,0.75);
     }
     .podium-slot.rank-1 .podium-points {
-      font-size: 30px;
-      background: linear-gradient(135deg, #fde68a, #fbbf24);
+      font-size: 34px;
+      background: linear-gradient(135deg, #fff8dc 0%, #fde68a 35%, #f59e0b 65%, #fde68a 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      filter: drop-shadow(0 2px 8px rgba(251,191,36,0.4));
+      filter: drop-shadow(0 3px 10px rgba(251,191,36,0.5));
     }
-    .podium-slot.rank-2 .podium-points { color: #cbd5e1; }
-    .podium-slot.rank-3 .podium-points { color: #fdba74; }
+    .podium-slot.rank-2 .podium-points { color: #c8d8e8; }
+    .podium-slot.rank-3 .podium-points { color: #f0c090; }
 
+    /* ── 시상 라벨 칩 ── */
     .podium-prize-chip {
       font-size: 11px;
       font-weight: 700;
-      padding: 4px 12px;
+      padding: 5px 13px;
       border-radius: 20px;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
       white-space: nowrap;
-      backdrop-filter: blur(4px);
+      backdrop-filter: blur(6px);
     }
     .podium-slot.rank-1 .podium-prize-chip {
-      background: rgba(251,191,36,0.18);
+      background: linear-gradient(135deg, rgba(251,191,36,0.22), rgba(180,83,9,0.18));
       color: #fde68a;
-      border: 1px solid rgba(251,191,36,0.45);
+      border: 1px solid rgba(251,191,36,0.55);
+      box-shadow: 0 2px 8px rgba(251,191,36,0.2);
     }
     .podium-slot.rank-2 .podium-prize-chip {
-      background: rgba(148,163,184,0.12);
-      color: #cbd5e1;
-      border: 1px solid rgba(148,163,184,0.3);
+      background: rgba(148,163,184,0.14);
+      color: #c8d8e8;
+      border: 1px solid rgba(148,163,184,0.32);
     }
     .podium-slot.rank-3 .podium-prize-chip {
-      background: rgba(194,120,58,0.15);
-      color: #fdba74;
-      border: 1px solid rgba(194,120,58,0.35);
+      background: rgba(200,131,58,0.16);
+      color: #f0c090;
+      border: 1px solid rgba(200,131,58,0.38);
     }
 
-    /* 포디움 단(step) — 높이/광택 강화 */
+    /* ── breakdown 칩 (포디움 내 어두운 버전) ── */
+    .podium-breakdown-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+    .podium-breakdown-chips .bchip {
+      /* 어두운 네이비 배경 + 라이트 그린 강조 계열로 재정의 */
+      background: rgba(20,30,50,0.75) !important;
+      color: #6ee7b7 !important;
+      border: 1px solid rgba(110,231,183,0.25);
+      backdrop-filter: blur(4px);
+    }
+
+    /* ── 포디움 단(step) — 입체 직육면체 스타일 ── */
     .podium-step {
       width: 100%;
-      border-radius: 14px 14px 0 0;
+      border-radius: 10px 10px 0 0;
       display: flex;
       align-items: flex-start;
       justify-content: center;
-      padding-top: 12px;
+      padding-top: 14px;
       font-size: 13px;
       font-weight: 900;
-      letter-spacing: 0.08em;
-      color: rgba(255,255,255,0.25);
+      letter-spacing: 0.12em;
       text-transform: uppercase;
       position: relative;
       overflow: hidden;
     }
-    /* 반짝임 하이라이트 */
+    /* 상단 하이라이트 라인 (입체감) */
     .podium-step::before {
       content: '';
       position: absolute;
-      top: 0; left: 10%; right: 10%;
-      height: 1px;
-      border-radius: 1px;
+      top: 0; left: 8%; right: 8%;
+      height: 1.5px;
+      border-radius: 2px;
     }
+    /* 좌측 측면 음영 (입체감) */
+    .podium-step::after {
+      content: '';
+      position: absolute;
+      top: 0; bottom: 0; left: 0;
+      width: 12px;
+      border-radius: 10px 0 0 0;
+      pointer-events: none;
+    }
+
+    /* 1등 단: 황금 */
     .podium-slot.rank-1 .podium-step {
-      height: 120px;
+      height: 130px;
       background: linear-gradient(180deg,
-        rgba(245,158,11,0.32) 0%,
-        rgba(245,158,11,0.18) 50%,
-        rgba(245,158,11,0.08) 100%);
-      border: 1px solid rgba(245,158,11,0.28);
+        #6b4c0a 0%,
+        #4a3208 30%,
+        #2e1e04 70%,
+        #1e1202 100%);
+      border: 1px solid rgba(180,120,20,0.5);
       border-bottom: none;
-      color: rgba(251,191,36,0.5);
+      color: rgba(251,191,36,0.6);
     }
     .podium-slot.rank-1 .podium-step::before {
-      background: linear-gradient(90deg, transparent, rgba(251,191,36,0.6), transparent);
+      background: linear-gradient(90deg, transparent, rgba(251,191,36,0.75), transparent);
     }
+    .podium-slot.rank-1 .podium-step::after {
+      background: linear-gradient(to right, rgba(0,0,0,0.25), transparent);
+    }
+
+    /* 2등 단: 어두운 회색/슬레이트 */
     .podium-slot.rank-2 .podium-step {
-      height: 88px;
+      height: 96px;
       background: linear-gradient(180deg,
-        rgba(148,163,184,0.25) 0%,
-        rgba(148,163,184,0.1) 50%,
-        rgba(148,163,184,0.04) 100%);
-      border: 1px solid rgba(148,163,184,0.2);
+        #2c3540 0%,
+        #1e2530 35%,
+        #141820 70%,
+        #0e1218 100%);
+      border: 1px solid rgba(100,130,160,0.35);
       border-bottom: none;
-      color: rgba(148,163,184,0.45);
+      color: rgba(168,184,204,0.5);
     }
     .podium-slot.rank-2 .podium-step::before {
-      background: linear-gradient(90deg, transparent, rgba(148,163,184,0.5), transparent);
+      background: linear-gradient(90deg, transparent, rgba(168,184,204,0.55), transparent);
     }
+    .podium-slot.rank-2 .podium-step::after {
+      background: linear-gradient(to right, rgba(0,0,0,0.2), transparent);
+    }
+
+    /* 3등 단: 어두운 동색 */
     .podium-slot.rank-3 .podium-step {
-      height: 66px;
+      height: 72px;
       background: linear-gradient(180deg,
-        rgba(194,120,58,0.25) 0%,
-        rgba(194,120,58,0.1) 50%,
-        rgba(194,120,58,0.04) 100%);
-      border: 1px solid rgba(194,120,58,0.2);
+        #3d2010 0%,
+        #28140a 35%,
+        #180c04 70%,
+        #100802 100%);
+      border: 1px solid rgba(160,90,30,0.35);
       border-bottom: none;
-      color: rgba(194,120,58,0.45);
+      color: rgba(200,131,58,0.5);
     }
     .podium-slot.rank-3 .podium-step::before {
-      background: linear-gradient(90deg, transparent, rgba(194,120,58,0.5), transparent);
+      background: linear-gradient(90deg, transparent, rgba(200,131,58,0.55), transparent);
+    }
+    .podium-slot.rank-3 .podium-step::after {
+      background: linear-gradient(to right, rgba(0,0,0,0.2), transparent);
     }
 
     /* ── 하단 2컬럼 그리드 ── */
@@ -727,42 +818,75 @@
       .rewards-bottom { grid-template-columns: 1fr; }
     }
 
-    /* 포디움 모바일 (≤640px): 세로 스택 */
+    /* 포디움 모바일 (≤640px): 세로 스택 카드 레이아웃 */
     @media (max-width: 640px) {
+      .podium-section { padding: 24px 14px 20px; min-height: unset; }
+      .podium-main-title { font-size: 22px; }
+      .podium-title { letter-spacing: 0.3em; }
+      .podium-header-wrap { margin-bottom: 20px; }
+
       .podium-stage {
         flex-direction: column;
-        align-items: center;
+        align-items: stretch;
         gap: 10px;
         padding-bottom: 20px;
       }
       .podium-slot {
-        max-width: 100%; width: 100%;
-        flex-direction: row; gap: 14px; padding-bottom: 0;
+        max-width: 100%;
+        width: 100%;
+        flex-direction: row;
+        gap: 14px;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 14px 16px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.09);
+        backdrop-filter: blur(6px);
         animation: none;
       }
-      .podium-slot.rank-1 { order: -1; }
-      .podium-slot.rank-2 { order: 0; }
-      .podium-slot.rank-3 { order: 1; }
-      .podium-step { display: none; }
-      .podium-slot {
-        align-items: center; justify-content: flex-start;
-        padding: 14px 16px;
-        background: rgba(255,255,255,0.06);
-        border-radius: 16px;
-        border: 1px solid rgba(255,255,255,0.1);
-        backdrop-filter: blur(4px);
+      .podium-slot.rank-1 {
+        order: -1;
+        border-color: rgba(251,191,36,0.28);
+        background: rgba(251,191,36,0.07);
       }
-      .podium-slot.rank-1 { border-color: rgba(251,191,36,0.25); background: rgba(251,191,36,0.07); }
-      .podium-slot.rank-2 { border-color: rgba(148,163,184,0.2); }
-      .podium-slot.rank-3 { border-color: rgba(194,120,58,0.2); }
+      .podium-slot.rank-2 { order: 0; border-color: rgba(148,163,184,0.2); }
+      .podium-slot.rank-3 { order: 1; border-color: rgba(194,120,58,0.22); }
+
+      /* 모바일에서 단(step) 숨김 */
+      .podium-step { display: none; }
+
+      /* 아바타 크기 줄임 */
+      .podium-slot.rank-1 .podium-avatar { width: 70px; height: 70px; font-size: 26px; }
       .podium-avatar-wrap { margin-bottom: 0; flex-shrink: 0; }
-      .podium-slot .podium-name { text-align: left; -webkit-text-fill-color: unset; background: none; color: #fff; }
+
+      /* 월계관 모바일에서 숨김 (공간 부족) */
+      .podium-laurel-wrap { display: none; }
+
+      /* 왕관은 표시 — 크기 조정 */
+      .podium-crown-svg { width: 28px; height: 22px; top: -24px; }
+
+      /* 텍스트 왼쪽 정렬로 재정의 */
+      .podium-slot .podium-name {
+        text-align: left;
+        -webkit-text-fill-color: unset;
+        background: none;
+        color: rgba(255,255,255,0.88);
+      }
       .podium-slot.rank-1 .podium-name { color: #fde68a; }
-      .podium-slot .podium-points { text-align: left; -webkit-text-fill-color: unset; background: none; }
-      .podium-slot.rank-1 .podium-points { color: #fbbf24; }
+      .podium-slot .podium-points {
+        text-align: left;
+        -webkit-text-fill-color: unset;
+        background: none;
+        color: rgba(255,255,255,0.75);
+      }
+      .podium-slot.rank-1 .podium-points { color: #fbbf24; font-size: 24px; }
+      .podium-slot.rank-2 .podium-points { color: #c8d8e8; }
+      .podium-slot.rank-3 .podium-points { color: #f0c090; }
       .podium-slot .podium-prize-chip { margin-bottom: 0; }
-      .podium-info { display: flex; flex-direction: column; gap: 2px; }
-      .podium-section { padding: 24px 16px 20px; }
+      .podium-info { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+      .podium-breakdown-chips { justify-content: flex-start; margin-bottom: 0; }
+
       .rewards-header h2 { font-size: 18px; }
     }
 
@@ -989,47 +1113,78 @@
 
       <!-- TOP3 포디움 -->
       <div class="podium-section confetti-wrap fade-in-2" id="podiumSection">
-        <!-- 컨페티 SVG (강화) -->
-        <svg class="confetti-svg" viewBox="0 0 800 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-          <!-- 상단 밀집 파티클 -->
-          <circle cx="55"  cy="30"  r="5.5" fill="#fbbf24" opacity="0.75"/>
-          <circle cx="120" cy="18"  r="4"   fill="#a78bfa" opacity="0.65"/>
-          <circle cx="200" cy="12"  r="6"   fill="#34d399" opacity="0.55"/>
-          <circle cx="310" cy="38"  r="4.5" fill="#f87171" opacity="0.6"/>
-          <circle cx="400" cy="16"  r="5"   fill="#60a5fa" opacity="0.7"/>
-          <circle cx="490" cy="42"  r="4"   fill="#fbbf24" opacity="0.6"/>
-          <circle cx="600" cy="22"  r="5.5" fill="#f472b6" opacity="0.65"/>
-          <circle cx="680" cy="10"  r="4.5" fill="#a78bfa" opacity="0.7"/>
-          <circle cx="755" cy="48"  r="5"   fill="#34d399" opacity="0.55"/>
+        <!-- 컨페티 SVG (황금 톤 강화) -->
+        <svg class="confetti-svg" viewBox="0 0 800 320" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <!-- 황금 파티클 (상단 집중) -->
+          <circle cx="50"  cy="20"  r="6"   fill="#fbbf24" opacity="0.85"/>
+          <circle cx="108" cy="10"  r="4.5" fill="#fde68a" opacity="0.75"/>
+          <circle cx="180" cy="28"  r="5.5" fill="#f59e0b" opacity="0.7"/>
+          <circle cx="240" cy="8"   r="4"   fill="#fbbf24" opacity="0.65"/>
+          <circle cx="310" cy="32"  r="5"   fill="#fde68a" opacity="0.6"/>
+          <circle cx="380" cy="6"   r="6"   fill="#f59e0b" opacity="0.8"/>
+          <circle cx="440" cy="35"  r="4.5" fill="#fbbf24" opacity="0.7"/>
+          <circle cx="510" cy="14"  r="5"   fill="#fde68a" opacity="0.65"/>
+          <circle cx="580" cy="28"  r="6"   fill="#f59e0b" opacity="0.75"/>
+          <circle cx="650" cy="8"   r="4"   fill="#fbbf24" opacity="0.7"/>
+          <circle cx="720" cy="22"  r="5.5" fill="#fde68a" opacity="0.65"/>
+          <circle cx="770" cy="40"  r="4.5" fill="#f59e0b" opacity="0.6"/>
+          <!-- 컬러 파티클 -->
+          <circle cx="75"  cy="45"  r="4"   fill="#a78bfa" opacity="0.55"/>
+          <circle cx="155" cy="55"  r="3.5" fill="#34d399" opacity="0.5"/>
+          <circle cx="275" cy="50"  r="4.5" fill="#f472b6" opacity="0.55"/>
+          <circle cx="395" cy="60"  r="3.5" fill="#60a5fa" opacity="0.5"/>
+          <circle cx="490" cy="48"  r="4"   fill="#a78bfa" opacity="0.5"/>
+          <circle cx="555" cy="62"  r="3.5" fill="#34d399" opacity="0.45"/>
+          <circle cx="660" cy="50"  r="4"   fill="#f472b6" opacity="0.5"/>
+          <circle cx="745" cy="58"  r="3.5" fill="#60a5fa" opacity="0.5"/>
           <!-- 중간 파티클 -->
-          <circle cx="88"  cy="85"  r="3.5" fill="#fbbf24" opacity="0.45"/>
-          <circle cx="240" cy="70"  r="3"   fill="#60a5fa" opacity="0.4"/>
-          <circle cx="370" cy="90"  r="4"   fill="#f87171" opacity="0.35"/>
-          <circle cx="555" cy="75"  r="3.5" fill="#34d399" opacity="0.4"/>
-          <circle cx="720" cy="88"  r="3"   fill="#fbbf24" opacity="0.45"/>
-          <!-- 회전 사각형 -->
-          <rect x="90"  y="22"  width="9"  height="9"  rx="2" fill="#f472b6" opacity="0.65" transform="rotate(35 90 22)"/>
-          <rect x="175" y="52"  width="7"  height="7"  rx="2" fill="#34d399" opacity="0.55" transform="rotate(-22 175 52)"/>
-          <rect x="290" y="20"  width="10" height="10" rx="2" fill="#fbbf24" opacity="0.65" transform="rotate(45 290 20)"/>
-          <rect x="440" y="58"  width="8"  height="8"  rx="2" fill="#a78bfa" opacity="0.6"  transform="rotate(18 440 58)"/>
-          <rect x="530" y="12"  width="9"  height="9"  rx="2" fill="#f87171" opacity="0.55" transform="rotate(-40 530 12)"/>
-          <rect x="640" y="44"  width="8"  height="8"  rx="2" fill="#60a5fa" opacity="0.6"  transform="rotate(28 640 44)"/>
-          <rect x="760" y="20"  width="7"  height="7"  rx="2" fill="#f472b6" opacity="0.5"  transform="rotate(-15 760 20)"/>
+          <circle cx="30"  cy="90"  r="3.5" fill="#fbbf24" opacity="0.4"/>
+          <circle cx="130" cy="80"  r="3"   fill="#fde68a" opacity="0.35"/>
+          <circle cx="220" cy="95"  r="4"   fill="#f59e0b" opacity="0.38"/>
+          <circle cx="360" cy="82"  r="3.5" fill="#fbbf24" opacity="0.35"/>
+          <circle cx="430" cy="100" r="3"   fill="#fde68a" opacity="0.33"/>
+          <circle cx="530" cy="85"  r="4"   fill="#f59e0b" opacity="0.38"/>
+          <circle cx="620" cy="95"  r="3.5" fill="#fbbf24" opacity="0.35"/>
+          <circle cx="700" cy="80"  r="3"   fill="#fde68a" opacity="0.32"/>
+          <circle cx="780" cy="95"  r="3.5" fill="#a78bfa" opacity="0.3"/>
+          <!-- 회전 사각형 — 황금 위주 -->
+          <rect x="88"  y="15"  width="10" height="10" rx="2" fill="#fbbf24" opacity="0.75" transform="rotate(40 88 15)"/>
+          <rect x="165" y="42"  width="8"  height="8"  rx="2" fill="#fde68a" opacity="0.65" transform="rotate(-28 165 42)"/>
+          <rect x="258" y="18"  width="11" height="11" rx="2" fill="#f59e0b" opacity="0.7"  transform="rotate(52 258 18)"/>
+          <rect x="340" y="48"  width="8"  height="8"  rx="2" fill="#fbbf24" opacity="0.65" transform="rotate(-18 340 48)"/>
+          <rect x="415" y="22"  width="10" height="10" rx="2" fill="#fde68a" opacity="0.7"  transform="rotate(35 415 22)"/>
+          <rect x="498" y="38"  width="9"  height="9"  rx="2" fill="#f59e0b" opacity="0.6"  transform="rotate(-45 498 38)"/>
+          <rect x="570" y="12"  width="8"  height="8"  rx="2" fill="#fbbf24" opacity="0.65" transform="rotate(22 570 12)"/>
+          <rect x="638" y="40"  width="10" height="10" rx="2" fill="#fde68a" opacity="0.6"  transform="rotate(-32 638 40)"/>
+          <rect x="715" y="15"  width="9"  height="9"  rx="2" fill="#f59e0b" opacity="0.65" transform="rotate(48 715 15)"/>
+          <rect x="758" y="60"  width="7"  height="7"  rx="2" fill="#a78bfa" opacity="0.5"  transform="rotate(-20 758 60)"/>
+          <!-- 별 모양 컨페티 -->
+          <polygon points="200,35 203,44 212,44 205,49 208,58 200,53 192,58 195,49 188,44 197,44" fill="#fbbf24" opacity="0.6" transform="scale(0.7) translate(86,0)"/>
+          <polygon points="600,20 603,29 612,29 605,34 608,43 600,38 592,43 595,34 588,29 597,29" fill="#fde68a" opacity="0.55" transform="scale(0.65) translate(322,-2)"/>
           <!-- 스트리머 라인 -->
-          <line x1="160" y1="0" x2="155" y2="60" stroke="#fbbf24" stroke-width="2" opacity="0.25" stroke-linecap="round"/>
-          <line x1="420" y1="0" x2="425" y2="50" stroke="#a78bfa" stroke-width="1.5" opacity="0.2" stroke-linecap="round"/>
-          <line x1="630" y1="0" x2="625" y2="55" stroke="#34d399" stroke-width="2" opacity="0.22" stroke-linecap="round"/>
-          <!-- 삼각형 -->
-          <polygon points="150,60 157,78 168,78" fill="#60a5fa" opacity="0.5"/>
-          <polygon points="350,52 357,70 368,70" fill="#fbbf24" opacity="0.45"/>
-          <polygon points="505,30 511,48 522,48" fill="#34d399" opacity="0.5"/>
-          <polygon points="690,18 697,36 708,36" fill="#f472b6" opacity="0.45"/>
-          <!-- 하단 소파티클 (포디움 뒤) -->
-          <circle cx="50"  cy="160" r="3"   fill="#fbbf24" opacity="0.2"/>
-          <circle cx="750" cy="150" r="3.5" fill="#a78bfa" opacity="0.2"/>
-          <circle cx="400" cy="200" r="4"   fill="#60a5fa" opacity="0.15"/>
+          <line x1="140" y1="0" x2="133" y2="70" stroke="#fbbf24" stroke-width="2.5" opacity="0.32" stroke-linecap="round"/>
+          <line x1="320" y1="0" x2="325" y2="60" stroke="#fde68a" stroke-width="2"   opacity="0.28" stroke-linecap="round"/>
+          <line x1="480" y1="0" x2="476" y2="65" stroke="#f59e0b" stroke-width="2.5" opacity="0.3"  stroke-linecap="round"/>
+          <line x1="660" y1="0" x2="656" y2="58" stroke="#fbbf24" stroke-width="2"   opacity="0.28" stroke-linecap="round"/>
+          <line x1="60"  y1="0" x2="58"  y2="55" stroke="#a78bfa" stroke-width="1.5" opacity="0.2"  stroke-linecap="round"/>
+          <line x1="740" y1="0" x2="742" y2="52" stroke="#34d399" stroke-width="1.5" opacity="0.2"  stroke-linecap="round"/>
+          <!-- 삼각형 파티클 -->
+          <polygon points="100,68 107,84 120,84" fill="#fbbf24" opacity="0.5"/>
+          <polygon points="290,60 297,76 308,76" fill="#fde68a" opacity="0.45"/>
+          <polygon points="450,55 457,71 468,71" fill="#f59e0b" opacity="0.5"/>
+          <polygon points="620,62 627,78 638,78" fill="#fbbf24" opacity="0.45"/>
+          <!-- 하단 포디움 뒤 소파티클 -->
+          <circle cx="40"  cy="170" r="3"   fill="#fbbf24" opacity="0.2"/>
+          <circle cx="760" cy="160" r="3.5" fill="#fde68a" opacity="0.18"/>
+          <circle cx="390" cy="200" r="4"   fill="#f59e0b" opacity="0.15"/>
+          <circle cx="150" cy="190" r="3"   fill="#a78bfa" opacity="0.15"/>
+          <circle cx="640" cy="180" r="3.5" fill="#34d399" opacity="0.15"/>
         </svg>
-        <div class="podium-title">QUARTERLY LEADERBOARD</div>
+        <!-- 포디움 헤더 -->
+        <div class="podium-header-wrap">
+          <span class="podium-title">QUARTERLY LEADERBOARD</span>
+          <span class="podium-main-title">분기별 리더보드</span>
+        </div>
         <div class="podium-stage" id="podiumStage">
           <div class="loading-state"><i class="fas fa-spinner fa-spin"></i> 로딩 중...</div>
         </div>
@@ -1165,29 +1320,77 @@ function renderPodium(top3) {
   ].filter(Boolean);
 
   const rankClass = { 1: 'rank-1', 2: 'rank-2', 3: 'rank-3' };
-  const rankEmoji = {
-    1: '<span class="podium-crown">&#x1F451;</span>',
-    2: '<span class="podium-rank-icon">2</span>',
-    3: '<span class="podium-rank-icon">3</span>',
-  };
   const rankNum   = { 1: '1ST', 2: '2ND', 3: '3RD' };
+
+  // 왕관 SVG (1등 전용)
+  const crownSvg = `<svg class="podium-crown-svg" viewBox="0 0 40 30" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+      <linearGradient id="cg1" x1="0" y1="0" x2="40" y2="30" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#fff0a0"/>
+        <stop offset="40%" stop-color="#f7c948"/>
+        <stop offset="80%" stop-color="#d4870a"/>
+        <stop offset="100%" stop-color="#b36000"/>
+      </linearGradient>
+    </defs>
+    <!-- 왕관 몸체 -->
+    <path d="M4 26 L4 12 L12 20 L20 4 L28 20 L36 12 L36 26 Z" fill="url(#cg1)" stroke="rgba(255,220,80,0.6)" stroke-width="0.8"/>
+    <!-- 왕관 하단 밴드 -->
+    <rect x="4" y="23" width="32" height="4" rx="1.5" fill="url(#cg1)" stroke="rgba(255,220,80,0.5)" stroke-width="0.6"/>
+    <!-- 왕관 보석 -->
+    <circle cx="20" cy="6.5" r="2.2" fill="#fff8b0" opacity="0.95"/>
+    <circle cx="8"  cy="14" r="1.6" fill="#fff0a0" opacity="0.8"/>
+    <circle cx="32" cy="14" r="1.6" fill="#fff0a0" opacity="0.8"/>
+    <!-- 하단 보석 장식 -->
+    <circle cx="12" cy="25" r="1.4" fill="#ffe070" opacity="0.9"/>
+    <circle cx="20" cy="25" r="1.4" fill="#ffe070" opacity="0.9"/>
+    <circle cx="28" cy="25" r="1.4" fill="#ffe070" opacity="0.9"/>
+  </svg>`;
+
+  // 월계관 SVG (1등 양옆)
+  const laurelSvg = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+      <linearGradient id="lg1" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#fde68a"/>
+        <stop offset="50%" stop-color="#d97706"/>
+        <stop offset="100%" stop-color="#92400e"/>
+      </linearGradient>
+    </defs>
+    <ellipse cx="16" cy="14" rx="7" ry="4" fill="url(#lg1)" opacity="0.9" transform="rotate(-30 16 14)"/>
+    <ellipse cx="12" cy="22" rx="7" ry="4" fill="url(#lg1)" opacity="0.85" transform="rotate(-15 12 22)"/>
+    <ellipse cx="11" cy="31" rx="7" ry="4" fill="url(#lg1)" opacity="0.8" transform="rotate(5 11 31)"/>
+    <ellipse cx="14" cy="39" rx="6" ry="3.5" fill="url(#lg1)" opacity="0.75" transform="rotate(20 14 39)"/>
+    <path d="M20 8 Q18 28 20 44" stroke="url(#lg1)" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.7"/>
+  </svg>`;
+
+  const defaultPrize = { 1: '본부장 식사권 30만원', 2: '팀장 식사권 10만원', 3: '팀장 식사권 5만원' };
 
   stage.innerHTML = order.map(p => {
     const initials = (p.member_name || '?').slice(0, 1);
-    const prizeLabel = p.prize_label || '-';
+    const prizeLabel = p.prize_label || defaultPrize[p.rank] || '-';
     const pts = (p.points || 0).toLocaleString();
     const breakdownHtml = buildBreakdownChips(p.breakdown || {});
+    const isFirst = p.rank === 1;
+
+    const avatarExtras = isFirst
+      ? `${crownSvg}
+         <div class="podium-laurel-wrap left">${laurelSvg}</div>
+         <div class="podium-laurel-wrap right">${laurelSvg}</div>`
+      : '';
+    const rankBadge = `<span class="podium-rank-badge">${p.rank}</span>`;
+
     return `
       <div class="podium-slot ${rankClass[p.rank]}">
         <div class="podium-avatar-wrap">
-          ${rankEmoji[p.rank]}
+          <div class="podium-avatar-glow"></div>
+          ${avatarExtras}
           <div class="podium-avatar">${initials}</div>
+          ${rankBadge}
         </div>
         <div class="podium-info">
           <div class="podium-name">${escHtml(p.member_name || '-')}</div>
-          <div class="podium-points">${pts}<span style="font-size:0.45em;opacity:0.7;margin-left:2px;">pt</span></div>
+          <div class="podium-points">${pts}<span style="font-size:0.42em;opacity:0.65;margin-left:3px;font-weight:700;">pt</span></div>
           <div class="podium-prize-chip">${escHtml(prizeLabel)}</div>
-          <div style="display:flex;flex-wrap:wrap;gap:3px;">${breakdownHtml}</div>
+          ${breakdownHtml ? `<div class="podium-breakdown-chips">${breakdownHtml}</div>` : ''}
         </div>
         <div class="podium-step">${rankNum[p.rank]}</div>
       </div>`;
