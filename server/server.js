@@ -1485,16 +1485,35 @@ const server = http.createServer((req, res) => {
           });
           return;
         }
-        // POST /api/vacations/use — { user_id, member_name, vacation_type, start_date, end_date, days, note }
+        // POST /api/vacations/use
+        // body: { user_id, member_name, vacation_type,
+        //         start_date, end_date,
+        //         start_time?, end_time?,        ← 30분 단위 HH:MM (선택)
+        //         days?,                          ← 시간대 없으면 fallback
+        //         note }
+        // 시간대(start_time/end_time) 있으면 업무시간과 동일한 timeentry 매커니즘으로
+        // 점심 1h 자동 차감 → 시간/일수(8h=1일) 환산.
         if (req.method === 'POST' && u.pathname === '/api/vacations/use') {
           const body = await readBody();
-          const { user_id, member_name, vacation_type, start_date, end_date, note } = body || {};
-          let days = Number(body && body.days);
+          const { user_id, member_name, vacation_type, start_date, end_date,
+                  start_time, end_time, note } = body || {};
           if (!member_name || !start_date || !end_date || !vacation_type) {
             return send(400, { error: 'member_name, vacation_type, start_date, end_date 필수' });
           }
-          // days 자동 추정 (영업일 기준) — 없거나 0이면
-          if (!Number.isFinite(days) || days <= 0) {
+          let minutes = 0, hours = 0, days = Number(body && body.days);
+          let time_entries = [];
+          // 시간대 입력 (30분 단위) — 업무시간 timeentry 매커니즘 재활용
+          if (start_time && end_time) {
+            try {
+              time_entries = timeentry.buildEntriesFromRange(start_date, end_date, start_time, end_time);
+              minutes = time_entries.reduce((s, te) => s + (Number(te.minutes) || 0), 0);
+              hours = Math.round((minutes / 60) * 10) / 10;
+              days = Math.round((minutes / (8 * 60)) * 100) / 100;
+            } catch (e) {
+              return send(400, { error: e.message });
+            }
+          } else if (!Number.isFinite(days) || days <= 0) {
+            // fallback: days 직접 입력도 시간대도 없으면 영업일 카운트
             await withDb(db => {
               const bizMap = bizday.indexBusinessDays(db.business_days);
               const startD = new Date(start_date + 'T00:00:00');
@@ -1505,8 +1524,12 @@ const server = http.createServer((req, res) => {
                 if (bizday.isBusinessDay(isoOf(cur), bizMap)) count++;
                 cur.setDate(cur.getDate() + 1);
               }
-              days = vacation_type === '반차오전' || vacation_type === '반차오후' ? 0.5 : count;
+              days = ['반차','2H','3H'].includes(vacation_type) ? 0.5 : count;
             });
+          }
+          if (!minutes) {
+            minutes = Math.round(days * 8 * 60);
+            hours = Math.round((minutes / 60) * 10) / 10;
           }
           let result = null;
           let errOut = null;
@@ -1524,7 +1547,10 @@ const server = http.createServer((req, res) => {
               member_name,
               vacation_type,
               start_date, end_date,
-              days,
+              start_time: start_time || '',
+              end_time: end_time || '',
+              minutes, hours, days,
+              time_entries,
               note: note || '',
               status: 'approved',
               approved_by: '',
