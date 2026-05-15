@@ -140,6 +140,11 @@ const CATEGORY_LABELS = {
   perf_inactive:        { label: '비활성 사용자 성과 record', severity: 'medium', icon: 'fa-user-slash' },
   dwe_inactive:         { label: '비활성 사용자 daily 행',  severity: 'medium', icon: 'fa-user-clock' },
   work_task_zombie:     { label: 'work_tasks 잔존 키',     severity: 'medium', icon: 'fa-broom' },
+  vacation_inactive:        { label: '비활성 사용자 휴가 record', severity: 'medium', icon: 'fa-user-slash' },
+  vacation_quota_mismatch:  { label: '휴가 한도 사용량 불일치',     severity: 'high',   icon: 'fa-scale-unbalanced' },
+  vacation_quota_excess:    { label: '휴가 한도 초과 (음수 잔액)',  severity: 'high',   icon: 'fa-triangle-exclamation' },
+  vacation_overlap_self:    { label: '동일 일자 휴가 중복',         severity: 'medium', icon: 'fa-layer-group' },
+  vacation_work_conflict:   { label: '전일 휴가 일자 업무 입력 잔존', severity: 'medium', icon: 'fa-calendar-xmark' },
 };
 
 let allReports = [];

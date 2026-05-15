@@ -9,6 +9,11 @@
  *  - perf_inactive: 비활성/삭제된 사용자의 성과 record
  *  - dwe_orphan: 비활성 사용자의 daily_work_entries
  *  - work_task_zombie: settlement_done 비어있는데 deadline_days 잔존 (DATA_SYNC_RULES §3 버그 A)
+ *  - vacation_inactive: 비활성 사용자의 휴가 record
+ *  - vacation_quota_mismatch: vacation_quotas.used 와 실제 vacations 합계 불일치
+ *  - vacation_quota_excess: used > annual_total (음수 잔액)
+ *  - vacation_overlap_self: 동일 직원·동일 일자에 휴가가 시간대로 겹침
+ *  - vacation_work_conflict: 전일 휴가 일자에 daily_work_entries 잔존 (휴가인데 업무 입력)
  *
  * 결과 구조:
  *   { id, run_at, duration_ms, status, summary, issues: [...] }
@@ -24,6 +29,11 @@ const CATEGORIES = {
   perf_inactive: { label: '비활성 사용자 성과 record', severity: 'medium' },
   dwe_inactive: { label: '비활성 사용자 daily_work_entries', severity: 'medium' },
   work_task_zombie: { label: 'work_tasks deadline_days 잔존', severity: 'medium' },
+  vacation_inactive: { label: '비활성 사용자 휴가 record', severity: 'medium' },
+  vacation_quota_mismatch: { label: '휴가 한도 사용량 불일치', severity: 'high' },
+  vacation_quota_excess: { label: '휴가 한도 초과 (음수 잔액)', severity: 'high' },
+  vacation_overlap_self: { label: '동일 일자 휴가 중복', severity: 'medium' },
+  vacation_work_conflict: { label: '전일 휴가 일자 업무 입력 잔존', severity: 'medium' },
 };
 
 function createId() {
@@ -190,6 +200,192 @@ function checkWorkTaskZombie(db) {
 }
 
 /**
+ * 검사 6: 비활성 사용자의 휴가 record
+ */
+function checkVacationInactive(db) {
+  const issues = [];
+  const activeNames = new Set(
+    (db.users || []).filter(u => u.is_active !== false).map(u => u.full_name)
+  );
+  for (const v of db.vacations || []) {
+    if (!v.member_name) continue;
+    if (v.status === 'cancelled') continue;
+    if (!activeNames.has(v.member_name)) {
+      issues.push({
+        category: 'vacation_inactive',
+        severity: 'medium',
+        message: `${v.member_name} ${v.start_date}~${v.end_date} (${v.vacation_type}) — 비활성 사용자의 휴가 record`,
+        details: { vac_id: v.id, type: v.vacation_type, status: v.status },
+        fix_hint: `해당 vacation 삭제 검토 또는 사용자 복원`,
+      });
+    }
+  }
+  return issues;
+}
+
+/**
+ * 검사 7: vacation_quotas.used 가 실제 vacations 합계와 일치하는가
+ * (status='approved' 만 합산. cancelled 는 제외.)
+ */
+function checkVacationQuotaMismatch(db) {
+  const issues = [];
+  const quotas = db.vacation_quotas || [];
+  const vacs = db.vacations || [];
+  for (const q of quotas) {
+    // year + member 동일한 approved 휴가 days 합계
+    const actualUsed = vacs
+      .filter(v => v.status !== 'cancelled')
+      .filter(v => v.member_name === q.member_name)
+      .filter(v => v.start_date && v.start_date.slice(0, 4) === String(q.year))
+      .reduce((s, v) => s + (Number(v.days) || 0), 0);
+    const recorded = Number(q.used) || 0;
+    if (Math.abs(actualUsed - recorded) > 0.001) {
+      issues.push({
+        category: 'vacation_quota_mismatch',
+        severity: 'high',
+        message: `${q.member_name} ${q.year}년 quota.used=${recorded} ≠ 실제 합계 ${actualUsed.toFixed(2)}일`,
+        details: { quota_id: q.id, recorded_used: recorded, actual_used: actualUsed },
+        fix_hint: `recomputeQuotaForYear(${q.year}, ${q.member_name}) 호출로 재계산`,
+      });
+    }
+  }
+  return issues;
+}
+
+/**
+ * 검사 8: vacation_quotas.used > annual_total (음수 잔액)
+ */
+function checkVacationQuotaExcess(db) {
+  const issues = [];
+  for (const q of db.vacation_quotas || []) {
+    const used = Number(q.used) || 0;
+    const total = Number(q.annual_total) || 0;
+    if (used > total + 0.001) {
+      issues.push({
+        category: 'vacation_quota_excess',
+        severity: 'high',
+        message: `${q.member_name} ${q.year}년 ${used}/${total}일 사용 — 한도 초과 (잔여 ${(total - used).toFixed(2)})`,
+        details: { quota_id: q.id, used, annual_total: total },
+        fix_hint: `한도 상향 조정 또는 일부 휴가 취소/조정`,
+      });
+    }
+  }
+  return issues;
+}
+
+/**
+ * 검사 9: 동일 직원·동일 일자에 휴가가 시간대로 겹침
+ * (status='approved' 만 검사. time_entries 기준)
+ */
+function checkVacationOverlapSelf(db) {
+  const issues = [];
+  const vacs = (db.vacations || []).filter(v => v.status !== 'cancelled');
+
+  // member_name + date → [{vac_id, start, end}]
+  const byKey = {};
+  for (const v of vacs) {
+    const entries = asArray(v.time_entries);
+    if (entries.length > 0) {
+      for (const e of entries) {
+        if (!e.date || !e.start || !e.end) continue;
+        const k = `${v.member_name}|${e.date}`;
+        if (!byKey[k]) byKey[k] = [];
+        byKey[k].push({ vac_id: v.id, start: e.start, end: e.end });
+      }
+    } else if (v.start_date && v.end_date) {
+      // 시간대 없으면 전일 휴가로 간주
+      const s = new Date(v.start_date + 'T00:00:00');
+      const e = new Date(v.end_date + 'T00:00:00');
+      while (s <= e) {
+        const ds = s.toISOString().slice(0, 10);
+        const k = `${v.member_name}|${ds}`;
+        if (!byKey[k]) byKey[k] = [];
+        byKey[k].push({ vac_id: v.id, start: v.start_time || '00:00', end: v.end_time || '23:59' });
+        s.setDate(s.getDate() + 1);
+      }
+    }
+  }
+
+  const seenPairs = new Set();
+  for (const [k, arr] of Object.entries(byKey)) {
+    if (arr.length < 2) continue;
+    const [member, date] = k.split('|');
+    const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+    for (let i = 0; i < arr.length; i++) {
+      for (let j = i + 1; j < arr.length; j++) {
+        if (arr[i].vac_id === arr[j].vac_id) continue;
+        const iS = toMin(arr[i].start), iE = toMin(arr[i].end);
+        const jS = toMin(arr[j].start), jE = toMin(arr[j].end);
+        if (iS < jE && jS < iE) {
+          const pairKey = [arr[i].vac_id, arr[j].vac_id].sort().join('::') + '|' + date;
+          if (seenPairs.has(pairKey)) continue;
+          seenPairs.add(pairKey);
+          issues.push({
+            category: 'vacation_overlap_self',
+            severity: 'medium',
+            message: `${member} ${date} 휴가 시간대 중복: ${arr[i].start}~${arr[i].end} ⇄ ${arr[j].start}~${arr[j].end}`,
+            details: { member, date, vac_ids: [arr[i].vac_id, arr[j].vac_id] },
+            fix_hint: `중복된 휴가 중 하나를 취소 또는 시간 수정`,
+          });
+        }
+      }
+    }
+  }
+  return issues;
+}
+
+/**
+ * 검사 10: 전일 휴가 일자(09:00~18:00 또는 시간대 없음)에 daily_work_entries 잔존
+ */
+function checkVacationWorkConflict(db) {
+  const issues = [];
+  const vacs = (db.vacations || []).filter(v => v.status !== 'cancelled');
+  // member + date → fullDayVacation 여부
+  const fullDay = {};
+  for (const v of vacs) {
+    const entries = asArray(v.time_entries);
+    if (entries.length > 0) {
+      for (const e of entries) {
+        if (!e.date) continue;
+        const minutes = Number(e.minutes) || 0;
+        // 480분(8시간) 이상이면 전일 휴가로 간주
+        if (minutes >= 420) {
+          fullDay[`${v.member_name}|${e.date}`] = v.id;
+        }
+      }
+    } else if (v.start_date && v.end_date) {
+      const s = new Date(v.start_date + 'T00:00:00');
+      const e = new Date(v.end_date + 'T00:00:00');
+      while (s <= e) {
+        const ds = s.toISOString().slice(0, 10);
+        fullDay[`${v.member_name}|${ds}`] = v.id;
+        s.setDate(s.getDate() + 1);
+      }
+    }
+  }
+  for (const dwe of db.daily_work_entries || []) {
+    if (!dwe.member_name) continue;
+    const entries = asArray(dwe.time_entries);
+    if (entries.length === 0) continue;
+    for (const e of entries) {
+      if (!e.date) continue;
+      const k = `${dwe.member_name}|${e.date}`;
+      if (fullDay[k]) {
+        issues.push({
+          category: 'vacation_work_conflict',
+          severity: 'medium',
+          message: `${dwe.member_name} ${e.date} 전일 휴가인데 업무 입력 잔존 (${dwe.task_label || dwe.source})`,
+          details: { dwe_id: dwe.id, vac_id: fullDay[k], date: e.date, source: dwe.source },
+          fix_hint: `해당 daily_work_entries 삭제 또는 휴가 시간대 축소`,
+        });
+        break; // 한 dwe당 1건만 리포트
+      }
+    }
+  }
+  return issues;
+}
+
+/**
  * 메인 entry point. server.js가 호출.
  * @param {object} db - 현재 DB (server.js의 readDb 결과)
  * @returns {object} report - audit_reports에 push할 객체
@@ -202,6 +398,11 @@ function runAudit(db) {
     ['perf_inactive', checkPerfInactive],
     ['dwe_inactive', checkDweInactive],
     ['work_task_zombie', checkWorkTaskZombie],
+    ['vacation_inactive', checkVacationInactive],
+    ['vacation_quota_mismatch', checkVacationQuotaMismatch],
+    ['vacation_quota_excess', checkVacationQuotaExcess],
+    ['vacation_overlap_self', checkVacationOverlapSelf],
+    ['vacation_work_conflict', checkVacationWorkConflict],
   ];
   const allIssues = [];
   const errors = [];

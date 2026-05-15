@@ -545,11 +545,13 @@
             <h3><i class="fas fa-calendar-alt" style="color:#6b7280;margin-right:8px;"></i>휴가 이력</h3>
             <div class="vac-filter-row">
               <select id="yearSelect" class="vac-year-select" onchange="loadVacations()"></select>
-              <!-- 팀장 전체 보기 토글 -->
-              <label class="toggle-all-wrap" id="allToggleWrap" style="display:none;">
-                <input type="checkbox" id="showAllToggle" onchange="loadVacations()">
-                전체 직원 보기
-              </label>
+              <!-- 팀장 인별 보기 셀렉트 -->
+              <div class="toggle-all-wrap" id="allToggleWrap" style="display:none;align-items:center;gap:8px;">
+                <label for="filterMember" style="font-size:13px;color:#6b7280;font-weight:500;">조회 대상</label>
+                <select id="filterMember" class="vac-year-select" onchange="loadVacations()">
+                  <option value="__ALL__">전체 직원</option>
+                </select>
+              </div>
             </div>
           </div>
           <div style="overflow-x:auto;">
@@ -722,9 +724,23 @@ function buildYearOptions() {
 ────────────────────────────────────────────── */
 if (isLeader) {
   document.getElementById('allToggleWrap').style.display = 'flex';
-  document.getElementById('showAllToggle').checked = true; // 팀장 기본 전체 보기
   document.getElementById('thMember').style.display = '';
   loadMemberOptions();
+  loadFilterMemberOptions();
+}
+
+async function loadFilterMemberOptions() {
+  try {
+    const r = await fetch('/tables/users?limit=200');
+    const d = await r.json();
+    const members = (d.rows || d.data || [])
+      .filter(m => m.is_active !== false && m.full_name)
+      .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '', 'ko'));
+    const sel = document.getElementById('filterMember');
+    if (!sel) return;
+    sel.innerHTML = `<option value="__ALL__">전체 직원</option>` +
+      members.map(m => `<option value="${escHtml(m.full_name)}">${escHtml(m.full_name)}</option>`).join('');
+  } catch (_) {}
 }
 
 async function loadMemberOptions() {
@@ -920,25 +936,35 @@ async function submitVacation() {
    휴가 이력 로드
 ────────────────────────────────────────────── */
 async function loadVacations() {
-  const year    = document.getElementById('yearSelect').value;
-  const showAll = isLeader && document.getElementById('showAllToggle').checked;
-  const myName  = encodeURIComponent(currentUser.full_name || currentUser.username || '');
+  const year      = document.getElementById('yearSelect').value;
+  const filterSel = document.getElementById('filterMember');
+  const filterVal = isLeader && filterSel ? filterSel.value : '';
+  // 팀장: 셀렉트 값 사용 (__ALL__ = 전체, 그 외 = 특정 직원)
+  // 일반: 본인 이름 강제
+  const myName   = currentUser.full_name || currentUser.username || '';
+  const showAll  = isLeader && filterVal === '__ALL__';
+  const targetName = isLeader
+    ? (filterVal === '__ALL__' ? '' : filterVal)
+    : myName;
 
-  // 직원 컬럼 토글
-  document.getElementById('thMember').style.display = (isLeader && showAll) ? '' : 'none';
+  // 직원 컬럼 토글: 전체 보기일 때만 표시
+  document.getElementById('thMember').style.display = showAll ? '' : 'none';
 
   const tbody = document.getElementById('vacTbody');
   tbody.innerHTML = '<tr><td colspan="8" class="loading-state"><i class="fas fa-spinner fa-spin"></i></td></tr>';
 
   try {
-    const memberQ = showAll ? '' : `member=${myName}&`;
+    const memberQ = targetName ? `member=${encodeURIComponent(targetName)}&` : '';
     const r = await fetch(`/api/vacations/list?${memberQ}year=${year}`);
     const d = await r.json();
     renderVacations(d.rows || [], showAll);
 
-    // quota 갱신 (본인)
-    if (!showAll) {
-      loadQuota(currentUser.full_name || currentUser.username, year);
+    // quota 갱신 (특정 직원이 선택되어 있을 때만)
+    if (targetName) {
+      loadQuota(targetName, year);
+    } else {
+      // 전체 보기 — quota 영역 비활성 안내
+      document.getElementById('quotaName').textContent = '전체 직원 보기 — 개인 잔여는 직원 선택 시 표시';
     }
   } catch (e) {
     tbody.innerHTML = '<tr><td colspan="8" class="empty-state">데이터를 불러오지 못했습니다.</td></tr>';
