@@ -48,13 +48,13 @@ const DEFAULT_PRIZES = [
 
 // Phase 9: 추가 보상 기본 설정 — prize_rules 확장 시드로 저장
 const DEFAULT_EXTRA_PRIZES = [
-  { id: 'pz_participation', type: 'participation', min_points: 50, prize_amount: 0,   label: '참여상 (비금전)', description: '분기 50pt 이상 달성 시 전원 수여 (커피 쿠폰 등 팀장 재량)', is_active: true },
+  { id: 'pz_participation', type: 'participation', min_points: 50, prize_amount: 0,   label: '참여상 (커피·간식 쿠폰)', description: '분기 50pt 이상 달성 시 전원 수여. 커피 쿠폰·간식 등 팀장 재량 선물 (금액 미지급).', is_active: true },
   { id: 'pz_growth_1',     type: 'growth',    rank: 1, prize_amount: 50000,  label: '성장상 1위 식사권 5만원', description: '직전 분기 대비 점수 증가율 TOP1', is_active: true },
   { id: 'pz_growth_2',     type: 'growth',    rank: 2, prize_amount: 30000,  label: '성장상 2위 식사권 3만원', description: '직전 분기 대비 점수 증가율 TOP2', is_active: true },
-  { id: 'pz_growth_3',     type: 'growth',    rank: 3, prize_amount: 0,      label: '성장상 3위 (비금전)',      description: '직전 분기 대비 점수 증가율 TOP3', is_active: true },
-  { id: 'pz_mvp_sop',      type: 'category_mvp', category: 'sop_create',       label: 'SOP 작성 MVP', description: '분기 SOP 누적 점수 1위', is_active: true },
-  { id: 'pz_mvp_issue',    type: 'category_mvp', category: 'issue_register',    label: '이슈 등록 MVP', description: '분기 이슈 등록 점수 1위', is_active: true },
-  { id: 'pz_mvp_settlement',type:'category_mvp', category: 'settlement_check',  label: '결산 정확도 MVP', description: '분기 결산 체크 점수 1위', is_active: true },
+  { id: 'pz_growth_3',     type: 'growth',    rank: 3, prize_amount: 0,      label: '성장상 3위 (격려 선물)',      description: '직전 분기 대비 점수 증가율 TOP3. 격려 선물 (금액 미지급).', is_active: true },
+  { id: 'pz_mvp_sop',      type: 'category_mvp', category: 'sop_create',       label: 'SOP 작성 MVP (감사패)', description: '분기 SOP 누적 점수 1위. 감사패 또는 격려 선물.', is_active: true },
+  { id: 'pz_mvp_issue',    type: 'category_mvp', category: 'issue_register',    label: '이슈 등록 MVP (감사패)', description: '분기 이슈 등록 점수 1위. 감사패 또는 격려 선물.', is_active: true },
+  { id: 'pz_mvp_settlement',type:'category_mvp', category: 'settlement_check',  label: '결산 정확도 MVP (감사패)', description: '분기 결산 체크 점수 1위. 감사패 또는 격려 선물.', is_active: true },
 ];
 
 function now() { return Date.now(); }
@@ -149,6 +149,31 @@ function seedPointsConfig(db) {
   for (const ep of DEFAULT_EXTRA_PRIZES) {
     if (!existingPrizeIds.has(ep.id)) {
       db.prize_rules.push({ ...ep, created_at: t, updated_at: t });
+      changed = true;
+    }
+  }
+
+  // Phase 9-1 마이그레이션: 옛 "비금전" 라벨 → 친화 표현
+  //  운영자 피드백: "비금전이 뭔뜻이야?" → 라벨 자체에서 의미 명확화
+  const LABEL_MIGRATIONS = {
+    'pz_participation':  { label: '참여상 (커피·간식 쿠폰)',
+                           description: '분기 50pt 이상 달성 시 전원 수여. 커피 쿠폰·간식 등 팀장 재량 선물 (금액 미지급).' },
+    'pz_growth_3':       { label: '성장상 3위 (격려 선물)',
+                           description: '직전 분기 대비 점수 증가율 TOP3. 격려 선물 (금액 미지급).' },
+    'pz_mvp_sop':        { label: 'SOP 작성 MVP (감사패)',
+                           description: '분기 SOP 누적 점수 1위. 감사패 또는 격려 선물.' },
+    'pz_mvp_issue':      { label: '이슈 등록 MVP (감사패)',
+                           description: '분기 이슈 등록 점수 1위. 감사패 또는 격려 선물.' },
+    'pz_mvp_settlement': { label: '결산 정확도 MVP (감사패)',
+                           description: '분기 결산 체크 점수 1위. 감사패 또는 격려 선물.' },
+  };
+  for (const row of db.prize_rules) {
+    const mig = LABEL_MIGRATIONS[row.id];
+    if (!mig) continue;
+    if (row.label !== mig.label || row.description !== mig.description) {
+      row.label = mig.label;
+      row.description = mig.description;
+      row.updated_at = t;
       changed = true;
     }
   }

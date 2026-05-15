@@ -868,6 +868,7 @@ function renderMyScore(me, top3) {
 
   sub.textContent = currentQuarter() + ' 누적';
 
+  // 화면 표시용 9종 (Object.entries 로 렌더)
   const BREAKDOWN_LABELS = {
     kpi_entry:         { label: 'KPI',    dotColor: '#6d28d9', chipClass: 'bchip-kpi'    },
     work_entry:        { label: '업무',   dotColor: '#1d4ed8', chipClass: 'bchip-task'   },
@@ -878,15 +879,22 @@ function renderMyScore(me, top3) {
     quarterly_mission: { label: '미션',   dotColor: '#7c3aed', chipClass: 'bchip-mission'},
     first_sop:         { label: '첫SOP',  dotColor: '#065f46', chipClass: 'bchip-sop'    },
     first_issue:       { label: '첫이슈', dotColor: '#b45309', chipClass: 'bchip-issue'  },
-    // 레거시 호환
-    kpi:    { label: 'KPI', dotColor: '#6d28d9', chipClass: 'bchip-kpi' },
-    task:   { label: '업무', dotColor: '#1d4ed8', chipClass: 'bchip-task' },
-    issue:  { label: '이슈', dotColor: '#b45309', chipClass: 'bchip-issue' },
-    sop:    { label: 'SOP', dotColor: '#065f46', chipClass: 'bchip-sop' },
-    settle: { label: '결산', dotColor: '#9d174d', chipClass: 'bchip-settle' },
+  };
+  // 레거시 키(kpi/task/issue/sop/settle) → 표시 키 합산 매핑. 별도 row 만들지 않음.
+  const LEGACY_KEY_MAP = {
+    kpi: 'kpi_entry', task: 'work_entry', issue: 'issue_register',
+    sop: 'sop_create', settle: 'settlement_check',
   };
 
-  const bd = me.breakdown || {};
+  const bd_raw = me.breakdown || {};
+  // 레거시 키 값을 신규 키로 합산
+  const bd = { ...bd_raw };
+  for (const [legacy, modern] of Object.entries(LEGACY_KEY_MAP)) {
+    if (bd_raw[legacy] != null) {
+      bd[modern] = (bd[modern] || 0) + bd_raw[legacy];
+      delete bd[legacy];
+    }
+  }
   const breakdownRows = Object.entries(BREAKDOWN_LABELS).map(([key, meta]) => {
     const pts = bd[key] || 0;
     return `<div class="my-breakdown-row">
