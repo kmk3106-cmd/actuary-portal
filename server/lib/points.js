@@ -100,17 +100,33 @@ function isTeamLeader(db, userId, memberName) {
 
 /**
  * 포인트 적립 — 멱등성 (idempotency_key 기준)
+ *
+ * 적립 조건 (모두 충족해야 함):
+ *  - actorId/actorName이 주어지면 → target(userId/memberName)과 동일해야 함 (대리 입력은 적립 X)
+ *  - target이 팀장이 아닐 것 (팀장 본인 활동은 적립 X)
+ *
  * @param {object} db
- * @param {string} userId
- * @param {string} memberName
+ * @param {string} userId       target user_id (적립 대상)
+ * @param {string} memberName   target member_name
  * @param {string} actionType
- * @param {string} actionRef  (보통 대상 record id)
- * @returns {object|null}  생성된 row 또는 null(룰 없음/중복)
+ * @param {string} actionRef    보통 대상 record id
+ * @param {object} actorOpts    { actorId, actorName } — 실제 액션을 수행한 사용자
+ * @returns {object|null}  생성된 row 또는 null
  */
-function awardPoints(db, userId, memberName, actionType, actionRef) {
+function awardPoints(db, userId, memberName, actionType, actionRef, actorOpts) {
   if (!actionType || !actionRef) return null;
   if (!memberName && !userId) return null;
+  // 팀장은 적립 대상 아님 (본인이 입력해도 본인에게 안 쌓임)
   if (isTeamLeader(db, userId, memberName)) return null;
+  // actor 검증: actor 정보가 있을 때만 검사 (없으면 자동 시드/마이그레이션 케이스로 허용)
+  if (actorOpts && (actorOpts.actorId || actorOpts.actorName)) {
+    const actorIsLeader = isTeamLeader(db, actorOpts.actorId, actorOpts.actorName);
+    if (actorIsLeader) return null; // 팀장이 대리 입력 → 적립 X
+    // 본인이 본인 입력인지 검사
+    const sameUser = actorOpts.actorId && userId && actorOpts.actorId === userId;
+    const sameName = actorOpts.actorName && memberName && actorOpts.actorName === memberName;
+    if (!sameUser && !sameName) return null; // 다른 사람이 대리 입력 → 적립 X
+  }
   const rules = db.point_rules || [];
   const rule = rules.find(r => r.action_type === actionType && r.is_active !== false);
   if (!rule) return null;
@@ -130,6 +146,8 @@ function awardPoints(db, userId, memberName, actionType, actionRef) {
     quarter: currentQuarter(),
     awarded_at: t,
     idempotency_key,
+    actor_user_id: (actorOpts && actorOpts.actorId) || '',
+    actor_name:    (actorOpts && actorOpts.actorName) || '',
     created_at: t,
     updated_at: t,
   };
@@ -141,7 +159,7 @@ function awardPoints(db, userId, memberName, actionType, actionRef) {
  * 분기당 1회만 적립 (action_type 단위) — 예: KPI 입력
  * actionRef 는 무시되고 quarter + actionType + memberName 기준으로 멱등
  */
-function awardPointsOncePerQuarter(db, userId, memberName, actionType, hintRef) {
+function awardPointsOncePerQuarter(db, userId, memberName, actionType, hintRef, actorOpts) {
   if (!memberName && !userId) return null;
   if (isTeamLeader(db, userId, memberName)) return null;
   const q = currentQuarter();
@@ -153,7 +171,7 @@ function awardPointsOncePerQuarter(db, userId, memberName, actionType, hintRef) 
   );
   if (exists) return null;
   const ref = `${q}:${memberName || userId}:${hintRef || 'once'}`;
-  return awardPoints(db, userId, memberName, actionType, ref);
+  return awardPoints(db, userId, memberName, actionType, ref, actorOpts);
 }
 
 /**

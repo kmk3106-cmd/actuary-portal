@@ -755,15 +755,26 @@ function handleTablesRequest(route, method, bodyStr, reqHeaders) {
         refreshDailyCacheFor(db, created);
       }
       // ── Phase 8: 포인트 적립 훅 (POST 성공 시) ──
+      // actor 추출 — X-Actor-* 헤더 (portal.js fetch 인터셉터가 자동 첨부)
       try {
+        const actorId = (reqHeaders && reqHeaders['x-actor-user']) || '';
+        let actorName = (reqHeaders && reqHeaders['x-actor-username']) || '';
+        try { actorName = decodeURIComponent(actorName); } catch (_) {}
+        // username으로는 full_name 매칭 안 되니 users에서 다시 조회
+        let actorFullName = '';
+        if (actorId) {
+          const u = (db.users || []).find(x => x.id === actorId);
+          if (u) actorFullName = u.full_name || u.username || '';
+        }
+        const actorOpts = { actorId, actorName: actorFullName };
         if (table === 'daily_work_entries') {
-          points.awardPoints(db, created.user_id, created.member_name, 'work_entry', created.id);
+          points.awardPoints(db, created.user_id, created.member_name, 'work_entry', created.id, actorOpts);
         } else if (table === 'kb_issues') {
           const memberName = created.member_name || created.created_by_name || created.author_name || '';
-          points.awardPoints(db, created.created_by || created.user_id, memberName, 'issue_register', created.id);
+          points.awardPoints(db, created.created_by || created.user_id, memberName, 'issue_register', created.id, actorOpts);
         } else if (table === 'kb_documents') {
           const memberName = created.author_name || created.created_by_name || '';
-          points.awardPoints(db, created.author_id || created.created_by, memberName, 'sop_create', created.id);
+          points.awardPoints(db, created.author_id || created.created_by, memberName, 'sop_create', created.id, actorOpts);
         } else if (table === 'vacations') {
           // 휴가 등록 시 vacation_quotas.used 자동 증가 (table 직접 POST 경로)
           syncVacationQuotaOnCreate(db, created);
@@ -822,17 +833,22 @@ function handleTablesRequest(route, method, bodyStr, reqHeaders) {
       }
       // ── Phase 8: KPI 입력 적립 훅 (work_tasks PATCH 시) ──
       try {
+        const actorId = (reqHeaders && reqHeaders['x-actor-user']) || '';
+        let actorFullName = '';
+        if (actorId) {
+          const u = (db.users || []).find(x => x.id === actorId);
+          if (u) actorFullName = u.full_name || u.username || '';
+        }
+        const actorOpts = { actorId, actorName: actorFullName };
         if (table === 'work_tasks') {
-          // KPI 정성 필드(kpi1/kpi2/kpi3 평가 or 가중치 등) 또는 정량(kpi_csm/kpi_deadline/...) 채워졌는지 검사
           const kpiFields = ['kpi1_score','kpi2_score','kpi3_score','kpi1_eval','kpi2_eval','kpi3_eval'];
           const filled = kpiFields.some(f => updated[f] != null && updated[f] !== '' && (before[f] == null || before[f] === ''));
           if (filled) {
             const userId = updated.user_id || updated.member_id || '';
             const memberName = updated.member_name || updated.target_name || '';
-            points.awardPointsOncePerQuarter(db, userId, memberName, 'kpi_entry', updated.id);
+            points.awardPointsOncePerQuarter(db, userId, memberName, 'kpi_entry', updated.id, actorOpts);
           }
         } else if (table === 'vacations') {
-          // 휴가 PATCH (예: status 변경) → quotas 재계산
           syncVacationQuotaOnUpdate(db, before, updated);
         }
       } catch (e) { console.error('[points hook:update]', e.message); }
@@ -1473,6 +1489,64 @@ const server = http.createServer((req, res) => {
             const r = points.finalizeQuarter(db, q);
             writeDb(db);
             send(200, r);
+          });
+          return;
+        }
+        // POST /api/points/recompute — engagement_points 전체 재계산 (팀장만)
+        //   audit_logs 기반으로 actor=target & 비팀장 케이스만 소급 적립
+        if (req.method === 'POST' && u.pathname === '/api/points/recompute') {
+          const actorRole = req.headers && req.headers['x-actor-role'];
+          if (actorRole && actorRole !== 'team_leader') {
+            return send(403, { error: '팀장만 실행 가능' });
+          }
+          await withDb(db => {
+            const usersById = {};
+            const usersByName = {};
+            for (const u of (db.users || [])) {
+              usersById[u.id] = u;
+              if (u.full_name) usersByName[u.full_name] = u;
+              if (u.username) usersByName[u.username] = u;
+            }
+            // 모든 engagement_points 삭제
+            db.engagement_points = [];
+            // audit_logs 스캔 — create:* 액션에 한해 소급 적립
+            const auditLogs = db.audit_logs || [];
+            const actionMap = {
+              'create:daily_work_entries': 'work_entry',
+              'create:kb_issues':          'issue_register',
+              'create:kb_documents':       'sop_create',
+            };
+            let awarded = 0, skipped = 0;
+            for (const log of auditLogs) {
+              const actionType = actionMap[log.action];
+              if (!actionType) continue;
+              // detail에서 id=xxx 파싱
+              const m = (log.detail || '').match(/id=(\S+)/);
+              if (!m) continue;
+              const recordId = m[1];
+              // actor (audit_logs.user_id) → users 조회
+              const actor = usersById[log.user_id];
+              if (!actor) { skipped++; continue; }
+              if (actor.role === 'team_leader') { skipped++; continue; }
+              // 본인이 본인 입력 — actor === target
+              // target은 record를 직접 보고 가져옴
+              const recordTable = log.action.split(':')[1];
+              const record = (db[recordTable] || []).find(x => String(x.id) === String(recordId));
+              if (!record) { skipped++; continue; }
+              // target identity 추출
+              const targetUserId = record.user_id || record.author_id || record.created_by || '';
+              const targetName   = record.member_name || record.author_name || record.created_by_name || '';
+              const isSelf = (targetUserId && targetUserId === actor.id) ||
+                             (targetName && targetName === (actor.full_name || actor.username));
+              if (!isSelf) { skipped++; continue; }
+              // 적립
+              const result = points.awardPoints(db, actor.id, actor.full_name || actor.username,
+                actionType, recordId, { actorId: actor.id, actorName: actor.full_name || actor.username });
+              if (result) awarded++;
+              else skipped++;
+            }
+            writeDb(db);
+            send(200, { awarded, skipped, total_audit_logs: auditLogs.length });
           });
           return;
         }
