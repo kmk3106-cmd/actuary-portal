@@ -726,6 +726,17 @@ function cascadeDeleteRelated(db, table, removed) {
     const key = `${action}:${removed.id}`;
     db.engagement_points = db.engagement_points.filter(p => p.idempotency_key !== key);
   }
+  // Phase 9: 선착순 보너스(first_sop / first_issue) 도 record 삭제 시 회수
+  //   tryAwardFirstBonus 가 action_ref 에 record.id 를 저장하므로 정확 매칭으로 정리.
+  //   이후 분기 내에 같은 action_type 입력이 또 들어오면 그 사람에게 보너스 재발급.
+  if (table === 'kb_documents' && Array.isArray(db.engagement_points)) {
+    db.engagement_points = db.engagement_points.filter(p =>
+      !(p.action_type === 'first_sop' && p.action_ref === removed.id));
+  }
+  if (table === 'kb_issues' && Array.isArray(db.engagement_points)) {
+    db.engagement_points = db.engagement_points.filter(p =>
+      !(p.action_type === 'first_issue' && p.action_ref === removed.id));
+  }
   // work_tasks 삭제 → kpi_entry / settlement_check 적립 좀비 정리
   // - kpi_entry:   idempotency_key ends with ':<work_task.id>'
   // - settlement_check: idempotency_key starts with 'settlement_check:<work_task.id>:'
@@ -882,16 +893,16 @@ function handleTablesRequest(route, method, bodyStr, reqHeaders) {
           const memberName = created.member_name || created.created_by_name || created.author_name || '';
           const issueUserId = created.created_by || created.user_id;
           points.awardPoints(db, issueUserId, memberName, 'issue_register', created.id, actorOpts);
-          // Phase 9: 분기 첫 이슈 보너스
-          points.tryAwardFirstBonus(db, issueUserId, memberName, 'issue_register', actorOpts);
+          // Phase 9: 분기 선착순 보너스 (전체 첫 이슈 등록자만)
+          points.tryAwardFirstBonus(db, issueUserId, memberName, 'issue_register', actorOpts, created.id);
           // Phase 9: quarterly_mission 체크
           points.tryAwardQuarterlyMission(db, issueUserId, memberName, actorOpts);
         } else if (table === 'kb_documents') {
           const memberName = created.author_name || created.created_by_name || '';
           const sopUserId = created.author_id || created.created_by;
           points.awardPoints(db, sopUserId, memberName, 'sop_create', created.id, actorOpts);
-          // Phase 9: 분기 첫 SOP 보너스
-          points.tryAwardFirstBonus(db, sopUserId, memberName, 'sop_create', actorOpts);
+          // Phase 9: 분기 선착순 보너스 (전체 첫 절차서 등록자만)
+          points.tryAwardFirstBonus(db, sopUserId, memberName, 'sop_create', actorOpts, created.id);
           // Phase 9: quarterly_mission 체크
           points.tryAwardQuarterlyMission(db, sopUserId, memberName, actorOpts);
         } else if (table === 'vacations') {
@@ -1705,7 +1716,7 @@ const server = http.createServer((req, res) => {
                   if (tdef.action === 'issue_register' || tdef.action === 'sop_create') {
                     points.tryAwardFirstBonus(db, targetUser.id,
                       targetUser.full_name || targetUser.username,
-                      tdef.action, actorOpts);
+                      tdef.action, actorOpts, rec.id);
                   }
                 } else {
                   skipped++; skipReasons.dedup++;

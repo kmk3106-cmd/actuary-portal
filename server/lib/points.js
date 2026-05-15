@@ -41,9 +41,9 @@ const FIRST_ISSUE_BONUS = 10;
 const STREAK_MAX_PER_DAY = 10; // streak 보너스 1회 최대
 
 const DEFAULT_PRIZES = [
-  { rank: 1, prize_amount: 300000, label: '식사권 30만원' },
-  { rank: 2, prize_amount: 100000, label: '식사권 10만원' },
-  { rank: 3, prize_amount: 50000,  label: '식사권 5만원'  },
+  { rank: 1, prize_amount: 300000, label: '본부장 식사권 30만원' },
+  { rank: 2, prize_amount: 100000, label: '팀장 식사권 10만원' },
+  { rank: 3, prize_amount: 50000,  label: '팀장 식사권 5만원'  },
 ];
 
 // Phase 9: 추가 보상 기본 설정 — prize_rules 확장 시드로 저장
@@ -155,8 +155,11 @@ function seedPointsConfig(db) {
 
   // Phase 9-1 마이그레이션 (point_rules): 운영자 호칭 변경 — SOP → 계리업무절차서
   const POINT_RULE_MIGRATIONS = {
-    'pr_sop_create': { label: '절차서 작성', description: '계리업무절차서(kb_documents) 작성 1건당' },
-    'pr_first_sop':  { label: '첫 절차서 보너스', description: '분기 첫 계리업무절차서 등록 시 +20pt' },
+    'pr_sop_create':    { label: '절차서 작성', description: '계리업무절차서(kb_documents) 작성 1건당' },
+    'pr_first_sop':     { label: '선착순 보너스 (절차서)',
+                          description: '분기 내 모든 직원 중 가장 먼저 계리업무절차서 등록 시 +20pt. 해당 record 삭제 시 보너스 회수, 수정은 영향 없음.' },
+    'pr_first_issue':   { label: '선착순 보너스 (이슈)',
+                          description: '분기 내 모든 직원 중 가장 먼저 이슈 등록 시 +10pt. 해당 record 삭제 시 보너스 회수, 수정은 영향 없음.' },
   };
   for (const row of db.point_rules) {
     const mig = POINT_RULE_MIGRATIONS[row.id];
@@ -172,6 +175,12 @@ function seedPointsConfig(db) {
   // Phase 9-1 마이그레이션: 옛 "비금전" 라벨 → 친화 표현
   //  운영자 피드백: "비금전이 뭔뜻이야?" → 라벨 자체에서 의미 명확화
   const LABEL_MIGRATIONS = {
+    'pz_rank1':          { label: '본부장 식사권 30만원',
+                           description: '분기 누적 1위 시상. 본부장 명의 식사권.' },
+    'pz_rank2':          { label: '팀장 식사권 10만원',
+                           description: '분기 누적 2위 시상. 팀장 명의 식사권.' },
+    'pz_rank3':          { label: '팀장 식사권 5만원',
+                           description: '분기 누적 3위 시상. 팀장 명의 식사권.' },
     'pz_participation':  { label: '참여상 (커피·간식 쿠폰)',
                            description: '분기 50pt 이상 달성 시 전원 수여. 커피 쿠폰·간식 등 팀장 재량 선물 (금액 미지급).' },
     'pz_growth_3':       { label: '성장상 3위 (격려 선물)',
@@ -495,10 +504,16 @@ function tryAwardQuarterlyMission(db, userId, memberName, actorOpts) {
 // ────────────────────────────────────────────────────────────────────
 
 /**
- * 분기 첫 SOP/이슈 등록 시 bonus 적립.
- * awardPoints 호출 직후 server.js 에서 호출.
+ * 분기 선착순 보너스 — 모든 직원 중 가장 먼저 SOP/이슈 등록한 1명만 수여.
+ *
+ * 정책 (2026-05-15 운영자 결정):
+ *  - "분기 전체"에서 첫 입력자만 받음 (예전: 본인 분기 첫 입력 → 변경)
+ *  - 해당 record 삭제 시 보너스 회수 (cascade) — action_ref 에 record.id 저장
+ *  - 수정(PATCH)은 영향 없음 (id 동일하므로 idempotency 유지)
+ *
+ * @param {string} recordId  방금 만들어진 kb_documents 또는 kb_issues id (cascade 키)
  */
-function tryAwardFirstBonus(db, userId, memberName, actionType, actorOpts) {
+function tryAwardFirstBonus(db, userId, memberName, actionType, actorOpts, recordId) {
   if (!memberName && !userId) return;
   if (isTeamLeader(db, userId, memberName)) return;
 
@@ -509,26 +524,30 @@ function tryAwardFirstBonus(db, userId, memberName, actionType, actorOpts) {
   if (!rule) return;
 
   const q = currentQuarter();
-  const ikey = `${bonusType}:${q}:${memberName || userId}`;
-  if ((db.engagement_points || []).some(p => p.idempotency_key === ikey)) return; // 이미 받았음
 
-  // 이번 분기에 해당 action_type 적립이 1건 이상인지 확인 (방금 적립된 것 포함)
-  const countThisQ = (db.engagement_points || []).filter(p =>
-    p.action_type === actionType &&
-    p.quarter === q &&
-    ((memberName && p.member_name === memberName) || (userId && p.user_id === userId))
+  // 분기 전체에서 이 보너스가 이미 누군가에게 지급됐는지 확인 (전체 단 1명만)
+  const alreadyAwarded = (db.engagement_points || []).some(p =>
+    p.action_type === bonusType && p.quarter === q
+  );
+  if (alreadyAwarded) return;
+
+  // 이 사람이 방금 추가한 적립까지 포함해 분기 전체 action_type 적립이 정확히 1건이어야 "전체 첫 입력"
+  const totalThisQ = (db.engagement_points || []).filter(p =>
+    p.action_type === actionType && p.quarter === q
   ).length;
-
-  if (countThisQ !== 1) return; // 이미 2건 이상이면 첫 번째 아님
+  if (totalThisQ !== 1) return; // 다른 사람이 이미 등록한 적 있음 → 선착순 아님
 
   const bonusPts = bonusType === 'first_sop' ? FIRST_SOP_BONUS : FIRST_ISSUE_BONUS;
   const t = now();
+  // action_ref 에 record.id 저장 — cascadeDeleteRelated 가 record 삭제 시 회수
+  const ref = recordId || `${q}:${memberName || userId}`;
+  const ikey = `${bonusType}:${q}:${ref}`;
   const row = {
     id: createId('ep'),
     user_id: userId || '',
     member_name: memberName || '',
     action_type: bonusType,
-    action_ref: ikey,
+    action_ref: ref,
     points: bonusPts,
     quarter: q,
     awarded_at: t,
