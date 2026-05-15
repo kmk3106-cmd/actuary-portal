@@ -870,23 +870,32 @@ async function saveWorkTask() {
 
     /* 4. daily_work_entries 전체 교체 동기화
           — 매번 저장 시 (멤버, 이번 월, source=manual) 기존 행 모두 삭제 후 신규 POST
-          → 중복 누적 + 잔존 데이터 근본 방지 */
-    try {
-      const ymPrefix = `${currentYear}-${String(currentMonth).padStart(2,'0')}`;
-      const er = await fetch('/tables/daily_work_entries?limit=500');
-      if (er.ok) {
-        const ed = await er.json();
-        const existing = (ed.rows || ed.data || []).filter(e =>
-          e.member_name === currentMember &&
-          e.source === 'manual' &&
-          ((e.end_date || e.work_date || '').startsWith(ymPrefix) ||
-           (e.start_date || '').startsWith(ymPrefix))
-        );
-        await Promise.all(existing.map(e =>
-          fetch(`/tables/daily_work_entries/${encodeURIComponent(e.id)}`, { method: 'DELETE' })
-        ));
-      }
-    } catch(_) {}
+          → 중복 누적 + 잔존 데이터 근본 방지
+          ⚠ DELETE 일부 실패 시 옛 entries + 새 POST 공존 → 적립 이중계상.
+            반드시 모두 성공 확인 후 POST 진행. */
+    const ymPrefix = `${currentYear}-${String(currentMonth).padStart(2,'0')}`;
+    const er = await fetch('/tables/daily_work_entries?limit=500');
+    if (!er.ok) {
+      Portal.showToast('저장 실패: 기존 데이터 조회 오류. 다시 시도해주세요.', 'error');
+      return;
+    }
+    const ed = await er.json();
+    const existing = (ed.rows || ed.data || []).filter(e =>
+      e.member_name === currentMember &&
+      e.source === 'manual' &&
+      ((e.end_date || e.work_date || '').startsWith(ymPrefix) ||
+       (e.start_date || '').startsWith(ymPrefix))
+    );
+    const delResults = await Promise.allSettled(existing.map(e =>
+      fetch(`/tables/daily_work_entries/${encodeURIComponent(e.id)}`, { method: 'DELETE' })
+        .then(r => { if (!r.ok) throw new Error(`DELETE ${e.id} status=${r.status}`); return r; })
+    ));
+    const failed = delResults.filter(x => x.status === 'rejected');
+    if (failed.length > 0) {
+      console.error('[work-personal] DELETE 일부 실패', failed);
+      Portal.showToast(`저장 중단: 기존 ${existing.length}건 중 ${failed.length}건 삭제 실패. 새로고침 후 다시 시도하세요.`, 'error');
+      return; // POST 진행 중단 → 적립 이중계상 차단
+    }
 
     for (const t of valid) {
       if (!t.start_date || !t.start_time || !t.end_time) continue;

@@ -209,8 +209,26 @@ function renderSummary() {
 
 function renderIssueList() {
   const container = document.getElementById('issueList');
+  // 자동 수정 결과 배너 (있으면 항상 표시)
+  let autofixBanner = '';
+  if (latestReport && latestReport.autofix && latestReport.autofix.fixed_count > 0) {
+    const af = latestReport.autofix;
+    autofixBanner = `<div class="issue-group" style="border-color:#a7f3d0;background:#ecfdf5;">
+      <div class="issue-group-header" style="background:#d1fae5;color:#065f46;">
+        <i class="fas fa-wand-magic-sparkles"></i>
+        자동 수정 완료
+        <span class="count-chip" style="background:#10b981;color:#fff;">${af.fixed_count}건</span>
+      </div>
+      ${af.fixed.map(f => `<div class="issue-row">
+        <div class="issue-msg">${escHtml(f.message)}
+          <div class="issue-hint">카테고리: ${escHtml(f.category)} · 처음 점검에서 검출 → 즉시 정정됨</div>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }
   if (!latestReport || !latestReport.issues || latestReport.issues.length === 0) {
-    container.innerHTML = '<div class="empty-state"><i class="fas fa-check-circle" style="color:#15803d;"></i><p>이슈가 발견되지 않았습니다. 정상입니다.</p></div>';
+    container.innerHTML = autofixBanner +
+      '<div class="empty-state"><i class="fas fa-check-circle" style="color:#15803d;"></i><p>현재 남은 이슈가 없습니다. 정상입니다.</p></div>';
     return;
   }
   // 카테고리별 그룹화
@@ -237,7 +255,7 @@ function renderIssueList() {
       </div>`).join('')}
     </div>`;
   }
-  container.innerHTML = html;
+  container.innerHTML = autofixBanner + html;
 }
 
 function renderHistory() {

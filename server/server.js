@@ -10,6 +10,7 @@ const workload = require('./lib/workload');
 const timeentry = require('./lib/timeentry');
 const points = require('./lib/points');
 const { runAudit } = require('./audit');
+const { applyAutoFix } = require('./audit-autofix');
 
 // .env 로드 (dotenv 없이 직접 파싱)
 function loadEnv() {
@@ -725,6 +726,15 @@ function cascadeDeleteRelated(db, table, removed) {
     const key = `${action}:${removed.id}`;
     db.engagement_points = db.engagement_points.filter(p => p.idempotency_key !== key);
   }
+  // work_tasks 삭제 → kpi_entry / settlement_check 적립 좀비 정리
+  // (idempotency_key 가 `kpi_entry:<quarter>:<member>:<work_task.id>` 또는 action_ref 매칭)
+  if (table === 'work_tasks' && Array.isArray(db.engagement_points)) {
+    db.engagement_points = db.engagement_points.filter(p => {
+      if (p.action_ref === removed.id) return false; // direct ref
+      if (typeof p.idempotency_key === 'string' && p.idempotency_key.endsWith(':' + removed.id)) return false;
+      return true;
+    });
+  }
   if (table === 'kb_documents') {
     if (Array.isArray(db.kb_document_versions)) {
       db.kb_document_versions = db.kb_document_versions.filter(v => v.document_id !== removed.id);
@@ -745,11 +755,23 @@ function syncVacationQuotaOnDelete(db, removed) {
   recomputeQuotaForYear(db, y, removed.user_id, removed.member_name);
 }
 
+// 외부에서 직접 변경하면 점수 위변조가 되는 시스템 테이블 — 쓰기 차단
+const POINTS_PROTECTED_TABLES = new Set([
+  'engagement_points',
+  'prize_history',
+  'audit_reports',
+  'audit_logs',
+]);
+
 function handleTablesRequest(route, method, bodyStr, reqHeaders) {
   return withDb(db => {
     const table = route.table;
     if (!Object.prototype.hasOwnProperty.call(db, table)) {
       return { status: 404, body: { error: `Unknown table: ${table}` } };
+    }
+    // 점수·감사 테이블은 GET 만 허용 (서버 내부 훅으로만 수정)
+    if (POINTS_PROTECTED_TABLES.has(table) && method !== 'GET') {
+      return { status: 403, body: { error: `${table} 는 직접 수정 불가 — 서버 내부 훅으로만 변경됩니다` } };
     }
     const collection = db[table];
     const body = bodyStr ? JSON.parse(bodyStr) : null;
@@ -1594,6 +1616,9 @@ const server = http.createServer((req, res) => {
             // 모든 engagement_points 삭제
             db.engagement_points = [];
 
+            // strict 모드: ?strict=1 이면 actor 미상 record 는 skip (audit_logs 한도 초과시 형평성 보호)
+            const strictMode = (sp && sp.get('strict')) === '1';
+
             const tables = [
               { name: 'daily_work_entries', action: 'work_entry' },
               { name: 'kb_issues',          action: 'issue_register' },
@@ -1601,24 +1626,27 @@ const server = http.createServer((req, res) => {
             ];
             let awarded = 0, skipped = 0;
             const detail = {};
+            const skipReasons = { no_target: 0, team_leader: 0, actor_unknown_strict: 0, actor_mismatch: 0, no_member: 0, dedup: 0 };
             for (const tdef of tables) {
               const list = db[tdef.name] || [];
               for (const rec of list) {
                 const targetUserId = rec.user_id || rec.author_id || rec.created_by || '';
                 const targetName = rec.member_name || rec.author_name || rec.created_by_name || '';
-                if (!targetUserId && !targetName) { skipped++; continue; }
-                // target user 식별
+                if (!targetUserId && !targetName) { skipped++; skipReasons.no_member++; continue; }
                 const targetUser = usersById[targetUserId] || usersByName[targetName];
-                if (!targetUser) { skipped++; continue; }
-                if (targetUser.role === 'team_leader') { skipped++; continue; }
-                // actor 보강: audit_logs에서 record의 actor 찾기
+                if (!targetUser) { skipped++; skipReasons.no_target++; continue; }
+                if (targetUser.role === 'team_leader') { skipped++; skipReasons.team_leader++; continue; }
                 const actor = recordActor[rec.id];
+                if (actor && actor.id !== targetUser.id) {
+                  skipped++; skipReasons.actor_mismatch++; continue; // 대리 입력 차단
+                }
+                // strict 모드: audit_logs에서 actor를 못 찾으면 skip (본인 가정 금지)
+                if (strictMode && !actor) {
+                  skipped++; skipReasons.actor_unknown_strict++; continue;
+                }
                 const actorOpts = actor
                   ? { actorId: actor.id, actorName: actor.full_name || actor.username }
                   : { actorId: targetUser.id, actorName: targetUser.full_name || targetUser.username };
-                // 대리 입력 차단 (actor가 있는데 target과 다르면 skip)
-                if (actor && actor.id !== targetUser.id) { skipped++; continue; }
-
                 const result = points.awardPoints(db, targetUser.id,
                   targetUser.full_name || targetUser.username,
                   tdef.action, rec.id, actorOpts);
@@ -1626,12 +1654,68 @@ const server = http.createServer((req, res) => {
                   awarded++;
                   detail[tdef.action] = (detail[tdef.action] || 0) + 1;
                 } else {
-                  skipped++;
+                  skipped++; skipReasons.dedup++;
                 }
               }
             }
+
+            // KPI (work_tasks) — 분기당 1회 적립. 분기별로 한 사용자에게 한 번만.
+            // 어떤 분기에서든 KPI 필드가 채워진 work_task 가 있으면 그 분기에 적립.
+            const wt_list = db.work_tasks || [];
+            const kpiFields = ['kpi1_score','kpi2_score','kpi3_score','kpi1_eval','kpi2_eval','kpi3_eval'];
+            // year-month → quarter 환산용
+            const toQuarter = (y, m) => `${y}-Q${Math.floor((m - 1) / 3) + 1}`;
+            for (const t of wt_list) {
+              const filled = kpiFields.some(f => t[f] != null && t[f] !== '');
+              if (!filled) continue;
+              const targetUserId = t.user_id || t.member_id || '';
+              const targetName = t.member_name || t.target_name || '';
+              const targetUser = usersById[targetUserId] || usersByName[targetName];
+              if (!targetUser) { skipped++; skipReasons.no_target++; continue; }
+              if (targetUser.role === 'team_leader') { skipped++; skipReasons.team_leader++; continue; }
+              const actor = recordActor[t.id];
+              if (actor && actor.id !== targetUser.id) {
+                skipped++; skipReasons.actor_mismatch++; continue;
+              }
+              if (strictMode && !actor) {
+                skipped++; skipReasons.actor_unknown_strict++; continue;
+              }
+              // 해당 work_task 가 어느 분기인지 추정 — t.year / t.month 또는 t.quarter
+              let quarter = t.quarter;
+              if (!quarter && t.year && t.month) quarter = toQuarter(Number(t.year), Number(t.month));
+              if (!quarter) { skipped++; skipReasons.no_member++; continue; }
+              // 멱등 — 분기+사용자+kpi_entry 한 번
+              const dedupKey = `kpi_entry:${quarter}:${targetUser.full_name || targetUser.username}`;
+              if ((db.engagement_points || []).some(p => p.idempotency_key && p.idempotency_key.startsWith(dedupKey))) {
+                skipped++; skipReasons.dedup++; continue;
+              }
+              const actorOpts = actor
+                ? { actorId: actor.id, actorName: actor.full_name || actor.username }
+                : { actorId: targetUser.id, actorName: targetUser.full_name || targetUser.username };
+              // awardPoints (kpi_entry) - 직접 호출 + idempotency_key 강제로 분기 기반
+              const t_ms = Date.now();
+              const points_v = (db.point_rules || []).find(r => r.action_type === 'kpi_entry')?.points || 10;
+              db.engagement_points.push({
+                id: 'ep_kpi_' + Math.random().toString(16).slice(2, 14) + t_ms.toString(36),
+                user_id: targetUser.id,
+                member_name: targetUser.full_name || targetUser.username,
+                action_type: 'kpi_entry',
+                action_ref: t.id,
+                points: points_v,
+                quarter,
+                awarded_at: t_ms,
+                idempotency_key: `${dedupKey}:${t.id}`,
+                actor_user_id: actorOpts.actorId || '',
+                actor_name: actorOpts.actorName || '',
+                created_at: t_ms, updated_at: t_ms,
+              });
+              awarded++;
+              detail.kpi_entry = (detail.kpi_entry || 0) + 1;
+            }
             writeDb(db);
-            send(200, { awarded, skipped, detail, total_audit_logs: (db.audit_logs || []).length });
+            send(200, { awarded, skipped, detail, skip_reasons: skipReasons,
+                        total_audit_logs: (db.audit_logs || []).length,
+                        strict_mode: strictMode });
           });
           return;
         }
@@ -2043,16 +2127,30 @@ function maybeRunStartupAudit() {
 function runAuditAndSave(trigger) {
   try {
     const db = readDb();
-    const report = runAudit(db);
-    report.trigger = trigger;
+    // 1차 점검
+    const firstReport = runAudit(db);
+    // 자동 수정 (사람 판단 불필요 카테고리만)
+    const autofix = applyAutoFix(db, firstReport.issues || []);
+    // 자동 수정 결과 반영 위해 재점검
+    let finalReport = firstReport;
+    if (autofix.fixed.length > 0) {
+      finalReport = runAudit(db);
+    }
+    finalReport.trigger = trigger;
+    finalReport.autofix = {
+      fixed_count: autofix.fixed.length,
+      skipped_count: autofix.skipped.length,
+      fixed: autofix.fixed,
+      skipped: autofix.skipped,
+      first_total: firstReport.summary.total_issues,
+    };
     if (!Array.isArray(db.audit_reports)) db.audit_reports = [];
-    db.audit_reports.push(report);
-    // 최근 30건만 유지 (오래된 것은 정리)
+    db.audit_reports.push(finalReport);
     if (db.audit_reports.length > 30) {
       db.audit_reports = db.audit_reports.slice(-30);
     }
     writeDb(db);
-    console.log(`[Audit:${trigger}] ${report.status} — ${report.summary.total_issues}건 (high:${report.summary.by_severity.high} medium:${report.summary.by_severity.medium}) / ${report.duration_ms}ms`);
+    console.log(`[Audit:${trigger}] ${finalReport.status} — 최초 ${firstReport.summary.total_issues}건 → 자동수정 ${autofix.fixed.length} / 남음 ${finalReport.summary.total_issues} (high:${finalReport.summary.by_severity.high} medium:${finalReport.summary.by_severity.medium}) / ${finalReport.duration_ms}ms`);
   } catch (e) {
     console.error(`[Audit:${trigger}] 실행 실패:`, e.message);
   }

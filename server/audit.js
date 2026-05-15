@@ -441,6 +441,8 @@ function checkPointsOrphan(db) {
     work_entry: 'daily_work_entries',
     issue_register: 'kb_issues',
     sop_create: 'kb_documents',
+    kpi_entry: 'work_tasks',
+    settlement_check: 'work_tasks',
   };
   // O(1) lookup 용
   const idSet = {};
