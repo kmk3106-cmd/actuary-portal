@@ -722,6 +722,7 @@ function buildYearOptions() {
 ────────────────────────────────────────────── */
 if (isLeader) {
   document.getElementById('allToggleWrap').style.display = 'flex';
+  document.getElementById('showAllToggle').checked = true; // 팀장 기본 전체 보기
   document.getElementById('thMember').style.display = '';
   loadMemberOptions();
 }
