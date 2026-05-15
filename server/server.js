@@ -1699,6 +1699,14 @@ const server = http.createServer((req, res) => {
                 if (result) {
                   awarded++;
                   detail[tdef.action] = (detail[tdef.action] || 0) + 1;
+                  // Phase 9: first_sop / first_issue 보너스 재계산
+                  //   awardPoints 내부에서 streak_bonus / quarterly_mission 은 자동 호출되나
+                  //   first_bonus 는 server.js POST 훅에 있어서 recompute 에서 별도 호출.
+                  if (tdef.action === 'issue_register' || tdef.action === 'sop_create') {
+                    points.tryAwardFirstBonus(db, targetUser.id,
+                      targetUser.full_name || targetUser.username,
+                      tdef.action, actorOpts);
+                  }
                 } else {
                   skipped++; skipReasons.dedup++;
                 }
@@ -1854,6 +1862,25 @@ const server = http.createServer((req, res) => {
             send(200, { awarded, skipped, detail, skip_reasons: skipReasons,
                         total_audit_logs: (db.audit_logs || []).length,
                         strict_mode: strictMode });
+          });
+          return;
+        }
+        // POST /api/points/quarter-reset — 팀장 전용 강제 초기화 (분기 외 시점이라도 실행)
+        if (req.method === 'POST' && u.pathname === '/api/points/quarter-reset') {
+          const actorRole = req.headers && req.headers['x-actor-role'];
+          if (actorRole && actorRole !== 'team_leader') {
+            return send(403, { error: '팀장만 실행 가능' });
+          }
+          await withDb(db => {
+            const before = (db.engagement_points || []).length;
+            db.engagement_points = [];
+            db.meta = db.meta || {};
+            const now = new Date();
+            const qKey = `${now.getFullYear()}-Q${Math.floor(now.getMonth() / 3) + 1}`;
+            db.meta.last_quarter_reset = qKey;
+            db.meta.last_quarter_reset_at = Date.now();
+            writeDb(db);
+            send(200, { ok: true, reset_count: before, quarter: qKey, note: '업무 데이터는 보존됨' });
           });
           return;
         }
@@ -2222,7 +2249,77 @@ server.listen(PORT, HOST, () => {
   scheduleNextAudit();
   // 서버 시작 직후 sanity 검사 — 마지막 audit이 24시간 이상 전이면 즉시 1회
   setTimeout(maybeRunStartupAudit, 5000);
+  // ── 분기 초기화 (매월 1일 00:05) ──
+  scheduleNextQuarterCheck();
+  // 서버 시작 시 1·4·7·10월 첫 주면 누락분 보강
+  setTimeout(maybeRunStartupQuarterReset, 6000);
 });
+
+/**
+ * 분기 시작일(1·4·7·10월 1일) 자정 직후 엔게이지먼트 포인트만 초기화.
+ *  - engagement_points 전부 비움 (work_tasks/daily_work_entries/vacations 등 업무 데이터는 그대로)
+ *  - 마지막 실행 시각을 db.meta.last_quarter_reset 에 기록하여 멱등 보장
+ *  - 직전 분기 prize_history 는 그대로 유지 (성장상·MVP 계산 기준)
+ */
+function resetEngagementPointsForNewQuarter(reason) {
+  try {
+    const db = readDb();
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1;  // 1~12
+    // 분기 시작 월인지 확인
+    if (![1, 4, 7, 10].includes(m)) {
+      console.log(`[QuarterReset:${reason}] 분기 시작월 아님 (현재 ${y}-${m}) — skip`);
+      return;
+    }
+    // 같은 분기에 이미 초기화했으면 skip (멱등)
+    const qKey = `${y}-Q${Math.floor((m - 1) / 3) + 1}`;
+    db.meta = db.meta || {};
+    if (db.meta.last_quarter_reset === qKey) {
+      console.log(`[QuarterReset:${reason}] ${qKey} 이미 초기화 완료 — skip`);
+      return;
+    }
+    const before = (db.engagement_points || []).length;
+    db.engagement_points = [];
+    db.meta.last_quarter_reset = qKey;
+    db.meta.last_quarter_reset_at = Date.now();
+    writeDb(db);
+    console.log(`[QuarterReset:${reason}] ✓ ${qKey} 시작 — engagement_points ${before}건 초기화 (업무 데이터 보존)`);
+  } catch (e) {
+    console.error(`[QuarterReset:${reason}] 실패:`, e.message);
+  }
+}
+
+/**
+ * 다음 매월 1일 00:05 에 resetEngagementPointsForNewQuarter 호출.
+ *  - 매월 체크하고 분기 시작월이면 초기화. 아니면 그냥 skip.
+ *  - audit 4시보다 먼저 돌도록 00:05 로 잡음.
+ */
+function scheduleNextQuarterCheck() {
+  const now = new Date();
+  const next = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 5, 0); // 다음 달 1일 00:05
+  const ms = next - now;
+  setTimeout(() => {
+    resetEngagementPointsForNewQuarter('scheduled');
+    scheduleNextQuarterCheck();
+  }, ms);
+  console.log(`  QuarterReset: 다음 분기 체크 → ${next.toLocaleString('ko-KR')}`);
+}
+
+/**
+ * 서버 시작 시 분기 초기화 누락분 보강 (예: 서버가 1/1 자정에 안 떠있어서 놓친 경우)
+ */
+function maybeRunStartupQuarterReset() {
+  try {
+    const now = new Date();
+    if (![1, 4, 7, 10].includes(now.getMonth() + 1)) return;
+    // 분기 첫 주 (1~7일) 안에 서버 시작 시 한 번 보강
+    if (now.getDate() > 7) return;
+    resetEngagementPointsForNewQuarter('startup');
+  } catch (e) {
+    console.error('Startup quarter reset 실패:', e.message);
+  }
+}
 
 /**
  * 다음 새벽 4시에 runAuditAndSave 실행하도록 setTimeout 등록.
