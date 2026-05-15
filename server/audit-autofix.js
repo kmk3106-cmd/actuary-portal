@@ -32,6 +32,14 @@ const AUTO_FIX_CATEGORIES = new Set([
   'vacation_invalid_minutes',
   'points_orphan',
   'kb_version_orphan',
+  // Phase 9 자동 수정 가능
+  'points_rule_stale',   // 비활성 룰 이후 적립 → 자동 삭제
+  'points_self_sop_ref', // 오발급 first_bonus → 자동 삭제
+  // 아래는 사람 판단 필요 (SKIP)
+  // points_quarter_boundary: 정상일 수도 있음
+  // points_duplicate_user: 어느 건을 남길지 판단 필요
+  // points_inactive_user_ledger: 사용자 복원 의사 확인 필요
+  // points_member_rename: 이름 통일 방향 확인 필요
 ]);
 
 function asArray(v) {
@@ -142,6 +150,24 @@ function fixKbVersionOrphan(db, issue) {
   return db.kb_document_versions.length < before;
 }
 
+// ── Phase 9 신규 fix 핸들러 ──
+
+function fixPointsRuleStale(db, issue) {
+  const { ep_id } = issue.details || {};
+  if (!Array.isArray(db.engagement_points)) return false;
+  const before = db.engagement_points.length;
+  db.engagement_points = db.engagement_points.filter(p => p.id !== ep_id);
+  return db.engagement_points.length < before;
+}
+
+function fixPointsSelfSopRef(db, issue) {
+  const { ep_id } = issue.details || {};
+  if (!Array.isArray(db.engagement_points)) return false;
+  const before = db.engagement_points.length;
+  db.engagement_points = db.engagement_points.filter(p => p.id !== ep_id);
+  return db.engagement_points.length < before;
+}
+
 const FIX_HANDLERS = {
   perf_orphan_quant:        fixPerfOrphanQuant,
   perf_orphan_deadline:     fixPerfOrphanDeadline,
@@ -151,6 +177,9 @@ const FIX_HANDLERS = {
   vacation_invalid_minutes: fixVacationInvalidMinutes,
   points_orphan:            fixPointsOrphan,
   kb_version_orphan:        fixKbVersionOrphan,
+  // Phase 9
+  points_rule_stale:        fixPointsRuleStale,
+  points_self_sop_ref:      fixPointsSelfSopRef,
 };
 
 /**

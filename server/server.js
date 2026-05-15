@@ -867,17 +867,33 @@ function handleTablesRequest(route, method, bodyStr, reqHeaders) {
           // work_entry: 그룹 멱등 — (member × 월 × task_label × task_category) 당 1회만 적립
           // 시간대 분할 입력으로 부풀리기 차단 (DATA_SYNC_RULES §8.6)
           const ym = (created.start_date || created.end_date || '').slice(0, 7); // 'YYYY-MM'
+          // streak용 날짜: time_entries 첫 date 또는 start_date
+          let entryDate = created.start_date || '';
+          try {
+            const te = typeof created.time_entries === 'string' ? JSON.parse(created.time_entries) : created.time_entries;
+            if (Array.isArray(te) && te.length > 0 && te[0].date) entryDate = te[0].date;
+          } catch (_) {}
           points.awardWorkEntryGrouped(
             db, created.id, created.user_id, created.member_name,
             ym, created.task_label || '', created.task_category || '',
-            actorOpts
+            actorOpts, entryDate
           );
         } else if (table === 'kb_issues') {
           const memberName = created.member_name || created.created_by_name || created.author_name || '';
-          points.awardPoints(db, created.created_by || created.user_id, memberName, 'issue_register', created.id, actorOpts);
+          const issueUserId = created.created_by || created.user_id;
+          points.awardPoints(db, issueUserId, memberName, 'issue_register', created.id, actorOpts);
+          // Phase 9: 분기 첫 이슈 보너스
+          points.tryAwardFirstBonus(db, issueUserId, memberName, 'issue_register', actorOpts);
+          // Phase 9: quarterly_mission 체크
+          points.tryAwardQuarterlyMission(db, issueUserId, memberName, actorOpts);
         } else if (table === 'kb_documents') {
           const memberName = created.author_name || created.created_by_name || '';
-          points.awardPoints(db, created.author_id || created.created_by, memberName, 'sop_create', created.id, actorOpts);
+          const sopUserId = created.author_id || created.created_by;
+          points.awardPoints(db, sopUserId, memberName, 'sop_create', created.id, actorOpts);
+          // Phase 9: 분기 첫 SOP 보너스
+          points.tryAwardFirstBonus(db, sopUserId, memberName, 'sop_create', actorOpts);
+          // Phase 9: quarterly_mission 체크
+          points.tryAwardQuarterlyMission(db, sopUserId, memberName, actorOpts);
         } else if (table === 'vacations') {
           // 휴가 등록 시 vacation_quotas.used 자동 증가 (table 직접 POST 경로)
           syncVacationQuotaOnCreate(db, created);
@@ -1592,6 +1608,14 @@ const server = http.createServer((req, res) => {
           const q = sp.get('quarter') || points.currentQuarter();
           await withDb(db => {
             send(200, points.top3WithPrizes(db, q));
+          });
+          return;
+        }
+        // GET /api/points/awards?quarter=... — Phase 9: 전체 보상 현황 (top3+참여상+성장상+MVP)
+        if (req.method === 'GET' && u.pathname === '/api/points/awards') {
+          const q = sp.get('quarter') || points.currentQuarter();
+          await withDb(db => {
+            send(200, points.getAllAwards(db, q));
           });
           return;
         }

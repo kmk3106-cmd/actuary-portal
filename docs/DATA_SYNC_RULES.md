@@ -508,3 +508,45 @@ Phase 7-1에서 source='settlement_auto'로 7건 생성. 하지만 syncSettleToD
 - 두 변경 모두 strict 모드(`?strict=1`) 하에서 actor 미상 record skip 정책 동일 적용
 
 마지막 갱신: 2026-05-15 — settlement_check 실현 + work_entry 그룹 멱등 §8.6
+
+---
+
+## 9. Phase 9 — 게이미피케이션 강화 (2026-05-15)
+
+### 9.1 신규 게임 요소
+
+| 요소 | action_type | 룰 | 멱등 키 | 비고 |
+|------|------------|-----|---------|------|
+| 연속 입력 보너스 | `streak_bonus` | 영업일 연속 work_entry 입력 시 streak일×0.5pt, 하루 최대 10pt | `streak_bonus:<member>:<date>` | 2일 연속부터 적립, is_active 토글 |
+| 분기 미션 | `quarterly_mission` | 분기 내 KPI×1 + SOP×1 + 이슈×3 달성 시 30pt | `quarterly_mission:<quarter>:<member>` | 분기당 1회, is_active 토글 |
+| 첫 SOP 보너스 | `first_sop` | 분기 첫 SOP 등록 시 +20pt | `first_sop:<quarter>:<member>` | sop_create 직후 tryAwardFirstBonus 호출 |
+| 첫 이슈 보너스 | `first_issue` | 분기 첫 이슈 등록 시 +10pt | `first_issue:<quarter>:<member>` | issue_register 직후 tryAwardFirstBonus 호출 |
+
+**설계 원칙**:
+- 모든 신규 룰은 `point_rules` 테이블에 `is_active` 컬럼으로 존재 → settings 페이지에서 토글, 서버 재시작 없이 즉시 반영
+- `DEFAULT_RULES` 에 추가 → `seedPointsConfig()` 가 기존 DB에 없으면 자동 INSERT
+
+### 9.2 신규 보상 체계
+
+| 보상 | type | 기준 | 선정 | prize_rules id |
+|------|------|------|------|---------------|
+| 참여상 | `participation` | 분기 ≥50pt 전원 | 자동 | `pz_participation` |
+| 성장상 1~3위 | `growth` | 직전 분기 대비 점수 증가율 TOP3 | 자동 | `pz_growth_1~3` |
+| SOP MVP | `category_mvp` | 분기 sop_create 점수 1위 | 자동 | `pz_mvp_sop` |
+| 이슈 MVP | `category_mvp` | 분기 issue_register 점수 1위 | 자동 | `pz_mvp_issue` |
+| 결산 MVP | `category_mvp` | 분기 settlement_check 점수 1위 | 자동 | `pz_mvp_settlement` |
+
+**신규 API**: `GET /api/points/awards?quarter=YYYY-Qn` — top3 + 참여상 + 성장상 + MVP 전체 반환
+
+**`finalizeQuarter` 확장**: prize_history 에 award_type 컬럼 추가 (rank / participation / growth / category_mvp)
+
+### 9.3 신규 Audit 카테고리 (6개)
+
+| 카테고리 | 심각도 | 검출 | 자동수정 |
+|----------|--------|------|---------|
+| `points_rule_stale` | high | 룰 비활성화 이후 생성된 포인트 | O (삭제) |
+| `points_quarter_boundary` | medium | 분기 경계 ±3일 5건 이상 집중 | X |
+| `points_duplicate_user` | high | 동일 action_ref 를 복수 사용자에게 적립 | X |
+| `points_inactive_user_ledger` | medium | 비활성 사용자 포인트 잔존 | X |
+| `points_member_rename` | medium | 동일 user_id 에 복수 member_name 혼재 | X |
+| `points_self_sop_ref` | medium | first_sop/first_issue 보너스 오발급 | O (삭제) |

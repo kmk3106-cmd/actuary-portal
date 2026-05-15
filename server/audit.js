@@ -38,6 +38,13 @@ const CATEGORIES = {
   vacation_invalid_minutes: { label: '휴가 minutes 와 time_entries 불일치', severity: 'medium' },
   points_orphan: { label: '적립 포인트 — 대상 record 사라짐', severity: 'medium' },
   kb_version_orphan: { label: 'kb_document_versions — 부모 문서 사라짐', severity: 'medium' },
+  // ── Phase 9: 신규 검사 카테고리 ──
+  points_rule_stale: { label: '비활성 룰 적립 잔존 (룰 비활성 이후 포인트 남아있음)', severity: 'high' },
+  points_quarter_boundary: { label: '분기 경계 집중 적립 (마지막·첫날 의심 패턴)', severity: 'medium' },
+  points_duplicate_user: { label: '동일 액션 다중 사용자 적립 (가짜 적립 의심)', severity: 'high' },
+  points_inactive_user_ledger: { label: '비활성 사용자 포인트 잔존 (재활성화 합산 위험)', severity: 'medium' },
+  points_member_rename: { label: '멤버명 변경으로 리더보드 단절 의심', severity: 'medium' },
+  points_self_sop_ref: { label: '자기 SOP 자가 참조 (공유 보너스 자가 적립 방지)', severity: 'medium' },
 };
 
 function createId() {
@@ -466,6 +473,234 @@ function checkPointsOrphan(db) {
   return issues;
 }
 
+// ──────────────────────────────────────────────────────────────────────
+// Phase 9: 신규 검사 함수 (포인트 무결성 강화)
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * 검사 15: 비활성화된 point_rule 이후에 해당 action_type 포인트 적립 잔존.
+ * 룰 비활성화(updated_at 이후) 에 생성된 행을 검출.
+ */
+function checkPointsRuleStale(db) {
+  const issues = [];
+  const rules = db.point_rules || [];
+  // 비활성 룰의 비활성화 시점(updated_at) 수집
+  const inactiveRuleTimes = {};
+  for (const r of rules) {
+    if (r.is_active === false) {
+      inactiveRuleTimes[r.action_type] = Number(r.updated_at) || 0;
+    }
+  }
+  if (Object.keys(inactiveRuleTimes).length === 0) return issues;
+
+  for (const p of db.engagement_points || []) {
+    const deactivatedAt = inactiveRuleTimes[p.action_type];
+    if (deactivatedAt === undefined) continue; // 활성 룰 → 무시
+    const awardedAt = Number(p.awarded_at) || Number(p.created_at) || 0;
+    if (awardedAt > deactivatedAt) {
+      issues.push({
+        category: 'points_rule_stale',
+        severity: 'high',
+        message: `${p.member_name || p.user_id} ${p.action_type} ${p.points}pt — 룰 비활성(${new Date(deactivatedAt).toISOString().slice(0,10)}) 이후 적립됨`,
+        details: { ep_id: p.id, action_type: p.action_type, awarded_at: awardedAt, rule_deactivated_at: deactivatedAt },
+        fix_hint: `engagement_points[${p.id}] 삭제 또는 룰 재활성화`,
+      });
+    }
+  }
+  return issues;
+}
+
+/**
+ * 검사 16: 분기 경계 집중 적립 — 분기 마지막·첫날(±3일)에 한 사용자가 5건 이상 적립.
+ * 실제 조작은 아닐 수 있으나 패턴 검출 목적.
+ */
+function checkPointsQuarterBoundary(db) {
+  const issues = [];
+  // 분기 경계일 목록 생성 (포인트 레코드가 존재하는 분기 기준)
+  const quarters = new Set((db.engagement_points || []).map(p => p.quarter).filter(Boolean));
+  const boundaryDates = new Set();
+  for (const q of quarters) {
+    const m = /^(\d{4})-Q([1-4])$/.exec(String(q));
+    if (!m) continue;
+    const y = parseInt(m[1], 10);
+    const qn = parseInt(m[2], 10);
+    const sm = (qn - 1) * 3; // 0-indexed start month
+    const em = sm + 2;
+    const startDate = new Date(y, sm, 1);
+    const endDate = new Date(y, em + 1, 0);
+    // 경계 ±3일
+    for (let i = -3; i <= 3; i++) {
+      const d1 = new Date(startDate); d1.setDate(d1.getDate() + i);
+      const d2 = new Date(endDate); d2.setDate(d2.getDate() + i);
+      boundaryDates.add(d1.toISOString().slice(0, 10));
+      boundaryDates.add(d2.toISOString().slice(0, 10));
+    }
+  }
+
+  // 경계일에 awarded_at이 있는 포인트 집계 (사용자 × 날짜)
+  const byUserDate = {};
+  for (const p of db.engagement_points || []) {
+    if (!p.awarded_at) continue;
+    const dateStr = new Date(Number(p.awarded_at)).toISOString().slice(0, 10);
+    if (!boundaryDates.has(dateStr)) continue;
+    const key = `${p.member_name || p.user_id}|${dateStr}`;
+    if (!byUserDate[key]) byUserDate[key] = { count: 0, pts: 0, member: p.member_name || p.user_id, date: dateStr, ids: [] };
+    byUserDate[key].count += 1;
+    byUserDate[key].pts += Number(p.points) || 0;
+    byUserDate[key].ids.push(p.id);
+  }
+  for (const [, v] of Object.entries(byUserDate)) {
+    if (v.count >= 5) {
+      issues.push({
+        category: 'points_quarter_boundary',
+        severity: 'medium',
+        message: `${v.member} ${v.date} 분기 경계 집중 적립 ${v.count}건 (${v.pts}pt)`,
+        details: { member: v.member, date: v.date, count: v.count, pts: v.pts, ep_ids: v.ids },
+        fix_hint: `해당 날짜 적립 내역 직접 검토 — 정상이면 무시 가능`,
+      });
+    }
+  }
+  return issues;
+}
+
+/**
+ * 검사 17: 동일 action_ref 에 복수 user_id 로 포인트 적립 (가짜 적립 의심).
+ * 한 record 가 두 명 이상에게 적립되면 비정상.
+ */
+function checkPointsDuplicateUser(db) {
+  const issues = [];
+  // action_ref → [user/member 목록]
+  const byRef = {};
+  for (const p of db.engagement_points || []) {
+    if (!p.action_ref) continue;
+    const refKey = `${p.action_type}:${p.action_ref}`;
+    if (!byRef[refKey]) byRef[refKey] = [];
+    byRef[refKey].push({ user_id: p.user_id, member_name: p.member_name, ep_id: p.id });
+  }
+  for (const [refKey, entries] of Object.entries(byRef)) {
+    // 중복 포인트 가능한 케이스: first_sop / first_issue / quarterly_mission 은 사람별 고유하므로 OK
+    const [actionType] = refKey.split(':');
+    const skipTypes = new Set(['first_sop', 'first_issue', 'quarterly_mission', 'streak_bonus', 'kpi_entry', 'settlement_check']);
+    if (skipTypes.has(actionType)) continue;
+    const uniqueUsers = new Set(entries.map(e => e.user_id || e.member_name));
+    if (uniqueUsers.size > 1) {
+      issues.push({
+        category: 'points_duplicate_user',
+        severity: 'high',
+        message: `action_ref "${refKey}" 에 ${uniqueUsers.size}명 적립: [${[...uniqueUsers].join(', ')}]`,
+        details: { ref_key: refKey, entries: entries.map(e => ({ ep_id: e.ep_id, user: e.user_id || e.member_name })) },
+        fix_hint: `대리 입력 차단 로직 확인 — 정당한 적립 1건 제외하고 나머지 삭제`,
+      });
+    }
+  }
+  return issues;
+}
+
+/**
+ * 검사 18: 비활성 사용자의 engagement_points 잔존.
+ * (재활성화 후 옛 포인트가 리더보드에 합산되는 위험)
+ */
+function checkPointsInactiveUser(db) {
+  const issues = [];
+  const activeNames = new Set(
+    (db.users || []).filter(u => u.is_active !== false).map(u => u.full_name || u.username)
+  );
+  const activeIds = new Set(
+    (db.users || []).filter(u => u.is_active !== false).map(u => u.id)
+  );
+  const seen = new Set();
+  for (const p of db.engagement_points || []) {
+    const key = p.member_name || p.user_id;
+    if (seen.has(key)) continue;
+    const isActive = (p.user_id && activeIds.has(p.user_id)) || (p.member_name && activeNames.has(p.member_name));
+    if (!isActive) {
+      seen.add(key);
+      const total = (db.engagement_points || [])
+        .filter(x => (x.user_id === p.user_id && p.user_id) || (x.member_name === p.member_name && p.member_name))
+        .reduce((s, x) => s + (Number(x.points) || 0), 0);
+      issues.push({
+        category: 'points_inactive_user_ledger',
+        severity: 'medium',
+        message: `${key} 비활성/삭제 사용자의 포인트 ${total}pt 잔존 — 재활성화 시 리더보드 합산 위험`,
+        details: { member: key, total_points: total },
+        fix_hint: `사용자 복원 의사 없으면 해당 engagement_points 일괄 삭제 검토`,
+      });
+    }
+  }
+  return issues;
+}
+
+/**
+ * 검사 19: 멤버명 변경으로 인한 리더보드 단절 의심.
+ * 동일 user_id 에 두 가지 이상의 member_name 이 섞여있는 경우.
+ */
+function checkPointsMemberRename(db) {
+  const issues = [];
+  const byUserId = {};
+  for (const p of db.engagement_points || []) {
+    if (!p.user_id || !p.member_name) continue;
+    if (!byUserId[p.user_id]) byUserId[p.user_id] = new Set();
+    byUserId[p.user_id].add(p.member_name);
+  }
+  for (const [uid, names] of Object.entries(byUserId)) {
+    if (names.size > 1) {
+      const nameArr = [...names];
+      const totalPts = (db.engagement_points || [])
+        .filter(p => p.user_id === uid)
+        .reduce((s, p) => s + (Number(p.points) || 0), 0);
+      issues.push({
+        category: 'points_member_rename',
+        severity: 'medium',
+        message: `user_id=${uid} 에 멤버명 ${names.size}개 혼재: [${nameArr.join(', ')}] — 리더보드 집계 분리 위험 (합산 ${totalPts}pt)`,
+        details: { user_id: uid, member_names: nameArr, total_points: totalPts },
+        fix_hint: `engagement_points 의 member_name 을 현재 users.full_name 으로 통일`,
+      });
+    }
+  }
+  return issues;
+}
+
+/**
+ * 검사 20: first_sop / first_issue 보너스가 실제로 분기 첫 건이 맞는지 검증.
+ * (분기 내 해당 action_type 이 first_* 보너스 이전에 이미 있었다면 자가 적립 오류)
+ * 또한 future: sop_share 보너스에서 자기 SOP 를 자기가 참조하면 → 가짜 공유 보너스 탐지.
+ */
+function checkPointsSelfSopRef(db) {
+  const issues = [];
+  // first_sop 검증 — 분기에 sop_create 보너스가 있는데 그 이전 분기에 이미 sop_create 건 있는 경우 → OK
+  // 분기 내 first_* 보너스가 있는데 해당 분기 같은 action의 건이 2건 이상인 경우 (순서 확인 안 되므로 경고)
+  const quarterFirstMap = {};
+  for (const p of db.engagement_points || []) {
+    if (p.action_type !== 'first_sop' && p.action_type !== 'first_issue') continue;
+    const key = `${p.action_type}:${p.quarter}:${p.member_name || p.user_id}`;
+    quarterFirstMap[key] = p;
+  }
+
+  for (const [key, firstRow] of Object.entries(quarterFirstMap)) {
+    const [bonusType, quarter, member] = key.split(':').reduce((acc, v, i) => {
+      if (i < 2) acc.push(v);
+      else acc[2] = (acc[2] || '') + (acc.length > 2 ? ':' : '') + v;
+      return acc;
+    }, []);
+    const mainType = bonusType === 'first_sop' ? 'sop_create' : 'issue_register';
+    const countInQ = (db.engagement_points || []).filter(p =>
+      p.action_type === mainType &&
+      p.quarter === firstRow.quarter &&
+      (p.member_name === (firstRow.member_name) || p.user_id === firstRow.user_id)
+    ).length;
+    if (countInQ === 0) {
+      issues.push({
+        category: 'points_self_sop_ref',
+        severity: 'medium',
+        message: `${firstRow.member_name || firstRow.user_id} ${firstRow.quarter} ${bonusType} 보너스 존재하지만 분기 내 ${mainType} 적립 0건 — 첫 보너스 오발급 의심`,
+        details: { ep_id: firstRow.id, bonus_type: bonusType, quarter: firstRow.quarter },
+        fix_hint: `engagement_points[${firstRow.id}] 삭제 검토`,
+      });
+    }
+  }
+  return issues;
+}
+
 /**
  * 검사 14: kb_document_versions 의 부모 문서가 사라짐
  */
@@ -508,6 +743,13 @@ function runAudit(db) {
     ['vacation_invalid_minutes', checkVacationInvalidMinutes],
     ['points_orphan', checkPointsOrphan],
     ['kb_version_orphan', checkKbVersionOrphan],
+    // Phase 9: 신규 검사
+    ['points_rule_stale', checkPointsRuleStale],
+    ['points_quarter_boundary', checkPointsQuarterBoundary],
+    ['points_duplicate_user', checkPointsDuplicateUser],
+    ['points_inactive_user_ledger', checkPointsInactiveUser],
+    ['points_member_rename', checkPointsMemberRename],
+    ['points_self_sop_ref', checkPointsSelfSopRef],
   ];
   const allIssues = [];
   const errors = [];

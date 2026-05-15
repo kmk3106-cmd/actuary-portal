@@ -508,6 +508,65 @@
       .podium-section { padding: 24px 16px 20px; }
     }
 
+    /* ── Phase 9: 추가 보상 섹션 ── */
+    .extra-awards-section {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .extra-award-card {
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 18px 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .extra-award-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .extra-award-icon {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #4f86f7, #7c3aed);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 14px; flex-shrink: 0;
+    }
+    .extra-award-header h3 {
+      font-size: 14px; font-weight: 700; color: #111827; margin: 0;
+    }
+    .extra-award-sub {
+      font-size: 11px; color: #9ca3af; margin-left: auto;
+    }
+    .extra-award-body { display: flex; flex-direction: column; gap: 6px; }
+    .extra-award-row {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 8px; background: #f9fafb; border-radius: 8px;
+    }
+    .extra-award-rank { font-size: 16px; }
+    .extra-award-cat-icon { font-size: 14px; }
+    .extra-award-name { font-size: 13px; font-weight: 600; color: #111827; flex: 1; }
+    .extra-award-pts { font-size: 12px; font-weight: 700; color: #4f86f7; }
+    .extra-award-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 100px;
+    }
+    .extra-award-badge.participation { background: #ecfdf5; color: #065f46; }
+    .extra-award-badge.growth        { background: #eff6ff; color: #1d4ed8; }
+    .extra-award-badge.mvp           { background: #fef3c7; color: #b45309; }
+    /* streak/mission chip 색상 */
+    .bchip.bchip-streak  { background: #cffafe; color: #0e7490; border-color: #67e8f9; }
+    .bchip.bchip-mission { background: #ede9fe; color: #6d28d9; border-color: #c4b5fd; }
+    @media (max-width: 768px) {
+      .extra-awards-section { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      .extra-award-sub { display: none; }
+    }
+
     /* 랭킹 테이블 카드형 (≤480px) */
     @media (max-width: 480px) {
       .ranking-table thead { display: none; }
@@ -584,6 +643,43 @@
         </div>
       </div>
 
+      <!-- Phase 9: 추가 보상 (참여상 / 성장상 / 카테고리 MVP) -->
+      <div class="extra-awards-section fade-in-2" id="extraAwardsSection">
+        <!-- 참여상 -->
+        <div class="extra-award-card">
+          <div class="extra-award-header">
+            <span class="extra-award-icon"><i class="fas fa-star"></i></span>
+            <h3>참여상</h3>
+            <span class="extra-award-sub">분기 50pt 이상 전원</span>
+          </div>
+          <div id="participationList" class="extra-award-body">
+            <div class="loading-state"><i class="fas fa-spinner fa-spin"></i></div>
+          </div>
+        </div>
+        <!-- 성장상 -->
+        <div class="extra-award-card">
+          <div class="extra-award-header">
+            <span class="extra-award-icon"><i class="fas fa-chart-line"></i></span>
+            <h3>성장상</h3>
+            <span class="extra-award-sub">직전 분기 대비 증가율 TOP3</span>
+          </div>
+          <div id="growthList" class="extra-award-body">
+            <div class="loading-state"><i class="fas fa-spinner fa-spin"></i></div>
+          </div>
+        </div>
+        <!-- 카테고리 MVP -->
+        <div class="extra-award-card">
+          <div class="extra-award-header">
+            <span class="extra-award-icon"><i class="fas fa-crown"></i></span>
+            <h3>카테고리 MVP</h3>
+            <span class="extra-award-sub">SOP / 이슈 / 결산 부문별</span>
+          </div>
+          <div id="mvpList" class="extra-award-body">
+            <div class="loading-state"><i class="fas fa-spinner fa-spin"></i></div>
+          </div>
+        </div>
+      </div>
+
       <!-- 하단: 랭킹 테이블 + 내 점수 카드 -->
       <div class="rewards-bottom">
         <!-- 전체 랭킹 -->
@@ -631,7 +727,7 @@
             <thead>
               <tr>
                 <th>분기</th>
-                <th style="width:50px;">순위</th>
+                <th style="width:60px;">구분</th>
                 <th>수상자</th>
                 <th style="width:90px;">포인트</th>
                 <th>상금</th>
@@ -773,11 +869,21 @@ function renderMyScore(me, top3) {
   sub.textContent = currentQuarter() + ' 누적';
 
   const BREAKDOWN_LABELS = {
+    kpi_entry:         { label: 'KPI',    dotColor: '#6d28d9', chipClass: 'bchip-kpi'    },
+    work_entry:        { label: '업무',   dotColor: '#1d4ed8', chipClass: 'bchip-task'   },
+    issue_register:    { label: '이슈',   dotColor: '#b45309', chipClass: 'bchip-issue'  },
+    sop_create:        { label: 'SOP',    dotColor: '#065f46', chipClass: 'bchip-sop'    },
+    settlement_check:  { label: '결산',   dotColor: '#9d174d', chipClass: 'bchip-settle' },
+    streak_bonus:      { label: '연속',   dotColor: '#0891b2', chipClass: 'bchip-streak' },
+    quarterly_mission: { label: '미션',   dotColor: '#7c3aed', chipClass: 'bchip-mission'},
+    first_sop:         { label: '첫SOP',  dotColor: '#065f46', chipClass: 'bchip-sop'    },
+    first_issue:       { label: '첫이슈', dotColor: '#b45309', chipClass: 'bchip-issue'  },
+    // 레거시 호환
     kpi:    { label: 'KPI', dotColor: '#6d28d9', chipClass: 'bchip-kpi' },
     task:   { label: '업무', dotColor: '#1d4ed8', chipClass: 'bchip-task' },
     issue:  { label: '이슈', dotColor: '#b45309', chipClass: 'bchip-issue' },
     sop:    { label: 'SOP', dotColor: '#065f46', chipClass: 'bchip-sop' },
-    settle: { label: '결산', dotColor: '#9d174d', chipClass: 'bchip-settle' }
+    settle: { label: '결산', dotColor: '#9d174d', chipClass: 'bchip-settle' },
   };
 
   const bd = me.breakdown || {};
@@ -837,11 +943,14 @@ function renderHistory(rows) {
 
   const rankBadgeClass = r => r === 1 ? 'gold' : r === 2 ? 'silver' : r === 3 ? 'bronze' : 'normal';
 
+  const awardTypeLabel = { rank: '순위', participation: '참여상', growth: '성장상', category_mvp: 'MVP' };
   tbody.innerHTML = rows.map(r => {
     const amt = r.prize_amount ? `${Number(r.prize_amount).toLocaleString()}원` : '-';
+    const typeLabel = awardTypeLabel[r.award_type] || (r.rank ? '순위' : '-');
+    const rankDisplay = r.rank ? `<span class="rank-badge ${rankBadgeClass(r.rank)}">${r.rank}</span>` : `<span style="font-size:11px;color:#6b7280;">${typeLabel}</span>`;
     return `<tr>
       <td>${escHtml(r.quarter || '-')}</td>
-      <td><span class="rank-badge ${rankBadgeClass(r.rank)}">${r.rank || '-'}</span></td>
+      <td>${rankDisplay}</td>
       <td style="font-weight:600;">${escHtml(r.member_name || '-')}</td>
       <td><span class="pts-strong">${(r.points || 0).toLocaleString()}</span></td>
       <td><span class="prize-amount-chip">${amt}</span></td>
@@ -850,14 +959,24 @@ function renderHistory(rows) {
   }).join('');
 }
 
-// ── 브레이크다운 칩 빌드 ──
+// ── 브레이크다운 칩 빌드 (action_type 전체명 기준) ──
 function buildBreakdownChips(bd) {
   const map = {
+    kpi_entry:          { label: 'KPI',    cls: 'bchip-kpi'    },
+    work_entry:         { label: '업무',   cls: 'bchip-task'   },
+    issue_register:     { label: '이슈',   cls: 'bchip-issue'  },
+    sop_create:         { label: 'SOP',    cls: 'bchip-sop'    },
+    settlement_check:   { label: '결산',   cls: 'bchip-settle' },
+    streak_bonus:       { label: '연속',   cls: 'bchip-streak' },
+    quarterly_mission:  { label: '미션',   cls: 'bchip-mission'},
+    first_sop:          { label: '첫SOP',  cls: 'bchip-sop'    },
+    first_issue:        { label: '첫이슈', cls: 'bchip-issue'  },
+    // legacy shorthand (이전 데이터 호환)
     kpi: { label: 'KPI', cls: 'bchip-kpi' },
     task: { label: '업무', cls: 'bchip-task' },
     issue: { label: '이슈', cls: 'bchip-issue' },
     sop: { label: 'SOP', cls: 'bchip-sop' },
-    settle: { label: '결산', cls: 'bchip-settle' }
+    settle: { label: '결산', cls: 'bchip-settle' },
   };
   return Object.entries(map)
     .filter(([k]) => bd[k] > 0)
@@ -865,7 +984,56 @@ function buildBreakdownChips(bd) {
     .join('');
 }
 
-// ── 전체 데이터 로드 ──
+// ── Phase 9: 참여상 렌더 ──
+function renderParticipation(list) {
+  const el = document.getElementById('participationList');
+  if (!list || !list.length) {
+    el.innerHTML = '<div class="empty-state" style="font-size:12px;color:#9ca3af;">아직 없습니다</div>';
+    return;
+  }
+  el.innerHTML = list.map(r => `
+    <div class="extra-award-row">
+      <span class="extra-award-name">${escHtml(r.member_name || '-')}</span>
+      <span class="extra-award-pts">${(r.points||0).toLocaleString()}pt</span>
+      <span class="extra-award-badge participation">${escHtml(r.prize_label || '참여상')}</span>
+    </div>`).join('');
+}
+
+// ── Phase 9: 성장상 렌더 ──
+function renderGrowth(list) {
+  const el = document.getElementById('growthList');
+  if (!list || !list.length) {
+    el.innerHTML = '<div class="empty-state" style="font-size:12px;color:#9ca3af;">직전 분기 데이터 없음</div>';
+    return;
+  }
+  const rankIcons = { 1: '🥇', 2: '🥈', 3: '🥉' };
+  el.innerHTML = list.map(r => `
+    <div class="extra-award-row">
+      <span class="extra-award-rank">${rankIcons[r.rank] || r.rank}</span>
+      <span class="extra-award-name">${escHtml(r.member_name || '-')}</span>
+      <span class="extra-award-pts">+${r.growth_rate}%</span>
+      <span class="extra-award-badge growth">${escHtml(r.prize_label || '성장상')}</span>
+    </div>`).join('');
+}
+
+// ── Phase 9: 카테고리 MVP 렌더 ──
+function renderMvp(list) {
+  const el = document.getElementById('mvpList');
+  if (!list || !list.length) {
+    el.innerHTML = '<div class="empty-state" style="font-size:12px;color:#9ca3af;">아직 없습니다</div>';
+    return;
+  }
+  const catIcon = { sop_create: '📄', issue_register: '🔍', settlement_check: '✅' };
+  el.innerHTML = list.map(r => `
+    <div class="extra-award-row">
+      <span class="extra-award-cat-icon">${catIcon[r.category] || '🏅'}</span>
+      <span class="extra-award-name">${escHtml(r.member_name || '-')}</span>
+      <span class="extra-award-pts">${(r.points||0).toLocaleString()}pt</span>
+      <span class="extra-award-badge mvp">${escHtml(r.prize_label || 'MVP')}</span>
+    </div>`).join('');
+}
+
+// ── 전체 데이터 로드 (Phase 9: awards API 사용) ──
 async function loadAll() {
   const quarter = currentQuarter();
   const memberParam = encodeURIComponent(currentUser.full_name || currentUser.username || '');
@@ -876,20 +1044,26 @@ async function loadAll() {
     '<tr><td colspan="4" class="loading-state"><i class="fas fa-spinner fa-spin"></i></td></tr>';
   document.getElementById('myScoreBody').innerHTML =
     '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i></div>';
+  document.getElementById('participationList').innerHTML =
+    '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i></div>';
+  document.getElementById('growthList').innerHTML =
+    '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i></div>';
+  document.getElementById('mvpList').innerHTML =
+    '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i></div>';
 
   try {
-    const [top3Res, rankRes, meRes] = await Promise.all([
-      fetch(`/api/points/top3?quarter=${encodeURIComponent(quarter)}`).then(r => r.json()),
+    const [awardsRes, rankRes, meRes] = await Promise.all([
+      fetch(`/api/points/awards?quarter=${encodeURIComponent(quarter)}`).then(r => r.json()),
       fetch(`/api/points/ranking?quarter=${encodeURIComponent(quarter)}`).then(r => r.json()),
       fetch(`/api/points/me?member=${memberParam}&quarter=${encodeURIComponent(quarter)}`).then(r => r.json())
     ]);
 
-    const top3    = top3Res.top3 || [];
+    const top3    = (awardsRes.top3 && awardsRes.top3.top3) || [];
     const ranking = rankRes.ranking || [];
     const me      = meRes;
 
     // 참가자 수
-    const total = top3Res.total_participants || ranking.length;
+    const total = awardsRes.total_participants || ranking.length;
     document.getElementById('participantsLabel').textContent = total ? `총 ${total}명 참가` : '';
 
     // 내 rank 계산 (ranking 배열 기반)
@@ -900,6 +1074,11 @@ async function loadAll() {
     renderPodium(top3);
     renderRanking(ranking);
     renderMyScore(me, top3);
+
+    // Phase 9: 추가 보상 렌더
+    renderParticipation(awardsRes.participation || []);
+    renderGrowth(awardsRes.growth || []);
+    renderMvp(awardsRes.category_mvp || []);
   } catch (e) {
     document.getElementById('podiumStage').innerHTML =
       '<div class="empty-state" style="color:rgba(255,255,255,0.5);">데이터를 불러오지 못했습니다.</div>';
