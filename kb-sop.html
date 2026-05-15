@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SOP 문서 - 계리결산팀 운영관리포탈</title>
+  <title>계리업무절차서 - 계리결산팀 운영관리포탈</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
@@ -582,7 +582,7 @@
     <header class="page-header">
       <div class="page-title">
         <i class="fas fa-book" style="color:#4f86f7;margin-right:8px;"></i>
-        SOP 문서
+        계리업무절차서
       </div>
       <div class="header-actions" id="headerActions">
         <!-- 권한 시 신규 작성 버튼 주입 -->
@@ -645,7 +645,7 @@
     <div class="modal-header">
       <span class="modal-title" id="docModalTitle">
         <i class="fas fa-edit" style="color:var(--primary);margin-right:8px;"></i>
-        SOP 문서 작성
+        계리업무절차서 작성
       </span>
       <button class="modal-close" onclick="closeDocModal()" aria-label="닫기">
         <i class="fas fa-times"></i>
@@ -660,11 +660,11 @@
       </div>
       <div class="form-group">
         <label class="form-label">제목 <span class="required">*</span></label>
-        <input type="text" class="form-control" id="modalTitle" placeholder="SOP 문서 제목">
+        <input type="text" class="form-control" id="modalTitle" placeholder="계리업무절차서 제목">
       </div>
       <div class="form-group">
         <label class="form-label">내용 (마크다운)</label>
-        <textarea id="modalContent" placeholder="SOP 내용을 마크다운으로 작성하세요..."></textarea>
+        <textarea id="modalContent" placeholder="절차서 내용을 마크다운으로 작성하세요..."></textarea>
       </div>
       <div class="form-group" id="changeNoteGroup" style="display:none;">
         <label class="form-label">변경 사유 <small style="font-weight:400;color:var(--gray-400);">(버전 이력에 기록)</small></label>
@@ -1106,7 +1106,7 @@ function openNewDocModal() {
   editingDocId     = null;
   pendingAttachments = [];
   document.getElementById('docModalTitle').innerHTML =
-    '<i class="fas fa-plus-circle" style="color:var(--primary);margin-right:8px;"></i>새 SOP 문서 작성';
+    '<i class="fas fa-plus-circle" style="color:var(--primary);margin-right:8px;"></i>새 절차서 작성';
   document.getElementById('modalTitle').value       = '';
   document.getElementById('modalCategory').value    = selectedCatId || '';
   document.getElementById('modalPublished').checked  = true;
@@ -1124,7 +1124,7 @@ async function openEditDocModal(docId) {
     const r   = await fetch(`/tables/kb_documents/${docId}`);
     const doc = await r.json();
     document.getElementById('docModalTitle').innerHTML =
-      '<i class="fas fa-edit" style="color:var(--primary);margin-right:8px;"></i>SOP 문서 수정';
+      '<i class="fas fa-edit" style="color:var(--primary);margin-right:8px;"></i>계리업무절차서 수정';
     document.getElementById('modalTitle').value       = doc.title || '';
     document.getElementById('modalCategory').value    = doc.category_id || '';
     document.getElementById('modalPublished').checked = doc.is_published !== false;
@@ -1156,7 +1156,7 @@ function initEasyMDE(initialValue) {
     element: ta,
     autofocus: false,
     spellChecker: false,
-    placeholder: 'SOP 내용을 마크다운으로 작성하세요...',
+    placeholder: '절차서 내용을 마크다운으로 작성하세요...',
     toolbar: [
       'bold','italic','heading','|',
       'unordered-list','ordered-list','|',

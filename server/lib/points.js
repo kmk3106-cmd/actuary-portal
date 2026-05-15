@@ -26,12 +26,12 @@ const DEFAULT_RULES = [
   { action_type: 'kpi_entry',        label: 'KPI 입력',          points: 10, description: 'work_tasks PATCH 시 KPI 필드 최초 채워졌을 때 (분기당 1회)' },
   { action_type: 'work_entry',       label: '개인업무 저장',     points: 5,  description: 'daily_work_entries POST 시 (member × 월 × task_label × task_category) 그룹당 1회 — 시간대 분할로 부풀리기 차단' },
   { action_type: 'issue_register',   label: '이슈 사례 등록',    points: 20, description: 'kb_issues POST 1건당' },
-  { action_type: 'sop_create',       label: 'SOP 작성',          points: 30, description: 'kb_documents POST 1건당' },
+  { action_type: 'sop_create',       label: '절차서 작성',        points: 30, description: '계리업무절차서(kb_documents) 작성 1건당' },
   { action_type: 'settlement_check', label: '결산 체크리스트',   points: 3,  description: 'work_tasks PATCH 시 settlement_done 배열에 새 키 추가될 때 1키당 3pt (분기당 30건·90pt 캡). 체크 해제 시 해당 적립 회수.' },
   // ── Phase 9: 게임 요소 ──
   { action_type: 'streak_bonus',     label: '연속 입력 보너스',  points: 0,  description: '영업일 연속 work_entry 입력 시 streak_day×0.5pt 추가 (일 최대 10pt). points 필드는 동적이므로 0으로 표시.' },
   { action_type: 'quarterly_mission',label: '분기 미션 달성',    points: 30, description: '한 분기 내 KPI×1 + SOP×1 + 이슈×3 달성 시 +30pt 일회성 보너스. is_active 로 토글 가능.' },
-  { action_type: 'first_sop',        label: '첫 SOP 보너스',     points: 0,  description: '분기 첫 SOP 등록 시 +20pt (별도 적립). quarterly_mission 과 독립.' },
+  { action_type: 'first_sop',        label: '첫 절차서 보너스',   points: 0,  description: '분기 첫 계리업무절차서 등록 시 +20pt (별도 적립). quarterly_mission 과 독립.' },
   { action_type: 'first_issue',      label: '첫 이슈 보너스',    points: 0,  description: '분기 첫 이슈 등록 시 +10pt (별도 적립). quarterly_mission 과 독립.' },
 ];
 
@@ -52,7 +52,7 @@ const DEFAULT_EXTRA_PRIZES = [
   { id: 'pz_growth_1',     type: 'growth',    rank: 1, prize_amount: 50000,  label: '성장상 1위 식사권 5만원', description: '직전 분기 대비 점수 증가율 TOP1', is_active: true },
   { id: 'pz_growth_2',     type: 'growth',    rank: 2, prize_amount: 30000,  label: '성장상 2위 식사권 3만원', description: '직전 분기 대비 점수 증가율 TOP2', is_active: true },
   { id: 'pz_growth_3',     type: 'growth',    rank: 3, prize_amount: 0,      label: '성장상 3위 (격려 선물)',      description: '직전 분기 대비 점수 증가율 TOP3. 격려 선물 (금액 미지급).', is_active: true },
-  { id: 'pz_mvp_sop',      type: 'category_mvp', category: 'sop_create',       label: 'SOP 작성 MVP (감사패)', description: '분기 SOP 누적 점수 1위. 감사패 또는 격려 선물.', is_active: true },
+  { id: 'pz_mvp_sop',      type: 'category_mvp', category: 'sop_create',       label: '절차서 작성 MVP (감사패)', description: '분기 계리업무절차서 작성 점수 1위. 감사패 또는 격려 선물.', is_active: true },
   { id: 'pz_mvp_issue',    type: 'category_mvp', category: 'issue_register',    label: '이슈 등록 MVP (감사패)', description: '분기 이슈 등록 점수 1위. 감사패 또는 격려 선물.', is_active: true },
   { id: 'pz_mvp_settlement',type:'category_mvp', category: 'settlement_check',  label: '결산 정확도 MVP (감사패)', description: '분기 결산 체크 점수 1위. 감사패 또는 격려 선물.', is_active: true },
 ];
@@ -153,6 +153,22 @@ function seedPointsConfig(db) {
     }
   }
 
+  // Phase 9-1 마이그레이션 (point_rules): 운영자 호칭 변경 — SOP → 계리업무절차서
+  const POINT_RULE_MIGRATIONS = {
+    'pr_sop_create': { label: '절차서 작성', description: '계리업무절차서(kb_documents) 작성 1건당' },
+    'pr_first_sop':  { label: '첫 절차서 보너스', description: '분기 첫 계리업무절차서 등록 시 +20pt' },
+  };
+  for (const row of db.point_rules) {
+    const mig = POINT_RULE_MIGRATIONS[row.id];
+    if (!mig) continue;
+    if (row.label !== mig.label || row.description !== mig.description) {
+      row.label = mig.label;
+      row.description = mig.description;
+      row.updated_at = t;
+      changed = true;
+    }
+  }
+
   // Phase 9-1 마이그레이션: 옛 "비금전" 라벨 → 친화 표현
   //  운영자 피드백: "비금전이 뭔뜻이야?" → 라벨 자체에서 의미 명확화
   const LABEL_MIGRATIONS = {
@@ -160,8 +176,8 @@ function seedPointsConfig(db) {
                            description: '분기 50pt 이상 달성 시 전원 수여. 커피 쿠폰·간식 등 팀장 재량 선물 (금액 미지급).' },
     'pz_growth_3':       { label: '성장상 3위 (격려 선물)',
                            description: '직전 분기 대비 점수 증가율 TOP3. 격려 선물 (금액 미지급).' },
-    'pz_mvp_sop':        { label: 'SOP 작성 MVP (감사패)',
-                           description: '분기 SOP 누적 점수 1위. 감사패 또는 격려 선물.' },
+    'pz_mvp_sop':        { label: '절차서 작성 MVP (감사패)',
+                           description: '분기 계리업무절차서 작성 점수 1위. 감사패 또는 격려 선물.' },
     'pz_mvp_issue':      { label: '이슈 등록 MVP (감사패)',
                            description: '분기 이슈 등록 점수 1위. 감사패 또는 격려 선물.' },
     'pz_mvp_settlement': { label: '결산 정확도 MVP (감사패)',

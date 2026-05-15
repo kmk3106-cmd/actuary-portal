@@ -616,10 +616,10 @@
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">관련 SOP 문서</label>
+        <label class="form-label">관련 계리업무절차서</label>
         <div style="position:relative;">
           <input type="text" class="form-control" id="mSopSearch"
-            placeholder="SOP 문서 제목 검색..." autocomplete="off"
+            placeholder="계리업무절차서 제목 검색..." autocomplete="off"
             oninput="searchSopDocs(this.value)">
           <div class="sop-search-results" id="sopSearchResults"></div>
           <input type="hidden" id="mRelatedSopId">
@@ -657,7 +657,7 @@ let isLeader        = false;
 let isLeaderOrChief = false;
 
 let allIssues      = [];     // 전체 이슈 캐시
-let allSopDocs     = [];     // SOP 문서 캐시 (관련 SOP 선택용)
+let allSopDocs     = [];     // 계리업무절차서 캐시 (관련 SOP 선택용)
 let allIssueCategories = []; // 이슈 카테고리 캐시 (DB SSOT)
 let currentIssueId = null;
 let editingIssueId = null;
@@ -753,7 +753,7 @@ async function loadTeamMembers() {
   } catch {}
 }
 
-/* ── SOP 문서 목록 캐시 ── */
+/* ── 계리업무절차서 목록 캐시 ── */
 async function loadSopDocs() {
   try {
     const r = await fetch('/tables/kb_documents?limit=500');
@@ -1087,7 +1087,7 @@ function renderTagChips() {
   ).join('');
 }
 
-/* ── SOP 문서 검색 ── */
+/* ── 계리업무절차서 검색 ── */
 function searchSopDocs(q) {
   clearTimeout(sopSearchDelay);
   const results = document.getElementById('sopSearchResults');
