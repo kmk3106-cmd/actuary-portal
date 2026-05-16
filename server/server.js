@@ -1869,6 +1869,54 @@ const server = http.createServer((req, res) => {
               }
             }
 
+            // streak_bonus 백필 — 멤버별로 입력일 정렬 후 각 일자에 streak 시도
+            //   awardWorkEntryGrouped 는 idempotency_key 통과한 경우만 streak 호출하므로
+            //   recompute(직접 awardPoints) 경로에선 streak 누락. 여기서 일괄 채운다.
+            //   quarterly_mission 도 마지막 work_entry 적립 후 1회 호출.
+            {
+              const memberDates = {}; // member_name → Set<date>
+              for (const dwe of (db.daily_work_entries || [])) {
+                const m = dwe.member_name;
+                if (!m) continue;
+                let dates = [];
+                try {
+                  const te = typeof dwe.time_entries === 'string' ? JSON.parse(dwe.time_entries) : dwe.time_entries;
+                  if (Array.isArray(te) && te.length > 0) dates = te.map(t => t && t.date).filter(Boolean);
+                } catch (_) {}
+                if (dates.length === 0 && dwe.start_date) dates = [dwe.start_date];
+                if (!memberDates[m]) memberDates[m] = new Set();
+                for (const d of dates) memberDates[m].add(d);
+              }
+              for (const [memberName, dateSet] of Object.entries(memberDates)) {
+                const targetUser = usersByName[memberName];
+                if (!targetUser) continue;
+                if (targetUser.role === 'team_leader') continue;
+                const actor = recordActor[memberName] || null;
+                if (strictMode && !actor) continue;
+                const actorOptsM = { actorId: targetUser.id, actorName: memberName };
+                const sortedDates = Array.from(dateSet).sort();
+                for (const d of sortedDates) {
+                  try {
+                    const before = (db.engagement_points || []).length;
+                    points.tryAwardStreakBonus(db, targetUser.id, memberName, d, actorOptsM);
+                    if ((db.engagement_points || []).length > before) {
+                      awarded++;
+                      detail.streak_bonus = (detail.streak_bonus || 0) + 1;
+                    }
+                  } catch (_) {}
+                }
+                // 분기 미션 1회 시도
+                try {
+                  const before = (db.engagement_points || []).length;
+                  points.tryAwardQuarterlyMission(db, targetUser.id, memberName, actorOptsM);
+                  if ((db.engagement_points || []).length > before) {
+                    awarded++;
+                    detail.quarterly_mission = (detail.quarterly_mission || 0) + 1;
+                  }
+                } catch (_) {}
+              }
+            }
+
             writeDb(db);
             send(200, { awarded, skipped, detail, skip_reasons: skipReasons,
                         total_audit_logs: (db.audit_logs || []).length,
