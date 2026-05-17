@@ -63,6 +63,48 @@
   window.__auditFetchInstalled = true;
 })();
 
+// ── 글로벌 읽기전용 가드: 실장(section_chief) 등 읽기전용 사용자의 ──
+//    모든 쓰기/삭제 요청(POST/PUT/PATCH/DELETE) 을 서버 도달 전 차단.
+//    UI 버튼을 못 가린 경우에도 데이터 변경이 절대 일어나지 않도록 하는 최종 안전망.
+(function installReadOnlyGuard() {
+  if (typeof window === 'undefined' || !window.fetch || window.__readonlyGuardInstalled) return;
+  const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+  // 읽기전용이라도 허용해야 로그인/로그아웃/감사 기록이 동작.
+  function isWhitelisted(url, method) {
+    if (/\/tables\/sessions(\/|\?|$)/.test(url)) return true;          // 로그인 세션 생성/로그아웃 삭제
+    if (method === 'POST' && /\/tables\/audit_logs(\/|\?|$)/.test(url)) return true; // 감사 로그 기록
+    return false;
+  }
+
+  const prevFetch = window.fetch.bind(window);
+  window.fetch = function(input, init) {
+    try {
+      init = init || {};
+      const url = typeof input === 'string' ? input : (input && input.url) || '';
+      const method = String(
+        (init && init.method) || (typeof input !== 'string' && input && input.method) || 'GET'
+      ).toUpperCase();
+      const isInternal = url.startsWith('/') || url.includes('/tables/') || url.includes('/api/') || url.includes(window.location.host);
+      const readOnly = (typeof RBAC !== 'undefined' && RBAC.isReadOnly) ? RBAC.isReadOnly() : false;
+
+      if (readOnly && isInternal && WRITE_METHODS.has(method) && !isWhitelisted(url, method)) {
+        try {
+          if (typeof Portal !== 'undefined' && Portal.showToast) {
+            Portal.showToast('읽기 전용 권한입니다. 저장·삭제할 수 없습니다.', 'warning');
+          }
+        } catch (_) {}
+        return Promise.resolve(new Response(
+          JSON.stringify({ error: '읽기 전용 권한입니다. 변경 권한이 없습니다.' }),
+          { status: 403, headers: { 'Content-Type': 'application/json' } }
+        ));
+      }
+    } catch (_) { /* 가드 자체 오류 시 원래 요청 진행 */ }
+    return prevFetch(input, init);
+  };
+  window.__readonlyGuardInstalled = true;
+})();
+
 const Portal = (() => {
 
   const NAV = [
@@ -142,7 +184,8 @@ const Portal = (() => {
     let sectionIdx = 0;
     for (const section of NAV) {
       const visibleItems = section.items.filter(it => {
-        if (it.requiresLeader) return isLeader;
+        // 실장(section_chief)은 팀장 전용 화면도 '열람'은 가능 (쓰기는 읽기전용 가드가 차단)
+        if (it.requiresLeader) return isLeaderOrChief;
         if (it.leaderOrChief) return isLeaderOrChief;
         return true;
       });
@@ -422,10 +465,25 @@ const Portal = (() => {
 
   // ── 초기화 ────────────────────────────────────────────────
 
+  function showReadOnlyBanner() {
+    if (!(typeof RBAC !== 'undefined' && RBAC.isReadOnly && RBAC.isReadOnly())) return;
+    if (document.getElementById('readonlyBanner')) return;
+    const bar = document.createElement('div');
+    bar.id = 'readonlyBanner';
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9998;background:#0f766e;color:#fff;'
+      + 'font-size:12.5px;font-weight:600;text-align:center;padding:7px 14px;letter-spacing:0.2px;'
+      + 'box-shadow:0 1px 4px rgba(0,0,0,0.15);font-family:inherit;';
+    bar.innerHTML = '<i class="fas fa-eye" style="margin-right:6px;"></i>읽기 전용 모드 — 전체 화면 열람만 가능하며 저장·삭제는 제한됩니다.';
+    document.body.appendChild(bar);
+    // 고정 배너 높이만큼 본문을 내려 가림 방지
+    document.body.style.paddingTop = (parseFloat(getComputedStyle(document.body).paddingTop) || 0) + 34 + 'px';
+  }
+
   function init() {
     if (!requireAuth()) return false;
     buildSidebar();
     ensureToastContainer();
+    showReadOnlyBanner();
     return true;
   }
 

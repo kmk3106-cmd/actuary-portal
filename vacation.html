@@ -590,9 +590,9 @@
   </div>
 </div>
 
-<script src="js/rbac.js"></script>
+<script src="js/rbac.js?v=31"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=30"></script>
+<script src="js/portal.js?v=31"></script>
 <script>
 if (!Portal.init()) throw 'AUTH';
 
@@ -621,18 +621,23 @@ const TYPE_DEFAULTS = {
 };
 
 /* ──────────────────────────────────────────────
-   시간 select 옵션 빌드 (30분 단위, 09:00~18:00)
+   시간 select 옵션 빌드 (30분 단위, 07:00~19:00)
+   - 선택 범위를 07:00~19:00 으로 세분화(확장)
+   - 표준 근무시간(09:00~18:00)·점심차감은 서버 netMinutesInRange 가 SoT (규칙 15)
 ────────────────────────────────────────────── */
+const TIME_OPT_START_MIN = 7 * 60;   // 07:00
+const TIME_OPT_END_MIN   = 19 * 60;  // 19:00
+const TIME_OPT_STEP_MIN  = 30;       // 30분 단위
 function buildHalfHourOpts(selectedVal) {
   const opts = [];
-  let cur = 9 * 60; // 09:00 (분 단위)
-  const end = 18 * 60; // 18:00
+  let cur = TIME_OPT_START_MIN;
+  const end = TIME_OPT_END_MIN;
   while (cur <= end) {
     const h = String(Math.floor(cur / 60)).padStart(2, '0');
     const m = String(cur % 60).padStart(2, '0');
     const val = `${h}:${m}`;
     opts.push(`<option value="${val}"${val === selectedVal ? ' selected' : ''}>${val}</option>`);
-    cur += 30;
+    cur += TIME_OPT_STEP_MIN;
   }
   return opts.join('');
 }

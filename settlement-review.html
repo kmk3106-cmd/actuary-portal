@@ -215,15 +215,15 @@
   </div>
 </div>
 
-<script src="js/rbac.js"></script>
+<script src="js/rbac.js?v=31"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=29"></script>
+<script src="js/portal.js?v=31"></script>
 <script>
 try {
 Portal.init();
 
-// 팀장 전용 접근 제한
-if (!RBAC.isTeamLeader()) {
+// 팀장: 조회+작성 / 실장(section_chief): 열람만 (전역 읽기전용 가드가 작성 차단)
+if (!RBAC.canViewLeaderScreens()) {
   document.querySelector('.main-content').innerHTML = `
     <header class="page-header">
       <h1 class="page-title"><i class="fas fa-clipboard-list"></i> 결산 리뷰</h1>

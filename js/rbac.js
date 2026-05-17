@@ -38,6 +38,14 @@ const RBAC = (() => {
   function isMember() { return hasRole(ROLES.MEMBER) || hasRole('employee'); }
   function isEmployee() { return hasRole(ROLES.MEMBER) || hasRole('employee'); }
 
+  // 실장(section_chief) = 전 화면 열람 가능하나 쓰기/삭제 금지(읽기 전용).
+  // portal.js 전역 fetch 가드가 이 값을 보고 모든 변경 API를 차단한다.
+  function isReadOnly() { return hasRole(ROLES.SECTION_CHIEF); }
+
+  // 팀장 전용 화면(설정·결산리뷰 등)을 '열람'할 수 있는 역할.
+  // 실장은 열람만 허용(쓰기는 isReadOnly 가드가 차단).
+  function canViewLeaderScreens() { return isTeamLeader() || isSectionChief(); }
+
   // 면담일지 접근 권한
   function checkInterviewAccess(action, log = null) {
     const user = getCurrentUser();
@@ -111,6 +119,8 @@ const RBAC = (() => {
     isSectionChief,
     isMember,
     isEmployee,
+    isReadOnly,
+    canViewLeaderScreens,
     checkInterviewAccess,
     filterInterviewList,
     getRoleLabel,
