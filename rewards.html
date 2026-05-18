@@ -1275,6 +1275,12 @@ if (!Portal.init()) throw 'AUTH';
 const currentUser = RBAC.getCurrentUser();
 const isLeader = currentUser.role === 'team_leader';
 
+// ── 시상/상품 보상 제도 미확정 → "추후 공지" 공란 처리 (단일 플래그 SSOT) ──
+//  확정 시 PRIZE_TBD = false 로만 바꾸면 시상범례·시상대 상품칩·시상확정·시상기록이
+//  원래대로 복원된다. 포인트 적립·랭킹·순위는 영향 없음.
+const PRIZE_TBD = true;
+const PRIZE_TBD_TEXT = '추후 공지';
+
 // ── 분기 선택 드롭다운 빌드 ──
 function buildQuarterOptions() {
   const sel = document.getElementById('quarterSelect');
@@ -1299,8 +1305,8 @@ function currentQuarter() {
   return document.getElementById('quarterSelect').value;
 }
 
-// ── 팀장 전용 버튼 표시 ──
-if (isLeader) {
+// ── 팀장 전용 버튼 표시 (시상 제도 미확정 시 숨김) ──
+if (isLeader && !PRIZE_TBD) {
   document.getElementById('finalizeSection').style.display = 'flex';
 }
 
@@ -1366,7 +1372,7 @@ function renderPodium(top3) {
 
   stage.innerHTML = order.map(p => {
     const initials = (p.member_name || '?').slice(0, 1);
-    const prizeLabel = p.prize_label || defaultPrize[p.rank] || '-';
+    const prizeLabel = PRIZE_TBD ? PRIZE_TBD_TEXT : (p.prize_label || defaultPrize[p.rank] || '-');
     const pts = (p.points || 0).toLocaleString();
     const breakdownHtml = buildBreakdownChips(p.breakdown || {});
     const isFirst = p.rank === 1;
@@ -1739,6 +1745,10 @@ async function loadPointRules() {
 async function loadPrizeLegend() {
   const box = document.getElementById('prizeLegend');
   if (!box) return;
+  if (PRIZE_TBD) {
+    box.innerHTML = `<span class="prize-legend-item"><span class="prize-legend-label">시상 보상 ${escHtml(PRIZE_TBD_TEXT)}</span></span>`;
+    return;
+  }
   try {
     const r = await fetch('/tables/prize_rules?limit=30');
     const d = await r.json();
@@ -1759,6 +1769,11 @@ async function loadPrizeLegend() {
 }
 
 async function loadHistory() {
+  if (PRIZE_TBD) {
+    document.getElementById('historyTbody').innerHTML =
+      `<tr><td colspan="6" class="empty-state">시상 보상 제도 ${escHtml(PRIZE_TBD_TEXT)}</td></tr>`;
+    return;
+  }
   try {
     const r = await fetch('/api/prizes/history');
     const d = await r.json();
@@ -1770,6 +1785,10 @@ async function loadHistory() {
 }
 
 async function finalizeQuarter() {
+  if (PRIZE_TBD) {
+    Portal.showToast(`시상 보상 제도가 미확정 상태입니다. (${PRIZE_TBD_TEXT})`, 'warning');
+    return;
+  }
   const quarter = currentQuarter();
   if (!confirm(`"${quarter}" 분기 시상을 확정하시겠습니까?\n확정 후에는 prize_history에 기록됩니다.`)) return;
   try {
