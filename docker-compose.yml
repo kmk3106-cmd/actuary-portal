@@ -1,0 +1,54 @@
+# 계리결산 포탈 — Docker Compose
+# - portal-server: Node 8888
+# - portal-bot:    Telegram bot
+# 운영 데이터(server/data/portal-db.json, bot/data/*) 는 호스트 바인드마운트로 보존
+# (예전 worktree 시드 DB 사고 재발 방지: 항상 호스트의 운영본을 직접 서빙)
+#
+# 자동시작: Docker Desktop > Settings > General > "Start Docker Desktop when you sign in" 활성화
+#  + 아래 `restart: unless-stopped` 로 Docker 데몬 기동 시 컨테이너 자동 재시작.
+# Cloudflared(터널)는 Windows 서비스로 별도 자동시작 (이 compose 범위 밖).
+#
+# 최초 1회:   docker compose up -d --build
+# 코드 수정후: 그대로 반영 (바인드마운트). 의존성 추가 시만 --build 재실행.
+# 로그 보기:  docker compose logs -f portal-server
+# 정지:       docker compose down
+
+services:
+  portal-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    image: actuary-portal-server:latest
+    container_name: portal-server
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    volumes:
+      # 프로젝트 루트 전체를 마운트 (HTML/JS/CSS·서버 소스·데이터 모두 호스트와 공유)
+      - .:/app
+    environment:
+      NODE_ENV: production
+      PORT: "8888"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8888/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  portal-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    image: actuary-portal-bot:latest
+    container_name: portal-bot
+    restart: unless-stopped
+    depends_on:
+      - portal-server
+    volumes:
+      - .:/app
+    environment:
+      # 같은 compose 네트워크에서 service 명으로 접근
+      PORTAL_URL: http://portal-server:8888
+      # bot/.env 의 TELEGRAM_BOT_TOKEN / ALLOWED_USER_IDS 등은 settings.py 가 자동 load
+      TZ: Asia/Seoul

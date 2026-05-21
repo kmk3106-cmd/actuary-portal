@@ -1,0 +1,9 @@
+# 계리결산 포탈 — Node 서버 컨테이너
+# 의존성 0 (node stdlib 만 사용). 소스는 docker-compose 에서 호스트 바인드마운트 → 코드 수정 즉시 반영.
+FROM node:20-alpine
+WORKDIR /app
+ENV NODE_ENV=production \
+    PORT=8888
+EXPOSE 8888
+# 서버는 server/data/portal-db.json 를 읽고 정적 자산을 서빙. 데이터·소스 모두 바인드마운트로 들어옴.
+CMD ["node", "server/server.js"]

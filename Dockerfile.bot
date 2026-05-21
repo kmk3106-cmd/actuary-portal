@@ -1,0 +1,15 @@
+# 계리결산 포탈 — 텔레그램 봇 컨테이너
+# 소스는 docker-compose 에서 바인드마운트. 의존성만 이미지에 설치(pandas 휠 활용).
+FROM python:3.12-slim
+WORKDIR /app
+ENV PYTHONIOENCODING=utf-8 \
+    PYTHONUTF8=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+# 시간대(KST) 필요 시 tzdata 추가
+RUN apt-get update && apt-get install -y --no-install-recommends tzdata \
+    && ln -fs /usr/share/zoneinfo/Asia/Seoul /etc/localtime \
+    && rm -rf /var/lib/apt/lists/*
+COPY bot/requirements.txt /tmp/requirements.txt
+RUN pip install -r /tmp/requirements.txt
+CMD ["python", "bot/app.py"]
