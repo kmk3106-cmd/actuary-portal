@@ -316,6 +316,12 @@
     .vac-type-2H               { background: #fef9c3; color: #a16207; }
     /* 3H — 주황 */
     .vac-type-3H               { background: #fef3c7; color: #b45309; }
+    /* 봉사활동 — 그린 (반차와 동일한 차감 룰, 색만 구분) */
+    .vac-type-봉사활동          { background: #dcfce7; color: #166534; }
+    /* 외부교육 — 퍼플 */
+    .vac-type-외부교육          { background: #ede9fe; color: #6d28d9; }
+    /* 사내교육 — 라이트 퍼플 */
+    .vac-type-사내교육          { background: #f5f3ff; color: #7c3aed; }
     /* 경조휴가 — 회색 */
     .vac-type-경조휴가          { background: #f3f4f6; color: #374151; }
     /* 결혼기념일휴가 — 핑크 */
@@ -498,6 +504,9 @@
                 <option value="반차">반차</option>
                 <option value="2H">2H</option>
                 <option value="3H">3H</option>
+                <option value="봉사활동">봉사활동 (반차와 동일)</option>
+                <option value="외부교육">외부교육</option>
+                <option value="사내교육">사내교육</option>
                 <option value="경조휴가">경조휴가</option>
                 <option value="결혼기념일휴가">결혼기념일휴가</option>
                 <option value="배우자출산휴가">배우자출산휴가</option>
@@ -604,16 +613,22 @@ const isLeader = currentUser.role === 'team_leader';
 ────────────────────────────────────────────── */
 const VACATION_TYPES = [
   '연차', '정기휴가', '반차', '2H', '3H',
+  '봉사활동', '외부교육', '사내교육',
   '경조휴가', '결혼기념일휴가', '배우자출산휴가', '기타휴가'
 ];
 
 // 유형별 기본 시작/종료 시간
+//  - 봉사활동: 반차와 동일 (오후 4h)
+//  - 외부/사내교육: 종일 기본, 사용자가 시간 조정 가능 (서버 netMinutes 가 실제 차감 계산)
 const TYPE_DEFAULTS = {
   '연차':           { start: '09:00', end: '18:00' },
   '정기휴가':        { start: '09:00', end: '18:00' },
   '반차':           { start: '14:00', end: '18:00' },
   '2H':             { start: '16:00', end: '18:00' },
   '3H':             { start: '15:00', end: '18:00' },
+  '봉사활동':        { start: '14:00', end: '18:00' },
+  '외부교육':        { start: '09:00', end: '18:00' },
+  '사내교육':        { start: '09:00', end: '18:00' },
   '경조휴가':        { start: '09:00', end: '18:00' },
   '결혼기념일휴가':  { start: '09:00', end: '18:00' },
   '배우자출산휴가':  { start: '09:00', end: '18:00' },

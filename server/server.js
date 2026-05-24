@@ -36,6 +36,10 @@ const DATA_PATH = path.join(__dirname, 'data', 'portal-db.json');
 
 const PASSWORD_SHA256 = crypto.createHash('sha256').update('password').digest('hex');
 
+// 반차 동일 차감(0.5일) 처리할 vacation_type 목록 — SSOT (vacation.html TYPE_DEFAULTS 와 동기)
+// 종일 기본이지만 시간 조정 시 분 단위로 정확 계산되는 유형(외부/사내교육 등)은 여기 포함하지 않음.
+const HALF_DAY_VACATION_TYPES = ['반차', '2H', '3H', '봉사활동'];
+
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js':   'text/javascript; charset=utf-8',
@@ -834,7 +838,7 @@ function handleTablesRequest(route, method, bodyStr, reqHeaders) {
             return { status: 400, body: { error: e.message } };
           }
         } else {
-          if (!days || days <= 0) days = ['반차','2H','3H'].includes(payload.vacation_type) ? 0.5 : 1;
+          if (!days || days <= 0) days = HALF_DAY_VACATION_TYPES.includes(payload.vacation_type) ? 0.5 : 1;
           minutes = Math.round(days * 8 * 60);
           hours = Math.round((minutes / 60) * 10) / 10;
         }
@@ -1991,7 +1995,7 @@ const server = http.createServer((req, res) => {
                 if (bizday.isBusinessDay(isoOf(cur), bizMap)) count++;
                 cur.setDate(cur.getDate() + 1);
               }
-              days = ['반차','2H','3H'].includes(vacation_type) ? 0.5 : count;
+              days = HALF_DAY_VACATION_TYPES.includes(vacation_type) ? 0.5 : count;
             });
           }
           if (!minutes) {
@@ -2074,7 +2078,7 @@ const server = http.createServer((req, res) => {
                 if (bizday.isBusinessDay(isoOf(cur), bizMap)) count++;
                 cur.setDate(cur.getDate() + 1);
               }
-              days = ['반차','2H','3H'].includes(vacation_type) ? 0.5 : count;
+              days = HALF_DAY_VACATION_TYPES.includes(vacation_type) ? 0.5 : count;
               minutes = Math.round(days * 8 * 60);
               hours = Math.round((minutes / 60) * 10) / 10;
             }
