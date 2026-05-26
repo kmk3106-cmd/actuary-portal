@@ -21,7 +21,9 @@ module.exports = {
     {
       name: 'actuary-bot',
       script: 'app.py',
-      interpreter: 'python',
+      // 봇 의존성(telegram/pandas/openpyxl/dotenv)이 설치된 venv 의 python 절대경로.
+      // 시스템 PATH 의 python (3.14 등) 으로 떨어지면 deps 미설치로 실패하므로 명시.
+      interpreter: 'C:\\Users\\USER\\infinite_buy_v22\\.venv\\Scripts\\python.exe',
       cwd: './bot',
       watch: false,
       autorestart: true,
