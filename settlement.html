@@ -783,7 +783,7 @@
       // Add due date chips
       const dueTasks = scheduleDueDates[dateStr] || [];
       const dueChipVisible = dueTasks.length > 0 && !isOther;
-      const doneCount = dueChipVisible ? dueTasks.filter(t => isSettleTaskCompleted(t.id)).length : 0;
+      const doneCount = dueChipVisible ? dueTasks.filter(t => isSettleTaskCompleted(t.id, dateStr)).length : 0;
       const allDueDone = dueChipVisible && doneCount === dueTasks.length;
       if (dueChipVisible) {
         if (isMobileView) {
@@ -798,7 +798,7 @@
               ? `마감 ${dueTasks.length}건 ✓`
               : `마감 ${dueTasks.length}건 (${doneCount}/${dueTasks.length})`;
           }
-          chip.title = dueTasks.map(t => `D+${t.due} ${t.label}${isSettleTaskCompleted(t.id) ? ' ✓ 완료' : ''}`).join('\n');
+          chip.title = dueTasks.map(t => `D+${t.due} ${t.label}${isSettleTaskCompleted(t.id, dateStr) ? ' ✓ 완료' : ''}`).join('\n');
           taskWrap.appendChild(chip);
         }
         // 전부 완료된 마감 셀은 배경도 살짝 초록 톤으로
@@ -882,7 +882,7 @@
 
     let dueHtml = '';
     if (dueTasks.length > 0) {
-      const dueDoneCnt = dueTasks.filter(t => isSettleTaskCompleted(t.id)).length;
+      const dueDoneCnt = dueTasks.filter(t => isSettleTaskCompleted(t.id, dateStr)).length;
       const dueAllDone = dueDoneCnt === dueTasks.length;
       const headerColor = dueAllDone ? '#065f46' : '#c2410c';
       const headerSuffix = dueAllDone
@@ -893,7 +893,7 @@
           <i class="fas fa-flag"></i> 결산 마감 업무${headerSuffix}
         </div>
         ${dueTasks.map(t => {
-          const done = isSettleTaskCompleted(t.id);
+          const done = isSettleTaskCompleted(t.id, dateStr);
           const bg     = done ? '#f0fdf4' : '#fff7ed';
           const border = done ? '#10b981' : '#c2410c';
           const cat    = done ? '#065f46' : '#c2410c';
@@ -1094,8 +1094,20 @@
    *  본인(chkMember)에 대해서는 서버 캐시 대신 **로컬 chkDone** 을 사용해
    *  체크/해제·취소·초기화 등 로컬 액션이 캘린더에 즉시 반영되도록 한다.
    *  (DATA_SYNC_RULES §3 버그 패턴 I — 로컬 상태와 서버 캐시 분리)
+   *
+   *  ⚠ ym 격리(버그 픽스 2026-05): allMembersWorkTasks 는 chkYear/chkMonth 한 달치만
+   *  로드되므로, dateStr 의 년·월이 그와 다르면 그 달 데이터를 모름 → false.
+   *  (이 가드 없으면 5월 데이터가 6월 캘린더의 같은 정기 작업을 "완료" 로 오인 표시)
    */
-  function isSettleTaskCompleted(taskId) {
+  function isSettleTaskCompleted(taskId, dateStr) {
+    if (dateStr) {
+      const m = /^(\d{4})-(\d{2})-/.exec(dateStr);
+      if (m) {
+        const dy = Number(m[1]);
+        const dm = Number(m[2]);
+        if (dy !== chkYear || dm !== chkMonth) return false;
+      }
+    }
     let selfSeen = false;
     for (const wt of allMembersWorkTasks) {
       if (wt.member_name === chkMember) {
