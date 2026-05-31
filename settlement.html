@@ -1310,6 +1310,15 @@
   function toggleChkTask(id, checked) {
     if (checked) {
       chkDone.add(id);
+      // 체크 시 완료일자가 비어있으면 오늘 날짜로 자동 채움 → autoCalcDeadline 으로
+      // deadline_days·점수 산정까지 한 번에 진행. 다른 날짜에 완료했으면 사용자가 그대로 수정.
+      // (사용자가 체크만 하고 저장하면 score_deadline 미반영 되던 문제 해결)
+      if (!chkDates[id]) {
+        const d = new Date();
+        chkDates[id] = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        autoCalcDeadline(id);
+        renderChecklist();
+      }
     } else {
       // 체크 해제 = 삭제. 관련된 모든 상태 정리
       chkDone.delete(id);
