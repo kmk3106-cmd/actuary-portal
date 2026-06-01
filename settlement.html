@@ -628,6 +628,7 @@
     currentMonth += delta;
     if (currentMonth > 11) { currentMonth = 0; currentYear++; }
     if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+    syncChecklistToCalendar();
     renderCalendar();
     clearPanel();
   }
@@ -635,8 +636,25 @@
   function goToday() {
     currentYear = today.getFullYear();
     currentMonth = today.getMonth();
+    syncChecklistToCalendar();
     renderCalendar();
     showDayPanel(todayDateStr());
+  }
+
+  // 캘린더 월 이동 시 체크리스트 ym(chkYear/chkMonth)도 따라가서
+  // allMembersWorkTasks 가 같은 달로 재로드되도록 동기화.
+  // (없으면 isSettleTaskCompleted 의 ym 가드 때문에 다른 달 완료 표시 안 됨)
+  function syncChecklistToCalendar() {
+    const targetY = currentYear;
+    const targetM = currentMonth + 1;
+    if (targetY === chkYear && targetM === chkMonth) return;
+    chkYear = targetY;
+    chkMonth = targetM;
+    const ySel = document.getElementById('chkYearSel');
+    const mSel = document.getElementById('chkMonthSel');
+    if (ySel) ySel.value = String(chkYear);
+    if (mSel) mSel.value = String(chkMonth);
+    loadChecklist();
   }
 
   function todayDateStr() {
