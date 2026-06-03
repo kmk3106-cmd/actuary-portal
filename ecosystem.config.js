@@ -40,23 +40,11 @@ module.exports = {
         PYTHONUTF8: '1',
       },
     },
-    {
-      // 태블릿/모바일에서 상시 원격 접속 가능하도록 Claude Code Remote Control 서버 상시 가동.
-      // 사전 조건: 이 기기가 Trusted Device 로 등록돼 있어야 함 (인터랙티브 claude 세션에서 /login 으로 enrollment).
-      // capacity 32, 새 세션마다 git worktree 격리.
-      name: 'claude-remote',
-      script: 'C:\\Users\\USER\\AppData\\Local\\Microsoft\\WinGet\\Links\\claude.exe',
-      args: 'remote-control --capacity 32 --spawn worktree',
-      interpreter: 'none',
-      cwd: 'C:\\Users\\USER\\actuary potal',
-      watch: false,
-      autorestart: true,
-      restart_delay: 10000,
-      max_restarts: 30,
-      min_uptime: '30s',
-      out_file: 'logs/pm2-claude-remote-out.log',
-      error_file: 'logs/pm2-claude-remote-error.log',
-      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
-    },
+    // ── claude-remote (태블릿/모바일 원격) — 비활성화 상태 ──
+    //  Trusted Device 등록이 주기적으로 풀리는 문제로, 부팅 시마다 무한 재시작 →
+    //  PM2 데몬 안정성 해침 → portal/bot 까지 영향. 일단 PM2 자동기동에서 제외.
+    //  활성화하려면: (1) 새 인터랙티브 `claude` → /login 으로 Trusted Device 등록
+    //                (2) autostart\claude-remote-install.bat 실행 (수동 PM2 등록)
+    //  enrollment 가 다시 풀리면 같은 증상 재발하므로 일회성 사용 권장.
   ],
 };
