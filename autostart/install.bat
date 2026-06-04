@@ -14,16 +14,18 @@ echo [1/3] HKCU\Run\PM2 제거 (pm2-windows-startup 가 만든 깨지기 쉬운 
 reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v PM2 /f >nul 2>&1
 echo    완료.
 
-REM ── 2. Startup 폴더에 본 vbs 사본 배치 ────────────────
+REM ── 2. Startup 폴더에 vbs 2종 사본 배치 ──────────────
 echo.
-echo [2/3] %%APPDATA%%\Microsoft\Windows\Start Menu\Programs\Startup 에 vbs 배치...
+echo [2/3] %%APPDATA%%\Microsoft\Windows\Start Menu\Programs\Startup 에 vbs 2종 배치...
 set "STARTUP=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
-copy /Y "%~dp0pm2-resurrect.vbs" "%STARTUP%\actuary-portal-pm2-resurrect.vbs" >nul
+copy /Y "%~dp0pm2-resurrect.vbs"        "%STARTUP%\actuary-portal-pm2-resurrect.vbs" >nul
+copy /Y "%~dp0claude-interactive.vbs"   "%STARTUP%\actuary-portal-claude-interactive.vbs" >nul
 if errorlevel 1 (
     echo    [오류] 복사 실패.
     pause & exit /b 1
 )
-echo    "%STARTUP%\actuary-portal-pm2-resurrect.vbs" 배치 완료.
+echo    "%STARTUP%\actuary-portal-pm2-resurrect.vbs"        (portal/bot 자동기동)
+echo    "%STARTUP%\actuary-portal-claude-interactive.vbs"   (태블릿 원격용 인터랙티브 claude)
 
 REM ── 3. 즉시 검증 (vbs 한 번 실행 → pm2 status) ────────
 echo.
