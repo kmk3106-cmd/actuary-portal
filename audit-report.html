@@ -42,6 +42,19 @@
     .issue-row:last-child { border-bottom:none; }
     .issue-msg { flex:1; color:#374151; line-height:1.6; }
     .issue-hint { font-size:11.5px; color:#6b7280; margin-top:3px; font-style:italic; }
+    .issue-actions { margin-top:8px; }
+    .issue-hist-btn { display:inline-flex; align-items:center; gap:6px; padding:5px 10px;
+      font-size:11.5px; font-weight:600; color:#4f46e5; background:#eef2ff;
+      border:1px solid #c7d2fe; border-radius:6px; cursor:pointer; }
+    .issue-hist-btn:hover { background:#e0e7ff; border-color:#a5b4fc; }
+    .issue-hist-box { margin-top:8px; background:#fff; border:1px solid #e5e7eb; border-radius:8px;
+      overflow:hidden; }
+    .issue-hist-box .hist-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .issue-hist-box .hist-table th { background:#f9fafb; text-align:left;
+      padding:7px 12px; font-weight:700; color:#6b7280; font-size:11px;
+      border-bottom:1px solid #e5e7eb; white-space:nowrap; }
+    .issue-hist-box .hist-table td { padding:7px 12px; border-bottom:1px solid #f3f4f6; vertical-align:top; }
+    .issue-hist-box .hist-table tr:last-child td { border-bottom:none; }
 
     .empty-state { text-align:center; padding:60px 20px; color:#9ca3af; }
     .empty-state i { font-size:48px; margin-bottom:12px; display:block; opacity:.4; }
@@ -247,12 +260,23 @@ function renderIssueList() {
         ${escHtml(meta.label)}
         <span class="count-chip">${issues.length}건</span>
       </div>
-      ${issues.map(it => `<div class="issue-row">
+      ${issues.map((it, idx) => {
+        const ids = collectIssueIds(it);
+        const histKey = `hist-${cat}-${idx}`;
+        return `<div class="issue-row">
         <div class="issue-msg">
           ${escHtml(it.message || '(메시지 없음)')}
           ${it.fix_hint ? `<div class="issue-hint"><i class="fas fa-lightbulb"></i> ${escHtml(it.fix_hint)}</div>` : ''}
+          ${ids.length ? `
+            <div class="issue-actions">
+              <button class="issue-hist-btn" onclick="toggleIssueHistory('${histKey}', ${JSON.stringify(ids).replace(/"/g,'&quot;')})">
+                <i class="fas fa-history"></i> 처리 이력 보기
+              </button>
+            </div>
+            <div class="issue-hist-box" id="${histKey}" style="display:none;"></div>
+          ` : ''}
         </div>
-      </div>`).join('')}
+      </div>`}).join('')}
     </div>`;
   }
   container.innerHTML = autofixBanner + html;
@@ -299,6 +323,76 @@ async function runAuditNow() {
 function escHtml(s) {
   if (s == null) return '';
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ──────────────────────────────────────────────
+   이슈별 처리 이력 표시 (audit_logs 기반)
+   - 각 이슈의 details 안 ID 들(vac_id, dwe_id, pr_id 등)을 추출
+   - audit_logs 에서 그 ID 가 포함된 행을 시간순 표시
+   - 사용자가 휴가 삭제/업무 정리 등 처리를 했으면 그 기록이 그대로 나타남
+────────────────────────────────────────────── */
+const ID_FIELDS = ['vac_id','vac_ids','dwe_id','pr_id','wt_id','quota_id','p_id','rec_id','member_id'];
+function collectIssueIds(issue) {
+  const ids = new Set();
+  const d = issue.details || {};
+  for (const f of ID_FIELDS) {
+    const v = d[f];
+    if (Array.isArray(v)) v.forEach(x => x && ids.add(String(x)));
+    else if (v) ids.add(String(v));
+  }
+  return Array.from(ids);
+}
+
+const ACTION_KO = {
+  'create': '생성', 'update': '수정', 'delete': '삭제',
+};
+function fmtAction(a) {
+  const [verb, table] = String(a||'').split(':');
+  return `${ACTION_KO[verb] || verb}${table ? ' · ' + table : ''}`;
+}
+
+async function toggleIssueHistory(boxId, ids) {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  if (box.style.display !== 'none') { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  box.innerHTML = '<div style="padding:10px 14px;color:#9ca3af;font-size:12px;"><i class="fas fa-spinner fa-spin"></i> 이력 로딩...</div>';
+  try {
+    // ID 각각으로 search 후 결과 합산 (서버 search 는 단일 키워드)
+    const all = [];
+    for (const id of ids) {
+      const r = await fetch('/tables/audit_logs?search=' + encodeURIComponent(id) + '&limit=50');
+      if (!r.ok) continue;
+      const d = await r.json();
+      (d.data || d.rows || []).forEach(row => all.push(row));
+    }
+    // detail 에 ID 가 실제로 들어있는 행만 (search 가 다른 필드 매치도 잡을 수 있으므로)
+    const filtered = all.filter(row => {
+      const blob = (row.detail || '') + ' ' + (row.username || '') + ' ' + (row.action || '');
+      return ids.some(id => blob.includes(id));
+    });
+    // 중복 제거 (id 기준) + 시간 역순
+    const seen = new Set();
+    const uniq = filtered.filter(r => { if (seen.has(r.id)) return false; seen.add(r.id); return true; });
+    uniq.sort((a, b) => (b.created_at || b.timestamp || 0) - (a.created_at || a.timestamp || 0));
+    if (!uniq.length) {
+      box.innerHTML = '<div style="padding:10px 14px;color:#9ca3af;font-size:12px;">관련 처리 이력 없음 (아직 정리 안 됨)</div>';
+      return;
+    }
+    box.innerHTML = '<table class="hist-table"><thead><tr>' +
+      '<th style="width:140px;">시각</th><th style="width:120px;">처리자</th><th style="width:140px;">액션</th><th>상세</th>' +
+      '</tr></thead><tbody>' +
+      uniq.slice(0, 30).map(r => `<tr>
+        <td>${escHtml(new Date(r.created_at || r.timestamp).toLocaleString('ko-KR'))}</td>
+        <td>${escHtml(r.username || '(빈값)')} <span style="color:#9ca3af;font-size:11px;">${escHtml(r.role || '')}</span></td>
+        <td>${escHtml(fmtAction(r.action))}</td>
+        <td style="color:#374151;font-size:12px;">${escHtml(r.detail || '')}</td>
+      </tr>`).join('') +
+      '</tbody></table>' +
+      (uniq.length > 30 ? `<div style="padding:6px 14px;color:#9ca3af;font-size:11px;">최근 30건만 표시 (총 ${uniq.length}건)</div>` : '');
+  } catch (e) {
+    box.innerHTML = '<div style="padding:10px 14px;color:#b91c1c;font-size:12px;">이력 로딩 실패: ' + escHtml(e.message || '') + '</div>';
+  }
 }
 
 loadReports();
