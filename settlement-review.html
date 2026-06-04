@@ -34,7 +34,10 @@
       transition:border-color .2s; box-sizing:border-box; }
     .form-input:focus, .form-textarea:focus, .form-select:focus {
       outline:none; border-color:#4f86f7; box-shadow:0 0 0 3px rgba(79,134,247,.08); }
-    .form-textarea { resize:vertical; min-height:90px; }
+    .form-textarea { resize:vertical; min-height:140px; }
+    /* 결산 특이사항·팀 메모는 입력량이 많아 충분히 크게 (사용자가 vertical resize 로 더 키울 수 있음) */
+    #fSpecialNote { min-height:240px; }
+    #fTeamMemo    { min-height:180px; }
     .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 
     /* 손익 입력 */
