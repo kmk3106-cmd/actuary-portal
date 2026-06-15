@@ -2384,16 +2384,26 @@ function resetEngagementPointsForNewQuarter(reason) {
   }
 }
 
+// Node setTimeout 32-bit signed int 한계(약 24.85일) 초과 시 'TimeoutOverflowWarning' +
+// ms=1 로 reset → 즉시 발화 → 무한 루프 → CPU 폭주 → 프로세스 다운.
+// 1일 단위 chunk 로 재예약해 한계 우회.
+const MAX_SAFE_TIMEOUT_MS = 24 * 60 * 60 * 1000;
+function safeSetTimeout(cb, ms) {
+  if (ms <= MAX_SAFE_TIMEOUT_MS) return setTimeout(cb, Math.max(0, ms));
+  return setTimeout(() => safeSetTimeout(cb, ms - MAX_SAFE_TIMEOUT_MS), MAX_SAFE_TIMEOUT_MS);
+}
+
 /**
  * 다음 매월 1일 00:05 에 resetEngagementPointsForNewQuarter 호출.
  *  - 매월 체크하고 분기 시작월이면 초기화. 아니면 그냥 skip.
  *  - audit 4시보다 먼저 돌도록 00:05 로 잡음.
+ *  - 다음 달까지 28~31일 차이가 32-bit 한계(24.85일) 초과 가능 → safeSetTimeout 사용.
  */
 function scheduleNextQuarterCheck() {
   const now = new Date();
   const next = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 5, 0); // 다음 달 1일 00:05
   const ms = next - now;
-  setTimeout(() => {
+  safeSetTimeout(() => {
     resetEngagementPointsForNewQuarter('scheduled');
     scheduleNextQuarterCheck();
   }, ms);
@@ -2425,7 +2435,7 @@ function scheduleNextAudit() {
   next4am.setHours(4, 0, 0, 0);
   if (next4am <= now) next4am.setDate(next4am.getDate() + 1);
   const ms = next4am - now;
-  setTimeout(() => {
+  safeSetTimeout(() => {
     runAuditAndSave('scheduled');
     scheduleNextAudit();
   }, ms);
