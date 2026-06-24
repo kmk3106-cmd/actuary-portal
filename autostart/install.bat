@@ -34,23 +34,23 @@ wscript.exe "%STARTUP%\actuary-portal-pm2-resurrect.vbs"
 timeout /t 5 /nobreak >nul
 pm2 status
 
-REM ── 4. 2시간 헬스체크 Task Scheduler 등록 ────────────
+REM ── 4. 30분 헬스체크 Task Scheduler 등록 ────────────
 echo.
-echo [4/4] 2시간 헬스체크 작업 등록 (Task Scheduler)...
+echo [4/4] 30분 헬스체크 작업 등록 (Task Scheduler)...
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$n='ActuaryPortal-Healthcheck'; Unregister-ScheduledTask -TaskName $n -Confirm:$false -EA SilentlyContinue;" ^
   "$a=New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"%~dp0healthcheck.ps1\"';" ^
   "$t1=New-ScheduledTaskTrigger -AtLogOn;" ^
-  "$t2=New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(2) -RepetitionInterval (New-TimeSpan -Hours 2);" ^
+  "$t2=New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(2) -RepetitionInterval (New-TimeSpan -Minutes 30);" ^
   "$s=New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 5);" ^
   "$p=New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited;" ^
-  "Register-ScheduledTask -TaskName $n -Action $a -Trigger @($t1,$t2) -Settings $s -Principal $p -Description '계리결산팀 포탈 2시간 헬스체크' | Out-Null"
+  "Register-ScheduledTask -TaskName $n -Action $a -Trigger @($t1,$t2) -Settings $s -Principal $p -Description '계리결산팀 포탈 30분 헬스체크' | Out-Null"
 if errorlevel 1 (echo    [경고] Task 등록 실패) else (echo    완료.)
 
 echo.
 echo  --------------------------------------------
 echo   다음 부팅부터 자동 기동됩니다.
-echo   2시간마다 다운 체크 → 다운 시 자동 복구 (조용히)
+echo   30분마다 다운 체크 → 다운 시 자동 복구 (조용히)
 echo   로그: %USERPROFILE%\.pm2\healthcheck.log
 echo   Cloudflared 는 Windows 서비스(Automatic)로 별도 관리 — 변경 없음.
 echo  --------------------------------------------
