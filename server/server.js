@@ -29,6 +29,19 @@ function loadEnv() {
 }
 loadEnv();
 
+// 조용한 프로세스 exit 방지 — 예외/거절을 stderr 로 남겨 pm2-portal-error.log 에 추적 가능하게.
+// (이 핸들러 없으면 uncaught exception 은 프로세스 즉시 종료 + 로그 안 남김 → '왜 죽었지' 미스터리 발생)
+process.on('uncaughtException', (err, origin) => {
+  try {
+    console.error(`[uncaughtException:${origin}] ${err && err.stack || err}`);
+  } catch (_) { /* ignore */ }
+});
+process.on('unhandledRejection', (reason, promise) => {
+  try {
+    console.error('[unhandledRejection]', reason && reason.stack || reason);
+  } catch (_) { /* ignore */ }
+});
+
 const PORT = parseInt(process.env.PORT || '8888', 10);
 const HOST = process.env.HOST || '0.0.0.0';
 const ROOT = path.resolve(__dirname, '..');
