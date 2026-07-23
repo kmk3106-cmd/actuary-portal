@@ -14,14 +14,24 @@ echo  세션/로그오프 무관하게 항상 살아있음. 프로세스 죽으�
 echo.
 pause
 
-REM ── 0. nssm 설치 확인 ─────────────────────────
-where nssm >nul 2>&1
-if errorlevel 1 (
-    echo [nssm 설치 중...]
-    winget install NSSM.NSSM --silent --accept-source-agreements --accept-package-agreements
+REM ── 0. nssm 설치 확인 + 시스템 접근 가능 경로로 복사 ──
+REM   winget shim(...\WinGet\Links\nssm.exe)은 사용자 컨텍스트 전용 →
+REM   LocalSystem 계정으로 도는 서비스가 접근 불가 (Event 7000 "파일 없음").
+REM   실제 nssm.exe 를 C:\Tools\nssm 으로 복사해서 절대경로로 씀.
+if not exist "C:\Tools\nssm\nssm.exe" (
+    echo [nssm 확보 중...]
+    where nssm >nul 2>&1
+    if errorlevel 1 (
+        winget install NSSM.NSSM --silent --accept-source-agreements --accept-package-agreements
+    )
+    if not exist "C:\Tools\nssm" mkdir "C:\Tools\nssm"
+    powershell -NoProfile -Command "$src = Get-ChildItem \"$env:LOCALAPPDATA\Microsoft\WinGet\Packages\" -Filter nssm.exe -Recurse -EA SilentlyContinue | Where-Object { $_.Length -gt 100KB } | Select-Object -First 1; if ($src) { Copy-Item -LiteralPath $src.FullName -Destination 'C:\Tools\nssm\nssm.exe' -Force }"
 )
-
-set NSSM=C:\Users\USER\AppData\Local\Microsoft\WinGet\Links\nssm.exe
+if not exist "C:\Tools\nssm\nssm.exe" (
+    echo    [오류] nssm.exe 확보 실패. 수동으로 https://nssm.cc 다운받아 C:\Tools\nssm\ 에 두세요.
+    pause & exit /b 1
+)
+set NSSM=C:\Tools\nssm\nssm.exe
 set ROOT=%~dp0..
 set NODE=C:\Program Files\nodejs\node.exe
 set PYTHONW=C:\Users\USER\infinite_buy_v22\.venv\Scripts\pythonw.exe
