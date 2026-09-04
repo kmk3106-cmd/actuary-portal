@@ -736,6 +736,15 @@
           </div>
         </div>
 
+        <!-- 부속: 규정 · 사규 · 매뉴얼 (계리 직재/위임전결, 사규, 업무 매뉴얼 — 08~10 과 별개인 상시 참고자료, 부가업무 카드와 동일한 표 형태 재사용) -->
+        <div class="extra-cat-section">
+          <div class="extra-cat-section-title">
+            <h4><i class="fas fa-scroll"></i> 규정 · 사규 · 매뉴얼</h4>
+            <span>계리 직재규정/위임전결규정, 계리 관련 사규, 계리 업무 매뉴얼의 최근 개정 현황입니다. 문서별로 자유롭게 추가·삭제하실 수 있습니다.</span>
+          </div>
+          <div class="extra-cat-grid" id="governanceDocsGrid"></div>
+        </div>
+
         </div><!-- /execTabPanel-ops -->
 
         <!-- 탭 그룹 6/6: 계획 & 건의 (11, 12) -->
@@ -1212,6 +1221,123 @@ function settleExtraCategoriesDocHtml(byCat) {
 }
 
 // ══════════════════════════════════════════════════════════
+// 섹션 10 부속: 규정 · 사규 · 매뉴얼 (직재/위임전결규정, 계리 사규, 계리 매뉴얼)
+// 부가 업무 카테고리 카드(EXTRA_CAT_META)와 동일한 구조/컴포넌트를 재사용 — 카테고리 3개 고정,
+// 카테고리마다 문서(규정/매뉴얼명·최근 개정일·담당·비고) rows 를 자유롭게 추가/삭제한다.
+// 서버 테이블 없이 보고서 payload(governance_docs)에 그대로 저장.
+// ══════════════════════════════════════════════════════════
+const GOV_DOC_META = [
+  { key: '직재_위임전결', label: '직재규정 & 위임전결규정', icon: 'fa-sitemap',   desc: '팀 조직·직급별 직무 범위 및 결재 권한 위임 규정' },
+  { key: '계리_사규',     label: '계리 관련 사규',         icon: 'fa-book-open', desc: '계리 업무 전반 사규 (결산·평가·상품·자산·리스크 등)' },
+  { key: '계리_매뉴얼',   label: '계리 관련 매뉴얼',       icon: 'fa-book',      desc: '계리 업무 매뉴얼 (모델·계리모형·결산절차·시스템 사용)' },
+];
+
+function defaultGovernanceDocs() {
+  return { '직재_위임전결': [], '계리_사규': [], '계리_매뉴얼': [] };
+}
+let governanceDocsByCategory = defaultGovernanceDocs();
+// 카드 접기/펴기 상태 (기본 전부 펼침) — extraCatOpenState 와 동일한 관례.
+const govDocOpenState = {};
+GOV_DOC_META.forEach(c => { govDocOpenState[c.key] = true; });
+
+// 담당 입력용 datalist 는 섹션 3의 settleMembersDatalist(SETTLE_MEMBERS 기반) 를 그대로 재사용 — SSOT.
+function govDocRowsHtml(catKey) {
+  const rows = governanceDocsByCategory[catKey] || [];
+  if (!rows.length) {
+    return `<tr><td colspan="5" class="settle-empty-msg">등록된 문서가 없습니다.</td></tr>`;
+  }
+  return rows.map((r, i) => `
+    <tr>
+      <td><input type="text" class="form-control" placeholder="규정/매뉴얼명" value="${escAttr(r.doc_name)}"
+        oninput="updateGovDocField('${catKey}',${i},'doc_name',this.value)"></td>
+      <td><input type="date" class="form-control" value="${escAttr(r.last_revised)}"
+        oninput="updateGovDocField('${catKey}',${i},'last_revised',this.value)"></td>
+      <td><input type="text" class="form-control" list="settleMembersDatalist" placeholder="담당자 선택/입력" value="${escAttr(r.owner)}"
+        oninput="updateGovDocField('${catKey}',${i},'owner',this.value)"></td>
+      <td><textarea class="form-control" rows="1" placeholder="비고"
+        oninput="updateGovDocField('${catKey}',${i},'note',this.value)">${esc(r.note)}</textarea></td>
+      <td style="text-align:center;"><button class="dyn-del-sm" onclick="removeGovDocRow('${catKey}',${i})" aria-label="문서 행 삭제"><i class="fas fa-times"></i></button></td>
+    </tr>`).join('');
+}
+
+function govDocCardHtml(cat) {
+  const rows = governanceDocsByCategory[cat.key] || [];
+  const isOpen = govDocOpenState[cat.key] !== false;
+  const count = rows.length;
+  return `
+    <div class="extra-cat-card">
+      <button type="button" class="extra-cat-head${isOpen ? ' open' : ''}" data-cat="${escAttr(cat.key)}" onclick="toggleGovDocCard(this)">
+        <span class="extra-cat-icon"><i class="fas ${cat.icon}"></i></span>
+        <span class="extra-cat-head-text">
+          <span class="name">${esc(cat.label)}</span>
+          <span class="desc">${esc(cat.desc)}</span>
+        </span>
+        <span class="extra-cat-badge${count ? '' : ' zero'}">${count}건</span>
+        <i class="fas fa-chevron-down extra-cat-chevron"></i>
+      </button>
+      <div class="extra-cat-body${isOpen ? ' open' : ''}">
+        <div class="table-scroll">
+          <table class="settle-day-table">
+            <thead><tr><th style="width:30%;">규정/매뉴얼명</th><th style="width:16%;">최근 개정일</th><th style="width:16%;">담당</th><th>비고</th><th style="width:44px;"></th></tr></thead>
+            <tbody>${govDocRowsHtml(cat.key)}</tbody>
+          </table>
+        </div>
+        <button type="button" class="btn-add-row" onclick="addGovDocRow('${cat.key}')"><i class="fas fa-plus"></i> 항목 추가</button>
+      </div>
+    </div>`;
+}
+
+function renderGovernanceDocs() {
+  const wrap = document.getElementById('governanceDocsGrid');
+  if (wrap) wrap.innerHTML = GOV_DOC_META.map(govDocCardHtml).join('');
+}
+
+function toggleGovDocCard(btn) {
+  btn.classList.toggle('open');
+  const body = btn.nextElementSibling;
+  if (body) body.classList.toggle('open');
+  const key = btn.dataset.cat;
+  if (key) govDocOpenState[key] = body ? body.classList.contains('open') : true;
+}
+
+function addGovDocRow(catKey) {
+  if (!governanceDocsByCategory[catKey]) governanceDocsByCategory[catKey] = [];
+  governanceDocsByCategory[catKey].push({ doc_name: '', last_revised: '', owner: '', note: '' });
+  renderGovernanceDocs();
+  scheduleDraftSave();
+}
+function removeGovDocRow(catKey, idx) {
+  const rows = governanceDocsByCategory[catKey];
+  if (!rows) return;
+  rows.splice(idx, 1);
+  renderGovernanceDocs();
+  scheduleDraftSave();
+}
+function updateGovDocField(catKey, idx, field, val) {
+  const rows = governanceDocsByCategory[catKey];
+  if (!rows || !rows[idx]) return;
+  rows[idx][field] = val;
+  scheduleDraftSave();
+}
+
+// 미리보기/인쇄 문서용 — 문서가 하나도 등록되지 않은 카테고리는 자동 숨김.
+function governanceDocsDocHtml(byCat) {
+  const groups = GOV_DOC_META
+    .map(c => ({ meta: c, rows: (byCat && byCat[c.key]) || [] }))
+    .filter(g => g.rows.length);
+  if (!groups.length) {
+    return `<div class="doc-p doc-empty">등록된 규정/사규/매뉴얼이 없습니다.</div>`;
+  }
+  return groups.map(g => `
+    <div style="margin-top:14px;">
+      <div class="doc-p" style="margin-bottom:6px;"><b><i class="fas ${g.meta.icon}" style="color:#64748b;margin-right:6px;"></i>${esc(g.meta.label)}</b>
+        <span style="color:#94a3b8;font-size:12px;margin-left:6px;">${esc(g.meta.desc)}</span></div>
+      <table class="doc-table"><thead><tr><th>규정/매뉴얼명</th><th>최근 개정일</th><th>담당</th><th>비고</th></tr></thead>
+      <tbody>${g.rows.map(r => `<tr><td>${esc(r.doc_name) || '-'}</td><td>${esc(r.last_revised) || '-'}</td><td>${esc(r.owner) || '-'}</td><td>${esc(r.note) || '-'}</td></tr>`).join('')}</tbody></table>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
 // 섹션 4: KPI 달성 현황 (kpi_definitions 고정 목록 + performance_records 분기 평균)
 // ══════════════════════════════════════════════════════════
 let KPI_DEFS = [];          // 올해 활성 KPI 정의
@@ -1541,6 +1667,8 @@ function collectPayload() {
     settle_extra_tasks: settleExtraTasks.filter(r => r.category || r.owner || r.cycle || r.detail), // (구) 단일 표 — 화면 미노출, 과거 저장분 호환용 hidden 필드
     settle_extra_by_category: Object.fromEntries(EXTRA_CAT_META.map(c =>
       [c.key, (settleExtraByCategory[c.key] || []).filter(r => r.assignee || r.task || r.cycle || r.note)])),
+    governance_docs: Object.fromEntries(GOV_DOC_META.map(c =>
+      [c.key, (governanceDocsByCategory[c.key] || []).filter(r => r.doc_name || r.last_revised || r.owner || r.note)])),
     kpi_q3_targets: { ...kpiQ3Targets },
     kpi_q3_actuals: { ...kpiQ3Actuals },
     kpi_q3_progress_note: document.getElementById('fKpiQ3Progress').value.trim(),
@@ -1593,6 +1721,17 @@ function applyPayload(p) {
   }
   renderSettleExtraCategories();
 
+  // 규정 · 사규 · 매뉴얼 — settle_extra_by_category 와 동일한 하위호환 판단 기준 (필드 존재 여부로 판별).
+  if (p.governance_docs) {
+    governanceDocsByCategory = {};
+    GOV_DOC_META.forEach(c => {
+      governanceDocsByCategory[c.key] = Array.isArray(p.governance_docs[c.key]) ? p.governance_docs[c.key] : [];
+    });
+  } else {
+    governanceDocsByCategory = defaultGovernanceDocs();
+  }
+  renderGovernanceDocs();
+
   kpiQ3Targets = { ...(p.kpi_q3_targets || {}) };
   kpiQ3Actuals = { ...(p.kpi_q3_actuals || {}) };
   document.getElementById('fKpiQ3Progress').value = p.kpi_q3_progress_note || '';
@@ -1635,10 +1774,13 @@ function resetFormState() {
   settleExtraTasks = defaultSettleExtraTasks();
   settleExtraByCategory = defaultSettleExtraByCategory();
   EXTRA_CAT_META.forEach(c => { extraCatOpenState[c.key] = true; });
+  governanceDocsByCategory = defaultGovernanceDocs();
+  GOV_DOC_META.forEach(c => { govDocOpenState[c.key] = true; });
   setDefaults();
   renderAllRows();
   renderKpiTable();
   renderSettleExtraCategories();
+  renderGovernanceDocs();
   document.getElementById('loadSelect').value = '';
   setStatusChip('new');
 }
@@ -1940,6 +2082,11 @@ function renderPreviewDoc() {
       </div>
 
       <div class="doc-sec">
+        <div class="doc-sec-title"><i class="fas fa-scroll"></i> 규정 &middot; 사규 &middot; 매뉴얼</div>
+        ${governanceDocsDocHtml(p.governance_docs)}
+      </div>
+
+      <div class="doc-sec">
         <div class="doc-sec-title"><i class="fas fa-calendar-check"></i> 차기 계획</div>
         <table class="doc-table"><thead><tr><th>순위</th><th>항목</th><th>담당</th><th>완료 목표일</th></tr></thead>
         <tbody>${planRows}</tbody></table>
@@ -1992,12 +2139,14 @@ Object.assign(window, {
   togglePreview, printReport, resetForm,
   setSettleView, updateKpiQ3, setExecTab,
   addExtraCatRow, removeExtraCatRow, updateExtraCatField, toggleExtraCatCard,
+  addGovDocRow, removeGovDocRow, updateGovDocField, toggleGovDocCard,
 });
 
 // ── 초기화 실행 ───────────────────────────────────────
 setDefaults();
 renderAllRows();
 renderSettleExtraCategories();
+renderGovernanceDocs();
 restoreExecTab();
 const restored = restoreDraftIfAny(true);
 if (!restored) setStatusChip('new');
