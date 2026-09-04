@@ -1,0 +1,90 @@
+# 계리결산팀 포탈 - Docker Compose (프로덕션)
+# 사용:  docker compose up -d
+# 중지:  docker compose down
+# 로그:  docker compose logs -f server bot cloudflared
+#
+# 필수: 같은 디렉터리에 .env 파일 존재 (.env.example 참고)
+
+services:
+
+  # ─────────────────────────────────────────────────────────────
+  # 1. Node.js 포탈 서버 (포트 8888 내부용, cloudflared 만 접근)
+  # ─────────────────────────────────────────────────────────────
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    image: actuary-portal-server:latest
+    container_name: actuary-portal-server
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Seoul
+      - NODE_ENV=production
+      - PORT=8888
+      - HOST=0.0.0.0
+    env_file:
+      - .env
+    volumes:
+      # DB 파일 - 호스트에 영구 저장 (백업 대상)
+      - ./server/data:/app/server/data
+      - ./logs:/app/logs
+    # 외부 포트 노출 안 함 (내부 네트워크 안에서만)
+    expose:
+      - "8888"
+    networks:
+      - portal-net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8888/", "-o", "/dev/null"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  # ─────────────────────────────────────────────────────────────
+  # 2. 텔레그램 봇 (DB 공유, 외부 포트 없음)
+  # ─────────────────────────────────────────────────────────────
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    image: actuary-portal-bot:latest
+    container_name: actuary-portal-bot
+    restart: unless-stopped
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      - TZ=Asia/Seoul
+      - PORTAL_URL=http://server:8888
+    env_file:
+      - .env
+    volumes:
+      # 서버와 같은 DB 파일을 공유
+      - ./server/data:/app/server/data
+      - ./bot/logs:/app/bot/logs
+    networks:
+      - portal-net
+
+  # ─────────────────────────────────────────────────────────────
+  # 3. Cloudflare Tunnel (portal.kkuks.com → server:8888)
+  #    TUNNEL_TOKEN 방식 사용 (credentials 파일 마운트 불필요)
+  # ─────────────────────────────────────────────────────────────
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: actuary-portal-cloudflared
+    restart: unless-stopped
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      - TZ=Asia/Seoul
+      # Cloudflare Zero Trust 대시보드에서 발급받은 터널 토큰
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    command: tunnel --no-autoupdate run
+    networks:
+      - portal-net
+
+networks:
+  portal-net:
+    driver: bridge
+    name: actuary-portal-net

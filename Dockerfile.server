@@ -1,0 +1,36 @@
+# 계리결산팀 포탈 - Node.js 서버 이미지
+# Oracle Cloud Ampere ARM64 및 x86_64 겸용 (alpine multi-arch)
+FROM node:20-alpine
+
+# 한글 로그/타임존
+ENV TZ=Asia/Seoul \
+    NODE_ENV=production \
+    PORT=8888 \
+    HOST=0.0.0.0
+
+RUN apk add --no-cache tzdata curl tini \
+    && cp /usr/share/zoneinfo/${TZ} /etc/localtime \
+    && echo "${TZ}" > /etc/timezone
+
+WORKDIR /app
+
+# package.json 만 먼저 복사해서 캐시 활용
+COPY package.json package-lock.json* ./
+RUN if [ -f package-lock.json ]; then npm ci --omit=dev; \
+    else npm install --omit=dev; fi
+
+# 나머지 소스 복사 (실행 시엔 bind mount 로 덮어씀 - 개발용)
+COPY . .
+
+# 데이터 디렉터리 (compose 에서 볼륨 마운트)
+RUN mkdir -p /app/server/data /app/logs
+
+EXPOSE 8888
+
+# 헬스체크 - server.js 가 응답하는지
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:8888/ -o /dev/null || exit 1
+
+# tini 로 PID1 시그널 처리
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "server/server.js"]
