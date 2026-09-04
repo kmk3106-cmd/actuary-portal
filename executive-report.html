@@ -197,11 +197,16 @@
     .settle-day-table td, .settle-matrix-table td { padding: 12px 14px; border-bottom: 1px solid var(--gray-100); color: var(--gray-700); vertical-align: middle; }
     .settle-day-table tbody tr:nth-child(even) td { background: #fafbfc; }
     .settle-day-table tr:last-child td, .settle-matrix-table tr:last-child td { border-bottom: none; }
-    .settle-matrix-table { white-space: nowrap; }
-    .settle-matrix-table td, .settle-matrix-table th { min-width: 60px; height: 44px; text-align: center; }
+    /* ── 뷰 B 매트릭스: 균등 그리드 (모든 셀 동일 크기) ── */
+    .settle-matrix-table { table-layout: fixed; }
+    .settle-matrix-table td, .settle-matrix-table th {
+      width: 112px; min-width: 112px; max-width: 112px;
+      height: 92px; text-align: center; vertical-align: middle;
+      padding: 6px; overflow: hidden;
+    }
     .settle-matrix-table td:first-child, .settle-matrix-table th:first-child {
       position: sticky; left: 0; background: #fff; font-weight: 700; color: var(--gray-900); z-index: 1;
-      text-align: left; min-width: 96px;
+      text-align: center; width: 108px; min-width: 108px; max-width: 108px;
     }
     .settle-matrix-table th:first-child { background: var(--gray-50); z-index: 2; }
     .settle-matrix-row-unassigned td { background: var(--gray-50); }
@@ -209,6 +214,22 @@
     .settle-day-badge {
       display: inline-block; font-size: 12px; font-weight: 700; padding: 3px 11px; border-radius: 999px;
       background: #eff6ff; color: #1d4ed8; white-space: nowrap;
+    }
+    /* 매트릭스 안 chip: 셀 크기에 맞춰 균일 (뷰 A 는 별도 규칙) */
+    .settle-matrix-table .settle-cell-chip {
+      display: block; box-sizing: border-box;
+      width: 100%; max-width: 100%;
+      min-height: 36px; margin: 2px 0; padding: 5px 6px;
+      font-size: 11.5px; font-weight: 600; line-height: 1.25;
+      border-radius: 6px; text-align: center;
+      overflow: hidden; text-overflow: ellipsis;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    }
+    /* 뷰 A(일자별) 는 셀 안에 chip 이 인라인으로 여러 개 → 균일 크기 규칙 제외 */
+    .settle-day-table .settle-cell-chip {
+      display: inline-block; width: auto; min-height: 0; margin: 2px 3px; padding: 4px 10px;
+      max-width: 180px; white-space: normal; word-break: keep-all;
+      -webkit-line-clamp: none;
     }
     .settle-cell-chip {
       display: inline-block; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 7px;
