@@ -68,7 +68,7 @@
     .exec-status-chip.draft  { background: #fef3c7; color: #92400e; }
     .exec-status-chip.new    { background: var(--gray-100); color: var(--gray-500); }
 
-    /* ── 상위 탭 (12개 섹션 → 6개 그룹, 뷰 A/B 토글 색상 규칙 참조) ── */
+    /* ── 상위 탭 (11개 섹션 → 8개 그룹, 뷰 A/B 토글 색상 규칙 참조) ── */
     .exec-tabs {
       display: flex; flex-wrap: wrap; gap: 10px;
       padding: 8px 0 16px;
@@ -429,7 +429,13 @@
             <i class="fas fa-cogs"></i> 진행 &amp; 이슈 <span class="exec-tab-badge">2</span>
           </button>
           <button type="button" class="exec-tab-btn" role="tab" id="execTabBtn-ops" aria-controls="execTabPanel-ops" data-tab="ops" onclick="setExecTab('ops')">
-            <i class="fas fa-building"></i> 운영 현황 <span class="exec-tab-badge">3</span>
+            <i class="fas fa-shield-alt"></i> 컴플라이언스 &amp; 감사 <span class="exec-tab-badge">1</span>
+          </button>
+          <button type="button" class="exec-tab-btn" role="tab" id="execTabBtn-people" aria-controls="execTabPanel-people" data-tab="people" onclick="setExecTab('people')">
+            <i class="fas fa-users"></i> 인력·자원 <span class="exec-tab-badge">1</span>
+          </button>
+          <button type="button" class="exec-tab-btn" role="tab" id="execTabBtn-governance" aria-controls="execTabPanel-governance" data-tab="governance" onclick="setExecTab('governance')">
+            <i class="fas fa-book-reader"></i> 규정·매뉴얼 <span class="exec-tab-badge">3</span>
           </button>
           <button type="button" class="exec-tab-btn" role="tab" id="execTabBtn-plan" aria-controls="execTabPanel-plan" data-tab="plan" onclick="setExecTab('plan')">
             <i class="fas fa-bullseye"></i> 계획 &amp; 건의 <span class="exec-tab-badge">2</span>
@@ -651,7 +657,7 @@
 
         </div><!-- /execTabPanel-progress -->
 
-        <!-- 탭 그룹 5/6: 운영 현황 (08, 09, 10) -->
+        <!-- 탭 그룹 5/8: 컴플라이언스 & 감사 (08) -->
         <div class="exec-tab-panel" id="execTabPanel-ops" data-tab="ops" role="tabpanel" aria-labelledby="execTabBtn-ops">
 
         <!-- 8. 컴플라이언스 & 감사 -->
@@ -678,35 +684,10 @@
           </div>
         </div>
 
-        <!-- 9. 시스템 & 데이터 품질 -->
-        <div class="exec-sec">
-          <button class="exec-sec-header open" onclick="toggleSec(this)">
-            <span class="exec-sec-num">09</span>
-            <span class="exec-sec-title">시스템 &amp; 데이터 품질<small>결산 시스템 상태 · 정합성 이슈</small></span>
-            <i class="fas fa-chevron-down exec-sec-chevron"></i>
-          </button>
-          <div class="exec-sec-body open">
-            <p class="exec-sec-desc">결산 시스템 운영 상태와 데이터 정합성 이슈를 점검하여 보고드립니다.</p>
-            <div class="form-row-2">
-              <div class="form-group">
-                <label class="form-label">결산 시스템 상태</label>
-                <select class="form-control" id="fSysStatus">
-                  <option value="양호">양호</option>
-                  <option value="주의">주의</option>
-                  <option value="이상">이상</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">정합성 이슈 건수</label>
-                <input type="number" class="form-control" id="fDataIssueCount" min="0" placeholder="0">
-              </div>
-            </div>
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label">상세</label>
-              <textarea class="form-control" id="fSysDetail" placeholder="시스템/데이터 품질 관련 상세 내용..."></textarea>
-            </div>
-          </div>
-        </div>
+        </div><!-- /execTabPanel-ops -->
+
+        <!-- 탭 그룹 6/8: 인력·자원 (10) -->
+        <div class="exec-tab-panel" id="execTabPanel-people" data-tab="people" role="tabpanel" aria-labelledby="execTabBtn-people">
 
         <!-- 10. 인력·자원 현황 -->
         <div class="exec-sec">
@@ -740,7 +721,12 @@
           </div>
         </div>
 
-        <!-- 부속: 규정 · 사규 · 매뉴얼 (계리 직재/위임전결, 사규, 업무 매뉴얼 — 08~10 과 별개인 상시 참고자료, 부가업무 카드와 동일한 표 형태 재사용) -->
+        </div><!-- /execTabPanel-people -->
+
+        <!-- 탭 그룹 7/8: 규정·매뉴얼 (계리 직재/위임전결, 사규, 업무 매뉴얼 — 08/10 과 별개인 상시 참고자료, 부가업무 카드와 동일한 표 형태 재사용) -->
+        <div class="exec-tab-panel" id="execTabPanel-governance" data-tab="governance" role="tabpanel" aria-labelledby="execTabBtn-governance">
+
+        <!-- 부속: 규정 · 사규 · 매뉴얼 -->
         <div class="extra-cat-section">
           <div class="extra-cat-section-title">
             <h4><i class="fas fa-scroll"></i> 규정 · 사규 · 매뉴얼</h4>
@@ -749,9 +735,9 @@
           <div class="extra-cat-grid" id="governanceDocsGrid"></div>
         </div>
 
-        </div><!-- /execTabPanel-ops -->
+        </div><!-- /execTabPanel-governance -->
 
-        <!-- 탭 그룹 6/6: 계획 & 건의 (11, 12) -->
+        <!-- 탭 그룹 8/8: 계획 & 건의 (11, 12) -->
         <div class="exec-tab-panel" id="execTabPanel-plan" data-tab="plan" role="tabpanel" aria-labelledby="execTabBtn-plan">
 
         <!-- 11. 차기 계획 -->
@@ -1481,11 +1467,11 @@ function toggleSec(btn) {
   btn.nextElementSibling.classList.toggle('open');
 }
 
-// ── 상위 탭 (12개 섹션 → 6개 그룹) ─────────────────────
-// 12개 exec-sec 섹션 내부의 필드/자동채움 로직은 그대로 두고, 어느 exec-tab-panel
+// ── 상위 탭 (11개 섹션 → 8개 그룹) ─────────────────────
+// exec-sec 섹션 내부의 필드/자동채움 로직은 그대로 두고, 어느 exec-tab-panel
 // 안에 위치하느냐로만 노출 그룹을 나눈다. 탭 전환 시 그 그룹의 섹션들은 항상
 // 펼침 상태로 강제한다 (사용자가 이전에 접었더라도 탭을 다시 열면 펴진 채로 보임).
-const EXEC_TABS = ['overview', 'settlement', 'kpi', 'progress', 'ops', 'plan'];
+const EXEC_TABS = ['overview', 'settlement', 'kpi', 'progress', 'ops', 'people', 'governance', 'plan'];
 const EXEC_TAB_STORAGE_KEY = 'execReportActiveTab';
 
 function setExecTab(tab) {
@@ -1711,11 +1697,6 @@ function collectPayload() {
       audit: document.getElementById('fAuditNote').value.trim(),
       internal: document.getElementById('fInternalNote').value.trim(),
     },
-    system_quality: {
-      status: document.getElementById('fSysStatus').value,
-      issue_count: num(document.getElementById('fDataIssueCount').value),
-      detail: document.getElementById('fSysDetail').value.trim(),
-    },
     hr: {
       headcount: num(document.getElementById('fHeadcount').value),
       vacation_days: num(document.getElementById('fVacationDays').value),
@@ -1773,11 +1754,6 @@ function applyPayload(p) {
   document.getElementById('fAuditNote').value = c.audit || '';
   document.getElementById('fInternalNote').value = c.internal || '';
 
-  const sq = p.system_quality || {};
-  document.getElementById('fSysStatus').value = sq.status || '양호';
-  document.getElementById('fDataIssueCount').value = sq.issue_count ?? '';
-  document.getElementById('fSysDetail').value = sq.detail || '';
-
   const hr = p.hr || {};
   document.getElementById('fHeadcount').value = hr.headcount ?? '';
   document.getElementById('fVacationDays').value = hr.vacation_days ?? '';
@@ -1799,7 +1775,6 @@ function resetFormState() {
     iss: [ROW_DEFAULTS.iss()], plan: [ROW_DEFAULTS.plan()], dec: [ROW_DEFAULTS.dec()],
   };
   document.querySelectorAll('#editView input, #editView textarea').forEach(el => el.value = '');
-  document.getElementById('fSysStatus').value = '양호';
   kpiQ3Targets = {};
   kpiQ3Actuals = {};
   settleExtraTasks = defaultSettleExtraTasks();
@@ -1979,7 +1954,6 @@ async function loadAutoFillHints() {
 // ── 미리보기 렌더링 ───────────────────────────────────
 function impactBadgeClass(v) { return v === '높음' ? 'high' : v === '중' ? 'mid' : 'low'; }
 function urgencyBadgeClass(v) { return v === '긴급' ? 'high' : v === '보통' ? 'mid' : 'low'; }
-function sysStatusBadgeClass(v) { return v === '이상' ? 'bad' : v === '주의' ? 'warn' : 'ok'; }
 
 function renderPreviewDoc() {
   const p = collectPayload();
@@ -2024,7 +1998,7 @@ function renderPreviewDoc() {
     `<tr><td>${esc(d.issue) || '-'}</td><td>${esc(d.decision) || '-'}</td><td><span class="doc-badge ${urgencyBadgeClass(d.urgency)}">${esc(d.urgency)}</span></td><td>${esc(d.due) || '-'}</td></tr>`
   ).join('') : `<tr><td colspan="4" class="doc-empty">건의/결정 요청 사항이 없습니다.</td></tr>`;
 
-  const hr = p.hr, sq = p.system_quality, c = p.compliance;
+  const hr = p.hr, c = p.compliance;
 
   document.getElementById('docSheet').innerHTML = `
     <div class="doc-masthead">
@@ -2092,14 +2066,6 @@ function renderPreviewDoc() {
         <div class="doc-p"><b>금감원 지적사항</b><br>${nl2br(c.fss) || '<span class="doc-empty">해당 없음</span>'}</div>
         <div class="doc-p" style="margin-top:10px;"><b>외부감사 이슈</b><br>${nl2br(c.audit) || '<span class="doc-empty">해당 없음</span>'}</div>
         <div class="doc-p" style="margin-top:10px;"><b>내부통제 이슈</b><br>${nl2br(c.internal) || '<span class="doc-empty">해당 없음</span>'}</div>
-      </div>
-
-      <div class="doc-sec">
-        <div class="doc-sec-title"><i class="fas fa-database"></i> 시스템 &amp; 데이터 품질
-          <span class="doc-badge ${sysStatusBadgeClass(sq.status)}" style="margin-left:auto;">${esc(sq.status) || '-'}</span>
-        </div>
-        <div class="doc-p">정합성 이슈 <b>${sq.issue_count ?? 0}건</b></div>
-        ${sq.detail ? `<div class="doc-p" style="margin-top:6px;">${nl2br(sq.detail)}</div>` : ''}
       </div>
 
       <div class="doc-sec">
