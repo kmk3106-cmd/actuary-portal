@@ -235,7 +235,7 @@ function migrateDb(db) {
     'users','sessions','team_identity','core_values','team_goals',
     'individual_goals','performance_records','work_tasks','settlement_calendar',
     'automation_logs','report_history','interview_logs','audit_logs',
-    'settlement_reviews','team_directives',
+    'settlement_reviews','team_directives','executive_reports',
     'settle_items','score_rules','kpi_definitions','task_categories',
     // ── Phase 1: 업무량 모니터링 ──
     'business_days','business_days_monthly','daily_work_entries',
