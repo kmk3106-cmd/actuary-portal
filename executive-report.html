@@ -42,13 +42,13 @@
     .exec-page-title { font-size: 28px; font-weight: 800; letter-spacing: -0.01em; }
     .exec-page-title small { font-size: 14px; }
 
-    /* ── 툴바 (sticky) ───────────────────────────────── */
-    .exec-toolbar {
+    /* ── 상단 고정 영역: 툴바 + 상위 탭 (한 덩어리로 sticky) ── */
+    .exec-sticky-head {
       position: sticky; top: 0; z-index: 40;
       background: rgba(255,255,255,0.97); backdrop-filter: blur(6px);
-      border-bottom: 1px solid var(--gray-200);
-      box-shadow: 0 2px 10px rgba(15,23,42,0.05);
-      padding: 16px 0; margin-bottom: 24px;
+    }
+    .exec-toolbar {
+      padding: 16px 0 12px; margin-bottom: 0;
       display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     }
     .exec-toolbar-spacer { flex: 1; min-width: 8px; }
@@ -68,16 +68,35 @@
     .exec-status-chip.draft  { background: #fef3c7; color: #92400e; }
     .exec-status-chip.new    { background: var(--gray-100); color: var(--gray-500); }
 
-    /* ── 섹션 카드 (접기/펴기) ────────────────────────── */
-    /* ── 편집 폼 카드 그리드 (2열, 넓은 섹션만 전체 폭) ── */
-    #editView {
-      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 20px; align-items: start;
+    /* ── 상위 탭 (12개 섹션 → 6개 그룹, 뷰 A/B 토글 색상 규칙 참조) ── */
+    .exec-tabs {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      padding: 8px 0 16px;
+      border-bottom: 1px solid var(--gray-200);
+      box-shadow: 0 2px 10px rgba(15,23,42,0.05);
+      margin-bottom: 24px;
     }
-    #editView > .exec-sec { margin: 0; }
-    #editView > .exec-sec.exec-sec-wide { grid-column: 1 / -1; }
-    @media (max-width: 1180px) { #editView { grid-template-columns: 1fr; } }
+    .exec-tab-btn {
+      display: inline-flex; align-items: center; gap: 9px;
+      padding: 12px 22px; border-radius: 12px;
+      font-family: inherit; font-size: 15.5px; font-weight: 700;
+      border: 1.5px solid var(--gray-200); background: #fff; color: var(--gray-600);
+      cursor: pointer; white-space: nowrap; transition: all .15s ease;
+    }
+    .exec-tab-btn i { font-size: 14px; }
+    .exec-tab-btn:hover:not(.active) { border-color: #1e3a8a; color: #1e3a8a; background: #eff6ff; }
+    .exec-tab-btn.active { background: #1e3a8a; border-color: #1e3a8a; color: #fff; box-shadow: 0 4px 14px rgba(30,58,138,.28); }
+    .exec-tab-badge {
+      font-size: 11.5px; font-weight: 800; padding: 1px 8px; border-radius: 999px;
+      background: var(--gray-100); color: var(--gray-500);
+    }
+    .exec-tab-btn.active .exec-tab-badge { background: rgba(255,255,255,.22); color: #fff; }
 
+    /* ── 편집 폼: 탭 패널 (선택된 탭의 섹션 그룹만 표시) ── */
+    .exec-tab-panel { display: none; }
+    .exec-tab-panel.active { display: block; }
+
+    /* ── 섹션 카드 (접기/펴기) ────────────────────────── */
     .exec-sec {
       background: #fff; border: 1px solid var(--gray-200); border-radius: 14px;
       margin-bottom: 22px; overflow: hidden;
@@ -266,7 +285,7 @@
 
     /* ── 인쇄 ─────────────────────────────────────────── */
     @media print {
-      .no-print, .sidebar, .exec-toolbar, .main-content > .page-header, #editView { display: none !important; }
+      .no-print, .sidebar, .exec-sticky-head, .exec-toolbar, .exec-tabs, .main-content > .page-header, #editView { display: none !important; }
       .main-content { margin-left: 0 !important; }
       .content-body { padding: 0 !important; }
       .doc-sheet { max-width: 100%; margin: 0; border: none; box-shadow: none; border-radius: 0; }
@@ -300,6 +319,8 @@
       .doc-table { display: block; overflow-x: auto; white-space: nowrap; }
       .settle-view-toggle { width: 100%; }
       .settle-view-btn { flex: 1; justify-content: center; }
+      .exec-tabs { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 6px 0 14px; margin-bottom: 18px; }
+      .exec-tab-btn { flex: 0 0 auto; padding: 10px 16px; font-size: 14px; }
       .exec-toolbar { gap: 8px; }
       .exec-toolbar .btn span { display: none; }
       .exec-toolbar .btn { padding: 11px 14px; }
@@ -323,31 +344,57 @@
     </header>
     <main class="content-body">
 
-      <div class="exec-toolbar no-print">
-        <button class="btn btn-secondary" id="btnTogglePreview" onclick="togglePreview()">
-          <i class="fas fa-eye"></i> <span>미리보기</span>
-        </button>
-        <button class="btn btn-primary" onclick="saveReport()">
-          <i class="fas fa-save"></i> <span>저장</span>
-        </button>
-        <button class="btn btn-secondary" onclick="saveDraft(true)">
-          <i class="fas fa-clock"></i> <span>임시저장</span>
-        </button>
-        <select class="load-select" id="loadSelect" onchange="onLoadSelectChange()">
-          <option value="">-- 불러오기 (과거 보고서) --</option>
-        </select>
-        <span class="exec-status-chip new" id="statusChip"><i class="fas fa-circle" style="font-size:6px;"></i> 새 보고서</span>
-        <div class="exec-toolbar-spacer"></div>
-        <button class="btn btn-secondary" onclick="printReport()">
-          <i class="fas fa-print"></i> <span>인쇄/PDF</span>
-        </button>
-        <button class="btn btn-danger" onclick="resetForm()">
-          <i class="fas fa-undo"></i> <span>초기화</span>
-        </button>
+      <div class="exec-sticky-head no-print">
+        <div class="exec-toolbar">
+          <button class="btn btn-secondary" id="btnTogglePreview" onclick="togglePreview()">
+            <i class="fas fa-eye"></i> <span>미리보기</span>
+          </button>
+          <button class="btn btn-primary" onclick="saveReport()">
+            <i class="fas fa-save"></i> <span>저장</span>
+          </button>
+          <button class="btn btn-secondary" onclick="saveDraft(true)">
+            <i class="fas fa-clock"></i> <span>임시저장</span>
+          </button>
+          <select class="load-select" id="loadSelect" onchange="onLoadSelectChange()">
+            <option value="">-- 불러오기 (과거 보고서) --</option>
+          </select>
+          <span class="exec-status-chip new" id="statusChip"><i class="fas fa-circle" style="font-size:6px;"></i> 새 보고서</span>
+          <div class="exec-toolbar-spacer"></div>
+          <button class="btn btn-secondary" onclick="printReport()">
+            <i class="fas fa-print"></i> <span>인쇄/PDF</span>
+          </button>
+          <button class="btn btn-danger" onclick="resetForm()">
+            <i class="fas fa-undo"></i> <span>초기화</span>
+          </button>
+        </div>
+
+        <div class="exec-tabs" id="execTabs" role="tablist" aria-label="보고서 섹션 그룹">
+          <button type="button" class="exec-tab-btn" role="tab" id="execTabBtn-overview" aria-controls="execTabPanel-overview" data-tab="overview" onclick="setExecTab('overview')">
+            <i class="fas fa-clipboard"></i> 개요 <span class="exec-tab-badge">2</span>
+          </button>
+          <button type="button" class="exec-tab-btn" role="tab" id="execTabBtn-settlement" aria-controls="execTabPanel-settlement" data-tab="settlement" onclick="setExecTab('settlement')">
+            <i class="fas fa-calendar-alt"></i> 월 결산 프로세스 <span class="exec-tab-badge">1</span>
+          </button>
+          <button type="button" class="exec-tab-btn" role="tab" id="execTabBtn-kpi" aria-controls="execTabPanel-kpi" data-tab="kpi" onclick="setExecTab('kpi')">
+            <i class="fas fa-chart-line"></i> KPI &amp; 성과 <span class="exec-tab-badge">2</span>
+          </button>
+          <button type="button" class="exec-tab-btn" role="tab" id="execTabBtn-progress" aria-controls="execTabPanel-progress" data-tab="progress" onclick="setExecTab('progress')">
+            <i class="fas fa-cogs"></i> 진행 &amp; 이슈 <span class="exec-tab-badge">2</span>
+          </button>
+          <button type="button" class="exec-tab-btn" role="tab" id="execTabBtn-ops" aria-controls="execTabPanel-ops" data-tab="ops" onclick="setExecTab('ops')">
+            <i class="fas fa-building"></i> 운영 현황 <span class="exec-tab-badge">3</span>
+          </button>
+          <button type="button" class="exec-tab-btn" role="tab" id="execTabBtn-plan" aria-controls="execTabPanel-plan" data-tab="plan" onclick="setExecTab('plan')">
+            <i class="fas fa-bullseye"></i> 계획 &amp; 건의 <span class="exec-tab-badge">2</span>
+          </button>
+        </div>
       </div>
 
       <!-- ══════════ 편집 폼 ══════════ -->
       <div id="editView">
+
+        <!-- 탭 그룹 1/6: 개요 (01 보고 헤더, 02 인사말) -->
+        <div class="exec-tab-panel" id="execTabPanel-overview" data-tab="overview" role="tabpanel" aria-labelledby="execTabBtn-overview">
 
         <!-- 1. 보고 헤더 -->
         <div class="exec-sec">
@@ -394,8 +441,13 @@
           </div>
         </div>
 
+        </div><!-- /execTabPanel-overview -->
+
+        <!-- 탭 그룹 2/6: 월 결산 프로세스 (03) -->
+        <div class="exec-tab-panel" id="execTabPanel-settlement" data-tab="settlement" role="tabpanel" aria-labelledby="execTabBtn-settlement">
+
         <!-- 3. 월 결산 프로세스 -->
-        <div class="exec-sec exec-sec-wide">
+        <div class="exec-sec">
           <button class="exec-sec-header open" onclick="toggleSec(this)">
             <span class="exec-sec-num">03</span>
             <span class="exec-sec-title">월 결산 프로세스<small>D+1~D+15 일자별 담당 업무 매트릭스</small></span>
@@ -447,8 +499,13 @@
           </div>
         </div>
 
+        </div><!-- /execTabPanel-settlement -->
+
+        <!-- 탭 그룹 3/6: KPI & 성과 (04, 05) -->
+        <div class="exec-tab-panel" id="execTabPanel-kpi" data-tab="kpi" role="tabpanel" aria-labelledby="execTabBtn-kpi">
+
         <!-- 4. KPI 달성 현황 -->
-        <div class="exec-sec exec-sec-wide">
+        <div class="exec-sec">
           <button class="exec-sec-header open" onclick="toggleSec(this)">
             <span class="exec-sec-num">04</span>
             <span class="exec-sec-title">KPI 달성 현황<small>가중치 · 1~2분기 실적 자동 · 3분기 목표/실적 입력</small></span>
@@ -486,7 +543,7 @@
         </div>
 
         <!-- 5. 주요 성과 (완료) -->
-        <div class="exec-sec exec-sec-wide">
+        <div class="exec-sec">
           <button class="exec-sec-header open" onclick="toggleSec(this)">
             <span class="exec-sec-num">05</span>
             <span class="exec-sec-title">주요 성과 (완료)<small>이번 달 완료한 핵심 성과</small></span>
@@ -500,8 +557,13 @@
           </div>
         </div>
 
+        </div><!-- /execTabPanel-kpi -->
+
+        <!-- 탭 그룹 4/6: 진행 & 이슈 (06, 07) -->
+        <div class="exec-tab-panel" id="execTabPanel-progress" data-tab="progress" role="tabpanel" aria-labelledby="execTabBtn-progress">
+
         <!-- 6. 진행 중 업무 -->
-        <div class="exec-sec exec-sec-wide">
+        <div class="exec-sec">
           <button class="exec-sec-header open" onclick="toggleSec(this)">
             <span class="exec-sec-num">06</span>
             <span class="exec-sec-title">진행 중 업무<small>진행률 · 담당자 · 완료 예정일</small></span>
@@ -516,7 +578,7 @@
         </div>
 
         <!-- 7. 이슈 & 리스크 -->
-        <div class="exec-sec exec-sec-wide">
+        <div class="exec-sec">
           <button class="exec-sec-header open" onclick="toggleSec(this)">
             <span class="exec-sec-num">07</span>
             <span class="exec-sec-title">이슈 &amp; 리스크<small>영향도 · 대응 · 목표 해결일</small></span>
@@ -528,6 +590,11 @@
             <button class="btn-add-row" onclick="addRow('iss')"><i class="fas fa-plus"></i> 이슈 추가</button>
           </div>
         </div>
+
+        </div><!-- /execTabPanel-progress -->
+
+        <!-- 탭 그룹 5/6: 운영 현황 (08, 09, 10) -->
+        <div class="exec-tab-panel" id="execTabPanel-ops" data-tab="ops" role="tabpanel" aria-labelledby="execTabBtn-ops">
 
         <!-- 8. 컴플라이언스 & 감사 -->
         <div class="exec-sec">
@@ -615,8 +682,13 @@
           </div>
         </div>
 
+        </div><!-- /execTabPanel-ops -->
+
+        <!-- 탭 그룹 6/6: 계획 & 건의 (11, 12) -->
+        <div class="exec-tab-panel" id="execTabPanel-plan" data-tab="plan" role="tabpanel" aria-labelledby="execTabBtn-plan">
+
         <!-- 11. 차기 계획 -->
-        <div class="exec-sec exec-sec-wide">
+        <div class="exec-sec">
           <button class="exec-sec-header open" onclick="toggleSec(this)">
             <span class="exec-sec-num">11</span>
             <span class="exec-sec-title">차기 계획<small>다음 달 우선순위</small></span>
@@ -630,7 +702,7 @@
         </div>
 
         <!-- 12. Decision Requested -->
-        <div class="exec-sec exec-sec-wide">
+        <div class="exec-sec">
           <button class="exec-sec-header open" onclick="toggleSec(this)">
             <span class="exec-sec-num">12</span>
             <span class="exec-sec-title">Decision Requested<small>건의 &amp; 상무 결정 요청 사항</small></span>
@@ -642,6 +714,8 @@
             <button class="btn-add-row" onclick="addRow('dec')"><i class="fas fa-plus"></i> 건의사항 추가</button>
           </div>
         </div>
+
+        </div><!-- /execTabPanel-plan -->
 
       </div><!-- /editView -->
 
@@ -999,6 +1073,48 @@ function updateKpiQ2Avg() {
 function toggleSec(btn) {
   btn.classList.toggle('open');
   btn.nextElementSibling.classList.toggle('open');
+}
+
+// ── 상위 탭 (12개 섹션 → 6개 그룹) ─────────────────────
+// 12개 exec-sec 섹션 내부의 필드/자동채움 로직은 그대로 두고, 어느 exec-tab-panel
+// 안에 위치하느냐로만 노출 그룹을 나눈다. 탭 전환 시 그 그룹의 섹션들은 항상
+// 펼침 상태로 강제한다 (사용자가 이전에 접었더라도 탭을 다시 열면 펴진 채로 보임).
+const EXEC_TABS = ['overview', 'settlement', 'kpi', 'progress', 'ops', 'plan'];
+const EXEC_TAB_STORAGE_KEY = 'execReportActiveTab';
+
+function setExecTab(tab) {
+  if (!EXEC_TABS.includes(tab)) tab = EXEC_TABS[0];
+
+  document.querySelectorAll('.exec-tab-panel').forEach(panel => {
+    const isActive = panel.dataset.tab === tab;
+    panel.classList.toggle('active', isActive);
+    if (isActive) {
+      panel.querySelectorAll('.exec-sec-header').forEach(h => h.classList.add('open'));
+      panel.querySelectorAll('.exec-sec-body').forEach(b => b.classList.add('open'));
+    }
+  });
+
+  let activeBtn = null;
+  document.querySelectorAll('.exec-tab-btn').forEach(btn => {
+    const isActive = btn.dataset.tab === tab;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    if (isActive) activeBtn = btn;
+  });
+  // 모바일(≤640px)에서는 탭 바가 가로 스크롤되므로, 복원된 탭이 화면 밖에
+  // 있으면 아무 것도 선택 안 된 것처럼 보인다 — 활성 탭을 항상 보이는 위치로 스크롤.
+  if (activeBtn) activeBtn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+
+  try { localStorage.setItem(EXEC_TAB_STORAGE_KEY, tab); } catch (_) { /* 저장 실패해도 화면 전환은 정상 동작 */ }
+}
+
+function restoreExecTab() {
+  let tab = EXEC_TABS[0];
+  try {
+    const saved = localStorage.getItem(EXEC_TAB_STORAGE_KEY);
+    if (saved && EXEC_TABS.includes(saved)) tab = saved;
+  } catch (_) { /* localStorage 접근 불가 시 기본(개요) 탭 사용 */ }
+  setExecTab(tab);
 }
 
 // ── 동적 행 CRUD ──────────────────────────────────────
@@ -1601,12 +1717,13 @@ Object.assign(window, {
   toggleSec, addRow, removeRow, updateRowField,
   saveReport, saveDraft, onLoadSelectChange, onYmChange,
   togglePreview, printReport, resetForm,
-  setSettleView, updateKpiQ3,
+  setSettleView, updateKpiQ3, setExecTab,
 });
 
 // ── 초기화 실행 ───────────────────────────────────────
 setDefaults();
 renderAllRows();
+restoreExecTab();
 const restored = restoreDraftIfAny(true);
 if (!restored) setStatusChip('new');
 loadReportList();
