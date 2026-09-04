@@ -193,8 +193,9 @@
       background: #eff6ff; color: #1d4ed8; white-space: nowrap;
     }
     .settle-cell-chip {
-      display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 7px;
-      margin: 2px 3px; cursor: default;
+      display: inline-block; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 7px;
+      margin: 2px 3px; cursor: default; line-height: 1.35;
+      max-width: 180px; white-space: normal; word-break: keep-all; text-align: center;
     }
     .settle-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 16px; font-size: 12.5px; color: var(--gray-500); }
     .settle-legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
@@ -788,7 +789,7 @@ function settleMatrixRowsHtml(cols) {
       if (!items.length) return `<td>·</td>`;
       const chips = items.map(it => {
         const g = SETTLE_GROUP_COLORS[it.group_name] || SETTLE_GROUP_FALLBACK;
-        return `<span class="settle-cell-chip" style="background:${g.bg};color:${g.fg};" title="${escAttr(it.label)} (${escAttr(it.group_name || '')})">${esc(it.id || it.label)}</span>`;
+        return `<span class="settle-cell-chip" style="background:${g.bg};color:${g.fg};" title="${escAttr((it.id || '') + ' · ' + it.label + ' · ' + (it.group_name || ''))}">${esc(it.label || it.id)}</span>`;
       }).join('');
       return `<td>${chips}</td>`;
     }).join('');
