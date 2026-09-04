@@ -432,7 +432,7 @@
             <i class="fas fa-shield-alt"></i> 컴플라이언스 &amp; 감사 <span class="exec-tab-badge">1</span>
           </button>
           <button type="button" class="exec-tab-btn" role="tab" id="execTabBtn-people" aria-controls="execTabPanel-people" data-tab="people" onclick="setExecTab('people')">
-            <i class="fas fa-users"></i> 인력·자원 <span class="exec-tab-badge">1</span>
+            <i class="fas fa-users"></i> 인력·자원 <span class="exec-tab-badge">2</span>
           </button>
           <button type="button" class="exec-tab-btn" role="tab" id="execTabBtn-governance" aria-controls="execTabPanel-governance" data-tab="governance" onclick="setExecTab('governance')">
             <i class="fas fa-book-reader"></i> 규정·매뉴얼 <span class="exec-tab-badge">3</span>
@@ -719,6 +719,15 @@
               <textarea class="form-control" id="fHiring" placeholder="예: 신규 채용 진행 중, 인사이동 계획 등..."></textarea>
             </div>
           </div>
+        </div>
+
+        <!-- 부속: 계리모델부스터 라이센스 현황 (인력도 자원, SW 라이센스도 자원 — 인력·자원 탭에 함께 배치) -->
+        <div class="extra-cat-section">
+          <div class="extra-cat-section-title">
+            <h4><i class="fas fa-key"></i> 계리모델부스터 라이센스 현황</h4>
+            <span>계리모델 구축·검증에 사용되는 상용 소프트웨어 라이센스 보유·사용·갱신 현황입니다. 라이센스별로 자유롭게 추가·삭제하실 수 있습니다.</span>
+          </div>
+          <div class="extra-cat-grid" id="boosterLicenseGrid"></div>
         </div>
 
         </div><!-- /execTabPanel-people -->
@@ -1355,6 +1364,103 @@ function governanceDocsDocHtml(byCat) {
 }
 
 // ══════════════════════════════════════════════════════════
+// 섹션 10 부속: 계리모델부스터 라이센스 현황
+// 규정·사규·매뉴얼 카드(GOV_DOC_META)와 동일한 extra-cat-card 컴포넌트를 재사용하되,
+// 카테고리 구분 없이 단일 카드 + rows 목록(라이센스명·수량·사용중·갱신일·담당·비고)으로 구성.
+// 서버 테이블 없이 보고서 payload(booster_licenses)에 그대로 저장.
+// ══════════════════════════════════════════════════════════
+const BOOSTER_LICENSE_META = { icon: 'fa-key', label: '계리모델부스터 라이센스 현황', desc: '계리모델 구축·검증에 사용되는 상용 소프트웨어 라이센스 보유·사용·갱신 현황' };
+
+function defaultBoosterLicenses() { return []; }
+let boosterLicenses = defaultBoosterLicenses();
+// 카드 접기/펴기 상태 (기본 펼침) — govDocOpenState 와 동일한 관례.
+let boosterLicenseOpen = true;
+
+// 담당 입력용 datalist 는 섹션 3의 settleMembersDatalist(SETTLE_MEMBERS 기반) 를 그대로 재사용 — SSOT.
+function boosterLicenseRowsHtml() {
+  const rows = boosterLicenses;
+  if (!rows.length) {
+    return `<tr><td colspan="7" class="settle-empty-msg">등록된 라이센스가 없습니다.</td></tr>`;
+  }
+  return rows.map((r, i) => `
+    <tr>
+      <td><input type="text" class="form-control" placeholder="라이센스명/버전" value="${escAttr(r.name)}"
+        oninput="updateBoosterLicenseField(${i},'name',this.value)"></td>
+      <td><input type="number" class="form-control" min="0" placeholder="0" value="${escAttr(r.count)}"
+        oninput="updateBoosterLicenseField(${i},'count',this.value)"></td>
+      <td><input type="number" class="form-control" min="0" placeholder="0" value="${escAttr(r.in_use)}"
+        oninput="updateBoosterLicenseField(${i},'in_use',this.value)"></td>
+      <td><input type="date" class="form-control" value="${escAttr(r.renewal_date)}"
+        oninput="updateBoosterLicenseField(${i},'renewal_date',this.value)"></td>
+      <td><input type="text" class="form-control" list="settleMembersDatalist" placeholder="담당자 선택/입력" value="${escAttr(r.owner)}"
+        oninput="updateBoosterLicenseField(${i},'owner',this.value)"></td>
+      <td><textarea class="form-control" rows="1" placeholder="비고"
+        oninput="updateBoosterLicenseField(${i},'note',this.value)">${esc(r.note)}</textarea></td>
+      <td style="text-align:center;"><button class="dyn-del-sm" onclick="removeBoosterLicenseRow(${i})" aria-label="라이센스 행 삭제"><i class="fas fa-times"></i></button></td>
+    </tr>`).join('');
+}
+
+function boosterLicenseCardHtml() {
+  const isOpen = boosterLicenseOpen !== false;
+  const count = boosterLicenses.length;
+  return `
+    <div class="extra-cat-card">
+      <button type="button" class="extra-cat-head${isOpen ? ' open' : ''}" onclick="toggleBoosterLicenseCard(this)">
+        <span class="extra-cat-icon"><i class="fas ${BOOSTER_LICENSE_META.icon}"></i></span>
+        <span class="extra-cat-head-text">
+          <span class="name">${esc(BOOSTER_LICENSE_META.label)}</span>
+          <span class="desc">${esc(BOOSTER_LICENSE_META.desc)}</span>
+        </span>
+        <span class="extra-cat-badge${count ? '' : ' zero'}">${count}건</span>
+        <i class="fas fa-chevron-down extra-cat-chevron"></i>
+      </button>
+      <div class="extra-cat-body${isOpen ? ' open' : ''}">
+        <div class="table-scroll">
+          <table class="settle-day-table">
+            <thead><tr><th style="width:22%;">라이센스명/버전</th><th style="width:10%;">보유 수량</th><th style="width:12%;">사용 중 인원</th><th style="width:14%;">갱신 예정일</th><th style="width:14%;">담당자</th><th>비고</th><th style="width:44px;"></th></tr></thead>
+            <tbody>${boosterLicenseRowsHtml()}</tbody>
+          </table>
+        </div>
+        <button type="button" class="btn-add-row" onclick="addBoosterLicenseRow()"><i class="fas fa-plus"></i> 라이센스 추가</button>
+      </div>
+    </div>`;
+}
+
+function renderBoosterLicenses() {
+  const wrap = document.getElementById('boosterLicenseGrid');
+  if (wrap) wrap.innerHTML = boosterLicenseCardHtml();
+}
+
+function toggleBoosterLicenseCard(btn) {
+  btn.classList.toggle('open');
+  const body = btn.nextElementSibling;
+  if (body) body.classList.toggle('open');
+  boosterLicenseOpen = body ? body.classList.contains('open') : true;
+}
+
+function addBoosterLicenseRow() {
+  boosterLicenses.push({ name: '', count: '', in_use: '', renewal_date: '', owner: '', note: '' });
+  renderBoosterLicenses();
+  scheduleDraftSave();
+}
+function removeBoosterLicenseRow(idx) {
+  boosterLicenses.splice(idx, 1);
+  renderBoosterLicenses();
+  scheduleDraftSave();
+}
+function updateBoosterLicenseField(idx, field, val) {
+  if (!boosterLicenses[idx]) return;
+  boosterLicenses[idx][field] = val;
+  scheduleDraftSave();
+}
+
+// 미리보기/인쇄 문서용 — 등록된 라이센스가 하나도 없으면 doc-sec 자체를 호출부에서 숨긴다.
+function boosterLicensesDocRowsHtml(list) {
+  const rows = Array.isArray(list) ? list : [];
+  return rows.map(r => `<tr><td>${esc(r.name) || '-'}</td><td>${(r.count ?? '') !== '' ? esc(r.count) : '-'}</td><td>${(r.in_use ?? '') !== '' ? esc(r.in_use) : '-'}</td><td>${esc(r.renewal_date) || '-'}</td><td>${esc(r.owner) || '-'}</td><td>${esc(r.note) || '-'}</td></tr>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
 // 섹션 4: KPI 달성 현황 (kpi_definitions 고정 목록 + performance_records 분기 평균)
 // ══════════════════════════════════════════════════════════
 let KPI_DEFS = [];          // 올해 활성 KPI 정의
@@ -1686,6 +1792,7 @@ function collectPayload() {
       [c.key, (settleExtraByCategory[c.key] || []).filter(r => r.assignee || r.task || r.cycle || r.note)])),
     governance_docs: Object.fromEntries(GOV_DOC_META.map(c =>
       [c.key, (governanceDocsByCategory[c.key] || []).filter(r => r.doc_name || r.last_revised || r.owner || r.note)])),
+    booster_licenses: boosterLicenses.filter(r => r.name || r.count !== '' || r.in_use !== '' || r.renewal_date || r.owner || r.note),
     kpi_q3_targets: { ...kpiQ3Targets },
     kpi_q3_actuals: { ...kpiQ3Actuals },
     kpi_q3_progress_note: document.getElementById('fKpiQ3Progress').value.trim(),
@@ -1744,6 +1851,10 @@ function applyPayload(p) {
   }
   renderGovernanceDocs();
 
+  // 계리모델부스터 라이센스 현황 — 저장된 적 없는 신규 보고서는 빈 배열로 시작.
+  boosterLicenses = Array.isArray(p.booster_licenses) ? p.booster_licenses : defaultBoosterLicenses();
+  renderBoosterLicenses();
+
   kpiQ3Targets = { ...(p.kpi_q3_targets || {}) };
   kpiQ3Actuals = { ...(p.kpi_q3_actuals || {}) };
   document.getElementById('fKpiQ3Progress').value = p.kpi_q3_progress_note || '';
@@ -1782,11 +1893,14 @@ function resetFormState() {
   EXTRA_CAT_META.forEach(c => { extraCatOpenState[c.key] = true; });
   governanceDocsByCategory = defaultGovernanceDocs();
   GOV_DOC_META.forEach(c => { govDocOpenState[c.key] = true; });
+  boosterLicenses = defaultBoosterLicenses();
+  boosterLicenseOpen = true;
   setDefaults();
   renderAllRows();
   renderKpiTable();
   renderSettleExtraCategories();
   renderGovernanceDocs();
+  renderBoosterLicenses();
   document.getElementById('loadSelect').value = '';
   setStatusChip('new');
 }
@@ -2083,6 +2197,13 @@ function renderPreviewDoc() {
         ${governanceDocsDocHtml(p.governance_docs)}
       </div>
 
+      ${(p.booster_licenses && p.booster_licenses.length) ? `
+      <div class="doc-sec">
+        <div class="doc-sec-title"><i class="fas fa-key"></i> 계리모델부스터 라이센스 현황</div>
+        <table class="doc-table"><thead><tr><th>라이센스명/버전</th><th>보유 수량</th><th>사용 중 인원</th><th>갱신 예정일</th><th>담당자</th><th>비고</th></tr></thead>
+        <tbody>${boosterLicensesDocRowsHtml(p.booster_licenses)}</tbody></table>
+      </div>` : ''}
+
       <div class="doc-sec">
         <div class="doc-sec-title"><i class="fas fa-calendar-check"></i> 차기 계획</div>
         <table class="doc-table"><thead><tr><th>순위</th><th>항목</th><th>담당</th><th>완료 목표일</th></tr></thead>
@@ -2137,6 +2258,7 @@ Object.assign(window, {
   setSettleView, updateKpiQ3, setExecTab,
   addExtraCatRow, removeExtraCatRow, updateExtraCatField, toggleExtraCatCard,
   addGovDocRow, removeGovDocRow, updateGovDocField, toggleGovDocCard,
+  addBoosterLicenseRow, removeBoosterLicenseRow, updateBoosterLicenseField, toggleBoosterLicenseCard,
 });
 
 // ── 초기화 실행 ───────────────────────────────────────
@@ -2144,6 +2266,7 @@ setDefaults();
 renderAllRows();
 renderSettleExtraCategories();
 renderGovernanceDocs();
+renderBoosterLicenses();
 restoreExecTab();
 const restored = restoreDraftIfAny(true);
 if (!restored) setStatusChip('new');
