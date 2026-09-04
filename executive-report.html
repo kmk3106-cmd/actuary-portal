@@ -69,6 +69,15 @@
     .exec-status-chip.new    { background: var(--gray-100); color: var(--gray-500); }
 
     /* ── 섹션 카드 (접기/펴기) ────────────────────────── */
+    /* ── 편집 폼 카드 그리드 (2열, 넓은 섹션만 전체 폭) ── */
+    #editView {
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px; align-items: start;
+    }
+    #editView > .exec-sec { margin: 0; }
+    #editView > .exec-sec.exec-sec-wide { grid-column: 1 / -1; }
+    @media (max-width: 1180px) { #editView { grid-template-columns: 1fr; } }
+
     .exec-sec {
       background: #fff; border: 1px solid var(--gray-200); border-radius: 14px;
       margin-bottom: 22px; overflow: hidden;
@@ -386,7 +395,7 @@
         </div>
 
         <!-- 3. 월 결산 프로세스 -->
-        <div class="exec-sec">
+        <div class="exec-sec exec-sec-wide">
           <button class="exec-sec-header open" onclick="toggleSec(this)">
             <span class="exec-sec-num">03</span>
             <span class="exec-sec-title">월 결산 프로세스<small>D+1~D+15 일자별 담당 업무 매트릭스</small></span>
@@ -439,7 +448,7 @@
         </div>
 
         <!-- 4. KPI 달성 현황 -->
-        <div class="exec-sec">
+        <div class="exec-sec exec-sec-wide">
           <button class="exec-sec-header open" onclick="toggleSec(this)">
             <span class="exec-sec-num">04</span>
             <span class="exec-sec-title">KPI 달성 현황<small>가중치 · 1~2분기 실적 자동 · 3분기 목표/실적 입력</small></span>
@@ -477,7 +486,7 @@
         </div>
 
         <!-- 5. 주요 성과 (완료) -->
-        <div class="exec-sec">
+        <div class="exec-sec exec-sec-wide">
           <button class="exec-sec-header open" onclick="toggleSec(this)">
             <span class="exec-sec-num">05</span>
             <span class="exec-sec-title">주요 성과 (완료)<small>이번 달 완료한 핵심 성과</small></span>
@@ -492,7 +501,7 @@
         </div>
 
         <!-- 6. 진행 중 업무 -->
-        <div class="exec-sec">
+        <div class="exec-sec exec-sec-wide">
           <button class="exec-sec-header open" onclick="toggleSec(this)">
             <span class="exec-sec-num">06</span>
             <span class="exec-sec-title">진행 중 업무<small>진행률 · 담당자 · 완료 예정일</small></span>
@@ -507,7 +516,7 @@
         </div>
 
         <!-- 7. 이슈 & 리스크 -->
-        <div class="exec-sec">
+        <div class="exec-sec exec-sec-wide">
           <button class="exec-sec-header open" onclick="toggleSec(this)">
             <span class="exec-sec-num">07</span>
             <span class="exec-sec-title">이슈 &amp; 리스크<small>영향도 · 대응 · 목표 해결일</small></span>
@@ -607,7 +616,7 @@
         </div>
 
         <!-- 11. 차기 계획 -->
-        <div class="exec-sec">
+        <div class="exec-sec exec-sec-wide">
           <button class="exec-sec-header open" onclick="toggleSec(this)">
             <span class="exec-sec-num">11</span>
             <span class="exec-sec-title">차기 계획<small>다음 달 우선순위</small></span>
@@ -621,7 +630,7 @@
         </div>
 
         <!-- 12. Decision Requested -->
-        <div class="exec-sec">
+        <div class="exec-sec exec-sec-wide">
           <button class="exec-sec-header open" onclick="toggleSec(this)">
             <span class="exec-sec-num">12</span>
             <span class="exec-sec-title">Decision Requested<small>건의 &amp; 상무 결정 요청 사항</small></span>
