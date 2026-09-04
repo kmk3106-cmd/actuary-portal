@@ -216,6 +216,8 @@
     }
     .settle-view-btn.active { background: #fff; color: #1e3a8a; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
     .settle-view-btn:hover:not(.active) { color: var(--gray-700); }
+    .settle-view-count { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: rgba(30,58,138,0.1); color: #1e3a8a; font-size: 11px; font-weight: 700; vertical-align: middle; }
+    .settle-view-btn.active .settle-view-count { background: #1e3a8a; color: #fff; }
     .table-scroll { overflow-x: auto; border: 1px solid var(--gray-200); border-radius: 12px; }
     .settle-day-table, .settle-matrix-table { width: 100%; border-collapse: collapse; font-size: 14px; }
     .settle-day-table th, .settle-matrix-table th {
@@ -533,9 +535,11 @@
 
             <div class="extra-cat-section">
               <div class="extra-cat-section-title">
-                <h4><i class="fas fa-layer-group"></i> 부가 업무 카테고리 (테마별)</h4>
-                <span>D+1~D+15 결산 매트릭스에는 없지만 팀이 상시로 수행하는 업무입니다. 카테고리(테마)별로 담당자를 자유롭게 추가·삭제하실 수 있습니다.</span>
+                <h4><i class="fas fa-layer-group"></i> 결산 외 업무</h4>
+                <span>D+1~D+15 결산 매트릭스에는 없지만 팀이 상시로 수행하는 업무입니다. 상단 탭에서 카테고리를 선택해 담당자를 자유롭게 추가·삭제하실 수 있습니다.</span>
               </div>
+              <!-- 뷰 A/B 스타일 카테고리 탭 (활성 탭 카드만 표시) -->
+              <div class="settle-view-toggle" id="extraCatTabs" role="tablist" style="margin-top:14px;flex-wrap:wrap;"></div>
               <div class="extra-cat-grid" id="settleExtraCatGrid"></div>
               <datalist id="settleMembersDatalist"></datalist>
             </div>
@@ -1170,9 +1174,36 @@ function extraCatCardHtml(cat) {
     </div>`;
 }
 
+// 활성 카테고리 (뷰 A/B 스타일 상단 탭 — localStorage 로 마지막 선택 기억)
+let activeExtraCat = (function() {
+  try { const v = localStorage.getItem('execReportExtraCatTab'); if (v && EXTRA_CAT_META.some(c => c.key === v)) return v; } catch {}
+  return EXTRA_CAT_META[0].key;
+})();
+function setExtraCatTab(key) {
+  if (!EXTRA_CAT_META.some(c => c.key === key)) return;
+  activeExtraCat = key;
+  try { localStorage.setItem('execReportExtraCatTab', key); } catch {}
+  renderSettleExtraCategories();
+}
+Object.assign(window, { setExtraCatTab });
+
 function renderSettleExtraCategories() {
+  // 탭 바 (뷰 A/B 스타일)
+  const tabs = document.getElementById('extraCatTabs');
+  if (tabs) {
+    tabs.innerHTML = EXTRA_CAT_META.map(c => {
+      const n = (settleExtraByCategory[c.key] || []).length;
+      const badge = n > 0 ? `<span class="settle-view-count">${n}</span>` : '';
+      const active = c.key === activeExtraCat ? ' active' : '';
+      return `<button type="button" class="settle-view-btn${active}" onclick="setExtraCatTab('${c.key}')" title="${escAttr(c.desc || '')}"><i class="fas ${c.icon}"></i> ${esc(c.label)}${badge}</button>`;
+    }).join('');
+  }
+  // 활성 카테고리 카드만 렌더
   const wrap = document.getElementById('settleExtraCatGrid');
-  if (wrap) wrap.innerHTML = EXTRA_CAT_META.map(extraCatCardHtml).join('');
+  if (wrap) {
+    const active = EXTRA_CAT_META.find(c => c.key === activeExtraCat) || EXTRA_CAT_META[0];
+    wrap.innerHTML = extraCatCardHtml(active);
+  }
 }
 
 function toggleExtraCatCard(btn) {
