@@ -105,7 +105,31 @@ echo   관리:
 echo     net start ActuaryPortalNode / net stop ActuaryPortalNode
 echo     sc query ActuaryPortalNode
 echo     로그: %ROOT%\logs\nssm-portal-*.log
-echo   Cloudflared 는 Windows 서비스로 별도 관리 (변경 없음)
+echo   Cloudflared 는 Windows 서비스로 별도 관리
+echo.
+
+REM ── 5. Cloudflared 서비스 안정화 (winget shim → 절대경로 이관 + 자동 재시작) ──
+echo [5/5] Cloudflared 서비스 안정화 (LocalSystem 접근 가능 절대경로 + 자동 재시작 정책)...
+if not exist "C:\Tools\cloudflared\cloudflared.exe" (
+    where cloudflared >nul 2>&1
+    if errorlevel 1 (
+        winget install Cloudflare.cloudflared --silent --accept-source-agreements --accept-package-agreements
+    )
+    if not exist "C:\Tools\cloudflared" mkdir "C:\Tools\cloudflared"
+    powershell -NoProfile -Command "$src = Get-ChildItem \"$env:LOCALAPPDATA\Microsoft\WinGet\Packages\" -Filter cloudflared*.exe -Recurse -EA SilentlyContinue | Where-Object { $_.Length -gt 1MB } | Select-Object -First 1; if ($src) { Copy-Item -LiteralPath $src.FullName -Destination 'C:\Tools\cloudflared\cloudflared.exe' -Force }"
+)
+if exist "C:\Tools\cloudflared\cloudflared.exe" (
+    sc.exe stop Cloudflared >nul 2>&1
+    timeout /t 2 /nobreak >nul
+    sc.exe config Cloudflared binPath= "\"C:\Tools\cloudflared\cloudflared.exe\" --config \"C:\WINDOWS\System32\config\systemprofile\.cloudflared\config.yml\" tunnel run actuary-portal" >nul
+    REM 크래시 시 자동 재시작: 3초 → 5초 → 10초 (60초 안 재실패 카운터 리셋)
+    sc.exe failure Cloudflared reset= 60 actions= restart/3000/restart/5000/restart/10000 >nul
+    sc.exe failureflag Cloudflared 1 >nul
+    net start Cloudflared >nul 2>&1
+    echo    Cloudflared 절대경로 이관 + 자동 재시작 정책 완료.
+) else (
+    echo    [경고] cloudflared.exe 확보 실패. Cloudflared 는 그대로 두고 별도 수동 설정.
+)
 echo  --------------------------------------------
 echo.
 pause
