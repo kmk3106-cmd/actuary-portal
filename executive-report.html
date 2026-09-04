@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>임원 업무보고 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css?v=28">
+  <style>
+    /* ── 툴바 (sticky) ───────────────────────────────── */
+    .exec-toolbar {
+      position: sticky; top: 0; z-index: 40;
+      background: rgba(255,255,255,0.97); backdrop-filter: blur(4px);
+      border-bottom: 1px solid var(--gray-200);
+      padding: 12px 0; margin-bottom: 20px;
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .exec-toolbar-spacer { flex: 1; min-width: 8px; }
+    .load-select {
+      padding: 8px 12px; border: 1.5px solid var(--gray-200); border-radius: 9px;
+      font-size: 13px; color: var(--gray-700); font-family: inherit; background: #fff; cursor: pointer;
+      max-width: 220px;
+    }
+    .exec-status-chip {
+      font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px;
+      display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+    }
+    .exec-status-chip.saved  { background: #d1fae5; color: #065f46; }
+    .exec-status-chip.draft  { background: #fef3c7; color: #92400e; }
+    .exec-status-chip.new    { background: var(--gray-100); color: var(--gray-500); }
+
+    /* ── 섹션 카드 (접기/펴기) ────────────────────────── */
+    .exec-sec { background: #fff; border: 1px solid var(--gray-200); border-radius: 12px; margin-bottom: 14px; overflow: hidden; }
+    .exec-sec-header {
+      display: flex; align-items: center; gap: 12px; width: 100%; border: none; background: var(--gray-50);
+      padding: 14px 20px; cursor: pointer; font-family: inherit; text-align: left; transition: background .15s;
+    }
+    .exec-sec-header:hover { background: var(--gray-100); }
+    .exec-sec-header.open { background: #fff; border-bottom: 1px solid var(--gray-200); }
+    .exec-sec-num {
+      width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; background: #1e293b; color: #fff;
+      display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+    }
+    .exec-sec-title { flex: 1; font-size: 14.5px; font-weight: 700; color: var(--gray-900); }
+    .exec-sec-title small { display: block; font-size: 11.5px; font-weight: 400; color: var(--gray-400); margin-top: 1px; }
+    .exec-sec-chevron { color: var(--gray-400); font-size: 12px; transition: transform .2s; }
+    .exec-sec-header.open .exec-sec-chevron { transform: rotate(180deg); }
+    .exec-sec-body { display: none; padding: 20px; }
+    .exec-sec-body.open { display: block; }
+
+    /* ── 폼 레이아웃 유틸 ─────────────────────────────── */
+    .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+    .form-row-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; }
+    .unit-wrap { position: relative; }
+    .unit-wrap input { padding-right: 40px; }
+    .unit-suffix { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 12.5px; color: var(--gray-400); pointer-events: none; }
+    .autofill-hint {
+      display: flex; align-items: center; gap: 6px; font-size: 12px; color: #1e40af;
+      background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 7px; padding: 6px 10px; margin-top: 8px;
+    }
+    .autofill-hint i { flex-shrink: 0; }
+
+    /* ── 동적 행: 한 줄형(KPI/차기계획) ──────────────── */
+    .dyn-line-row { display: grid; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .dyn-line-row.kpi  { grid-template-columns: 2fr 1fr 1fr 90px 32px; }
+    .dyn-line-row.plan { grid-template-columns: 64px 2fr 1fr 150px 32px; }
+    .dyn-rate-badge {
+      font-size: 12.5px; font-weight: 700; text-align: center; padding: 8px 4px; border-radius: 8px;
+      background: #eff6ff; color: #1d4ed8; white-space: nowrap;
+    }
+    .dyn-rate-badge.warn { background: #fef3c7; color: #92400e; }
+    .dyn-rate-badge.bad  { background: #fee2e2; color: #b91c1c; }
+    .dyn-del-sm {
+      width: 32px; height: 32px; border-radius: 8px; border: none; background: #fef2f2; color: var(--danger);
+      cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 13px;
+    }
+    .dyn-del-sm:hover { background: #fecaca; }
+
+    /* ── 동적 행: 카드형(성과/진행업무/이슈/결정요청) ── */
+    .dyn-card { position: relative; border: 1.5px solid var(--gray-200); border-radius: 10px; padding: 16px 46px 14px 16px; margin-bottom: 10px; background: var(--gray-50); }
+    .dyn-card .form-group { margin-bottom: 10px; }
+    .dyn-card .form-group:last-child { margin-bottom: 0; }
+    .dyn-card-del {
+      position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; border-radius: 8px; border: none;
+      background: #fef2f2; color: var(--danger); cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .dyn-card-del:hover { background: #fecaca; }
+
+    .btn-add-row {
+      display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 9px;
+      border: 1.5px dashed var(--gray-300); background: transparent; color: var(--gray-500); font-size: 13px;
+      font-family: inherit; cursor: pointer; transition: all .15s;
+    }
+    .btn-add-row:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* ── Executive Summary ───────────────────────────── */
+    #fExecSummary { min-height: 130px; }
+
+    /* ── 미리보기 문서 (임원용 톤: 남색 헤더 + 화이트 카드 + 회색 텍스트) ── */
+    #previewView { display: none; }
+    .doc-sheet { max-width: 210mm; margin: 0 auto 40px; background: #fff; border: 1px solid var(--gray-200); border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,.04); }
+    .doc-masthead { background: linear-gradient(135deg,#0f172a,#1e3a5f); color: #fff; padding: 34px 40px 28px; }
+    .doc-masthead-top { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+    .doc-logo { width: 36px; height: 36px; border-radius: 8px; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.25); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; letter-spacing: .02em; flex-shrink: 0; }
+    .doc-masthead-org { font-size: 11.5px; letter-spacing: 0.22em; color: rgba(255,255,255,0.6); text-transform: uppercase; }
+    .doc-masthead-team { font-size: 13.5px; font-weight: 700; color: rgba(255,255,255,0.92); }
+    .doc-title { font-size: 26px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 4px; }
+    .doc-meta-row { display: flex; flex-wrap: wrap; gap: 18px; font-size: 12.5px; color: rgba(255,255,255,0.75); margin-top: 14px; }
+    .doc-meta-row b { color: #fff; font-weight: 700; }
+    .doc-body { padding: 6px 40px 40px; }
+    .doc-sec { margin-top: 30px; }
+    .doc-sec-title { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 800; color: #0f172a; border-bottom: 2px solid #1e3a5f; padding-bottom: 8px; margin-bottom: 14px; }
+    .doc-sec-title i { color: #64748b; font-size: 13px; }
+    .doc-sec-title .doc-sec-badge { margin-left: auto; font-size: 10.5px; font-weight: 700; color: #94a3b8; letter-spacing: .05em; }
+    .doc-p { font-size: 13.5px; line-height: 1.85; color: #374151; white-space: pre-wrap; }
+    .doc-empty { color: #9ca3af; font-style: italic; }
+    .doc-kv-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 6px; }
+    .doc-kv { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px; }
+    .doc-kv-label { font-size: 11px; color: #94a3b8; margin-bottom: 3px; }
+    .doc-kv-val { font-size: 16px; font-weight: 800; color: #0f172a; }
+    .doc-kv-val.pos { color: #047857; }
+    .doc-kv-val.neg { color: #b91c1c; }
+    .doc-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-bottom: 4px; }
+    .doc-table th { background: #f1f5f9; color: #475569; font-weight: 700; text-align: left; padding: 8px 10px; border-bottom: 2px solid #e2e8f0; white-space: nowrap; }
+    .doc-table td { padding: 9px 10px; border-bottom: 1px solid #f1f5f9; color: #374151; vertical-align: top; }
+    .doc-table tr:last-child td { border-bottom: none; }
+    .doc-badge { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px; white-space: nowrap; }
+    .doc-badge.high { background: #fee2e2; color: #b91c1c; }
+    .doc-badge.mid  { background: #fef3c7; color: #92400e; }
+    .doc-badge.low  { background: #f1f5f9; color: #475569; }
+    .doc-badge.ok   { background: #dcfce7; color: #166534; }
+    .doc-badge.warn { background: #fef3c7; color: #92400e; }
+    .doc-badge.bad  { background: #fee2e2; color: #b91c1c; }
+    .doc-footer { margin-top: 34px; padding-top: 14px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; text-align: right; }
+
+    /* ── 인쇄 ─────────────────────────────────────────── */
+    @media print {
+      .no-print, .sidebar, .exec-toolbar, .main-content > .page-header, #editView { display: none !important; }
+      .main-content { margin-left: 0 !important; }
+      .content-body { padding: 0 !important; }
+      .doc-sheet { max-width: 100%; margin: 0; border: none; box-shadow: none; border-radius: 0; }
+      .doc-masthead { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .doc-sec { break-inside: avoid; }
+      @page { size: A4; margin: 14mm; }
+    }
+
+    /* ── 반응형 ───────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .doc-kv-grid { grid-template-columns: repeat(2,1fr); }
+    }
+    @media (max-width: 768px) {
+      .form-row-4 { grid-template-columns: 1fr 1fr; }
+      .form-row-3 { grid-template-columns: 1fr 1fr; }
+      .doc-masthead { padding: 26px 22px 22px; }
+      .doc-body { padding: 4px 22px 30px; }
+    }
+    @media (max-width: 640px) {
+      .form-row-2, .form-row-3, .form-row-4 { grid-template-columns: 1fr; }
+      .dyn-line-row.kpi, .dyn-line-row.plan { grid-template-columns: 1fr; }
+      .dyn-del-sm { justify-self: flex-end; }
+      .doc-kv-grid { grid-template-columns: 1fr; }
+      .doc-table { display: block; overflow-x: auto; white-space: nowrap; }
+      .exec-toolbar { gap: 6px; }
+      .exec-toolbar .btn span { display: none; }
+      .exec-toolbar .btn { padding: 9px 12px; }
+      .load-select { max-width: 140px; }
+    }
+    @media (max-width: 480px) {
+      .doc-title { font-size: 20px; }
+      .doc-masthead-top { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-file-signature"></i> 임원 업무보고 <small>계리결산팀 → 임원 월간 보고서</small></h1>
+    </header>
+    <main class="content-body">
+
+      <div class="exec-toolbar no-print">
+        <button class="btn btn-secondary" id="btnTogglePreview" onclick="togglePreview()">
+          <i class="fas fa-eye"></i> <span>미리보기</span>
+        </button>
+        <button class="btn btn-primary" onclick="saveReport()">
+          <i class="fas fa-save"></i> <span>저장</span>
+        </button>
+        <button class="btn btn-secondary" onclick="saveDraft(true)">
+          <i class="fas fa-clock"></i> <span>임시저장</span>
+        </button>
+        <select class="load-select" id="loadSelect" onchange="onLoadSelectChange()">
+          <option value="">-- 불러오기 (과거 보고서) --</option>
+        </select>
+        <span class="exec-status-chip new" id="statusChip"><i class="fas fa-circle" style="font-size:6px;"></i> 새 보고서</span>
+        <div class="exec-toolbar-spacer"></div>
+        <button class="btn btn-secondary" onclick="printReport()">
+          <i class="fas fa-print"></i> <span>인쇄/PDF</span>
+        </button>
+        <button class="btn btn-danger" onclick="resetForm()">
+          <i class="fas fa-undo"></i> <span>초기화</span>
+        </button>
+      </div>
+
+      <!-- ══════════ 편집 폼 ══════════ -->
+      <div id="editView">
+
+        <!-- 1. 보고 헤더 -->
+        <div class="exec-sec">
+          <button class="exec-sec-header open" onclick="toggleSec(this)">
+            <span class="exec-sec-num">01</span>
+            <span class="exec-sec-title">보고 헤더<small>보고 일자 · 대상 기간 · 보고자 · 수신자</small></span>
+            <i class="fas fa-chevron-down exec-sec-chevron"></i>
+          </button>
+          <div class="exec-sec-body open">
+            <div class="form-row-4">
+              <div class="form-group">
+                <label class="form-label"><i class="fas fa-calendar-day"></i> 보고 일자</label>
+                <input type="date" class="form-control" id="fReportDate">
+              </div>
+              <div class="form-group">
+                <label class="form-label"><i class="fas fa-calendar-alt"></i> 대상 기간</label>
+                <input type="month" class="form-control" id="fYm" onchange="onYmChange()">
+              </div>
+              <div class="form-group">
+                <label class="form-label"><i class="fas fa-user"></i> 보고자</label>
+                <input type="text" class="form-control" id="fReporter" placeholder="예: 김민국 팀장">
+              </div>
+              <div class="form-group">
+                <label class="form-label"><i class="fas fa-user-tie"></i> 수신자</label>
+                <input type="text" class="form-control" id="fReceiver" placeholder="예: 임정수 상무">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Executive Summary -->
+        <div class="exec-sec">
+          <button class="exec-sec-header open" onclick="toggleSec(this)">
+            <span class="exec-sec-num">02</span>
+            <span class="exec-sec-title">Executive Summary<small>이번 달 총평 3~5줄</small></span>
+            <i class="fas fa-chevron-down exec-sec-chevron"></i>
+          </button>
+          <div class="exec-sec-body open">
+            <div class="form-group" style="margin-bottom:0;">
+              <textarea class="form-control" id="fExecSummary" placeholder="이번 달 결산 및 팀 운영 전반에 대한 총평을 3~5줄로 작성하세요..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. 결산 진행 & 재무 성과 -->
+        <div class="exec-sec">
+          <button class="exec-sec-header open" onclick="toggleSec(this)">
+            <span class="exec-sec-num">03</span>
+            <span class="exec-sec-title">결산 진행 &amp; 재무 성과<small>진척률 · 손익 · BEL/RA/CSM</small></span>
+            <i class="fas fa-chevron-down exec-sec-chevron"></i>
+          </button>
+          <div class="exec-sec-body open">
+            <div class="form-row-4">
+              <div class="form-group">
+                <label class="form-label">결산 진척률</label>
+                <div class="unit-wrap"><input type="number" class="form-control" id="fProgressPct" min="0" max="100" placeholder="0"><span class="unit-suffix">%</span></div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">마감 예정일</label>
+                <input type="date" class="form-control" id="fDueDate">
+              </div>
+              <div class="form-group">
+                <label class="form-label">총 손익</label>
+                <div class="unit-wrap"><input type="number" class="form-control" id="fPnlTotal" placeholder="+/- 0"><span class="unit-suffix">억</span></div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">전월 대비</label>
+                <div class="unit-wrap"><input type="number" class="form-control" id="fMomPct" placeholder="+/- 0"><span class="unit-suffix">%</span></div>
+              </div>
+            </div>
+            <div class="form-row-4">
+              <div class="form-group">
+                <label class="form-label">BEL 총량</label>
+                <div class="unit-wrap"><input type="number" class="form-control" id="fBel" placeholder="0"><span class="unit-suffix">억</span></div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">RA 총량</label>
+                <div class="unit-wrap"><input type="number" class="form-control" id="fRa" placeholder="0"><span class="unit-suffix">억</span></div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">CSM 총량</label>
+                <div class="unit-wrap"><input type="number" class="form-control" id="fCsm" placeholder="0"><span class="unit-suffix">억</span></div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">전년 동월 대비</label>
+                <div class="unit-wrap"><input type="number" class="form-control" id="fYoyPct" placeholder="+/- 0"><span class="unit-suffix">%</span></div>
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">특이사항</label>
+              <textarea class="form-control" id="fSettlementNote" placeholder="결산 관련 특이사항을 입력하세요..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. KPI 달성 현황 -->
+        <div class="exec-sec">
+          <button class="exec-sec-header open" onclick="toggleSec(this)">
+            <span class="exec-sec-num">04</span>
+            <span class="exec-sec-title">KPI 달성 현황<small>목표 대비 실적 · 달성률 자동계산</small></span>
+            <i class="fas fa-chevron-down exec-sec-chevron"></i>
+          </button>
+          <div class="exec-sec-body open">
+            <div id="kpiHint"></div>
+            <div id="kpiRowsList" style="margin-top:10px;"></div>
+            <button class="btn-add-row" onclick="addRow('kpi')"><i class="fas fa-plus"></i> KPI 추가</button>
+          </div>
+        </div>
+
+        <!-- 5. 주요 성과 (완료) -->
+        <div class="exec-sec">
+          <button class="exec-sec-header open" onclick="toggleSec(this)">
+            <span class="exec-sec-num">05</span>
+            <span class="exec-sec-title">주요 성과 (완료)<small>이번 달 완료한 핵심 성과</small></span>
+            <i class="fas fa-chevron-down exec-sec-chevron"></i>
+          </button>
+          <div class="exec-sec-body open">
+            <div id="achHint"></div>
+            <div id="achRowsList" style="margin-top:10px;"></div>
+            <button class="btn-add-row" onclick="addRow('ach')"><i class="fas fa-plus"></i> 성과 추가</button>
+          </div>
+        </div>
+
+        <!-- 6. 진행 중 업무 -->
+        <div class="exec-sec">
+          <button class="exec-sec-header open" onclick="toggleSec(this)">
+            <span class="exec-sec-num">06</span>
+            <span class="exec-sec-title">진행 중 업무<small>진행률 · 담당자 · 완료 예정일</small></span>
+            <i class="fas fa-chevron-down exec-sec-chevron"></i>
+          </button>
+          <div class="exec-sec-body open">
+            <div id="ongHint"></div>
+            <div id="ongRowsList" style="margin-top:10px;"></div>
+            <button class="btn-add-row" onclick="addRow('ong')"><i class="fas fa-plus"></i> 업무 추가</button>
+          </div>
+        </div>
+
+        <!-- 7. 이슈 & 리스크 -->
+        <div class="exec-sec">
+          <button class="exec-sec-header open" onclick="toggleSec(this)">
+            <span class="exec-sec-num">07</span>
+            <span class="exec-sec-title">이슈 &amp; 리스크<small>영향도 · 대응 · 목표 해결일</small></span>
+            <i class="fas fa-chevron-down exec-sec-chevron"></i>
+          </button>
+          <div class="exec-sec-body open">
+            <div id="issRowsList"></div>
+            <button class="btn-add-row" onclick="addRow('iss')"><i class="fas fa-plus"></i> 이슈 추가</button>
+          </div>
+        </div>
+
+        <!-- 8. 컴플라이언스 & 감사 -->
+        <div class="exec-sec">
+          <button class="exec-sec-header open" onclick="toggleSec(this)">
+            <span class="exec-sec-num">08</span>
+            <span class="exec-sec-title">컴플라이언스 &amp; 감사<small>금감원 · 외부감사 · 내부통제</small></span>
+            <i class="fas fa-chevron-down exec-sec-chevron"></i>
+          </button>
+          <div class="exec-sec-body open">
+            <div class="form-group">
+              <label class="form-label">금감원 지적사항</label>
+              <textarea class="form-control" id="fFssNote" placeholder="해당 없으면 비워두세요..."></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">외부감사 이슈</label>
+              <textarea class="form-control" id="fAuditNote" placeholder="해당 없으면 비워두세요..."></textarea>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">내부통제 이슈</label>
+              <textarea class="form-control" id="fInternalNote" placeholder="해당 없으면 비워두세요..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- 9. 시스템 & 데이터 품질 -->
+        <div class="exec-sec">
+          <button class="exec-sec-header open" onclick="toggleSec(this)">
+            <span class="exec-sec-num">09</span>
+            <span class="exec-sec-title">시스템 &amp; 데이터 품질<small>결산 시스템 상태 · 정합성 이슈</small></span>
+            <i class="fas fa-chevron-down exec-sec-chevron"></i>
+          </button>
+          <div class="exec-sec-body open">
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="form-label">결산 시스템 상태</label>
+                <select class="form-control" id="fSysStatus">
+                  <option value="양호">양호</option>
+                  <option value="주의">주의</option>
+                  <option value="이상">이상</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">정합성 이슈 건수</label>
+                <input type="number" class="form-control" id="fDataIssueCount" min="0" placeholder="0">
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">상세</label>
+              <textarea class="form-control" id="fSysDetail" placeholder="시스템/데이터 품질 관련 상세 내용..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- 10. 인력·자원 현황 -->
+        <div class="exec-sec">
+          <button class="exec-sec-header open" onclick="toggleSec(this)">
+            <span class="exec-sec-num">10</span>
+            <span class="exec-sec-title">인력·자원 현황<small>인원 · 휴가 · 교육 · 채용/이동</small></span>
+            <i class="fas fa-chevron-down exec-sec-chevron"></i>
+          </button>
+          <div class="exec-sec-body open">
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="form-label">현재 인원</label>
+                <div class="unit-wrap"><input type="number" class="form-control" id="fHeadcount" min="0" placeholder="0"><span class="unit-suffix">명</span></div>
+                <div id="headcountHint"></div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">이번 달 휴가 사용</label>
+                <div class="unit-wrap"><input type="number" class="form-control" id="fVacationDays" min="0" placeholder="0"><span class="unit-suffix">일</span></div>
+                <div id="vacationHint"></div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">교육/컨퍼런스 참석</label>
+              <textarea class="form-control" id="fTraining" placeholder="예: OO 세미나 2명 참석..."></textarea>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">채용/이동 현황</label>
+              <textarea class="form-control" id="fHiring" placeholder="예: 신규 채용 진행 중, 인사이동 계획 등..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- 11. 차기 계획 -->
+        <div class="exec-sec">
+          <button class="exec-sec-header open" onclick="toggleSec(this)">
+            <span class="exec-sec-num">11</span>
+            <span class="exec-sec-title">차기 계획<small>다음 달 우선순위</small></span>
+            <i class="fas fa-chevron-down exec-sec-chevron"></i>
+          </button>
+          <div class="exec-sec-body open">
+            <div id="planRowsList"></div>
+            <button class="btn-add-row" onclick="addRow('plan')"><i class="fas fa-plus"></i> 우선순위 추가</button>
+          </div>
+        </div>
+
+        <!-- 12. Decision Requested -->
+        <div class="exec-sec">
+          <button class="exec-sec-header open" onclick="toggleSec(this)">
+            <span class="exec-sec-num">12</span>
+            <span class="exec-sec-title">Decision Requested<small>건의 &amp; 상무 결정 요청 사항</small></span>
+            <i class="fas fa-chevron-down exec-sec-chevron"></i>
+          </button>
+          <div class="exec-sec-body open">
+            <div id="decRowsList"></div>
+            <button class="btn-add-row" onclick="addRow('dec')"><i class="fas fa-plus"></i> 건의사항 추가</button>
+          </div>
+        </div>
+
+      </div><!-- /editView -->
+
+      <!-- ══════════ 미리보기 / 인쇄 문서 ══════════ -->
+      <div id="previewView">
+        <div class="doc-sheet" id="docSheet"></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="js/rbac.js?v=31"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js?v=31"></script>
+<script>
+try {
+Portal.init();
+
+// 실장(section_chief)은 열람만 가능(쓰기는 전역 읽기전용 가드가 차단), 팀원은 접근 불가.
+// — 손익/컴플라이언스/인력 현황 등 임원 보고용 민감 정보를 담고 있어 결산 리뷰와 동일한 기준 적용.
+if (!RBAC.canViewLeaderScreens()) {
+  document.querySelector('.main-content').innerHTML = `
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-file-signature"></i> 임원 업무보고</h1>
+    </header>
+    <main class="content-body">
+      <div class="access-denied-banner">
+        <i class="fas fa-lock"></i>
+        <div>
+          <strong>팀장 전용 페이지입니다.</strong>
+          <p>임원 업무보고서는 팀장만 작성할 수 있으며, 실장은 열람만 가능합니다.</p>
+        </div>
+      </div>
+    </main>`;
+  throw new Error('RBAC_BLOCK');
+}
+
+const currentUser = RBAC.getCurrentUser();
+
+// ── 상태 ──────────────────────────────────────────────
+let currentReportId = null;
+let allReports = [];
+let previewMode = false;
+let draftDirty = false;
+let draftSaveTimer = null;
+
+const ROW_DEFAULTS = {
+  kpi:  () => ({ name: '', target: '', actual: '' }),
+  ach:  () => ({ title: '', content: '', effect: '' }),
+  ong:  () => ({ name: '', progress: '', owner: '', due: '', note: '' }),
+  iss:  () => ({ issue: '', impact: '중', response: '', due: '' }),
+  plan: () => ({ rank: '', item: '', owner: '', due: '' }),
+  dec:  () => ({ issue: '', decision: '', urgency: '보통', due: '' }),
+};
+const ROW_CONTAINER = {
+  kpi: 'kpiRowsList', ach: 'achRowsList', ong: 'ongRowsList',
+  iss: 'issRowsList', plan: 'planRowsList', dec: 'decRowsList',
+};
+let rows = {
+  kpi: [ROW_DEFAULTS.kpi()], ach: [ROW_DEFAULTS.ach()], ong: [ROW_DEFAULTS.ong()],
+  iss: [ROW_DEFAULTS.iss()], plan: [ROW_DEFAULTS.plan()], dec: [ROW_DEFAULTS.dec()],
+};
+
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttr(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function nl2br(s) { return esc(s).replace(/\n/g, '<br>'); }
+function ymKey(ym) { return String(ym || '').replace('-', ''); }
+function num(v) { return (v === '' || v == null || isNaN(v)) ? null : Number(v); }
+
+// ── 섹션 접기/펴기 ────────────────────────────────────
+function toggleSec(btn) {
+  btn.classList.toggle('open');
+  btn.nextElementSibling.classList.toggle('open');
+}
+
+// ── 동적 행 CRUD ──────────────────────────────────────
+function addRow(type) {
+  rows[type].push(ROW_DEFAULTS[type]());
+  renderRows(type);
+  scheduleDraftSave();
+}
+function removeRow(type, idx) {
+  if (rows[type].length <= 1) { rows[type][idx] = ROW_DEFAULTS[type](); }
+  else { rows[type].splice(idx, 1); }
+  renderRows(type);
+  scheduleDraftSave();
+}
+function updateRowField(type, idx, field, val) {
+  rows[type][idx][field] = val;
+  if (type === 'kpi' && (field === 'target' || field === 'actual')) refreshKpiRate(idx);
+  scheduleDraftSave();
+}
+function refreshKpiRate(idx) {
+  const r = rows.kpi[idx];
+  const el = document.getElementById('kpiRate_' + idx);
+  if (!el) return;
+  const t = parseFloat(r.target), a = parseFloat(r.actual);
+  if (!t || isNaN(a)) { el.textContent = '-'; el.className = 'dyn-rate-badge'; return; }
+  const pct = a / t * 100;
+  el.textContent = pct.toFixed(1) + '%';
+  el.className = 'dyn-rate-badge' + (pct >= 100 ? '' : pct >= 70 ? ' warn' : ' bad');
+}
+
+function renderRows(type) {
+  const container = document.getElementById(ROW_CONTAINER[type]);
+  if (!container) return;
+  container.innerHTML = rows[type].map((r, i) => ROW_TEMPLATES[type](r, i)).join('');
+  if (type === 'kpi') rows.kpi.forEach((_, i) => refreshKpiRate(i));
+}
+
+const ROW_TEMPLATES = {
+  kpi: (r, i) => `
+    <div class="dyn-line-row kpi">
+      <input type="text" class="form-control" placeholder="KPI명" value="${escAttr(r.name)}"
+        oninput="updateRowField('kpi',${i},'name',this.value)">
+      <input type="number" class="form-control" placeholder="목표" value="${escAttr(r.target)}"
+        oninput="updateRowField('kpi',${i},'target',this.value)">
+      <input type="number" class="form-control" placeholder="실적" value="${escAttr(r.actual)}"
+        oninput="updateRowField('kpi',${i},'actual',this.value)">
+      <span class="dyn-rate-badge" id="kpiRate_${i}">-</span>
+      <button class="dyn-del-sm" onclick="removeRow('kpi',${i})" aria-label="행 삭제"><i class="fas fa-times"></i></button>
+    </div>`,
+
+  ach: (r, i) => `
+    <div class="dyn-card">
+      <button class="dyn-card-del" onclick="removeRow('ach',${i})" aria-label="행 삭제"><i class="fas fa-times"></i></button>
+      <div class="form-group">
+        <label class="form-label">제목</label>
+        <input type="text" class="form-control" placeholder="예: 신계약 결산 프로세스 자동화" value="${escAttr(r.title)}"
+          oninput="updateRowField('ach',${i},'title',this.value)">
+      </div>
+      <div class="form-group">
+        <label class="form-label">성과 내용</label>
+        <textarea class="form-control" style="min-height:70px;" placeholder="성과 내용을 입력하세요..."
+          oninput="updateRowField('ach',${i},'content',this.value)">${esc(r.content)}</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">정량 효과</label>
+        <input type="text" class="form-control" placeholder="예: 작업시간 30% 단축" value="${escAttr(r.effect)}"
+          oninput="updateRowField('ach',${i},'effect',this.value)">
+      </div>
+    </div>`,
+
+  ong: (r, i) => `
+    <div class="dyn-card">
+      <button class="dyn-card-del" onclick="removeRow('ong',${i})" aria-label="행 삭제"><i class="fas fa-times"></i></button>
+      <div class="form-row-4" style="margin-bottom:10px;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">업무명</label>
+          <input type="text" class="form-control" placeholder="업무명" value="${escAttr(r.name)}"
+            oninput="updateRowField('ong',${i},'name',this.value)">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">진행률</label>
+          <div class="unit-wrap"><input type="number" class="form-control" min="0" max="100" placeholder="0" value="${escAttr(r.progress)}"
+            oninput="updateRowField('ong',${i},'progress',this.value)"><span class="unit-suffix">%</span></div>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">담당자</label>
+          <input type="text" class="form-control" placeholder="담당자" value="${escAttr(r.owner)}"
+            oninput="updateRowField('ong',${i},'owner',this.value)">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">완료 예정일</label>
+          <input type="date" class="form-control" value="${escAttr(r.due)}"
+            oninput="updateRowField('ong',${i},'due',this.value)">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">비고</label>
+        <textarea class="form-control" style="min-height:56px;" placeholder="비고..."
+          oninput="updateRowField('ong',${i},'note',this.value)">${esc(r.note)}</textarea>
+      </div>
+    </div>`,
+
+  iss: (r, i) => `
+    <div class="dyn-card">
+      <button class="dyn-card-del" onclick="removeRow('iss',${i})" aria-label="행 삭제"><i class="fas fa-times"></i></button>
+      <div class="form-group">
+        <label class="form-label">이슈</label>
+        <textarea class="form-control" style="min-height:56px;" placeholder="이슈 내용을 입력하세요..."
+          oninput="updateRowField('iss',${i},'issue',this.value)">${esc(r.issue)}</textarea>
+      </div>
+      <div class="form-row-3" style="margin-bottom:0;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">영향도</label>
+          <select class="form-control" onchange="updateRowField('iss',${i},'impact',this.value)">
+            ${['높음','중','낮음'].map(v => `<option value="${v}"${r.impact===v?' selected':''}>${v}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">대응</label>
+          <input type="text" class="form-control" placeholder="대응 방안" value="${escAttr(r.response)}"
+            oninput="updateRowField('iss',${i},'response',this.value)">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">목표 해결일</label>
+          <input type="date" class="form-control" value="${escAttr(r.due)}"
+            oninput="updateRowField('iss',${i},'due',this.value)">
+        </div>
+      </div>
+    </div>`,
+
+  plan: (r, i) => `
+    <div class="dyn-line-row plan">
+      <input type="number" class="form-control" placeholder="순위" min="1" value="${escAttr(r.rank)}"
+        oninput="updateRowField('plan',${i},'rank',this.value)">
+      <input type="text" class="form-control" placeholder="항목" value="${escAttr(r.item)}"
+        oninput="updateRowField('plan',${i},'item',this.value)">
+      <input type="text" class="form-control" placeholder="담당" value="${escAttr(r.owner)}"
+        oninput="updateRowField('plan',${i},'owner',this.value)">
+      <input type="date" class="form-control" value="${escAttr(r.due)}"
+        oninput="updateRowField('plan',${i},'due',this.value)">
+      <button class="dyn-del-sm" onclick="removeRow('plan',${i})" aria-label="행 삭제"><i class="fas fa-times"></i></button>
+    </div>`,
+
+  dec: (r, i) => `
+    <div class="dyn-card">
+      <button class="dyn-card-del" onclick="removeRow('dec',${i})" aria-label="행 삭제"><i class="fas fa-times"></i></button>
+      <div class="form-group">
+        <label class="form-label">사안</label>
+        <textarea class="form-control" style="min-height:56px;" placeholder="건의/보고할 사안을 입력하세요..."
+          oninput="updateRowField('dec',${i},'issue',this.value)">${esc(r.issue)}</textarea>
+      </div>
+      <div class="form-row-3" style="margin-bottom:0;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">상무 결정 필요 항목</label>
+          <input type="text" class="form-control" placeholder="결정이 필요한 항목" value="${escAttr(r.decision)}"
+            oninput="updateRowField('dec',${i},'decision',this.value)">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">시급도</label>
+          <select class="form-control" onchange="updateRowField('dec',${i},'urgency',this.value)">
+            ${['긴급','보통','낮음'].map(v => `<option value="${v}"${r.urgency===v?' selected':''}>${v}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">기한</label>
+          <input type="date" class="form-control" value="${escAttr(r.due)}"
+            oninput="updateRowField('dec',${i},'due',this.value)">
+        </div>
+      </div>
+    </div>`,
+};
+
+function renderAllRows() { Object.keys(ROW_CONTAINER).forEach(renderRows); }
+
+// ── 기본값 세팅 ───────────────────────────────────────
+function defaultYm() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+function setDefaults() {
+  document.getElementById('fReportDate').value = Portal.todayStr();
+  document.getElementById('fYm').value = defaultYm();
+  document.getElementById('fReporter').value = currentUser?.full_name || currentUser?.username || '';
+  document.getElementById('fReceiver').value = '임정수 상무';
+}
+
+// ── 폼 ↔ 상태 수집/적용 ──────────────────────────────
+function collectPayload() {
+  const [y, m] = (document.getElementById('fYm').value || defaultYm()).split('-');
+  return {
+    year: Number(y), month: Number(m),
+    report_date: document.getElementById('fReportDate').value,
+    reporter: document.getElementById('fReporter').value.trim(),
+    receiver: document.getElementById('fReceiver').value.trim(),
+    exec_summary: document.getElementById('fExecSummary').value.trim(),
+    settlement: {
+      progress_pct: num(document.getElementById('fProgressPct').value),
+      due_date: document.getElementById('fDueDate').value,
+      pnl_total: num(document.getElementById('fPnlTotal').value),
+      bel: num(document.getElementById('fBel').value),
+      ra: num(document.getElementById('fRa').value),
+      csm: num(document.getElementById('fCsm').value),
+      mom_pct: num(document.getElementById('fMomPct').value),
+      yoy_pct: num(document.getElementById('fYoyPct').value),
+      note: document.getElementById('fSettlementNote').value.trim(),
+    },
+    kpis: rows.kpi.filter(r => r.name || r.target || r.actual),
+    achievements: rows.ach.filter(r => r.title || r.content || r.effect),
+    ongoing: rows.ong.filter(r => r.name || r.progress || r.owner || r.due || r.note),
+    issues: rows.iss.filter(r => r.issue || r.response),
+    compliance: {
+      fss: document.getElementById('fFssNote').value.trim(),
+      audit: document.getElementById('fAuditNote').value.trim(),
+      internal: document.getElementById('fInternalNote').value.trim(),
+    },
+    system_quality: {
+      status: document.getElementById('fSysStatus').value,
+      issue_count: num(document.getElementById('fDataIssueCount').value),
+      detail: document.getElementById('fSysDetail').value.trim(),
+    },
+    hr: {
+      headcount: num(document.getElementById('fHeadcount').value),
+      vacation_days: num(document.getElementById('fVacationDays').value),
+      training: document.getElementById('fTraining').value.trim(),
+      hiring: document.getElementById('fHiring').value.trim(),
+    },
+    next_plan: rows.plan.filter(r => r.item || r.owner || r.due),
+    decisions: rows.dec.filter(r => r.issue || r.decision),
+  };
+}
+
+function applyPayload(p) {
+  document.getElementById('fReportDate').value = p.report_date || Portal.todayStr();
+  document.getElementById('fYm').value = (p.year && p.month) ? `${p.year}-${String(p.month).padStart(2,'0')}` : defaultYm();
+  document.getElementById('fReporter').value = p.reporter || '';
+  document.getElementById('fReceiver').value = p.receiver || '임정수 상무';
+  document.getElementById('fExecSummary').value = p.exec_summary || '';
+
+  const s = p.settlement || {};
+  document.getElementById('fProgressPct').value = s.progress_pct ?? '';
+  document.getElementById('fDueDate').value = s.due_date || '';
+  document.getElementById('fPnlTotal').value = s.pnl_total ?? '';
+  document.getElementById('fBel').value = s.bel ?? '';
+  document.getElementById('fRa').value = s.ra ?? '';
+  document.getElementById('fCsm').value = s.csm ?? '';
+  document.getElementById('fMomPct').value = s.mom_pct ?? '';
+  document.getElementById('fYoyPct').value = s.yoy_pct ?? '';
+  document.getElementById('fSettlementNote').value = s.note || '';
+
+  const c = p.compliance || {};
+  document.getElementById('fFssNote').value = c.fss || '';
+  document.getElementById('fAuditNote').value = c.audit || '';
+  document.getElementById('fInternalNote').value = c.internal || '';
+
+  const sq = p.system_quality || {};
+  document.getElementById('fSysStatus').value = sq.status || '양호';
+  document.getElementById('fDataIssueCount').value = sq.issue_count ?? '';
+  document.getElementById('fSysDetail').value = sq.detail || '';
+
+  const hr = p.hr || {};
+  document.getElementById('fHeadcount').value = hr.headcount ?? '';
+  document.getElementById('fVacationDays').value = hr.vacation_days ?? '';
+  document.getElementById('fTraining').value = hr.training || '';
+  document.getElementById('fHiring').value = hr.hiring || '';
+
+  rows.kpi  = (p.kpis && p.kpis.length) ? p.kpis : [ROW_DEFAULTS.kpi()];
+  rows.ach  = (p.achievements && p.achievements.length) ? p.achievements : [ROW_DEFAULTS.ach()];
+  rows.ong  = (p.ongoing && p.ongoing.length) ? p.ongoing : [ROW_DEFAULTS.ong()];
+  rows.iss  = (p.issues && p.issues.length) ? p.issues : [ROW_DEFAULTS.iss()];
+  rows.plan = (p.next_plan && p.next_plan.length) ? p.next_plan : [ROW_DEFAULTS.plan()];
+  rows.dec  = (p.decisions && p.decisions.length) ? p.decisions : [ROW_DEFAULTS.dec()];
+  renderAllRows();
+}
+
+function resetFormState() {
+  currentReportId = null;
+  rows = {
+    kpi: [ROW_DEFAULTS.kpi()], ach: [ROW_DEFAULTS.ach()], ong: [ROW_DEFAULTS.ong()],
+    iss: [ROW_DEFAULTS.iss()], plan: [ROW_DEFAULTS.plan()], dec: [ROW_DEFAULTS.dec()],
+  };
+  document.querySelectorAll('#editView input, #editView textarea').forEach(el => el.value = '');
+  document.getElementById('fSysStatus').value = '양호';
+  setDefaults();
+  renderAllRows();
+  document.getElementById('loadSelect').value = '';
+  setStatusChip('new');
+}
+
+function onYmChange() { setStatusChip(currentReportId ? 'saved' : 'new'); scheduleDraftSave(); }
+
+// ── 상태 칩 ───────────────────────────────────────────
+function setStatusChip(kind, label) {
+  const chip = document.getElementById('statusChip');
+  const MAP = {
+    saved: { cls: 'saved', icon: 'fa-check-circle', text: '저장됨' },
+    draft: { cls: 'draft', icon: 'fa-clock', text: '임시저장됨' },
+    new:   { cls: 'new',   icon: 'fa-circle', text: '새 보고서' },
+  };
+  const m = MAP[kind] || MAP.new;
+  chip.className = 'exec-status-chip ' + m.cls;
+  chip.innerHTML = `<i class="fas ${m.icon}" style="font-size:${kind==='new'?'6px':'11px'};"></i> ${label || m.text}`;
+}
+
+// ── localStorage 임시저장 ─────────────────────────────
+function draftKey() {
+  return 'execReportDraft_' + ymKey(document.getElementById('fYm').value || defaultYm());
+}
+function scheduleDraftSave() {
+  draftDirty = true;
+  if (draftSaveTimer) clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(() => saveDraft(false), 900);
+}
+function saveDraft(manual) {
+  try {
+    const payload = collectPayload();
+    localStorage.setItem(draftKey(), JSON.stringify({ payload, savedAt: Date.now(), reportId: currentReportId }));
+    draftDirty = false;
+    if (!currentReportId) setStatusChip('draft');
+    if (manual) Portal.showToast('임시저장되었습니다. (다음 방문 시 자동 복원)', 'success');
+  } catch (e) {
+    if (manual) Portal.showToast('임시저장에 실패했습니다.', 'error');
+  }
+}
+function restoreDraftIfAny(silent) {
+  try {
+    const raw = localStorage.getItem(draftKey());
+    if (!raw) return false;
+    const saved = JSON.parse(raw);
+    applyPayload(saved.payload);
+    currentReportId = saved.reportId || null;
+    setStatusChip(currentReportId ? 'saved' : 'draft', currentReportId ? '저장됨 (임시수정본 복원)' : '임시저장본 복원됨');
+    if (!silent) Portal.showToast('임시저장된 초안을 불러왔습니다.', 'info');
+    return true;
+  } catch (_) { return false; }
+}
+
+// ── 저장 (서버) ───────────────────────────────────────
+async function saveReport() {
+  const payload = collectPayload();
+  payload.created_by = currentUser?.full_name || currentUser?.username || '';
+  payload.updated_at = Date.now();
+  try {
+    let res;
+    if (currentReportId) {
+      res = await fetch('/tables/executive_reports/' + currentReportId, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+    } else {
+      payload.created_at = Date.now();
+      res = await fetch('/tables/executive_reports', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+    }
+    if (!res.ok) {
+      let detail = `HTTP ${res.status}`;
+      try { const errBody = await res.json(); if (errBody?.error) detail += ` — ${errBody.error}`; } catch (_) {}
+      throw new Error(detail);
+    }
+    if (!currentReportId) {
+      const created = await res.json().catch(() => null);
+      currentReportId = created?.id || created?.data?.id || null;
+    }
+    localStorage.removeItem(draftKey());
+    setStatusChip('saved');
+    Portal.showToast('임원 업무보고서가 저장되었습니다.', 'success');
+    await loadReportList();
+  } catch (e) {
+    console.error('saveReport failed:', e);
+    Portal.showToast('저장에 실패했습니다. (' + (e?.message || '알 수 없는 오류') + ')', 'error');
+  }
+}
+
+// ── 불러오기 (과거 보고서 목록) ───────────────────────
+async function loadReportList() {
+  try {
+    const res = await fetch('/tables/executive_reports?limit=100');
+    const data = await res.json();
+    allReports = (data.rows || data.data || []).sort((a, b) => (b.year * 100 + b.month) - (a.year * 100 + a.month));
+    const sel = document.getElementById('loadSelect');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">-- 불러오기 (과거 보고서) --</option>' +
+      allReports.map(r => `<option value="${r.id}">${r.year}년 ${r.month}월 · ${esc(r.receiver || '')} 보고</option>`).join('');
+    sel.value = cur;
+  } catch (_) { /* 목록 로드 실패해도 폼은 정상 동작 */ }
+}
+function onLoadSelectChange() {
+  const id = document.getElementById('loadSelect').value;
+  if (!id) return;
+  const r = allReports.find(x => x.id === id);
+  if (!r) return;
+  applyPayload(r);
+  currentReportId = r.id;
+  setStatusChip('saved');
+  if (previewMode) renderPreviewDoc();
+  Portal.showToast(`${r.year}년 ${r.month}월 보고서를 불러왔습니다.`, 'info');
+}
+
+// ── 자동 데이터 채움 (힌트 전용, 실패해도 폼 정상) ────
+async function loadAutoFillHints() {
+  const [yStr, mStr] = (document.getElementById('fYm').value || defaultYm()).split('-');
+  const y = Number(yStr), m = Number(mStr);
+
+  // 현재 인원 수
+  try {
+    const res = await fetch('/tables/users?limit=100');
+    const data = await res.json();
+    const list = data.rows || data.data || [];
+    if (list.length) {
+      document.getElementById('headcountHint').innerHTML =
+        `<div class="autofill-hint"><i class="fas fa-info-circle"></i> 등록 사용자 ${list.length}명 (참고용, 직접 조정 가능)</div>`;
+      const hc = document.getElementById('fHeadcount');
+      if (!hc.value) hc.value = list.length;
+    }
+  } catch (_) {}
+
+  // 이번 달 KPI 평균 점수 힌트
+  try {
+    const res = await fetch('/tables/performance_records?limit=500');
+    const data = await res.json();
+    const recs = (data.rows || data.data || []).filter(r => String(r.year) === String(y) && String(r.month) === String(m));
+    if (recs.length) {
+      const avg = (key) => {
+        const vals = recs.map(r => r[key]).filter(v => v != null && v !== '');
+        if (!vals.length) return null;
+        return (vals.reduce((s, v) => s + Number(v), 0) / vals.length).toFixed(1);
+      };
+      const parts = [];
+      const basicAvg = avg('basic_score'), finalAvg = avg('final_score');
+      if (basicAvg != null) parts.push(`기본점수 평균 ${basicAvg}`);
+      if (finalAvg != null) parts.push(`최종점수 평균 ${finalAvg}`);
+      if (parts.length) {
+        document.getElementById('kpiHint').innerHTML =
+          `<div class="autofill-hint"><i class="fas fa-info-circle"></i> ${y}년 ${m}월 성과관리 참고: ${parts.join(' · ')} (${recs.length}건, 직접 KPI 행을 작성/조정하세요)</div>`;
+      }
+    }
+  } catch (_) {}
+
+  // 이번 달 업무 완료/진행 건수 힌트
+  try {
+    const res = await fetch('/tables/work_tasks?limit=500');
+    const data = await res.json();
+    const recs = (data.rows || data.data || []).filter(r => String(r.year) === String(y) && String(r.month) === String(m));
+    if (recs.length) {
+      const doneCount = recs.reduce((s, r) => s + ((r.settlement_done || []).length), 0);
+      document.getElementById('achHint').innerHTML =
+        `<div class="autofill-hint"><i class="fas fa-info-circle"></i> ${y}년 ${m}월 업무 입력 ${recs.length}건 (완료 체크 누적 ${doneCount}건) — 참고하여 성과 항목을 작성하세요.</div>`;
+      document.getElementById('ongHint').innerHTML =
+        `<div class="autofill-hint"><i class="fas fa-info-circle"></i> 개인별 업무입력 데이터를 참고해 진행 중 업무를 정리하세요.</div>`;
+    }
+  } catch (_) {}
+
+  // 이번 달 총 휴가일수
+  try {
+    const res = await fetch('/tables/vacations?limit=500');
+    const data = await res.json();
+    const recs = (data.rows || data.data || []).filter(r => {
+      if (!r.start_date) return false;
+      const d = new Date(r.start_date);
+      return d.getFullYear() === y && (d.getMonth() + 1) === m;
+    });
+    if (recs.length) {
+      const totalDays = recs.reduce((s, r) => s + (Number(r.days) || 0), 0);
+      document.getElementById('vacationHint').innerHTML =
+        `<div class="autofill-hint"><i class="fas fa-info-circle"></i> 휴가 신청 ${recs.length}건, 합계 ${totalDays}일 (참고용, 직접 조정 가능)</div>`;
+      const vd = document.getElementById('fVacationDays');
+      if (!vd.value) vd.value = totalDays;
+    }
+  } catch (_) {}
+}
+
+// ── 미리보기 렌더링 ───────────────────────────────────
+function pnlClass(v) { return v == null ? '' : (v >= 0 ? 'pos' : 'neg'); }
+function pnlFmt(v, unit) { return v == null ? '-' : (v >= 0 ? '+' : '') + Number(v).toLocaleString() + (unit || ''); }
+function impactBadgeClass(v) { return v === '높음' ? 'high' : v === '중' ? 'mid' : 'low'; }
+function urgencyBadgeClass(v) { return v === '긴급' ? 'high' : v === '보통' ? 'mid' : 'low'; }
+function sysStatusBadgeClass(v) { return v === '이상' ? 'bad' : v === '주의' ? 'warn' : 'ok'; }
+
+function renderPreviewDoc() {
+  const p = collectPayload();
+  const monthLabel = (p.year && p.month) ? `${p.year}년 ${p.month}월` : '';
+
+  const kpiRows = p.kpis.length ? p.kpis.map(k => {
+    const t = parseFloat(k.target), a = parseFloat(k.actual);
+    const rate = (t && !isNaN(a)) ? (a / t * 100).toFixed(1) + '%' : '-';
+    return `<tr><td>${esc(k.name) || '-'}</td><td>${esc(k.target) || '-'}</td><td>${esc(k.actual) || '-'}</td><td><strong>${rate}</strong></td></tr>`;
+  }).join('') : `<tr><td colspan="4" class="doc-empty">등록된 KPI가 없습니다.</td></tr>`;
+
+  const achBlocks = p.achievements.length ? p.achievements.map((a, i) => `
+    <div style="margin-bottom:12px;">
+      <div style="font-weight:700;color:#0f172a;font-size:13.5px;">${i+1}. ${esc(a.title) || '(제목 없음)'}</div>
+      <div class="doc-p" style="margin-top:4px;">${nl2br(a.content) || '-'}</div>
+      ${a.effect ? `<div style="margin-top:4px;font-size:12.5px;color:#047857;font-weight:700;"><i class="fas fa-chart-line" style="margin-right:4px;"></i>${esc(a.effect)}</div>` : ''}
+    </div>`).join('') : `<div class="doc-p doc-empty">완료된 주요 성과가 없습니다.</div>`;
+
+  const ongRows = p.ongoing.length ? p.ongoing.map(o =>
+    `<tr><td>${esc(o.name) || '-'}</td><td>${o.progress !== '' && o.progress != null ? esc(o.progress) + '%' : '-'}</td><td>${esc(o.owner) || '-'}</td><td>${esc(o.due) || '-'}</td><td>${esc(o.note) || '-'}</td></tr>`
+  ).join('') : `<tr><td colspan="5" class="doc-empty">진행 중인 업무가 없습니다.</td></tr>`;
+
+  const issRows = p.issues.length ? p.issues.map(iss =>
+    `<tr><td>${esc(iss.issue) || '-'}</td><td><span class="doc-badge ${impactBadgeClass(iss.impact)}">${esc(iss.impact)}</span></td><td>${esc(iss.response) || '-'}</td><td>${esc(iss.due) || '-'}</td></tr>`
+  ).join('') : `<tr><td colspan="4" class="doc-empty">등록된 이슈/리스크가 없습니다.</td></tr>`;
+
+  const planRows = p.next_plan.length ? [...p.next_plan].sort((a, b) => (Number(a.rank)||99) - (Number(b.rank)||99)).map(pl =>
+    `<tr><td>${esc(pl.rank) || '-'}</td><td>${esc(pl.item) || '-'}</td><td>${esc(pl.owner) || '-'}</td><td>${esc(pl.due) || '-'}</td></tr>`
+  ).join('') : `<tr><td colspan="4" class="doc-empty">등록된 차기 계획이 없습니다.</td></tr>`;
+
+  const decRows = p.decisions.length ? p.decisions.map(d =>
+    `<tr><td>${esc(d.issue) || '-'}</td><td>${esc(d.decision) || '-'}</td><td><span class="doc-badge ${urgencyBadgeClass(d.urgency)}">${esc(d.urgency)}</span></td><td>${esc(d.due) || '-'}</td></tr>`
+  ).join('') : `<tr><td colspan="4" class="doc-empty">건의/결정 요청 사항이 없습니다.</td></tr>`;
+
+  const s = p.settlement, hr = p.hr, sq = p.system_quality, c = p.compliance;
+
+  document.getElementById('docSheet').innerHTML = `
+    <div class="doc-masthead">
+      <div class="doc-masthead-top">
+        <div class="doc-logo">계결</div>
+        <div>
+          <div class="doc-masthead-org">ACTUARIAL SETTLEMENT TEAM</div>
+          <div class="doc-masthead-team">계리결산팀</div>
+        </div>
+      </div>
+      <div class="doc-title">계리결산팀 업무보고서 — ${monthLabel}</div>
+      <div class="doc-meta-row">
+        <span>보고일자 <b>${esc(p.report_date) || '-'}</b></span>
+        <span>보고자 <b>${esc(p.reporter) || '-'}</b></span>
+        <span>수신 <b>${esc(p.receiver) || '-'}</b></span>
+      </div>
+    </div>
+    <div class="doc-body">
+
+      <div class="doc-sec">
+        <div class="doc-sec-title"><i class="fas fa-align-left"></i> Executive Summary</div>
+        <div class="doc-p">${nl2br(p.exec_summary) || '<span class="doc-empty">작성된 총평이 없습니다.</span>'}</div>
+      </div>
+
+      <div class="doc-sec">
+        <div class="doc-sec-title"><i class="fas fa-chart-line"></i> 결산 진행 &amp; 재무 성과</div>
+        <div class="doc-kv-grid">
+          <div class="doc-kv"><div class="doc-kv-label">결산 진척률</div><div class="doc-kv-val">${s.progress_pct != null ? s.progress_pct + '%' : '-'}</div></div>
+          <div class="doc-kv"><div class="doc-kv-label">마감 예정일</div><div class="doc-kv-val" style="font-size:14px;">${esc(s.due_date) || '-'}</div></div>
+          <div class="doc-kv"><div class="doc-kv-label">총 손익</div><div class="doc-kv-val ${pnlClass(s.pnl_total)}">${pnlFmt(s.pnl_total,'억')}</div></div>
+          <div class="doc-kv"><div class="doc-kv-label">BEL 총량</div><div class="doc-kv-val">${s.bel != null ? Number(s.bel).toLocaleString()+'억' : '-'}</div></div>
+          <div class="doc-kv"><div class="doc-kv-label">RA 총량</div><div class="doc-kv-val">${s.ra != null ? Number(s.ra).toLocaleString()+'억' : '-'}</div></div>
+          <div class="doc-kv"><div class="doc-kv-label">CSM 총량</div><div class="doc-kv-val">${s.csm != null ? Number(s.csm).toLocaleString()+'억' : '-'}</div></div>
+          <div class="doc-kv"><div class="doc-kv-label">전월 대비</div><div class="doc-kv-val ${pnlClass(s.mom_pct)}">${pnlFmt(s.mom_pct,'%')}</div></div>
+          <div class="doc-kv"><div class="doc-kv-label">전년 동월 대비</div><div class="doc-kv-val ${pnlClass(s.yoy_pct)}">${pnlFmt(s.yoy_pct,'%')}</div></div>
+        </div>
+        ${s.note ? `<div class="doc-p" style="margin-top:8px;">${nl2br(s.note)}</div>` : ''}
+      </div>
+
+      <div class="doc-sec">
+        <div class="doc-sec-title"><i class="fas fa-bullseye"></i> KPI 달성 현황</div>
+        <table class="doc-table"><thead><tr><th>KPI명</th><th>목표</th><th>실적</th><th>달성률</th></tr></thead>
+        <tbody>${kpiRows}</tbody></table>
+      </div>
+
+      <div class="doc-sec">
+        <div class="doc-sec-title"><i class="fas fa-trophy"></i> 주요 성과 (완료)</div>
+        ${achBlocks}
+      </div>
+
+      <div class="doc-sec">
+        <div class="doc-sec-title"><i class="fas fa-tasks"></i> 진행 중 업무</div>
+        <table class="doc-table"><thead><tr><th>업무명</th><th>진행률</th><th>담당자</th><th>완료 예정일</th><th>비고</th></tr></thead>
+        <tbody>${ongRows}</tbody></table>
+      </div>
+
+      <div class="doc-sec">
+        <div class="doc-sec-title"><i class="fas fa-exclamation-triangle"></i> 이슈 &amp; 리스크</div>
+        <table class="doc-table"><thead><tr><th>이슈</th><th>영향도</th><th>대응</th><th>목표 해결일</th></tr></thead>
+        <tbody>${issRows}</tbody></table>
+      </div>
+
+      <div class="doc-sec">
+        <div class="doc-sec-title"><i class="fas fa-balance-scale"></i> 컴플라이언스 &amp; 감사</div>
+        <div class="doc-p"><b>금감원 지적사항</b><br>${nl2br(c.fss) || '<span class="doc-empty">해당 없음</span>'}</div>
+        <div class="doc-p" style="margin-top:10px;"><b>외부감사 이슈</b><br>${nl2br(c.audit) || '<span class="doc-empty">해당 없음</span>'}</div>
+        <div class="doc-p" style="margin-top:10px;"><b>내부통제 이슈</b><br>${nl2br(c.internal) || '<span class="doc-empty">해당 없음</span>'}</div>
+      </div>
+
+      <div class="doc-sec">
+        <div class="doc-sec-title"><i class="fas fa-database"></i> 시스템 &amp; 데이터 품질
+          <span class="doc-badge ${sysStatusBadgeClass(sq.status)}" style="margin-left:auto;">${esc(sq.status) || '-'}</span>
+        </div>
+        <div class="doc-p">정합성 이슈 <b>${sq.issue_count ?? 0}건</b></div>
+        ${sq.detail ? `<div class="doc-p" style="margin-top:6px;">${nl2br(sq.detail)}</div>` : ''}
+      </div>
+
+      <div class="doc-sec">
+        <div class="doc-sec-title"><i class="fas fa-users"></i> 인력·자원 현황</div>
+        <div class="doc-kv-grid">
+          <div class="doc-kv"><div class="doc-kv-label">현재 인원</div><div class="doc-kv-val">${hr.headcount ?? '-'}명</div></div>
+          <div class="doc-kv"><div class="doc-kv-label">이번 달 휴가 사용</div><div class="doc-kv-val">${hr.vacation_days ?? '-'}일</div></div>
+        </div>
+        ${hr.training ? `<div class="doc-p" style="margin-top:8px;"><b>교육/컨퍼런스</b><br>${nl2br(hr.training)}</div>` : ''}
+        ${hr.hiring ? `<div class="doc-p" style="margin-top:8px;"><b>채용/이동 현황</b><br>${nl2br(hr.hiring)}</div>` : ''}
+      </div>
+
+      <div class="doc-sec">
+        <div class="doc-sec-title"><i class="fas fa-calendar-check"></i> 차기 계획</div>
+        <table class="doc-table"><thead><tr><th>순위</th><th>항목</th><th>담당</th><th>완료 목표일</th></tr></thead>
+        <tbody>${planRows}</tbody></table>
+      </div>
+
+      <div class="doc-sec">
+        <div class="doc-sec-title"><i class="fas fa-gavel"></i> Decision Requested</div>
+        <table class="doc-table"><thead><tr><th>사안</th><th>결정 필요 항목</th><th>시급도</th><th>기한</th></tr></thead>
+        <tbody>${decRows}</tbody></table>
+      </div>
+
+      <div class="doc-footer">작성: ${esc(p.reporter) || '-'} · 생성 시각: ${new Date().toLocaleString('ko-KR')}</div>
+    </div>`;
+}
+
+// ── 미리보기 토글 / 인쇄 ──────────────────────────────
+function togglePreview() {
+  previewMode = !previewMode;
+  document.getElementById('editView').style.display = previewMode ? 'none' : '';
+  // #previewView 기본 CSS가 display:none 이므로 인라인 '' 로는 스타일시트 규칙을 덮어쓰지 못함 — 'block' 명시 필요.
+  document.getElementById('previewView').style.display = previewMode ? 'block' : 'none';
+  const btn = document.getElementById('btnTogglePreview');
+  btn.innerHTML = previewMode
+    ? '<i class="fas fa-pen"></i> <span>편집으로 돌아가기</span>'
+    : '<i class="fas fa-eye"></i> <span>미리보기</span>';
+  if (previewMode) renderPreviewDoc();
+}
+function printReport() {
+  if (!previewMode) togglePreview();
+  setTimeout(() => window.print(), 60);
+}
+
+// ── 초기화 ────────────────────────────────────────────
+function resetForm() {
+  Portal.confirm('정말 초기화하시겠습니까? 저장하지 않은 내용은 모두 사라집니다.', () => {
+    localStorage.removeItem(draftKey());
+    resetFormState();
+    if (previewMode) togglePreview();
+    Portal.showToast('보고서가 초기화되었습니다.', 'info');
+  });
+}
+
+// ── 인라인 onclick 핸들러 위해 핵심 함수를 글로벌(window) 노출 ──
+//  전체 스크립트가 try {...} 로 감싸여 있어 일부 브라우저/strict 환경에서
+//  function 선언이 글로벌 스코프로 hoist 안 되는 경우 onclick 호출이
+//  silent ReferenceError 로 죽으므로(토스트도 안 뜸) 안전망으로 명시 노출.
+Object.assign(window, {
+  toggleSec, addRow, removeRow, updateRowField,
+  saveReport, saveDraft, onLoadSelectChange, onYmChange,
+  togglePreview, printReport, resetForm,
+});
+
+// ── 초기화 실행 ───────────────────────────────────────
+setDefaults();
+renderAllRows();
+const restored = restoreDraftIfAny(true);
+if (!restored) setStatusChip('new');
+loadReportList();
+loadAutoFillHints();
+
+// 폼 내 입력 변경 시 임시저장 예약 (델리게이션 — 개별 필드마다 리스너 부착 불필요)
+document.getElementById('editView').addEventListener('input', scheduleDraftSave);
+document.getElementById('editView').addEventListener('change', scheduleDraftSave);
+
+} catch (e) {
+  if (e.message !== 'RBAC_BLOCK') throw e;
+}
+</script>
+</body>
+</html>

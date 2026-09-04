@@ -123,7 +123,8 @@ const Portal = (() => {
         { href: 'goals-individual.html',   icon: 'fa-user-check', label: '개인 목표 (SMART)' },
         { href: 'performance.html',        icon: 'fa-chart-bar',  label: '성과 관리' },
         { href: 'directives.html',         icon: 'fa-bullhorn',   label: '팀장 지시사항' },
-        { href: 'interview-list.html',     icon: 'fa-comments',   label: '면담일지' }
+        { href: 'interview-list.html',     icon: 'fa-comments',   label: '면담일지' },
+        { href: 'executive-report.html',   icon: 'fa-file-signature', label: '임원 업무보고' }
       ]
     },
     {
