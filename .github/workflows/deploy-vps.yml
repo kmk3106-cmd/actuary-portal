@@ -1,0 +1,92 @@
+# ═══════════════════════════════════════════════════════════════════
+# GitHub Actions: VPS 자동 배포
+# ═══════════════════════════════════════════════════════════════════
+# master 브랜치에 push 되면 Oracle Cloud VPS 에 SSH 접속해서
+# scripts/vps-deploy.sh 실행 → git pull + docker compose 재빌드/재기동
+#
+# ⚠️  Secrets 설정 필수 (VPS 이관 완료 후 활성화):
+#   Repo → Settings → Secrets and variables → Actions → New secret
+#     VPS_HOST       : Oracle Cloud VM 의 Public IP (예: 129.xxx.xxx.xxx)
+#     VPS_USER       : ubuntu
+#     VPS_SSH_KEY    : Oracle 에서 다운받은 프라이빗 키 전체 (BEGIN...END 포함)
+#     VPS_PORT       : (선택) 기본 22
+#     VPS_INSTALL_DIR: (선택) 기본 /home/ubuntu/actuary-portal
+# ═══════════════════════════════════════════════════════════════════
+name: Deploy to Oracle Cloud VPS
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.gitignore'
+      - 'LICENSE'
+  workflow_dispatch:   # 수동 실행 버튼도 활성화
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: SSH deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Skip if secrets not configured
+        id: check
+        run: |
+          if [ -z "${{ secrets.VPS_HOST }}" ] || [ -z "${{ secrets.VPS_SSH_KEY }}" ]; then
+            echo "⚠️  VPS_HOST 또는 VPS_SSH_KEY secret 이 설정 안 됨 → 배포 건너뜀"
+            echo "   Repo → Settings → Secrets and variables → Actions 에서 등록 필요"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup SSH key
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H -p ${{ secrets.VPS_PORT || 22 }} ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy via SSH
+        if: steps.check.outputs.skip != 'true'
+        env:
+          HOST:  ${{ secrets.VPS_HOST }}
+          USER:  ${{ secrets.VPS_USER || 'ubuntu' }}
+          PORT:  ${{ secrets.VPS_PORT || 22 }}
+          DIR:   ${{ secrets.VPS_INSTALL_DIR || '/home/ubuntu/actuary-portal' }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$PORT" -o StrictHostKeyChecking=yes \
+              "$USER@$HOST" \
+              "cd '$DIR' && bash scripts/vps-deploy.sh"
+
+      - name: Post-deploy health check
+        if: steps.check.outputs.skip != 'true'
+        env:
+          HOST:  ${{ secrets.VPS_HOST }}
+          USER:  ${{ secrets.VPS_USER || 'ubuntu' }}
+          PORT:  ${{ secrets.VPS_PORT || 22 }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$PORT" "$USER@$HOST" '
+            for i in $(seq 1 20); do
+              if curl -fsS http://127.0.0.1:8888/ -o /dev/null; then
+                echo "✅ 헬스체크 성공 (${i}s)"
+                docker compose ps
+                exit 0
+              fi
+              sleep 1
+            done
+            echo "🚨 헬스체크 실패"
+            docker compose logs --tail 50 server
+            exit 1
+          '
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
