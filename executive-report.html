@@ -380,6 +380,26 @@
     .trait-updated {
       font-size: 10.5px; color: #94a3b8; margin-top: 6px; text-align: right;
     }
+    .trait-edit-btn {
+      flex-shrink: 0; width: 30px; height: 30px; padding: 0; border: 1px solid #e5e7eb;
+      background: #fff; border-radius: 8px; cursor: pointer; color: #64748b;
+      display: flex; align-items: center; justify-content: center; font-size: 12px;
+      transition: all .15s;
+    }
+    .trait-edit-btn:hover { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+    /* 성향 편집 모달 슬라이더 */
+    .trait-slider-row {
+      display: grid; grid-template-columns: 100px 1fr 32px;
+      align-items: center; gap: 12px; padding: 10px 0;
+      border-bottom: 1px dashed #e5e7eb;
+    }
+    .trait-slider-row:last-of-type { border-bottom: none; }
+    .trait-slider-row label { font-size: 13px; font-weight: 700; color: #334155; }
+    .trait-slider-row input[type=range] { width: 100%; accent-color: #6366f1; }
+    .trait-slider-row .val {
+      font-weight: 800; font-size: 15px; color: #4338ca; text-align: center;
+      background: #eef2ff; border-radius: 6px; padding: 3px 0;
+    }
     @media (max-width: 640px) {
       .traits-grid { grid-template-columns: 1fr; }
       .trait-radar { max-width: 260px; }
@@ -840,34 +860,21 @@
         <div class="exec-sec">
           <button class="exec-sec-header open" onclick="toggleSec(this)">
             <span class="exec-sec-num">10</span>
-            <span class="exec-sec-title">인력·자원 현황<small>인원 · 휴가 · 교육 · 채용/이동</small></span>
+            <span class="exec-sec-title">인력·자원 현황<small>인사카드 요약 (극비 · 팀장·실장 전용)</small></span>
             <i class="fas fa-chevron-down exec-sec-chevron"></i>
           </button>
           <div class="exec-sec-body open">
-            <p class="exec-sec-desc">팀 인원 현황과 이번 달 휴가·교육·채용/이동 현황을 보고드립니다.</p>
-            <div class="form-row-2">
-              <div class="form-group">
-                <label class="form-label">현재 인원</label>
-                <div class="unit-wrap"><input type="number" class="form-control" id="fHeadcount" min="0" placeholder="0"><span class="unit-suffix">명</span></div>
-                <div id="headcountHint"></div>
-              </div>
-              <div class="form-group">
-                <label class="form-label">이번 달 휴가 사용</label>
-                <div class="unit-wrap"><input type="number" class="form-control" id="fVacationDays" min="0" placeholder="0"><span class="unit-suffix">일</span></div>
-                <div id="vacationHint"></div>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">교육/컨퍼런스 참석</label>
-              <textarea class="form-control" id="fTraining" placeholder="예: OO 세미나 2명 참석..."></textarea>
-            </div>
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label">채용/이동 현황</label>
-              <textarea class="form-control" id="fHiring" placeholder="예: 신규 채용 진행 중, 인사이동 계획 등..."></textarea>
-            </div>
+            <p class="exec-sec-desc">재직 팀원의 인사카드 요약을 표로 보고드립니다. 편집은 <a href="personnel.html" style="color:#4338ca;font-weight:700;text-decoration:underline;">인사카드</a> 화면에서.</p>
 
             <!-- 인사카드 요약 표 (극비 · 팀장/실장 전용 · 인사카드와 연동) -->
-            <div id="personnelTableSection" style="margin-top:24px;">
+            <div id="personnelTableSection" style="margin-top:12px;">
+              <!-- 폼은 hidden 으로 두어 저장/복원 로직이 깨지지 않게 유지 -->
+              <input type="hidden" id="fHeadcount">
+              <input type="hidden" id="fVacationDays">
+              <input type="hidden" id="fTraining">
+              <input type="hidden" id="fHiring">
+              <div id="headcountHint" style="display:none;"></div>
+              <div id="vacationHint" style="display:none;"></div>
               <div class="traits-section-head" style="margin-top:0;">
                 <div class="icon-wrap"><i class="fas fa-shield-halved"></i></div>
                 <div>
@@ -880,11 +887,11 @@
                   <thead>
                     <tr>
                       <th style="width:110px;">성명</th>
-                      <th style="width:100px;">직급/직위</th>
-                      <th style="width:140px;">담당 업무</th>
-                      <th style="width:110px;">자격증</th>
-                      <th style="min-width:210px;">성향 6축</th>
-                      <th>코멘트</th>
+                      <th style="width:110px;">직급/직위</th>
+                      <th style="width:140px;">부임일 / 연차</th>
+                      <th style="width:150px;">전문분야</th>
+                      <th style="width:150px;">자격증</th>
+                      <th>담당 업무</th>
                     </tr>
                   </thead>
                   <tbody id="personnelSummaryTbody">
@@ -926,6 +933,27 @@
         </div>
 
         </div><!-- /execTabPanel-people -->
+
+        <!-- 팀원 성향 편집 모달 (팀장 전용 · 팀원 성향 스냅샷에서 편집) -->
+        <div class="modal-overlay" id="traitEditModal" onclick="if(event.target===this) closeTraitEdit()">
+          <div class="modal-box" style="max-width:520px;">
+            <div class="modal-header">
+              <span class="modal-title">성향 편집 · <span id="traitEditName" style="color:#4338ca"></span></span>
+              <button type="button" class="modal-close" onclick="closeTraitEdit()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+              <div id="traitSlidersWrap"></div>
+              <div class="form-group" style="margin-top:14px;">
+                <label class="form-label">한 줄 코멘트 (선택 · 최대 200자)</label>
+                <textarea id="traitCommentInput" class="form-control" rows="2" maxlength="200" placeholder="예: 논리적·꼼꼼한 스타일. 신규 규제 대응 담당."></textarea>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" onclick="closeTraitEdit()">취소</button>
+              <button type="button" class="btn btn-primary" onclick="saveTraitEdit()"><i class="fas fa-save"></i> 저장</button>
+            </div>
+          </div>
+        </div>
 
         <!-- 탭 그룹 7/8: 규정·매뉴얼 (계리 직재/위임전결, 사규, 업무 매뉴얼 — 08/10 과 별개인 상시 참고자료, 부가업무 카드와 동일한 표 형태 재사용) -->
         <div class="exec-tab-panel" id="execTabPanel-governance" data-tab="governance" role="tabpanel" aria-labelledby="execTabBtn-governance">
@@ -1800,11 +1828,19 @@ async function loadMemberTraits() {
   }
 }
 
+// 편집을 위해 현재 표시 중인 users + traits 를 캐시 (editModal 오픈 시 참조)
+let TRAITS_USERS_CACHE = [];
+let TRAITS_MAP_CACHE = {};
+let TRAIT_EDIT_CTX = null;
+
 function renderTraitsHexGrid(users, traitsById) {
   const grid = document.getElementById('memberTraitsGrid');
   if (!grid) return;
   // 성향 스냅샷은 팀장 제외 팀원만 표시 (임원께 팀원 특성 전달용)
   const members = users.filter(u => u.role !== 'team_leader');
+  TRAITS_USERS_CACHE = members;
+  TRAITS_MAP_CACHE = traitsById;
+  const isLeader = (currentUser && currentUser.role === 'team_leader');
   if (!members.length) {
     grid.innerHTML = `<div style="padding:24px;text-align:center;color:#94a3b8;font-size:13px;">등록된 팀원이 없습니다.</div>`;
     return;
@@ -1815,10 +1851,13 @@ function renderTraitsHexGrid(users, traitsById) {
     const filled = scores.some(v => v > 0);
     const initial = (u.full_name || '?').charAt(0);
     const roleChip = u.position || u.grade || '';
+    const editBtn = isLeader
+      ? `<button class="trait-edit-btn" title="편집" onclick="openTraitEdit('${esc(u.id)}')"><i class="fas fa-pen"></i></button>`
+      : '';
     const radarBlock = filled
       ? traitRadarSvg(scores, { suffix: '_hex_' + idx })
-      : `<div class="trait-radar-empty">아직 성향이 입력되지 않았습니다.<br>인사카드에서 편집해주세요.</div>`;
-    const comment = t.comment ? esc(t.comment) : '한 줄 코멘트를 인사카드에서 추가해주세요.';
+      : `<div class="trait-radar-empty">아직 성향이 입력되지 않았습니다${isLeader ? '.<br>편집 버튼(연필)을 눌러 채워주세요' : ''}.</div>`;
+    const comment = t.comment ? esc(t.comment) : (isLeader ? '한 줄 코멘트를 추가해주세요.' : '코멘트 없음');
     const commentCls = t.comment ? '' : 'empty';
     const updated = t.updated_at
       ? `<div class="trait-updated">최종 갱신 · ${new Date(t.updated_at).toLocaleDateString('ko-KR')}</div>`
@@ -1831,12 +1870,69 @@ function renderTraitsHexGrid(users, traitsById) {
             <div class="trait-name">${esc(u.full_name)}</div>
             <div class="trait-role">${roleChip ? `<span class="trait-role-chip">${esc(roleChip)}</span>` : ''}</div>
           </div>
+          ${editBtn}
         </div>
         ${radarBlock}
         <div class="trait-comment ${commentCls}">${comment}</div>
         ${updated}
       </div>`;
   }).join('');
+}
+
+function openTraitEdit(userId) {
+  const u = TRAITS_USERS_CACHE.find(x => x.id === userId);
+  if (!u) return;
+  TRAIT_EDIT_CTX = userId;
+  const t = TRAITS_MAP_CACHE[userId] || {};
+  document.getElementById('traitEditName').textContent = u.full_name;
+  const wrap = document.getElementById('traitSlidersWrap');
+  wrap.innerHTML = TRAIT_AXES.map(ax => {
+    const v = Number(t[ax.key]) || 3;
+    return `
+      <div class="trait-slider-row">
+        <label>${ax.label}</label>
+        <input type="range" min="1" max="5" step="1" value="${v}" data-key="${ax.key}"
+          oninput="this.parentElement.querySelector('.val').textContent=this.value">
+        <div class="val">${v}</div>
+      </div>`;
+  }).join('');
+  document.getElementById('traitCommentInput').value = t.comment || '';
+  const modal = document.getElementById('traitEditModal');
+  modal.classList.add('show'); modal.classList.add('open');
+}
+function closeTraitEdit() {
+  const modal = document.getElementById('traitEditModal');
+  modal.classList.remove('show'); modal.classList.remove('open');
+  TRAIT_EDIT_CTX = null;
+}
+async function saveTraitEdit() {
+  if (!TRAIT_EDIT_CTX) return;
+  const uid = TRAIT_EDIT_CTX;
+  const payload = { user_id: uid };
+  document.querySelectorAll('#traitSlidersWrap input[type=range]').forEach(el => {
+    payload[el.dataset.key] = Number(el.value);
+  });
+  payload.comment = (document.getElementById('traitCommentInput').value || '').trim();
+  const existing = TRAITS_MAP_CACHE[uid];
+  try {
+    const res = existing && existing.id
+      ? await fetch('/tables/member_traits/' + encodeURIComponent(existing.id), {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+      : await fetch('/tables/member_traits', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+    if (!res.ok) throw new Error('저장 실패 (' + res.status + ')');
+    const saved = await res.json();
+    TRAITS_MAP_CACHE[uid] = saved;
+    closeTraitEdit();
+    renderTraitsHexGrid(TRAITS_USERS_CACHE.concat().sort(() => 0), TRAITS_MAP_CACHE);
+    // 위에서 concat().sort(()=>0) 은 원본 유지 (정렬 무영향, 새 참조 전달용).
+  } catch (e) {
+    alert('저장 실패: ' + (e.message || e));
+  }
 }
 
 function roleChipHtml(role) {
@@ -1852,24 +1948,21 @@ function renderPersonnelTable(users, traitsById) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:24px;">등록된 팀원이 없습니다.</td></tr>`;
     return;
   }
+  const fmtYears = (dept, years) => {
+    if (dept) {
+      const d = new Date(dept), n = new Date();
+      let y = n.getFullYear() - d.getFullYear();
+      let m = n.getMonth() - d.getMonth();
+      if (m < 0) { y--; m += 12; }
+      if (y < 0) return '1개월 미만';
+      if (y === 0) return m + '개월';
+      return y + '년 ' + m + '개월';
+    }
+    return years ? years + '년' : '-';
+  };
+  const fmtDate = d => (d ? String(d).slice(0, 10) : '-');
   tbody.innerHTML = users.map(u => {
-    const t = traitsById[u.id] || {};
-    const scores = TRAIT_AXES.map(ax => Number(t[ax.key]) || 0);
-    const filled = scores.some(v => v > 0);
     const initial = (u.full_name || '?').charAt(0);
-    const traitCell = filled
-      ? `<div class="p-traits-cell">
-           ${traitHexMini(scores, 84)}
-           <div class="p-trait-bars">
-             ${TRAIT_AXES.map((ax, i) => `
-               <div><span class="lbl">${ax.label}</span><span class="bar"><div style="width:${(scores[i] / TRAIT_MAX) * 100}%"></div></span><span class="num">${scores[i]}</span></div>
-             `).join('')}
-           </div>
-         </div>`
-      : `<span class="p-empty">— 미입력 —</span>`;
-    const comment = t.comment
-      ? `<div class="p-comment">${esc(t.comment)}</div>`
-      : `<div class="p-comment empty">— 코멘트 미입력 —</div>`;
     return `
       <tr>
         <td>
@@ -1885,10 +1978,13 @@ function renderPersonnelTable(users, traitsById) {
           ${esc(u.grade || '-')}
           <span class="position">${esc(u.position || '')}</span>
         </td>
-        <td class="p-task">${u.task_area ? esc(u.task_area) : '<span class="p-empty">-</span>'}</td>
+        <td class="p-grade-cell">
+          ${fmtDate(u.dept_date)}
+          <span class="position">${fmtYears(u.dept_date, u.years)}</span>
+        </td>
+        <td class="p-cert">${u.specialty ? esc(u.specialty) : '<span class="p-empty">-</span>'}</td>
         <td class="p-cert">${u.certifications ? esc(u.certifications) : '<span class="p-empty">-</span>'}</td>
-        <td>${traitCell}</td>
-        <td>${comment}</td>
+        <td class="p-task">${u.task_area ? esc(u.task_area) : '<span class="p-empty">-</span>'}</td>
       </tr>`;
   }).join('');
 }
