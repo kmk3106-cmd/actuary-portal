@@ -109,7 +109,7 @@
       display:flex; align-items:center; gap:8px; }
     .section-header::after { content:''; flex:1; height:1px; background:#e5e7eb; }
 
-    /* 성향 6축 (편집 모달 슬라이더 + 카드 내 미니 hexagon) */
+    /* 성향 6축 (편집 모달 슬라이더 + 별도 스냅샷 섹션) */
     .trait-slider-row {
       display:grid; grid-template-columns:88px 1fr 32px; align-items:center; gap:12px;
       padding:8px 0; border-bottom:1px dashed #f1f5f9;
@@ -118,13 +118,70 @@
     .trait-slider-row label { font-size:12.5px; font-weight:700; color:#334155; }
     .trait-slider-row input[type=range] { width:100%; accent-color:#6366f1; }
     .trait-slider-row .val { font-weight:800; font-size:14px; color:#4338ca; text-align:center; background:#eef2ff; border-radius:6px; padding:3px 0; }
-    .card-traits { padding:12px 20px; border-top:1px solid #f3f4f6; background:linear-gradient(180deg,#fafbff 0%,#f5f3ff 100%); display:flex; gap:12px; align-items:center; }
-    .card-traits .hex { flex-shrink:0; }
-    .card-traits .info { flex:1; min-width:0; }
-    .card-traits .info .head { font-size:11px; font-weight:700; color:#7c3aed; letter-spacing:0.03em; margin-bottom:3px; display:flex; align-items:center; gap:4px; }
-    .card-traits .info .cmt { font-size:12px; color:#475569; line-height:1.5; font-style:italic; }
-    .card-traits .info .cmt.empty { color:#c4b5fd; font-style:normal; }
-    .card-traits.empty { opacity:.55; }
+
+    /* 성향 스냅샷 섹션 (인사카드 페이지 별도 항목) */
+    .lock-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; background:#fef2f2; color:#dc2626; font-size:10.5px; font-weight:800; border-radius:6px; margin-left:4px; letter-spacing:0.02em; }
+    .lock-badge i { font-size:9px; }
+    .ts-legend {
+      display:flex; flex-wrap:wrap; gap:6px 8px;
+      margin:0 0 18px; padding:12px 16px;
+      background:linear-gradient(135deg,#f5f3ff 0%,#ede9fe 100%);
+      border:1px solid #ddd6fe; border-radius:10px;
+    }
+    .ts-legend-chip { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; font-size:12px; font-weight:700; background:rgba(255,255,255,.85); color:#4c1d95; border-radius:6px; border:1px solid rgba(124,58,237,.15); }
+    .ts-legend-chip small { font-weight:500; color:#6d28d9; margin-left:2px; }
+    .ts-grid {
+      display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));
+      gap:18px;
+    }
+    .ts-card {
+      background:#fff; border:1px solid #e5e7eb; border-radius:16px;
+      padding:18px 18px 16px; box-shadow:0 1px 3px rgba(15,23,42,.04);
+      transition:box-shadow .2s, transform .15s;
+      display:flex; flex-direction:column;
+    }
+    .ts-card:hover { box-shadow:0 6px 20px rgba(15,23,42,.08); transform:translateY(-1px); }
+    .ts-card-head { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+    .ts-avatar {
+      width:42px; height:42px; border-radius:12px; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center;
+      font-weight:800; font-size:15px; color:#fff; letter-spacing:-0.02em;
+    }
+    .ts-name { font-size:15px; font-weight:800; color:#0f172a; letter-spacing:-0.01em; }
+    .ts-role { font-size:11.5px; color:#64748b; margin-top:2px; }
+    .ts-role-chip { display:inline-flex; padding:1px 8px; font-size:10.5px; font-weight:700; background:#eef2ff; color:#4338ca; border-radius:999px; }
+    .ts-edit-btn {
+      flex-shrink:0; width:30px; height:30px; padding:0; border:1px solid #e5e7eb;
+      background:#fff; border-radius:8px; cursor:pointer; color:#64748b;
+      display:flex; align-items:center; justify-content:center; font-size:12px;
+      transition:all .15s;
+    }
+    .ts-edit-btn:hover { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+    .ts-radar { display:block; margin:4px auto 6px; max-width:100%; height:auto; }
+    .ts-radar-empty {
+      display:flex; align-items:center; justify-content:center;
+      height:240px; color:#cbd5e1; font-size:12.5px; text-align:center;
+      background:repeating-linear-gradient(45deg,#f8fafc,#f8fafc 6px,#f1f5f9 6px,#f1f5f9 12px);
+      border-radius:12px; margin:6px 0;
+    }
+    .ts-comment {
+      position:relative; margin-top:8px; padding:10px 12px 10px 30px;
+      background:linear-gradient(135deg,#fafbff 0%,#f5f3ff 100%);
+      border-left:3px solid #8b5cf6; border-radius:8px;
+      font-size:12.5px; color:#334155; line-height:1.6; font-style:italic;
+      min-height:42px;
+    }
+    .ts-comment::before {
+      content:'"'; position:absolute; left:10px; top:-2px;
+      font-size:28px; color:#a78bfa; font-family:Georgia, serif; font-style:normal;
+    }
+    .ts-comment.empty { color:#cbd5e1; font-style:normal; }
+    .ts-comment.empty::before { color:#ddd6fe; }
+    .ts-updated { font-size:10.5px; color:#94a3b8; margin-top:6px; text-align:right; }
+    @media(max-width:640px) {
+      .ts-grid { grid-template-columns:1fr; }
+      .ts-radar { max-width:260px; }
+    }
 
     /* 카드 푸터 위험 버튼 */
     .btn-card-reset { padding:5px 12px; border-radius:7px; border:1.5px solid #fde68a;
@@ -193,6 +250,24 @@
         <div style="grid-column:1/-1;text-align:center;padding:40px;color:#9ca3af;">
           <i class="fas fa-spinner fa-spin" style="font-size:24px;"></i>
         </div>
+      </div>
+
+      <!-- 성향 스냅샷 (극비 · 팀장·실장 조회, 팀장 편집) -->
+      <div id="traitsSnapshotSection" style="display:none;">
+        <div class="section-header" style="margin-top:32px;">
+          <i class="fas fa-users-viewfinder" style="color:#7c3aed;"></i>
+          <span>성향 스냅샷</span>
+          <span class="lock-badge"><i class="fas fa-lock"></i> 극비</span>
+        </div>
+        <div class="ts-legend">
+          <span class="ts-legend-chip">전문성<small>계리·시스템</small></span>
+          <span class="ts-legend-chip">분석력<small>수치·원인</small></span>
+          <span class="ts-legend-chip">실행력<small>마감·완결</small></span>
+          <span class="ts-legend-chip">주도성<small>학습·오너십</small></span>
+          <span class="ts-legend-chip">협업력<small>부서 간</small></span>
+          <span class="ts-legend-chip">커뮤니케이션<small>보고 명료성</small></span>
+        </div>
+        <div class="ts-grid" id="traitsSnapshotGrid"></div>
       </div>
 
     </main>
@@ -413,10 +488,12 @@ function _pt(cx, cy, r, i, axes) {
   const a = -Math.PI / 2 + (2 * Math.PI * i) / axes;
   return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
 }
-function traitHexSvg(scores, size) {
+function traitHexSvg(scores, size, withLabels) {
   const s = size || 88;
   const cx = s / 2, cy = s / 2;
-  const R = s * 0.42;
+  // 라벨을 그릴 때는 반경을 줄여서 라벨 공간 확보
+  const R = withLabels ? s * 0.34 : s * 0.42;
+  const labelR = R + 20;
   let rings = '';
   for (let step = 1; step <= TRAIT_MAX; step++) {
     const r = (R * step) / TRAIT_MAX;
@@ -429,10 +506,83 @@ function traitHexSvg(scores, size) {
     spokes += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#e9d5ff" stroke-width="1" />`;
   }
   const vPts = scores.map((v, i) => _pt(cx, cy, (R * Math.max(0, Math.min(TRAIT_MAX, v))) / TRAIT_MAX, i, 6).join(',')).join(' ');
-  return `<svg class="hex" viewBox="0 0 ${s} ${s}" width="${s}" height="${s}" role="img" aria-label="성향 6축">
+  const vertex = withLabels
+    ? scores.map((v, i) => {
+        const [x, y] = _pt(cx, cy, (R * Math.max(0, Math.min(TRAIT_MAX, v))) / TRAIT_MAX, i, 6);
+        return `<circle cx="${x}" cy="${y}" r="3" fill="#7c3aed" />`;
+      }).join('')
+    : '';
+  let labels = '';
+  if (withLabels) {
+    labels = TRAIT_AXES.map((ax, i) => {
+      const [x, y] = _pt(cx, cy, labelR, i, 6);
+      let anchor = 'middle';
+      if (i === 1 || i === 2) anchor = 'start';
+      if (i === 4 || i === 5) anchor = 'end';
+      let dy = 4;
+      if (i === 0) dy = -2;
+      if (i === 3) dy = 12;
+      return `<text x="${x}" y="${y + dy}" text-anchor="${anchor}" font-size="11" font-weight="700" fill="#475569">${ax.label}</text>`;
+    }).join('');
+  }
+  return `<svg class="ts-radar" viewBox="0 0 ${s} ${s}" width="${s}" height="${s}" role="img" aria-label="성향 6축">
     ${rings}${spokes}
     <polygon points="${vPts}" fill="rgba(139,92,246,0.32)" stroke="#7c3aed" stroke-width="1.8" stroke-linejoin="round" />
+    ${vertex}${labels}
   </svg>`;
+}
+const TRAIT_AVATAR_PALETTE = [
+  ['#6366f1', '#8b5cf6'], ['#ec4899', '#f43f5e'], ['#0ea5e9', '#3b82f6'],
+  ['#10b981', '#14b8a6'], ['#f59e0b', '#f97316'], ['#8b5cf6', '#a855f7'],
+  ['#06b6d4', '#0ea5e9'], ['#ef4444', '#ec4899'], ['#84cc16', '#22c55e'],
+];
+function traitAvatarGradient(name) {
+  const sum = String(name || '').split('').reduce((s, c) => s + c.charCodeAt(0), 0);
+  const [a, b] = TRAIT_AVATAR_PALETTE[sum % TRAIT_AVATAR_PALETTE.length];
+  return `linear-gradient(135deg, ${a} 0%, ${b} 100%)`;
+}
+function renderTraitsSnapshot() {
+  const section = document.getElementById('traitsSnapshotSection');
+  const grid = document.getElementById('traitsSnapshotGrid');
+  if (!section || !grid) return;
+  if (!canViewTraits) { section.style.display = 'none'; return; }
+  const activeMembers = allUsers
+    .filter(u => u.is_active !== false && u.full_name && u.role !== 'team_leader')
+    .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '', 'ko'));
+  if (!activeMembers.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  grid.innerHTML = activeMembers.map(u => {
+    const t = traitsById[u.id] || {};
+    const scores = TRAIT_AXES.map(ax => Number(t[ax.key]) || 0);
+    const filled = scores.some(v => v > 0);
+    const initial = (u.full_name || '?').charAt(0);
+    const roleChip = u.position || u.grade || '';
+    const editBtn = isLeader
+      ? `<button class="ts-edit-btn" title="편집" onclick="openEdit('${u.id}')"><i class="fas fa-pen"></i></button>`
+      : '';
+    const radar = filled
+      ? traitHexSvg(scores, 240, true)
+      : `<div class="ts-radar-empty">아직 성향이 입력되지 않았습니다.${isLeader ? '<br>편집 버튼을 눌러 채워주세요.' : ''}</div>`;
+    const cmt = t.comment ? t.comment : (isLeader ? '한 줄 코멘트를 추가해주세요.' : '코멘트 없음');
+    const cmtCls = t.comment ? '' : 'empty';
+    const updated = t.updated_at
+      ? `<div class="ts-updated">최종 갱신 · ${new Date(t.updated_at).toLocaleDateString('ko-KR')}</div>`
+      : '';
+    return `
+      <div class="ts-card">
+        <div class="ts-card-head">
+          <div class="ts-avatar" style="background:${traitAvatarGradient(u.full_name)};">${initial}</div>
+          <div style="flex:1;min-width:0;">
+            <div class="ts-name">${u.full_name}</div>
+            <div class="ts-role">${roleChip ? `<span class="ts-role-chip">${roleChip}</span>` : ''}</div>
+          </div>
+          ${editBtn}
+        </div>
+        ${radar}
+        <div class="ts-comment ${cmtCls}">${cmt}</div>
+        ${updated}
+      </div>`;
+  }).join('');
 }
 async function loadTraits() {
   try {
@@ -543,19 +693,6 @@ function buildCardHtml(u) {
       <div class="extra-title"><i class="fas fa-sticky-note"></i> 메모</div>
       <div class="extra-text">${u.notes}</div>
     </div>` : ''}
-    ${canViewTraits ? (() => {
-      const t = traitsById[u.id];
-      const scores = TRAIT_AXES.map(ax => Number((t || {})[ax.key]) || 0);
-      const filled = scores.some(v => v > 0);
-      const cmt = t && t.comment ? t.comment : '';
-      return `<div class="card-traits${filled ? '' : ' empty'}" title="극비 (팀장·실장 전용)">
-        ${traitHexSvg(scores, 72)}
-        <div class="info">
-          <div class="head"><i class="fas fa-lock" style="font-size:9px;color:#dc2626;"></i> <i class="fas fa-users-viewfinder"></i> 성향 6축</div>
-          <div class="cmt${cmt ? '' : ' empty'}">${cmt ? cmt : (filled ? '' : '미입력')}</div>
-        </div>
-      </div>`;
-    })() : ''}
     ${(() => {
       // 수정: 팀장은 모든 카드 / 일반 직원은 본인 카드만
       const isSelf = currentUser && (currentUser.user_id === u.id || currentUser.id === u.id);
@@ -611,6 +748,9 @@ function renderCards() {
   } else {
     grid.innerHTML = displayUsers.map(buildCardHtml).join('');
   }
+
+  // 재직 팀원의 성향 스냅샷은 항상 재직중(active) 기준으로 별도 표시 (팀장·실장 조회)
+  renderTraitsSnapshot();
 }
 
 function openEdit(userId) {

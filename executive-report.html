@@ -319,6 +319,72 @@
       .extra-cat-body .table-scroll { overflow-x: auto; }
     }
 
+    /* ── 팀원 성향 스냅샷 (6각형 카드 그리드) — 조회 전용 ────── */
+    .traits-axis-legend {
+      display: flex; flex-wrap: wrap; gap: 6px 8px;
+      margin: 14px 0 18px; padding: 12px 16px;
+      background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+      border: 1px solid #ddd6fe; border-radius: 10px;
+    }
+    .traits-axis-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px; font-size: 12px; font-weight: 700;
+      background: rgba(255,255,255,.85); color: #4c1d95;
+      border-radius: 6px; border: 1px solid rgba(124,58,237,.15);
+    }
+    .traits-axis-chip small { font-weight: 500; color: #6d28d9; margin-left: 2px; }
+    .traits-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 18px; margin-top: 4px;
+    }
+    .trait-card {
+      background: #fff; border: 1px solid var(--gray-200); border-radius: 16px;
+      padding: 18px 18px 16px; box-shadow: 0 1px 3px rgba(15,23,42,.04);
+      transition: box-shadow .2s, transform .15s;
+      display: flex; flex-direction: column;
+    }
+    .trait-card:hover { box-shadow: 0 6px 20px rgba(15,23,42,.08); transform: translateY(-1px); }
+    .trait-card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+    .trait-avatar {
+      width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 15px; color: #fff; letter-spacing: -0.02em;
+    }
+    .trait-name-block { flex: 1; min-width: 0; }
+    .trait-name { font-size: 15px; font-weight: 800; color: #0f172a; letter-spacing: -0.01em; }
+    .trait-role { font-size: 11.5px; color: #64748b; margin-top: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .trait-role-chip {
+      display: inline-flex; padding: 1px 8px; font-size: 10.5px; font-weight: 700;
+      background: #eef2ff; color: #4338ca; border-radius: 999px;
+    }
+    .trait-radar { display: block; margin: 4px auto 6px; max-width: 100%; height: auto; }
+    .trait-radar-empty {
+      display: flex; align-items: center; justify-content: center;
+      height: 240px; color: #cbd5e1; font-size: 12.5px; text-align: center;
+      background: repeating-linear-gradient(45deg, #f8fafc, #f8fafc 6px, #f1f5f9 6px, #f1f5f9 12px);
+      border-radius: 12px; margin: 6px 0;
+    }
+    .trait-comment {
+      position: relative; margin-top: 8px; padding: 10px 12px 10px 30px;
+      background: linear-gradient(135deg, #fafbff 0%, #f5f3ff 100%);
+      border-left: 3px solid #8b5cf6; border-radius: 8px;
+      font-size: 12.5px; color: #334155; line-height: 1.6; font-style: italic;
+      min-height: 42px;
+    }
+    .trait-comment::before {
+      content: '"'; position: absolute; left: 10px; top: -2px;
+      font-size: 28px; color: #a78bfa; font-family: Georgia, serif; font-style: normal;
+    }
+    .trait-comment.empty { color: #cbd5e1; font-style: normal; }
+    .trait-comment.empty::before { color: #ddd6fe; }
+    .trait-updated {
+      font-size: 10.5px; color: #94a3b8; margin-top: 6px; text-align: right;
+    }
+    @media (max-width: 640px) {
+      .traits-grid { grid-template-columns: 1fr; }
+      .trait-radar { max-width: 260px; }
+    }
+
     /* ── 인사카드 요약 표 (극비 · 인력·자원 탭 부속) ─────────── */
     .traits-section-head {
       display: flex; align-items: flex-start; gap: 14px; margin: 26px 0 12px;
@@ -799,6 +865,34 @@
               <label class="form-label">채용/이동 현황</label>
               <textarea class="form-control" id="fHiring" placeholder="예: 신규 채용 진행 중, 인사이동 계획 등..."></textarea>
             </div>
+
+            <!-- 인사카드 요약 표 (극비 · 팀장/실장 전용 · 인사카드와 연동) -->
+            <div id="personnelTableSection" style="margin-top:24px;">
+              <div class="traits-section-head" style="margin-top:0;">
+                <div class="icon-wrap"><i class="fas fa-shield-halved"></i></div>
+                <div>
+                  <h4><i class="fas fa-lock" style="color:#dc2626;font-size:13px;margin-right:4px;"></i>인사카드 요약 <span style="color:#dc2626;font-size:12px;font-weight:700;">[극비]</span></h4>
+                  <p>재직 팀원의 인사카드 · 성향 6축을 표로 요약. 편집은 <a href="personnel.html" style="color:#4338ca;font-weight:700;text-decoration:underline;">인사카드</a> 화면에서.</p>
+                </div>
+              </div>
+              <div class="personnel-table-wrap">
+                <table class="personnel-summary-table" id="personnelSummaryTable">
+                  <thead>
+                    <tr>
+                      <th style="width:110px;">성명</th>
+                      <th style="width:100px;">직급/직위</th>
+                      <th style="width:140px;">담당 업무</th>
+                      <th style="width:110px;">자격증</th>
+                      <th style="min-width:210px;">성향 6축</th>
+                      <th>코멘트</th>
+                    </tr>
+                  </thead>
+                  <tbody id="personnelSummaryTbody">
+                    <tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:24px;">로드 중…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -811,32 +905,24 @@
           <div class="extra-cat-grid" id="boosterLicenseGrid"></div>
         </div>
 
-        <!-- 부속: 인사카드 요약 표 (극비 · 팀장/실장 전용 · 성향 6축은 인사카드 편집 화면과 연동) -->
-        <div class="extra-cat-section" id="personnelTableSection">
-          <div class="traits-section-head">
-            <div class="icon-wrap"><i class="fas fa-shield-halved"></i></div>
+        <!-- 부속: 팀원 성향 스냅샷 (6각형 카드 · 극비 조회 전용 · 편집은 인사카드에서) -->
+        <div class="extra-cat-section" id="memberTraitsHexSection">
+          <div class="traits-section-head" style="margin-top:22px;">
+            <div class="icon-wrap" style="background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);box-shadow:0 4px 12px rgba(99,102,241,.28);"><i class="fas fa-users-viewfinder"></i></div>
             <div>
-              <h4><i class="fas fa-lock" style="color:#dc2626;font-size:13px;margin-right:4px;"></i>인사카드 요약 <span style="color:#dc2626;font-size:12px;font-weight:700;">[극비]</span></h4>
-              <p>재직 팀원의 인사카드 · 성향 6축을 표로 요약. 편집은 <a href="personnel.html" style="color:#4338ca;font-weight:700;text-decoration:underline;">인사카드</a> 화면에서. (열람: 팀장·실장만)</p>
+              <h4><i class="fas fa-lock" style="color:#dc2626;font-size:13px;margin-right:4px;"></i>팀원 성향 스냅샷 <span style="color:#dc2626;font-size:12px;font-weight:700;">[극비]</span></h4>
+              <p>계리결산팀 팀원의 강점·특성을 6축 레이더로 도식화. 편집은 <a href="personnel.html" style="color:#4338ca;font-weight:700;text-decoration:underline;">인사카드</a> 편집 화면에서.</p>
             </div>
           </div>
-          <div class="personnel-table-wrap">
-            <table class="personnel-summary-table" id="personnelSummaryTable">
-              <thead>
-                <tr>
-                  <th style="width:110px;">성명</th>
-                  <th style="width:100px;">직급/직위</th>
-                  <th style="width:140px;">담당 업무</th>
-                  <th style="width:110px;">자격증</th>
-                  <th style="min-width:210px;">성향 6축</th>
-                  <th>코멘트</th>
-                </tr>
-              </thead>
-              <tbody id="personnelSummaryTbody">
-                <tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:24px;">로드 중…</td></tr>
-              </tbody>
-            </table>
+          <div class="traits-axis-legend">
+            <span class="traits-axis-chip">전문성<small>계리·시스템 지식</small></span>
+            <span class="traits-axis-chip">분석력<small>수치·원인 규명</small></span>
+            <span class="traits-axis-chip">실행력<small>마감·완결도</small></span>
+            <span class="traits-axis-chip">주도성<small>학습·오너십</small></span>
+            <span class="traits-axis-chip">협업력<small>부서 간 소통</small></span>
+            <span class="traits-axis-chip">커뮤니케이션<small>보고 명료성</small></span>
           </div>
+          <div class="traits-grid" id="memberTraitsGrid"></div>
         </div>
 
         </div><!-- /execTabPanel-people -->
@@ -1614,19 +1700,77 @@ function traitHexMini(scores, size) {
     </svg>`;
 }
 
-async function loadMemberTraits() {
-  const section = document.getElementById('personnelTableSection');
-  const tbody = document.getElementById('personnelSummaryTbody');
-  if (!section || !tbody) return;
+function traitRadarSvg(scores, opts) {
+  opts = opts || {};
+  const size = opts.size || 240;
+  const cx = size / 2, cy = size / 2;
+  const R = size * 0.34;
+  const labelR = R + 20;
+  const axes = 6;
+  const start = -Math.PI / 2;
+  function pt(r, i) {
+    const a = start + (2 * Math.PI * i) / axes;
+    return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  }
+  let rings = '';
+  for (let step = 1; step <= TRAIT_MAX; step++) {
+    const r = (R * step) / TRAIT_MAX;
+    const pts = Array.from({ length: axes }, (_, i) => pt(r, i).join(',')).join(' ');
+    const stroke = step === TRAIT_MAX ? '#cbd5e1' : '#e2e8f0';
+    const dash = step === TRAIT_MAX ? '' : ' stroke-dasharray="2,3"';
+    rings += `<polygon points="${pts}" fill="none" stroke="${stroke}" stroke-width="1"${dash} />`;
+  }
+  let spokes = '';
+  for (let i = 0; i < axes; i++) {
+    const [x, y] = pt(R, i);
+    spokes += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#e2e8f0" stroke-width="1" />`;
+  }
+  const vPts = scores.map((v, i) => pt((R * Math.max(0, Math.min(TRAIT_MAX, v))) / TRAIT_MAX, i).join(',')).join(' ');
+  const vertex = scores.map((v, i) => {
+    const [x, y] = pt((R * Math.max(0, Math.min(TRAIT_MAX, v))) / TRAIT_MAX, i);
+    return `<circle cx="${x}" cy="${y}" r="3" fill="#6366f1" />`;
+  }).join('');
+  const labels = TRAIT_AXES.map((ax, i) => {
+    const [x, y] = pt(labelR, i);
+    let anchor = 'middle';
+    if (i === 1 || i === 2) anchor = 'start';
+    if (i === 4 || i === 5) anchor = 'end';
+    let dy = 4;
+    if (i === 0) dy = -2;
+    if (i === 3) dy = 12;
+    return `<text x="${x}" y="${y + dy}" text-anchor="${anchor}" font-size="11" font-weight="700" fill="#475569">${ax.label}</text>`;
+  }).join('');
+  return `
+    <svg class="trait-radar" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="6축 성향 레이더">
+      <defs>
+        <radialGradient id="traitFill${opts.suffix || ''}" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#a5b4fc" stop-opacity="0.55"/>
+          <stop offset="100%" stop-color="#6366f1" stop-opacity="0.22"/>
+        </radialGradient>
+      </defs>
+      ${rings}${spokes}
+      <polygon points="${vPts}" fill="url(#traitFill${opts.suffix || ''})" stroke="#6366f1" stroke-width="2" stroke-linejoin="round" />
+      ${vertex}
+      ${labels}
+    </svg>`;
+}
 
-  // 팀원 role 은 극비 가드로 UI 자체 대체
+async function loadMemberTraits() {
+  const tableSection = document.getElementById('personnelTableSection');
+  const hexSection = document.getElementById('memberTraitsHexSection');
+  const tbody = document.getElementById('personnelSummaryTbody');
+  if (!tableSection && !hexSection) return;
+
+  // 팀원 role 은 두 섹션 모두 극비 가드로 대체
   if (!canViewPersonnelSecret()) {
-    section.innerHTML = `
+    const guard = `
       <div class="p-secret-guard">
         <i class="fas fa-lock"></i>
-        <div class="msg">인사카드 요약은 극비 자료입니다.</div>
+        <div class="msg">인력·자원 정보는 극비 자료입니다.</div>
         <div class="sub">팀장·실장만 열람할 수 있습니다.</div>
       </div>`;
+    if (tableSection) tableSection.innerHTML = guard;
+    if (hexSection) hexSection.innerHTML = guard;
     return;
   }
 
@@ -1640,7 +1784,6 @@ async function loadMemberTraits() {
     const users = (uData.rows || uData.data || [])
       .filter(u => u.is_active !== false && u.full_name)
       .sort((a, b) => {
-        // 팀장 → 실장 → 팀원 순, 그 안은 가나다
         const order = { team_leader: 0, section_chief: 1, employee: 2, member: 2 };
         const oa = order[a.role] ?? 3, ob = order[b.role] ?? 3;
         if (oa !== ob) return oa - ob;
@@ -1649,9 +1792,51 @@ async function loadMemberTraits() {
     const traitsById = {};
     (tData.rows || tData.data || []).forEach(t => { if (t.user_id) traitsById[t.user_id] = t; });
     renderPersonnelTable(users, traitsById);
+    renderTraitsHexGrid(users, traitsById);
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#ef4444;padding:20px;">로드 실패: ${esc(e.message || e)}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#ef4444;padding:20px;">로드 실패: ${esc(e.message || e)}</td></tr>`;
+    const grid = document.getElementById('memberTraitsGrid');
+    if (grid) grid.innerHTML = `<div style="padding:20px;color:#ef4444;font-size:13px;">로드 실패: ${esc(e.message || e)}</div>`;
   }
+}
+
+function renderTraitsHexGrid(users, traitsById) {
+  const grid = document.getElementById('memberTraitsGrid');
+  if (!grid) return;
+  // 성향 스냅샷은 팀장 제외 팀원만 표시 (임원께 팀원 특성 전달용)
+  const members = users.filter(u => u.role !== 'team_leader');
+  if (!members.length) {
+    grid.innerHTML = `<div style="padding:24px;text-align:center;color:#94a3b8;font-size:13px;">등록된 팀원이 없습니다.</div>`;
+    return;
+  }
+  grid.innerHTML = members.map((u, idx) => {
+    const t = traitsById[u.id] || {};
+    const scores = TRAIT_AXES.map(ax => Number(t[ax.key]) || 0);
+    const filled = scores.some(v => v > 0);
+    const initial = (u.full_name || '?').charAt(0);
+    const roleChip = u.position || u.grade || '';
+    const radarBlock = filled
+      ? traitRadarSvg(scores, { suffix: '_hex_' + idx })
+      : `<div class="trait-radar-empty">아직 성향이 입력되지 않았습니다.<br>인사카드에서 편집해주세요.</div>`;
+    const comment = t.comment ? esc(t.comment) : '한 줄 코멘트를 인사카드에서 추가해주세요.';
+    const commentCls = t.comment ? '' : 'empty';
+    const updated = t.updated_at
+      ? `<div class="trait-updated">최종 갱신 · ${new Date(t.updated_at).toLocaleDateString('ko-KR')}</div>`
+      : '';
+    return `
+      <div class="trait-card">
+        <div class="trait-card-head">
+          <div class="trait-avatar" style="background:${traitAvatarGradient(u.full_name)};">${esc(initial)}</div>
+          <div class="trait-name-block">
+            <div class="trait-name">${esc(u.full_name)}</div>
+            <div class="trait-role">${roleChip ? `<span class="trait-role-chip">${esc(roleChip)}</span>` : ''}</div>
+          </div>
+        </div>
+        ${radarBlock}
+        <div class="trait-comment ${commentCls}">${comment}</div>
+        ${updated}
+      </div>`;
+  }).join('');
 }
 
 function roleChipHtml(role) {
