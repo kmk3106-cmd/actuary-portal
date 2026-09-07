@@ -110,6 +110,9 @@
     .section-header::after { content:''; flex:1; height:1px; background:#e5e7eb; }
 
     /* 카드 푸터 위험 버튼 */
+    .btn-card-reset { padding:5px 12px; border-radius:7px; border:1.5px solid #fde68a;
+      background:#fff; font-size:12px; font-weight:600; color:#b45309; cursor:pointer; transition:all .15s; }
+    .btn-card-reset:hover { background:#fffbeb; border-color:#f59e0b; color:#92400e; }
     .btn-card-retire { padding:5px 12px; border-radius:7px; border:1.5px solid #fecaca;
       background:#fff; font-size:12px; font-weight:600; color:#ef4444; cursor:pointer; transition:all .15s; }
     .btn-card-retire:hover { background:#fef2f2; border-color:#ef4444; }
@@ -465,14 +468,17 @@ function buildCardHtml(u) {
     ${(() => {
       // 수정: 팀장은 모든 카드 / 일반 직원은 본인 카드만
       const isSelf = currentUser && (currentUser.user_id === u.id || currentUser.id === u.id);
-      const canEdit   = isLeader || isSelf;
-      const canRetire = isLeader && !isRetired;
-      const canDelete = isLeader;
-      if (!canEdit && !canRetire && !canDelete) return '';
+      const canEdit    = isLeader || isSelf;
+      const canReset   = isLeader && !isSelf && !isRetired;   // 팀장이 타인 재직자만 초기화
+      const canRetire  = isLeader && !isRetired;
+      const canDelete  = isLeader;
+      if (!canEdit && !canReset && !canRetire && !canDelete) return '';
+      const safeName = (u.full_name||u.username||'').replace(/'/g,"\\'");
       return `<div class="card-footer">
         ${canEdit   ? `<button class="btn-card-edit" onclick="openEdit('${u.id}')"><i class="fas fa-pen"></i> 수정</button>` : ''}
-        ${canRetire ? `<button class="btn-card-retire" onclick="retireUser('${u.id}','${(u.full_name||u.username||'').replace(/'/g,"\\'")}')"><i class="fas fa-user-slash"></i> 퇴직처리</button>` : ''}
-        ${canDelete ? `<button class="btn-card-delete" onclick="deleteUser('${u.id}','${(u.full_name||u.username||'').replace(/'/g,"\\'")}')"><i class="fas fa-trash"></i> 삭제</button>` : ''}
+        ${canReset  ? `<button class="btn-card-reset" onclick="resetPassword('${u.id}','${safeName}')"><i class="fas fa-key"></i> 비번 초기화</button>` : ''}
+        ${canRetire ? `<button class="btn-card-retire" onclick="retireUser('${u.id}','${safeName}')"><i class="fas fa-user-slash"></i> 퇴직처리</button>` : ''}
+        ${canDelete ? `<button class="btn-card-delete" onclick="deleteUser('${u.id}','${safeName}')"><i class="fas fa-trash"></i> 삭제</button>` : ''}
       </div>`;
     })()}
   </div>`;
@@ -641,6 +647,43 @@ async function saveNewEmployee() {
     await loadUsers();
   } catch(e) {
     Portal.showToast('등록에 실패했습니다.', 'error');
+  }
+}
+
+// ── 비밀번호 초기화 (팀장 전용) ─────────────────────────
+async function resetPassword(userId, name) {
+  if (!isLeader) return;
+  // 본인 카드 방어
+  if (currentUser && (currentUser.user_id === userId || currentUser.id === userId)) {
+    Portal.showToast('본인 비밀번호는 이 버튼으로 초기화할 수 없습니다.', 'error');
+    return;
+  }
+  if (!confirm(`[${name}]의 비밀번호를 초기값 'password' 로 재설정합니다.\n\n대상자에게 초기 비밀번호를 알려주고, 첫 로그인 후 즉시 변경하도록 안내하세요.\n\n진행할까요?`)) return;
+
+  try {
+    const hashHex = await Auth.sha256('password');
+    const res = await fetch('/tables/users/' + userId, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ password_hash: hashHex })
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+
+    // 감사로그 (실패해도 초기화는 성공했으므로 조용히)
+    try {
+      await Auth.writeAuditLog(
+        currentUser.user_id || currentUser.id,
+        currentUser.username,
+        currentUser.role,
+        'password_reset',
+        'allowed',
+        `대상=${name} (user_id=${userId})`
+      );
+    } catch(_) {}
+
+    Portal.showToast(`${name} 비밀번호가 'password'로 초기화되었습니다.`, 'success');
+  } catch(e) {
+    Portal.showToast('초기화에 실패했습니다: ' + (e.message || ''), 'error');
   }
 }
 

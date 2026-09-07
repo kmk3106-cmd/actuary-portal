@@ -6,6 +6,11 @@ bot/.env
 bot/data/actuarial.db
 server/data/portal-db.json
 server/data/bot-heartbeat.json
+server/data/backups/
+
+# VPS 헬스체크 로그
+logs/healthcheck.log
+logs/backup.log
 
 # 로그
 bot/logs/

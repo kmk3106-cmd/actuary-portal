@@ -797,24 +797,12 @@
 try {
 Portal.init();
 
-// 실장(section_chief)은 열람만 가능(쓰기는 전역 읽기전용 가드가 차단), 팀원은 접근 불가.
-// — 손익/컴플라이언스/인력 현황 등 임원 보고용 민감 정보를 담고 있어 결산 리뷰와 동일한 기준 적용.
-if (!RBAC.canViewLeaderScreens()) {
-  document.querySelector('.main-content').innerHTML = `
-    <header class="page-header">
-      <h1 class="page-title exec-page-title"><i class="fas fa-file-signature"></i> 계리결산팀 정기 보고서</h1>
-    </header>
-    <main class="content-body">
-      <div class="access-denied-banner">
-        <i class="fas fa-lock"></i>
-        <div>
-          <strong>팀장 전용 페이지입니다.</strong>
-          <p>계리결산팀 정기 보고서는 팀장만 작성할 수 있으며, 실장은 열람만 가능합니다.</p>
-        </div>
-      </div>
-    </main>`;
-  throw new Error('RBAC_BLOCK');
-}
+// 접근 정책: 팀장·실장·팀원 전원 열람 가능.
+// - 팀장: 편집 가능
+// - 실장: 전역 fetch 가드(POST/PUT/DELETE 차단)로 자동 읽기전용
+// - 팀원: 편집 가능 (본인 담당 매트릭스/담당표/부가업무 rows 직접 입력)
+// 이전에는 팀장 전용 페이지였으나(2026-09), 팀원이 담당 데이터를
+// 직접 입력해야 하는 요건이 생겨 개방으로 전환.
 
 const currentUser = RBAC.getCurrentUser();
 
