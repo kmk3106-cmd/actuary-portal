@@ -249,6 +249,8 @@ function migrateDb(db) {
     // ── Phase 8: 휴가 + 게이미피케이션 ──
     'vacations', 'vacation_quotas',
     'engagement_points', 'point_rules', 'prize_rules', 'prize_history',
+    // ── 임원업무보고: 팀원 성향(6축 레이더) ──
+    'member_traits',
   ];
   for (const table of requiredTables) {
     if (!Array.isArray(db[table])) {
