@@ -17,10 +17,15 @@ if (-not (Test-Path -LiteralPath $Repo)) { Log 'SKIP: repo missing'; exit 0 }
 
 $before = (& git @G rev-parse HEAD).Trim()
 
-# 로컬 변경 감지 (actuarial.db 자연변동 제외)
+# 로컬 변경 감지 (tracked 파일만) — untracked(??) 는 무시, actuarial.db 자연변동 제외
+# fast-forward pull 은 untracked 파일과 충돌 없으므로 통과시켜도 안전.
 $dirty = & git @G status --porcelain
-$dirtyFiltered = @($dirty | Where-Object { $_ -and ($_ -notmatch 'actuarial\.db') })
-if ($dirtyFiltered.Count -gt 0) { Log 'SKIP: dirty (user editing)'; exit 0 }
+$dirtyFiltered = @($dirty | Where-Object {
+    $_ -and
+    ($_ -notmatch '^\?\?') -and              # untracked 무시
+    ($_ -notmatch 'actuarial\.db')           # 서버 자연변동 DB 무시
+})
+if ($dirtyFiltered.Count -gt 0) { Log "SKIP: dirty tracked ($($dirtyFiltered.Count))"; exit 0 }
 
 # fast-forward pull
 & git @G pull --ff-only origin master | Out-Null
