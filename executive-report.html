@@ -319,107 +319,85 @@
       .extra-cat-body .table-scroll { overflow-x: auto; }
     }
 
-    /* ── 팀원 성향 카드 (6축 레이더) — 임원업무보고 인력·자원 탭 부속 ─────── */
+    /* ── 인사카드 요약 표 (극비 · 인력·자원 탭 부속) ─────────── */
     .traits-section-head {
-      display: flex; align-items: flex-start; gap: 14px; margin: 26px 0 4px;
+      display: flex; align-items: flex-start; gap: 14px; margin: 26px 0 12px;
     }
     .traits-section-head .icon-wrap {
       width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center; font-size: 17px; color: #fff;
-      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-      box-shadow: 0 4px 12px rgba(99,102,241,.28);
+      background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+      box-shadow: 0 4px 12px rgba(220,38,38,.28);
     }
-    .traits-section-head h4 { margin: 0 0 4px; font-size: 16px; font-weight: 800; color: #0f172a; letter-spacing: -0.01em; }
+    .traits-section-head h4 { margin: 0 0 4px; font-size: 16px; font-weight: 800; color: #0f172a; letter-spacing: -0.01em; display: flex; align-items: center; gap: 6px; }
     .traits-section-head p { margin: 0; font-size: 12.5px; color: #64748b; line-height: 1.6; }
-    .traits-axis-legend {
-      display: flex; flex-wrap: wrap; gap: 6px 8px;
-      margin: 14px 0 18px; padding: 12px 16px;
-      background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
-      border: 1px solid #ddd6fe; border-radius: 10px;
+    .personnel-table-wrap {
+      overflow-x: auto; border: 1.5px solid var(--gray-200); border-radius: 12px;
+      background: #fff; box-shadow: 0 1px 3px rgba(15,23,42,.04);
     }
-    .traits-axis-chip {
-      display: inline-flex; align-items: center; gap: 5px;
-      padding: 4px 10px; font-size: 12px; font-weight: 700;
-      background: rgba(255,255,255,.85); color: #4c1d95;
-      border-radius: 6px; border: 1px solid rgba(124,58,237,.15);
+    .personnel-summary-table {
+      width: 100%; border-collapse: collapse; font-size: 13px; min-width: 900px;
     }
-    .traits-axis-chip small { font-weight: 500; color: #6d28d9; margin-left: 2px; }
-    .traits-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 18px; margin-top: 4px;
+    .personnel-summary-table thead th {
+      background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+      color: #334155; font-weight: 800; font-size: 12px; letter-spacing: 0.02em;
+      padding: 12px 14px; text-align: left; border-bottom: 2px solid #cbd5e1;
+      position: sticky; top: 0; white-space: nowrap;
     }
-    .trait-card {
-      background: #fff; border: 1px solid var(--gray-200); border-radius: 16px;
-      padding: 18px 18px 16px; box-shadow: 0 1px 3px rgba(15,23,42,.04);
-      transition: box-shadow .2s, transform .15s;
-      display: flex; flex-direction: column;
+    .personnel-summary-table tbody td {
+      padding: 14px; border-bottom: 1px solid #f1f5f9; vertical-align: top;
+      color: #1e293b;
     }
-    .trait-card:hover { box-shadow: 0 6px 20px rgba(15,23,42,.08); transform: translateY(-1px); }
-    .trait-card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-    .trait-avatar {
-      width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+    .personnel-summary-table tbody tr:last-child td { border-bottom: none; }
+    .personnel-summary-table tbody tr:hover { background: #fafbff; }
+    .p-name-cell { display: flex; align-items: center; gap: 10px; }
+    .p-avatar {
+      width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
-      font-weight: 800; font-size: 15px; color: #fff; letter-spacing: -0.02em;
+      font-weight: 800; font-size: 13px; color: #fff; letter-spacing: -0.02em;
     }
-    .trait-name-block { flex: 1; min-width: 0; }
-    .trait-name { font-size: 15px; font-weight: 800; color: #0f172a; letter-spacing: -0.01em; }
-    .trait-role { font-size: 11.5px; color: #64748b; margin-top: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-    .trait-role-chip {
-      display: inline-flex; padding: 1px 8px; font-size: 10.5px; font-weight: 700;
-      background: #eef2ff; color: #4338ca; border-radius: 999px;
+    .p-name-block .name { font-size: 13.5px; font-weight: 800; color: #0f172a; }
+    .p-name-block .role-chip {
+      display: inline-block; margin-top: 2px; font-size: 10px; font-weight: 700;
+      padding: 1px 7px; border-radius: 999px; letter-spacing: 0.02em;
     }
-    .trait-edit-btn {
-      flex-shrink: 0; width: 30px; height: 30px; padding: 0; border: 1px solid #e5e7eb;
-      background: #fff; border-radius: 8px; cursor: pointer; color: #64748b;
-      display: flex; align-items: center; justify-content: center; font-size: 12px;
-      transition: all .15s;
+    .role-chip.leader   { background: #fef3c7; color: #92400e; }
+    .role-chip.chief    { background: #fce7f3; color: #9d174d; }
+    .role-chip.employee { background: #e0e7ff; color: #3730a3; }
+    .p-grade-cell { font-weight: 700; color: #334155; font-size: 12.5px; }
+    .p-grade-cell .position { display: block; font-weight: 500; color: #64748b; font-size: 11.5px; margin-top: 2px; }
+    .p-task, .p-cert { font-size: 12px; color: #475569; line-height: 1.5; word-break: keep-all; }
+    .p-empty { color: #cbd5e1; }
+    /* 성향 6축 셀 안의 미니 hexagon + 라벨 그리드 */
+    .p-traits-cell { display: flex; align-items: center; gap: 12px; }
+    .p-hex-mini { flex-shrink: 0; }
+    .p-trait-bars { flex: 1; min-width: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; font-size: 11px; }
+    .p-trait-bars > div { display: flex; align-items: center; gap: 5px; }
+    .p-trait-bars .lbl { color: #64748b; min-width: 46px; font-weight: 600; }
+    .p-trait-bars .bar {
+      flex: 1; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; min-width: 30px;
     }
-    .trait-edit-btn:hover { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
-    .trait-radar { display: block; margin: 4px auto 6px; max-width: 100%; height: auto; }
-    .trait-radar-empty {
-      display: flex; align-items: center; justify-content: center;
-      height: 240px; color: #cbd5e1; font-size: 12.5px; text-align: center;
-      background: repeating-linear-gradient(45deg, #f8fafc, #f8fafc 6px, #f1f5f9 6px, #f1f5f9 12px);
-      border-radius: 12px; margin: 6px 0;
+    .p-trait-bars .bar > div { height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); border-radius: 3px; }
+    .p-trait-bars .num { font-weight: 700; color: #4338ca; min-width: 14px; text-align: right; }
+    .p-comment {
+      font-size: 12px; color: #475569; line-height: 1.55; font-style: italic;
+      padding-left: 8px; border-left: 2px solid #ddd6fe;
     }
-    .trait-comment {
-      position: relative; margin-top: 8px; padding: 10px 12px 10px 30px;
-      background: linear-gradient(135deg, #fafbff 0%, #f5f3ff 100%);
-      border-left: 3px solid #8b5cf6; border-radius: 8px;
-      font-size: 12.5px; color: #334155; line-height: 1.6; font-style: italic;
-      min-height: 42px;
+    .p-comment.empty { color: #cbd5e1; font-style: normal; border-left-color: #f1f5f9; }
+    .p-secret-guard {
+      padding: 40px 24px; text-align: center; color: #94a3b8;
+      background: repeating-linear-gradient(45deg, #fef2f2, #fef2f2 8px, #fee2e2 8px, #fee2e2 16px);
+      border: 1.5px dashed #fca5a5; border-radius: 12px;
     }
-    .trait-comment::before {
-      content: '"'; position: absolute; left: 10px; top: -2px;
-      font-size: 28px; color: #a78bfa; font-family: Georgia, serif; font-style: normal;
-    }
-    .trait-comment.empty { color: #cbd5e1; font-style: normal; }
-    .trait-comment.empty::before { color: #ddd6fe; }
-    .trait-updated {
-      font-size: 10.5px; color: #94a3b8; margin-top: 6px; text-align: right;
-    }
+    .p-secret-guard i { font-size: 32px; color: #dc2626; margin-bottom: 10px; display: block; }
+    .p-secret-guard .msg { font-size: 14px; font-weight: 700; color: #991b1b; margin-bottom: 4px; }
+    .p-secret-guard .sub { font-size: 12px; color: #7f1d1d; }
+    /* 극비 탭 자체에 자물쇠 뱃지 */
+    .exec-tab-btn .tab-lock { color: #dc2626; margin-left: 4px; font-size: 10px; vertical-align: super; }
 
-    /* 편집 모달 */
-    #traitEditModal .modal-box { max-width: 520px; }
-    .trait-slider-row {
-      display: grid; grid-template-columns: 100px 1fr 32px;
-      align-items: center; gap: 12px; padding: 10px 0;
-      border-bottom: 1px dashed #e5e7eb;
-    }
-    .trait-slider-row:last-of-type { border-bottom: none; }
-    .trait-slider-row label { font-size: 13px; font-weight: 700; color: #334155; }
-    .trait-slider-row input[type=range] {
-      width: 100%; accent-color: #6366f1;
-    }
-    .trait-slider-row .val {
-      font-weight: 800; font-size: 15px; color: #4338ca; text-align: center;
-      background: #eef2ff; border-radius: 6px; padding: 3px 0;
-    }
-
-    @media (max-width: 640px) {
-      .traits-grid { grid-template-columns: 1fr; }
-      .traits-section-head .icon-wrap { width: 38px; height: 38px; font-size: 15px; }
-      .trait-radar { max-width: 260px; }
+    @media (max-width: 720px) {
+      .p-traits-cell { flex-direction: column; align-items: stretch; }
+      .p-trait-bars { grid-template-columns: 1fr; }
     }
 
     /* ── 섹션 4: KPI 달성 현황 (고정 목록 + 자동/입력 혼합 표) ── */
@@ -534,7 +512,7 @@
           <button type="button" class="exec-tab-btn" role="tab" id="execTabBtn-ops" aria-controls="execTabPanel-ops" data-tab="ops" onclick="setExecTab('ops')">
             <i class="fas fa-shield-alt"></i> 컴플라이언스 &amp; 감사 <span class="exec-tab-badge">1</span>
           </button>
-          <button type="button" class="exec-tab-btn" role="tab" id="execTabBtn-people" aria-controls="execTabPanel-people" data-tab="people" onclick="setExecTab('people')">
+          <button type="button" class="exec-tab-btn" role="tab" id="execTabBtn-people" aria-controls="execTabPanel-people" data-tab="people" onclick="setExecTab('people')" data-secret="1">
             <i class="fas fa-users"></i> 인력·자원 <span class="exec-tab-badge">2</span>
           </button>
           <button type="button" class="exec-tab-btn" role="tab" id="execTabBtn-governance" aria-controls="execTabPanel-governance" data-tab="governance" onclick="setExecTab('governance')">
@@ -833,49 +811,35 @@
           <div class="extra-cat-grid" id="boosterLicenseGrid"></div>
         </div>
 
-        <!-- 부속: 팀원 성향 (6축 레이더 — 임원님께 팀원 특성 스냅샷 전달용) -->
-        <div class="extra-cat-section">
+        <!-- 부속: 인사카드 요약 표 (극비 · 팀장/실장 전용 · 성향 6축은 인사카드 편집 화면과 연동) -->
+        <div class="extra-cat-section" id="personnelTableSection">
           <div class="traits-section-head">
-            <div class="icon-wrap"><i class="fas fa-users-viewfinder"></i></div>
+            <div class="icon-wrap"><i class="fas fa-shield-halved"></i></div>
             <div>
-              <h4>팀원 성향 스냅샷</h4>
-              <p>계리결산팀 각 팀원의 강점·특성을 6축 레이더로 도식화. 팀장이 반기 1회 갱신합니다. (편집 권한: 팀장)</p>
+              <h4><i class="fas fa-lock" style="color:#dc2626;font-size:13px;margin-right:4px;"></i>인사카드 요약 <span style="color:#dc2626;font-size:12px;font-weight:700;">[극비]</span></h4>
+              <p>재직 팀원의 인사카드 · 성향 6축을 표로 요약. 편집은 <a href="personnel.html" style="color:#4338ca;font-weight:700;text-decoration:underline;">인사카드</a> 화면에서. (열람: 팀장·실장만)</p>
             </div>
           </div>
-          <div class="traits-axis-legend">
-            <span class="traits-axis-chip">전문성<small>계리·시스템 지식</small></span>
-            <span class="traits-axis-chip">분석력<small>수치·원인 규명</small></span>
-            <span class="traits-axis-chip">실행력<small>마감·완결도</small></span>
-            <span class="traits-axis-chip">주도성<small>학습·오너십</small></span>
-            <span class="traits-axis-chip">협업력<small>부서 간 소통</small></span>
-            <span class="traits-axis-chip">커뮤니케이션<small>보고 명료성</small></span>
+          <div class="personnel-table-wrap">
+            <table class="personnel-summary-table" id="personnelSummaryTable">
+              <thead>
+                <tr>
+                  <th style="width:110px;">성명</th>
+                  <th style="width:100px;">직급/직위</th>
+                  <th style="width:140px;">담당 업무</th>
+                  <th style="width:110px;">자격증</th>
+                  <th style="min-width:210px;">성향 6축</th>
+                  <th>코멘트</th>
+                </tr>
+              </thead>
+              <tbody id="personnelSummaryTbody">
+                <tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:24px;">로드 중…</td></tr>
+              </tbody>
+            </table>
           </div>
-          <div class="traits-grid" id="memberTraitsGrid"></div>
         </div>
 
         </div><!-- /execTabPanel-people -->
-
-        <!-- 팀원 성향 편집 모달 (팀장 전용) -->
-        <div class="modal-overlay" id="traitEditModal" onclick="if(event.target===this) closeTraitEdit()">
-          <div class="modal-box">
-            <div class="modal-head">
-              <h3 style="margin:0;font-size:16px;">성향 편집 · <span id="traitEditName" style="color:#4338ca"></span></h3>
-              <button type="button" class="modal-close" onclick="closeTraitEdit()"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="modal-body">
-              <div id="traitSlidersWrap"></div>
-              <div class="form-group" style="margin-top:14px;">
-                <label class="form-label">한 줄 코멘트 (선택)</label>
-                <textarea id="traitCommentInput" class="form-control" rows="2" maxlength="200" placeholder="예: 논리적·꼼꼼한 스타일. 신규 규제 대응 담당."></textarea>
-                <div style="font-size:11px;color:#94a3b8;margin-top:4px;">최대 200자</div>
-              </div>
-            </div>
-            <div class="modal-foot">
-              <button type="button" class="btn btn-secondary" onclick="closeTraitEdit()">취소</button>
-              <button type="button" class="btn btn-primary" onclick="saveTraitEdit()"><i class="fas fa-save"></i> 저장</button>
-            </div>
-          </div>
-        </div>
 
         <!-- 탭 그룹 7/8: 규정·매뉴얼 (계리 직재/위임전결, 사규, 업무 매뉴얼 — 08/10 과 별개인 상시 참고자료, 부가업무 카드와 동일한 표 형태 재사용) -->
         <div class="exec-tab-panel" id="execTabPanel-governance" data-tab="governance" role="tabpanel" aria-labelledby="execTabBtn-governance">
@@ -1594,7 +1558,8 @@ function boosterLicensesDocRowsHtml(list) {
 }
 
 // ══════════════════════════════════════════════════════════
-// 팀원 성향 (6축 레이더) — 임원업무보고 인력·자원 탭 부속
+// 인사카드 요약 표 (극비 · 팀장/실장 전용) + 성향 6축 미니 hexagon
+// 편집 SSOT 은 personnel.html — 여기서는 조회만.
 // ══════════════════════════════════════════════════════════
 const TRAIT_AXES = [
   { key: 'expertise',     label: '전문성' },
@@ -1611,19 +1576,60 @@ const TRAIT_AVATAR_PALETTE = [
   ['#06b6d4', '#0ea5e9'], ['#ef4444', '#ec4899'], ['#84cc16', '#22c55e'],
 ];
 function traitAvatarGradient(name) {
-  // 이름 문자 코드 합으로 팔레트 선택 → 사람마다 안정적으로 같은 색
   const sum = String(name || '').split('').reduce((s, c) => s + c.charCodeAt(0), 0);
   const [a, b] = TRAIT_AVATAR_PALETTE[sum % TRAIT_AVATAR_PALETTE.length];
   return `linear-gradient(135deg, ${a} 0%, ${b} 100%)`;
 }
 
-let MEMBER_TRAITS = {};     // { user_id: { expertise, analytical, ..., comment, updated_at } }
-let TRAIT_USERS_CACHE = []; // 팀원 목록 (팀장 제외, active only)
-let TRAIT_EDIT_CTX = null;  // 편집 중인 user_id
+// 팀원(employee) 은 인력·자원 탭 자체 접근 차단 (극비). team_leader/section_chief 만 조회.
+function canViewPersonnelSecret() {
+  return !!(currentUser && (currentUser.role === 'team_leader' || currentUser.role === 'section_chief'));
+}
+
+function traitHexMini(scores, size) {
+  const s = size || 88;
+  const cx = s / 2, cy = s / 2;
+  const R = s * 0.42;
+  const start = -Math.PI / 2;
+  const pt = (r, i) => {
+    const a = start + (2 * Math.PI * i) / 6;
+    return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  };
+  let rings = '';
+  for (let step = 1; step <= TRAIT_MAX; step++) {
+    const r = (R * step) / TRAIT_MAX;
+    const pts = Array.from({ length: 6 }, (_, i) => pt(r, i).join(',')).join(' ');
+    rings += `<polygon points="${pts}" fill="none" stroke="${step === TRAIT_MAX ? '#cbd5e1' : '#e2e8f0'}" stroke-width="1"${step === TRAIT_MAX ? '' : ' stroke-dasharray="2,3"'} />`;
+  }
+  let spokes = '';
+  for (let i = 0; i < 6; i++) {
+    const [x, y] = pt(R, i);
+    spokes += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#e2e8f0" stroke-width="1" />`;
+  }
+  const vPts = scores.map((v, i) => pt((R * Math.max(0, Math.min(TRAIT_MAX, v))) / TRAIT_MAX, i).join(',')).join(' ');
+  return `
+    <svg class="p-hex-mini" viewBox="0 0 ${s} ${s}" width="${s}" height="${s}" role="img" aria-label="6축 성향 미니">
+      ${rings}${spokes}
+      <polygon points="${vPts}" fill="rgba(139,92,246,0.28)" stroke="#6366f1" stroke-width="1.8" stroke-linejoin="round" />
+    </svg>`;
+}
 
 async function loadMemberTraits() {
-  const wrap = document.getElementById('memberTraitsGrid');
-  if (!wrap) return;
+  const section = document.getElementById('personnelTableSection');
+  const tbody = document.getElementById('personnelSummaryTbody');
+  if (!section || !tbody) return;
+
+  // 팀원 role 은 극비 가드로 UI 자체 대체
+  if (!canViewPersonnelSecret()) {
+    section.innerHTML = `
+      <div class="p-secret-guard">
+        <i class="fas fa-lock"></i>
+        <div class="msg">인사카드 요약은 극비 자료입니다.</div>
+        <div class="sub">팀장·실장만 열람할 수 있습니다.</div>
+      </div>`;
+    return;
+  }
+
   try {
     const [uRes, tRes] = await Promise.all([
       fetch('/tables/users?limit=200'),
@@ -1631,174 +1637,75 @@ async function loadMemberTraits() {
     ]);
     const uData = await uRes.json();
     const tData = await tRes.json();
-    TRAIT_USERS_CACHE = (uData.rows || uData.data || [])
-      .filter(u => u.is_active !== false && u.full_name && u.role !== 'team_leader')
-      .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '', 'ko'));
-    MEMBER_TRAITS = {};
-    (tData.rows || tData.data || []).forEach(t => { if (t.user_id) MEMBER_TRAITS[t.user_id] = t; });
-    renderMemberTraits();
+    const users = (uData.rows || uData.data || [])
+      .filter(u => u.is_active !== false && u.full_name)
+      .sort((a, b) => {
+        // 팀장 → 실장 → 팀원 순, 그 안은 가나다
+        const order = { team_leader: 0, section_chief: 1, employee: 2, member: 2 };
+        const oa = order[a.role] ?? 3, ob = order[b.role] ?? 3;
+        if (oa !== ob) return oa - ob;
+        return (a.full_name || '').localeCompare(b.full_name || '', 'ko');
+      });
+    const traitsById = {};
+    (tData.rows || tData.data || []).forEach(t => { if (t.user_id) traitsById[t.user_id] = t; });
+    renderPersonnelTable(users, traitsById);
   } catch (e) {
-    wrap.innerHTML = `<div style="padding:20px;color:#ef4444;font-size:13px;">팀원 성향 로드 실패: ${esc(e.message || e)}</div>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#ef4444;padding:20px;">로드 실패: ${esc(e.message || e)}</td></tr>`;
   }
 }
 
-function traitRadarSvg(scores, opts = {}) {
-  // scores: [expertise, analytical, execution, ownership, collaboration, communication]
-  const size = opts.size || 240;
-  const cx = size / 2, cy = size / 2;
-  const R = size * 0.34;
-  const labelR = R + 20;
-  const axes = TRAIT_AXES.length;
-  const start = -Math.PI / 2; // 위 방향부터
-  function pt(r, i) {
-    const a = start + (2 * Math.PI * i) / axes;
-    return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
-  }
-  // 배경 5단 링
-  let rings = '';
-  for (let step = 1; step <= TRAIT_MAX; step++) {
-    const r = (R * step) / TRAIT_MAX;
-    const pts = Array.from({ length: axes }, (_, i) => pt(r, i).join(',')).join(' ');
-    const stroke = step === TRAIT_MAX ? '#cbd5e1' : '#e2e8f0';
-    const dash = step === TRAIT_MAX ? '' : ' stroke-dasharray="2,3"';
-    rings += `<polygon points="${pts}" fill="none" stroke="${stroke}" stroke-width="1"${dash} />`;
-  }
-  // 축 선
-  let spokes = '';
-  for (let i = 0; i < axes; i++) {
-    const [x, y] = pt(R, i);
-    spokes += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#e2e8f0" stroke-width="1" />`;
-  }
-  // 값 폴리곤
-  const vPts = scores.map((v, i) => pt((R * Math.max(0, Math.min(TRAIT_MAX, v))) / TRAIT_MAX, i).join(',')).join(' ');
-  const vertex = scores.map((v, i) => {
-    const [x, y] = pt((R * Math.max(0, Math.min(TRAIT_MAX, v))) / TRAIT_MAX, i);
-    return `<circle cx="${x}" cy="${y}" r="3" fill="#6366f1" />`;
-  }).join('');
-  // 축 라벨
-  const labels = TRAIT_AXES.map((ax, i) => {
-    const [x, y] = pt(labelR, i);
-    let anchor = 'middle';
-    if (i === 1 || i === 2) anchor = 'start';
-    if (i === 4 || i === 5) anchor = 'end';
-    let dy = 4;
-    if (i === 0) dy = -2;
-    if (i === 3) dy = 12;
-    return `<text x="${x}" y="${y + dy}" text-anchor="${anchor}" font-size="11" font-weight="700" fill="#475569">${ax.label}</text>`;
-  }).join('');
-  return `
-    <svg class="trait-radar" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="6축 성향 레이더">
-      <defs>
-        <radialGradient id="traitFill${opts.suffix || ''}" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="#a5b4fc" stop-opacity="0.55"/>
-          <stop offset="100%" stop-color="#6366f1" stop-opacity="0.22"/>
-        </radialGradient>
-      </defs>
-      ${rings}${spokes}
-      <polygon points="${vPts}" fill="url(#traitFill${opts.suffix || ''})" stroke="#6366f1" stroke-width="2" stroke-linejoin="round" />
-      ${vertex}
-      ${labels}
-    </svg>`;
+function roleChipHtml(role) {
+  if (role === 'team_leader')   return `<span class="role-chip leader">팀장</span>`;
+  if (role === 'section_chief') return `<span class="role-chip chief">실장</span>`;
+  return `<span class="role-chip employee">팀원</span>`;
 }
 
-function renderMemberTraits() {
-  const wrap = document.getElementById('memberTraitsGrid');
-  if (!wrap) return;
-  if (!TRAIT_USERS_CACHE.length) {
-    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:#94a3b8;font-size:13px;">등록된 팀원이 없습니다.</div>`;
+function renderPersonnelTable(users, traitsById) {
+  const tbody = document.getElementById('personnelSummaryTbody');
+  if (!tbody) return;
+  if (!users.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:24px;">등록된 팀원이 없습니다.</td></tr>`;
     return;
   }
-  const isLeader = (currentUser && currentUser.role === 'team_leader');
-  wrap.innerHTML = TRAIT_USERS_CACHE.map((u, idx) => {
-    const t = MEMBER_TRAITS[u.id] || {};
+  tbody.innerHTML = users.map(u => {
+    const t = traitsById[u.id] || {};
     const scores = TRAIT_AXES.map(ax => Number(t[ax.key]) || 0);
     const filled = scores.some(v => v > 0);
     const initial = (u.full_name || '?').charAt(0);
-    const roleChip = u.title || u.position || u.department || '';
-    const editBtn = isLeader
-      ? `<button class="trait-edit-btn" title="편집" onclick="openTraitEdit('${esc(u.id)}')"><i class="fas fa-pen"></i></button>`
-      : '';
-    const radarBlock = filled
-      ? traitRadarSvg(scores, { suffix: '_' + idx })
-      : `<div class="trait-radar-empty">아직 성향이 입력되지 않았습니다${isLeader ? '.<br>편집 버튼을 눌러 채워주세요' : ''}.</div>`;
-    const comment = t.comment ? esc(t.comment) : (isLeader ? '한 줄 코멘트를 추가해주세요.' : '코멘트 없음');
-    const commentCls = t.comment ? '' : 'empty';
-    const updated = t.updated_at
-      ? `<div class="trait-updated">최종 갱신 · ${new Date(t.updated_at).toLocaleDateString('ko-KR')}</div>`
-      : '';
+    const traitCell = filled
+      ? `<div class="p-traits-cell">
+           ${traitHexMini(scores, 84)}
+           <div class="p-trait-bars">
+             ${TRAIT_AXES.map((ax, i) => `
+               <div><span class="lbl">${ax.label}</span><span class="bar"><div style="width:${(scores[i] / TRAIT_MAX) * 100}%"></div></span><span class="num">${scores[i]}</span></div>
+             `).join('')}
+           </div>
+         </div>`
+      : `<span class="p-empty">— 미입력 —</span>`;
+    const comment = t.comment
+      ? `<div class="p-comment">${esc(t.comment)}</div>`
+      : `<div class="p-comment empty">— 코멘트 미입력 —</div>`;
     return `
-      <div class="trait-card">
-        <div class="trait-card-head">
-          <div class="trait-avatar" style="background:${traitAvatarGradient(u.full_name)};">${esc(initial)}</div>
-          <div class="trait-name-block">
-            <div class="trait-name">${esc(u.full_name)}</div>
-            <div class="trait-role">${roleChip ? `<span class="trait-role-chip">${esc(roleChip)}</span>` : ''}</div>
+      <tr>
+        <td>
+          <div class="p-name-cell">
+            <div class="p-avatar" style="background:${traitAvatarGradient(u.full_name)};">${esc(initial)}</div>
+            <div class="p-name-block">
+              <div class="name">${esc(u.full_name)}</div>
+              ${roleChipHtml(u.role)}
+            </div>
           </div>
-          ${editBtn}
-        </div>
-        ${radarBlock}
-        <div class="trait-comment ${commentCls}">${comment}</div>
-        ${updated}
-      </div>`;
+        </td>
+        <td class="p-grade-cell">
+          ${esc(u.grade || '-')}
+          <span class="position">${esc(u.position || '')}</span>
+        </td>
+        <td class="p-task">${u.task_area ? esc(u.task_area) : '<span class="p-empty">-</span>'}</td>
+        <td class="p-cert">${u.certifications ? esc(u.certifications) : '<span class="p-empty">-</span>'}</td>
+        <td>${traitCell}</td>
+        <td>${comment}</td>
+      </tr>`;
   }).join('');
-}
-
-function openTraitEdit(userId) {
-  const u = TRAIT_USERS_CACHE.find(x => x.id === userId);
-  if (!u) return;
-  TRAIT_EDIT_CTX = userId;
-  const t = MEMBER_TRAITS[userId] || {};
-  document.getElementById('traitEditName').textContent = u.full_name;
-  const wrap = document.getElementById('traitSlidersWrap');
-  wrap.innerHTML = TRAIT_AXES.map(ax => {
-    const v = Number(t[ax.key]) || 3;
-    return `
-      <div class="trait-slider-row">
-        <label>${ax.label}</label>
-        <input type="range" min="1" max="5" step="1" value="${v}" data-key="${ax.key}"
-          oninput="this.parentElement.querySelector('.val').textContent=this.value">
-        <div class="val">${v}</div>
-      </div>`;
-  }).join('');
-  document.getElementById('traitCommentInput').value = t.comment || '';
-  const modal = document.getElementById('traitEditModal');
-  modal.classList.add('show'); modal.classList.add('open');
-}
-function closeTraitEdit() {
-  const modal = document.getElementById('traitEditModal');
-  modal.classList.remove('show'); modal.classList.remove('open');
-  TRAIT_EDIT_CTX = null;
-}
-async function saveTraitEdit() {
-  if (!TRAIT_EDIT_CTX) return;
-  const uid = TRAIT_EDIT_CTX;
-  const payload = { user_id: uid };
-  document.querySelectorAll('#traitSlidersWrap input[type=range]').forEach(el => {
-    payload[el.dataset.key] = Number(el.value);
-  });
-  payload.comment = (document.getElementById('traitCommentInput').value || '').trim();
-  const existing = MEMBER_TRAITS[uid];
-  try {
-    let res;
-    if (existing && existing.id) {
-      res = await fetch('/tables/member_traits/' + encodeURIComponent(existing.id), {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-    } else {
-      res = await fetch('/tables/member_traits', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-    }
-    if (!res.ok) throw new Error('저장 실패 (' + res.status + ')');
-    const saved = await res.json();
-    MEMBER_TRAITS[uid] = saved;
-    closeTraitEdit();
-    renderMemberTraits();
-  } catch (e) {
-    alert('저장 실패: ' + (e.message || e));
-  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1921,8 +1828,32 @@ function toggleSec(btn) {
 const EXEC_TABS = ['overview', 'settlement', 'kpi', 'progress', 'ops', 'people', 'governance', 'plan'];
 const EXEC_TAB_STORAGE_KEY = 'execReportActiveTab';
 
+// 인력·자원 탭은 극비 — 팀원은 접근 자체 차단. 로그인 사용자 role 에 따라 탭 노출·라벨 조정.
+function applyPeopleTabSecrecy() {
+  const btn = document.getElementById('execTabBtn-people');
+  if (!btn) return;
+  if (canViewPersonnelSecret()) {
+    // 팀장/실장: 자물쇠 아이콘 배지
+    if (!btn.querySelector('.tab-lock')) {
+      const lock = document.createElement('i');
+      lock.className = 'fas fa-lock tab-lock';
+      lock.title = '극비 (팀장·실장 전용)';
+      btn.appendChild(lock);
+    }
+  } else {
+    // 팀원: 탭 자체 숨김 + 저장된 활성 탭이 people 이면 개요로
+    btn.style.display = 'none';
+    try {
+      const saved = localStorage.getItem(EXEC_TAB_STORAGE_KEY);
+      if (saved === 'people') localStorage.setItem(EXEC_TAB_STORAGE_KEY, 'overview');
+    } catch (_) { /* localStorage 접근 실패해도 setExecTab 가드가 잡음 */ }
+  }
+}
+
 function setExecTab(tab) {
   if (!EXEC_TABS.includes(tab)) tab = EXEC_TABS[0];
+  // 팀원이 people 탭에 접근하려 하면 개요로 강제 (극비 가드)
+  if (tab === 'people' && !canViewPersonnelSecret()) tab = 'overview';
 
   document.querySelectorAll('.exec-tab-panel').forEach(panel => {
     const isActive = panel.dataset.tab === tab;
@@ -2608,6 +2539,7 @@ renderAllRows();
 renderSettleExtraCategories();
 renderGovernanceDocs();
 renderBoosterLicenses();
+applyPeopleTabSecrecy();
 restoreExecTab();
 const restored = restoreDraftIfAny(true);
 if (!restored) setStatusChip('new');
