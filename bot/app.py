@@ -11,7 +11,8 @@ from datetime import datetime, timezone
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 
-from telegram import Update
+import httpx
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
 from db import init_db, log_query
@@ -34,7 +35,17 @@ from query_engine import (
     get_pl_by_model,
     get_pl_summary,
 )
-from settings import ALLOWED_USER_IDS, HEARTBEAT_PATH, LOG_DIR, TELEGRAM_BOT_TOKEN
+from settings import (
+    ALLOWED_USER_IDS,
+    HEARTBEAT_PATH,
+    LOG_DIR,
+    PORTAL_PUBLIC_URL,
+    PORTAL_URL,
+    TELEGRAM_BOT_TOKEN,
+)
+
+# /실행 명령 동작 상수 (rule 2: 매직값 금지)
+PORTAL_HEALTH_TIMEOUT_SEC = 3.0
 
 
 def _make_log_handler(log_dir: Path) -> TimedRotatingFileHandler:
@@ -191,6 +202,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         '- /query 202603 np csm 무브먼트 당월\n'
         '- /query 202603 잔여보장부채\n'
         '- /query 202603 발생사고부채\n\n'
+        '계리포탈 열기: /실행\n'
         '도움말: /help\n기간목록: /periods'
     )
     if update.message:
@@ -203,6 +215,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
     text = (
         '[도움말] 기본 문법\n'
+        '/실행 - 계리결산팀 운영관리포탈 접속 링크 받기\n'
         '/query [기준월] [범위] [지표] [선택조건]\n\n'
         '잔액 지표\n'
         '  BEL, RA, CSM, LOSS, 잔여보장부채, 발생사고부채\n\n'
@@ -230,6 +243,36 @@ async def periods_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     text = '[적재 기간]\n' + '\n'.join(f'- {p}' for p in periods) if periods else '[적재 기간]\n- 없음'
     if update.message:
         await update.message.reply_text(text)
+
+
+async def run_portal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/실행 — 계리결산팀 포탈 접속 링크를 인라인 버튼으로 전송. 사전에 가동 상태 점검."""
+    if not _is_allowed(update):
+        await _send_denied(update)
+        return
+    # 내부 도커 네트워크로 health check (정상이면 외부 도메인도 사실상 정상)
+    status_emoji = '🟢'
+    status_label = '정상 가동 중'
+    try:
+        async with httpx.AsyncClient(timeout=PORTAL_HEALTH_TIMEOUT_SEC) as client:
+            r = await client.get(f'{PORTAL_URL}/')
+            if r.status_code != 200:
+                status_emoji = '🟡'
+                status_label = f'응답 비정상 (HTTP {r.status_code})'
+    except Exception as exc:
+        logger.warning('portal health check failed: %s', exc)
+        status_emoji = '🔴'
+        status_label = '응답 없음 (잠시 후 재시도)'
+
+    text = (
+        f'{status_emoji} 계리결산팀 운영관리포탈 — {status_label}\n'
+        f'아래 버튼을 눌러 접속하세요.'
+    )
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton('🏠 계리포탈 열기', url=PORTAL_PUBLIC_URL)],
+    ])
+    if update.message:
+        await update.message.reply_text(text, reply_markup=kb, disable_web_page_preview=False)
 
 
 async def query_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -305,7 +348,11 @@ async def text_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if not update.message or not update.message.text:
         return
     text = update.message.text.strip()
-    if text.startswith('/start') or text.startswith('/help') or text.startswith('/periods') or text.startswith('/query'):
+    # 한글 명령어는 Telegram '/' 파서가 영문만 잘라가는 경우가 있으므로 텍스트 라우터에서도 처리
+    if text in ('/실행', '실행', '/run', 'run'):
+        await run_portal(update, context)
+        return
+    if text.startswith('/start') or text.startswith('/help') or text.startswith('/periods') or text.startswith('/query') or text.startswith('/실행') or text.startswith('/run'):
         return
     await query_command(update, context)
 
@@ -319,6 +366,9 @@ def build_application() -> Application:
     app.add_handler(CommandHandler('help', help_command))
     app.add_handler(CommandHandler('periods', periods_command))
     app.add_handler(CommandHandler('query', query_command))
+    # /실행 한글 명령어는 PTB CommandHandler 가 거부(Telegram 공식 스펙: a-z0-9_)하므로
+    # text_message 라우터에서 처리. 영문 /run alias 만 CommandHandler 로 등록.
+    app.add_handler(CommandHandler('run', run_portal))
     app.add_handler(MessageHandler(filters.TEXT, text_message))
     # 1시간마다 하트비트 파일 갱신 (즉시 첫 실행)
     if app.job_queue:

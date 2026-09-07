@@ -29,12 +29,29 @@ function loadEnv() {
 }
 loadEnv();
 
+// 조용한 프로세스 exit 방지 — 예외/거절을 stderr 로 남겨 pm2-portal-error.log 에 추적 가능하게.
+// (이 핸들러 없으면 uncaught exception 은 프로세스 즉시 종료 + 로그 안 남김 → '왜 죽었지' 미스터리 발생)
+process.on('uncaughtException', (err, origin) => {
+  try {
+    console.error(`[uncaughtException:${origin}] ${err && err.stack || err}`);
+  } catch (_) { /* ignore */ }
+});
+process.on('unhandledRejection', (reason, promise) => {
+  try {
+    console.error('[unhandledRejection]', reason && reason.stack || reason);
+  } catch (_) { /* ignore */ }
+});
+
 const PORT = parseInt(process.env.PORT || '8888', 10);
 const HOST = process.env.HOST || '0.0.0.0';
 const ROOT = path.resolve(__dirname, '..');
 const DATA_PATH = path.join(__dirname, 'data', 'portal-db.json');
 
 const PASSWORD_SHA256 = crypto.createHash('sha256').update('password').digest('hex');
+
+// 반차 동일 차감(0.5일) 처리할 vacation_type 목록 — SSOT (vacation.html TYPE_DEFAULTS 와 동기)
+// 종일 기본이지만 시간 조정 시 분 단위로 정확 계산되는 유형(외부/사내교육 등)은 여기 포함하지 않음.
+const HALF_DAY_VACATION_TYPES = ['반차', '2H', '3H', '봉사활동'];
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -166,6 +183,51 @@ function createInitialDatabase() {
 
 let writeChain = Promise.resolve();
 
+// ── 한국 법정공휴일 SSOT (2025~2027) ──
+// 시드(최초 부팅)와 멱등 재조정(기존 DB 보강) 양쪽에서 공유한다.
+// 항목 추가/수정 시 이 배열만 고치면 migrateDb 가 누락분을 자동 보강한다.
+const KOREAN_HOLIDAYS = [
+  // 2025
+  ['2025-01-01','신정'],
+  ['2025-01-28','설날연휴'],['2025-01-29','설날'],['2025-01-30','설날연휴'],
+  ['2025-03-01','삼일절'],
+  ['2025-05-01','근로자의날'],
+  ['2025-05-05','어린이날'],['2025-05-06','대체공휴일'],
+  ['2025-06-06','현충일'],
+  ['2025-08-15','광복절'],
+  ['2025-10-03','개천절'],
+  ['2025-10-05','추석연휴'],['2025-10-06','추석'],['2025-10-07','추석연휴'],['2025-10-08','추석대체'],
+  ['2025-10-09','한글날'],
+  ['2025-12-25','크리스마스'],
+  // 2026
+  ['2026-01-01','신정'],
+  ['2026-02-16','설날연휴'],['2026-02-17','설날'],['2026-02-18','설날연휴'],
+  ['2026-03-01','삼일절'],['2026-03-02','삼일절대체'],
+  ['2026-05-01','근로자의날'],
+  ['2026-05-05','어린이날'],
+  ['2026-05-24','석가탄신일'],['2026-05-25','석가탄신일대체'],
+  ['2026-06-03','제8회 전국동시지방선거'],
+  ['2026-06-06','현충일'],
+  ['2026-08-15','광복절'],
+  ['2026-09-24','추석연휴'],['2026-09-25','추석'],['2026-09-26','추석연휴'],['2026-09-28','추석대체'],
+  ['2026-10-03','개천절'],
+  ['2026-10-09','한글날'],
+  ['2026-12-25','크리스마스'],
+  // 2027
+  ['2027-01-01','신정'],
+  ['2027-01-25','설날연휴'],['2027-01-26','설날'],['2027-01-27','설날연휴'],
+  ['2027-03-01','삼일절'],
+  ['2027-05-01','근로자의날'],
+  ['2027-05-05','어린이날'],
+  ['2027-05-13','석가탄신일'],
+  ['2027-06-06','현충일'],['2027-06-07','현충일대체'],
+  ['2027-08-15','광복절'],['2027-08-16','광복절대체'],
+  ['2027-10-03','개천절'],['2027-10-04','개천절대체'],
+  ['2027-10-09','한글날'],
+  ['2027-10-14','추석연휴'],['2027-10-15','추석'],['2027-10-16','추석연휴'],['2027-10-18','추석대체'],
+  ['2027-12-25','크리스마스'],
+];
+
 function migrateDb(db) {
   const t = now();
   let changed = false;
@@ -173,7 +235,7 @@ function migrateDb(db) {
     'users','sessions','team_identity','core_values','team_goals',
     'individual_goals','performance_records','work_tasks','settlement_calendar',
     'automation_logs','report_history','interview_logs','audit_logs',
-    'settlement_reviews','team_directives',
+    'settlement_reviews','team_directives','executive_reports',
     'settle_items','score_rules','kpi_definitions','task_categories',
     // ── Phase 1: 업무량 모니터링 ──
     'business_days','business_days_monthly','daily_work_entries',
@@ -305,49 +367,9 @@ function migrateDb(db) {
       }
     }
   }
-  // ── Phase 1: business_days 시드 (한국 법정공휴일 2025~2027 하드코딩) ──
+  // ── Phase 1: business_days 시드 (한국 법정공휴일 SSOT) ──
   if (!db.business_days.length) {
-    const HOLIDAYS = [
-      // 2025
-      ['2025-01-01','신정'],
-      ['2025-01-28','설날연휴'],['2025-01-29','설날'],['2025-01-30','설날연휴'],
-      ['2025-03-01','삼일절'],
-      ['2025-05-01','근로자의날'],
-      ['2025-05-05','어린이날'],['2025-05-06','대체공휴일'],
-      ['2025-06-06','현충일'],
-      ['2025-08-15','광복절'],
-      ['2025-10-03','개천절'],
-      ['2025-10-05','추석연휴'],['2025-10-06','추석'],['2025-10-07','추석연휴'],['2025-10-08','추석대체'],
-      ['2025-10-09','한글날'],
-      ['2025-12-25','크리스마스'],
-      // 2026
-      ['2026-01-01','신정'],
-      ['2026-02-16','설날연휴'],['2026-02-17','설날'],['2026-02-18','설날연휴'],
-      ['2026-03-01','삼일절'],['2026-03-02','삼일절대체'],
-      ['2026-05-01','근로자의날'],
-      ['2026-05-05','어린이날'],
-      ['2026-05-24','석가탄신일'],['2026-05-25','석가탄신일대체'],
-      ['2026-06-06','현충일'],
-      ['2026-08-15','광복절'],
-      ['2026-09-24','추석연휴'],['2026-09-25','추석'],['2026-09-26','추석연휴'],['2026-09-28','추석대체'],
-      ['2026-10-03','개천절'],
-      ['2026-10-09','한글날'],
-      ['2026-12-25','크리스마스'],
-      // 2027
-      ['2027-01-01','신정'],
-      ['2027-01-25','설날연휴'],['2027-01-26','설날'],['2027-01-27','설날연휴'],
-      ['2027-03-01','삼일절'],
-      ['2027-05-01','근로자의날'],
-      ['2027-05-05','어린이날'],
-      ['2027-05-13','석가탄신일'],
-      ['2027-06-06','현충일'],['2027-06-07','현충일대체'],
-      ['2027-08-15','광복절'],['2027-08-16','광복절대체'],
-      ['2027-10-03','개천절'],['2027-10-04','개천절대체'],
-      ['2027-10-09','한글날'],
-      ['2027-10-14','추석연휴'],['2027-10-15','추석'],['2027-10-16','추석연휴'],['2027-10-18','추석대체'],
-      ['2027-12-25','크리스마스'],
-    ];
-    db.business_days = HOLIDAYS.map(([date, name]) => ({
+    db.business_days = KOREAN_HOLIDAYS.map(([date, name]) => ({
       id: `bd_${date}`,
       calendar_date: date,
       is_business_day: false,
@@ -359,6 +381,32 @@ function migrateDb(db) {
       updated_at: t,
     }));
     changed = true;
+  } else {
+    // ── 멱등 보강: 이미 시드된 DB 에 KOREAN_HOLIDAYS 누락분 자동 추가 ──
+    // (예: 운영 중 추가된 공휴일 — 2026-06-03 지방선거 등)
+    // 사용자가 수동으로 is_business_day 를 바꾼 기존 행은 건드리지 않는다.
+    const existing = new Set(db.business_days.map(r => r.calendar_date));
+    const addedYears = [];
+    for (const [date, name] of KOREAN_HOLIDAYS) {
+      if (existing.has(date)) continue;
+      db.business_days.push({
+        id: `bd_${date}`,
+        calendar_date: date,
+        is_business_day: false,
+        day_type: 'public_holiday',
+        holiday_name: name,
+        note: '',
+        updated_by: 'system',
+        created_at: t,
+        updated_at: t,
+      });
+      addedYears.push(Number(date.slice(0, 4)));
+      changed = true;
+    }
+    // 누락분을 추가했으면 영향 연도의 월별 영업일 캐시 재계산
+    if (addedYears.length) {
+      recomputeMonthlyCache(db, addedYears);
+    }
   }
   // ── Phase 1: 월별 영업일 캐시 (2025~2027) ──
   if (!db.business_days_monthly.length) {
@@ -834,7 +882,7 @@ function handleTablesRequest(route, method, bodyStr, reqHeaders) {
             return { status: 400, body: { error: e.message } };
           }
         } else {
-          if (!days || days <= 0) days = ['반차','2H','3H'].includes(payload.vacation_type) ? 0.5 : 1;
+          if (!days || days <= 0) days = HALF_DAY_VACATION_TYPES.includes(payload.vacation_type) ? 0.5 : 1;
           minutes = Math.round(days * 8 * 60);
           hours = Math.round((minutes / 60) * 10) / 10;
         }
@@ -1991,7 +2039,7 @@ const server = http.createServer((req, res) => {
                 if (bizday.isBusinessDay(isoOf(cur), bizMap)) count++;
                 cur.setDate(cur.getDate() + 1);
               }
-              days = ['반차','2H','3H'].includes(vacation_type) ? 0.5 : count;
+              days = HALF_DAY_VACATION_TYPES.includes(vacation_type) ? 0.5 : count;
             });
           }
           if (!minutes) {
@@ -2074,7 +2122,7 @@ const server = http.createServer((req, res) => {
                 if (bizday.isBusinessDay(isoOf(cur), bizMap)) count++;
                 cur.setDate(cur.getDate() + 1);
               }
-              days = ['반차','2H','3H'].includes(vacation_type) ? 0.5 : count;
+              days = HALF_DAY_VACATION_TYPES.includes(vacation_type) ? 0.5 : count;
               minutes = Math.round(days * 8 * 60);
               hours = Math.round((minutes / 60) * 10) / 10;
             }
@@ -2349,16 +2397,26 @@ function resetEngagementPointsForNewQuarter(reason) {
   }
 }
 
+// Node setTimeout 32-bit signed int 한계(약 24.85일) 초과 시 'TimeoutOverflowWarning' +
+// ms=1 로 reset → 즉시 발화 → 무한 루프 → CPU 폭주 → 프로세스 다운.
+// 1일 단위 chunk 로 재예약해 한계 우회.
+const MAX_SAFE_TIMEOUT_MS = 24 * 60 * 60 * 1000;
+function safeSetTimeout(cb, ms) {
+  if (ms <= MAX_SAFE_TIMEOUT_MS) return setTimeout(cb, Math.max(0, ms));
+  return setTimeout(() => safeSetTimeout(cb, ms - MAX_SAFE_TIMEOUT_MS), MAX_SAFE_TIMEOUT_MS);
+}
+
 /**
  * 다음 매월 1일 00:05 에 resetEngagementPointsForNewQuarter 호출.
  *  - 매월 체크하고 분기 시작월이면 초기화. 아니면 그냥 skip.
  *  - audit 4시보다 먼저 돌도록 00:05 로 잡음.
+ *  - 다음 달까지 28~31일 차이가 32-bit 한계(24.85일) 초과 가능 → safeSetTimeout 사용.
  */
 function scheduleNextQuarterCheck() {
   const now = new Date();
   const next = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 5, 0); // 다음 달 1일 00:05
   const ms = next - now;
-  setTimeout(() => {
+  safeSetTimeout(() => {
     resetEngagementPointsForNewQuarter('scheduled');
     scheduleNextQuarterCheck();
   }, ms);
@@ -2390,7 +2448,7 @@ function scheduleNextAudit() {
   next4am.setHours(4, 0, 0, 0);
   if (next4am <= now) next4am.setDate(next4am.getDate() + 1);
   const ms = next4am - now;
-  setTimeout(() => {
+  safeSetTimeout(() => {
     runAuditAndSave('scheduled');
     scheduleNextAudit();
   }, ms);

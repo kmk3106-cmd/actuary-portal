@@ -102,14 +102,15 @@
   </div>
 </div>
 
-<script src="js/rbac.js"></script>
+<script src="js/rbac.js?v=31"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=29"></script>
+<script src="js/portal.js?v=31"></script>
 <script>
 if (!Portal.init()) throw 'AUTH';
 
 const user = RBAC.getCurrentUser();
-if (user.role !== 'team_leader') {
+// 팀장: 편집 가능 / 실장(section_chief): 열람만 (전역 읽기전용 가드가 저장 차단)
+if (user.role !== 'team_leader' && !RBAC.canViewLeaderScreens()) {
   document.getElementById('rootMount').innerHTML =
     '<div class="access-warn"><i class="fas fa-lock"></i> 룰 설정은 팀장만 접근할 수 있습니다.</div>';
   throw 'ACCESS_DENIED';

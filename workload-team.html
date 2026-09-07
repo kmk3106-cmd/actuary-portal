@@ -433,16 +433,16 @@
   </div>
 </div>
 
-<script src="js/rbac.js"></script>
+<script src="js/rbac.js?v=31"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=30"></script>
+<script src="js/portal.js?v=31"></script>
 <script>
 /* ── 초기화 ── */
 let currentUser = null;
 let heatmapChart = null;
 let barChart     = null;
 let donutChart   = null;
-let barPeriod    = 'week';   // ← bootPage() 전에 초기화 필수 (TDZ 방지)
+let barPeriod    = 'custom'; // 기본: 우측 상단 캘린더 기간 그대로 (사용자 직관)
 let barSort      = 'desc';
 let heatmapData  = null;
 
@@ -550,9 +550,10 @@ function renderPageShell() {
           <div class="chart-card-title">개인별 투입 시간 비교</div>
           <div style="display:flex;gap:8px;align-items:center;">
             <div class="toggle-group" id="periodToggle">
-              <button class="toggle-btn active" data-period="week"  onclick="switchPeriod('week',this)">이번 주</button>
-              <button class="toggle-btn"        data-period="month" onclick="switchPeriod('month',this)">이번 달</button>
-              <button class="toggle-btn"        data-period="quarter" onclick="switchPeriod('quarter',this)">이번 분기</button>
+              <button class="toggle-btn"        data-period="week"  onclick="switchPeriod('week',this)">주</button>
+              <button class="toggle-btn"        data-period="month" onclick="switchPeriod('month',this)">월</button>
+              <button class="toggle-btn"        data-period="quarter" onclick="switchPeriod('quarter',this)">분기</button>
+              <button class="toggle-btn active" data-period="custom" onclick="switchPeriod('custom',this)" title="우측 상단 캘린더 기간 그대로">캘린더</button>
             </div>
             <div class="toggle-group" id="sortToggle">
               <button class="toggle-btn active" data-sort="desc" onclick="switchSort('desc',this)"><i class="fas fa-sort-amount-down"></i></button>
@@ -615,17 +616,14 @@ async function loadAll() {
   const to   = getTo();
   document.getElementById('dateRangeLabel').textContent = `${from} ~ ${to}`;
 
-  // 도넛은 항상 이번 달 기준 (요구: 월별)
-  const now = new Date();
-  const monthFrom = dateStr(new Date(now.getFullYear(), now.getMonth(), 1));
-  const monthTo   = dateStr(new Date(now.getFullYear(), now.getMonth() + 1, 0));
-
-  // 병렬 로드
+  // 캘린더(from~to) 가 모든 차트의 단일 기간 SoT (사용자 요구: 캘린더 연동)
+  //  - 도넛: 그 범위 그대로 표시
+  //  - 바차트: 토글(주/월/분기) 은 from~to 종료일을 기준으로 계산. 'custom' = 캘린더 그대로
   await Promise.all([
     loadKpi(),
     loadHeatmap(from, to),
     loadBarChart(barPeriod),
-    loadDonut(monthFrom, monthTo),
+    loadDonut(from, to),
     loadAlerts()
   ]);
 }
@@ -898,17 +896,16 @@ async function loadBarChart(period) {
           vacH += Number(v.hours) || 0;
         }
       }
-      // 총 입력시간(daily) 중에서 휴가시간만큼은 "휴가" 세그먼트로 떼어내고
-      // 나머지를 "순 업무" 세그먼트로 표시. (휴가는 daily와 별도 테이블이지만
-      // 사용자 멘탈모델은 "정규근무 시간 안에서 휴가가 차지한 부분")
-      const totalH = workMin / 60;
-      const vacSeg = Math.min(vacH, totalH);                 // 휴가는 총합 안에서만
-      const workSeg = Math.max(0, totalH - vacSeg);
+      // 휴가(vacations 테이블)와 업무(daily_work_entries 테이블)는 별개 SoT 이므로 그대로 합산.
+      //  옛 로직 (vacSeg = min(vacH, totalH), workSeg = totalH - vacSeg) 은 "휴가 시간이 daily 안에
+      //  자동 포함되어있다" 가정인데 실제로는 둘이 별도 → 휴가 ≥ 업무 시간일 때 업무=0으로 사라지는
+      //  버그 (예: 5/18 업무 8h + 5/13 2H 휴가 2h + 5/22 연차 8h → vac=8, work=0 으로 표시되던 케이스).
+      const workH = workMin / 60;
       stats[member] = {
-        work: Math.round(workSeg * 10) / 10,
-        vac:  Math.round(vacSeg * 10) / 10,
+        work:  Math.round(workH * 10) / 10,
+        vac:   Math.round(vacH  * 10) / 10,
+        total: Math.round((workH + vacH) * 10) / 10,
       };
-      stats[member].total = Math.round(totalH * 10) / 10;
     }
 
     const sorted = Object.entries(stats).sort((a, b) =>
@@ -980,25 +977,34 @@ async function loadBarChart(period) {
   }
 }
 
+/* 기간 범위 계산
+ *  period === 'custom' → 우측 상단 캘린더 from/to 그대로 (단일 기간 SoT)
+ *  나머지(week/month/quarter) → 캘린더 종료일(to) 이 속한 주/월/분기
+ *    (캘린더 to 가 없으면 오늘 기준으로 fallback)
+ */
 function getPeriodRange(period) {
-  const today = new Date();
+  if (period === 'custom') {
+    return { from: getFrom(), to: getTo() };
+  }
+  const refStr = getTo() || dateStr(new Date());
+  const ref    = new Date(refStr + 'T00:00:00');
   let from, to;
   if (period === 'week') {
-    // 이번 주 전체: 월요일 ~ 일요일 (미래 일자 입력도 포함되도록 to를 오늘이 아닌 일요일로)
-    const day = today.getDay();
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+    // 월요일 ~ 일요일 (캘린더 종료일이 속한 주)
+    const day = ref.getDay();
+    const monday = new Date(ref);
+    monday.setDate(ref.getDate() - (day === 0 ? 6 : day - 1));
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
     from = dateStr(monday);
     to   = dateStr(sunday);
   } else if (period === 'month') {
-    from = dateStr(new Date(today.getFullYear(), today.getMonth(), 1));
-    to   = dateStr(new Date(today.getFullYear(), today.getMonth() + 1, 0));
+    from = dateStr(new Date(ref.getFullYear(), ref.getMonth(), 1));
+    to   = dateStr(new Date(ref.getFullYear(), ref.getMonth() + 1, 0));
   } else { // quarter
-    const q = Math.floor(today.getMonth() / 3);
-    from = dateStr(new Date(today.getFullYear(), q * 3, 1));
-    to   = dateStr(new Date(today.getFullYear(), q * 3 + 3, 0));
+    const q = Math.floor(ref.getMonth() / 3);
+    from = dateStr(new Date(ref.getFullYear(), q * 3, 1));
+    to   = dateStr(new Date(ref.getFullYear(), q * 3 + 3, 0));
   }
   return { from, to };
 }
@@ -1027,12 +1033,16 @@ async function loadDonut(from, to) {
       '<i class="fas fa-chart-pie" style="font-size:32px;margin-bottom:10px;display:block;opacity:0.3;"></i>' +
       msg + '</div>';
   };
-  // 컨테이너 헤더 라벨 업데이트 (이번 달 표기)
-  const ym = (from || '').slice(0, 7);
+  // 헤더 라벨: 캘린더 from~to 범위 반영 (같은 월이면 'YYYY년 M월', 아니면 'from ~ to')
   const headerEl = document.querySelector('#donutChart')?.closest('.chart-card')?.querySelector('.chart-card-title');
-  if (headerEl && ym) {
-    const [y, m] = ym.split('-');
-    headerEl.textContent = `업무유형별 분포 (${y}년 ${parseInt(m,10)}월)`;
+  if (headerEl && from && to) {
+    const fy = from.slice(0,4), fm = from.slice(5,7);
+    const ty = to.slice(0,4),   tm = to.slice(5,7);
+    if (fy === ty && fm === tm) {
+      headerEl.textContent = `업무유형별 분포 (${fy}년 ${parseInt(fm,10)}월)`;
+    } else {
+      headerEl.textContent = `업무유형별 분포 (${from} ~ ${to})`;
+    }
   }
 
   try {

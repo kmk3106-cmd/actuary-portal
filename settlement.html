@@ -67,6 +67,11 @@
     .day-num { width:24px; height:24px; display:flex; align-items:center; justify-content:center;
       font-size:13px; font-weight:600; color:#374151; margin-bottom:4px; }
     .day-num.other { color:#d1d5db; }
+    /* 날짜 숫자 + 영업일 배지 래퍼 (숫자 원형 스타일 보존, 배지는 형제로 분리) */
+    .day-head { display:flex; align-items:center; gap:3px; margin-bottom:4px; }
+    .day-head .day-num { margin-bottom:0; }
+    .biz-day-tag { font-size:10px; font-weight:700; color:#ef4444; line-height:1;
+      white-space:nowrap; flex-shrink:0; }
     .day-tasks { display:flex; flex-direction:column; gap:2px; }
     .day-task-chip { font-size:11px; font-weight:600; padding:2px 6px; border-radius:4px;
       white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.5; cursor:pointer; }
@@ -188,6 +193,8 @@
       /* 캘린더 셀 압축 */
       .cal-day { min-height:68px; padding:4px 3px; }
       .day-num { width:20px; height:20px; font-size:11px; margin-bottom:2px; }
+      .day-head { gap:2px; margin-bottom:2px; }
+      .biz-day-tag { font-size:9px; }
       .day-task-chip { font-size:9px; padding:1px 3px; line-height:1.35; }
       .day-holiday-name { font-size:8px; margin-bottom:1px; }
       .cal-weekday { padding:7px 0; font-size:11px; }
@@ -241,6 +248,8 @@
     @media(max-width:480px){
       .cal-day { min-height:50px; padding:3px 2px; }
       .day-num { width:18px; height:18px; font-size:10px; }
+      .day-head { gap:1px; margin-bottom:1px; }
+      .biz-day-tag { font-size:8px; }
       .day-task-chip { font-size:8px; padding:1px 2px; }
       .stats-strip { grid-template-columns:1fr 1fr; gap:6px; }
       .stat-mini { padding:8px 10px; }
@@ -449,9 +458,9 @@
   </div>
 </div>
 
-<script src="js/rbac.js"></script>
+<script src="js/rbac.js?v=31"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=29"></script>
+<script src="js/portal.js?v=31"></script>
 <script>
   Portal.init();
 
@@ -511,6 +520,7 @@
     ['2026-05-05', '어린이날'],
     ['2026-05-24', '석가탄신일'],
     ['2026-05-25', '석가탄신일대체'],
+    ['2026-06-03', '제8회 전국동시지방선거'],
     ['2026-06-06', '현충일'],
     ['2026-08-15', '광복절'],
     ['2026-09-24', '추석연휴'], ['2026-09-25', '추석'], ['2026-09-26', '추석연휴'],
@@ -619,6 +629,7 @@
     currentMonth += delta;
     if (currentMonth > 11) { currentMonth = 0; currentYear++; }
     if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+    syncChecklistToCalendar();
     renderCalendar();
     clearPanel();
   }
@@ -626,8 +637,25 @@
   function goToday() {
     currentYear = today.getFullYear();
     currentMonth = today.getMonth();
+    syncChecklistToCalendar();
     renderCalendar();
     showDayPanel(todayDateStr());
+  }
+
+  // 캘린더 월 이동 시 체크리스트 ym(chkYear/chkMonth)도 따라가서
+  // allMembersWorkTasks 가 같은 달로 재로드되도록 동기화.
+  // (없으면 isSettleTaskCompleted 의 ym 가드 때문에 다른 달 완료 표시 안 됨)
+  function syncChecklistToCalendar() {
+    const targetY = currentYear;
+    const targetM = currentMonth + 1;
+    if (targetY === chkYear && targetM === chkMonth) return;
+    chkYear = targetY;
+    chkMonth = targetM;
+    const ySel = document.getElementById('chkYearSel');
+    const mSel = document.getElementById('chkMonthSel');
+    if (ySel) ySel.value = String(chkYear);
+    if (mSel) mSel.value = String(chkMonth);
+    loadChecklist();
   }
 
   function todayDateStr() {
@@ -722,10 +750,26 @@
       const holidayName = KR_HOLIDAYS.get(dateStr);
       if (holidayName) cell.classList.add('holiday');
 
+      const headEl = document.createElement('div');
+      headEl.className = 'day-head';
+
       const numEl = document.createElement('div');
       numEl.className = 'day-num' + (isOther ? ' other' : '');
       numEl.textContent = dayNum;
-      cell.appendChild(numEl);
+      headEl.appendChild(numEl);
+
+      // 현재 달 영업일에만 D+N 배지 (전/다음달·주말·공휴일 제외)
+      if (!isOther && isBusinessDay(dateStr)) {
+        const bizNum = getBizDayNum(currentYear, currentMonth + 1, dateStr);
+        if (bizNum !== null) {
+          const tagEl = document.createElement('span');
+          tagEl.className = 'biz-day-tag';
+          tagEl.textContent = `D+${bizNum}`;
+          headEl.appendChild(tagEl);
+        }
+      }
+
+      cell.appendChild(headEl);
 
       if (holidayName) {
         const hnEl = document.createElement('div');
@@ -758,7 +802,7 @@
       // Add due date chips
       const dueTasks = scheduleDueDates[dateStr] || [];
       const dueChipVisible = dueTasks.length > 0 && !isOther;
-      const doneCount = dueChipVisible ? dueTasks.filter(t => isSettleTaskCompleted(t.id)).length : 0;
+      const doneCount = dueChipVisible ? dueTasks.filter(t => isSettleTaskCompleted(t.id, dateStr)).length : 0;
       const allDueDone = dueChipVisible && doneCount === dueTasks.length;
       if (dueChipVisible) {
         if (isMobileView) {
@@ -773,7 +817,7 @@
               ? `마감 ${dueTasks.length}건 ✓`
               : `마감 ${dueTasks.length}건 (${doneCount}/${dueTasks.length})`;
           }
-          chip.title = dueTasks.map(t => `D+${t.due} ${t.label}${isSettleTaskCompleted(t.id) ? ' ✓ 완료' : ''}`).join('\n');
+          chip.title = dueTasks.map(t => `D+${t.due} ${t.label}${isSettleTaskCompleted(t.id, dateStr) ? ' ✓ 완료' : ''}`).join('\n');
           taskWrap.appendChild(chip);
         }
         // 전부 완료된 마감 셀은 배경도 살짝 초록 톤으로
@@ -857,7 +901,7 @@
 
     let dueHtml = '';
     if (dueTasks.length > 0) {
-      const dueDoneCnt = dueTasks.filter(t => isSettleTaskCompleted(t.id)).length;
+      const dueDoneCnt = dueTasks.filter(t => isSettleTaskCompleted(t.id, dateStr)).length;
       const dueAllDone = dueDoneCnt === dueTasks.length;
       const headerColor = dueAllDone ? '#065f46' : '#c2410c';
       const headerSuffix = dueAllDone
@@ -868,7 +912,7 @@
           <i class="fas fa-flag"></i> 결산 마감 업무${headerSuffix}
         </div>
         ${dueTasks.map(t => {
-          const done = isSettleTaskCompleted(t.id);
+          const done = isSettleTaskCompleted(t.id, dateStr);
           const bg     = done ? '#f0fdf4' : '#fff7ed';
           const border = done ? '#10b981' : '#c2410c';
           const cat    = done ? '#065f46' : '#c2410c';
@@ -1069,8 +1113,20 @@
    *  본인(chkMember)에 대해서는 서버 캐시 대신 **로컬 chkDone** 을 사용해
    *  체크/해제·취소·초기화 등 로컬 액션이 캘린더에 즉시 반영되도록 한다.
    *  (DATA_SYNC_RULES §3 버그 패턴 I — 로컬 상태와 서버 캐시 분리)
+   *
+   *  ⚠ ym 격리(버그 픽스 2026-05): allMembersWorkTasks 는 chkYear/chkMonth 한 달치만
+   *  로드되므로, dateStr 의 년·월이 그와 다르면 그 달 데이터를 모름 → false.
+   *  (이 가드 없으면 5월 데이터가 6월 캘린더의 같은 정기 작업을 "완료" 로 오인 표시)
    */
-  function isSettleTaskCompleted(taskId) {
+  function isSettleTaskCompleted(taskId, dateStr) {
+    if (dateStr) {
+      const m = /^(\d{4})-(\d{2})-/.exec(dateStr);
+      if (m) {
+        const dy = Number(m[1]);
+        const dm = Number(m[2]);
+        if (dy !== chkYear || dm !== chkMonth) return false;
+      }
+    }
     let selfSeen = false;
     for (const wt of allMembersWorkTasks) {
       if (wt.member_name === chkMember) {
@@ -1273,6 +1329,15 @@
   function toggleChkTask(id, checked) {
     if (checked) {
       chkDone.add(id);
+      // 체크 시 완료일자가 비어있으면 오늘 날짜로 자동 채움 → autoCalcDeadline 으로
+      // deadline_days·점수 산정까지 한 번에 진행. 다른 날짜에 완료했으면 사용자가 그대로 수정.
+      // (사용자가 체크만 하고 저장하면 score_deadline 미반영 되던 문제 해결)
+      if (!chkDates[id]) {
+        const d = new Date();
+        chkDates[id] = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        autoCalcDeadline(id);
+        renderChecklist();
+      }
     } else {
       // 체크 해제 = 삭제. 관련된 모든 상태 정리
       chkDone.delete(id);

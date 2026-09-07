@@ -34,7 +34,10 @@
       transition:border-color .2s; box-sizing:border-box; }
     .form-input:focus, .form-textarea:focus, .form-select:focus {
       outline:none; border-color:#4f86f7; box-shadow:0 0 0 3px rgba(79,134,247,.08); }
-    .form-textarea { resize:vertical; min-height:90px; }
+    .form-textarea { resize:vertical; min-height:140px; }
+    /* 결산 특이사항·팀 메모는 입력량이 많아 충분히 크게 (사용자가 vertical resize 로 더 키울 수 있음) */
+    #fSpecialNote { min-height:240px; }
+    #fTeamMemo    { min-height:180px; }
     .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 
     /* 손익 입력 */
@@ -215,15 +218,15 @@
   </div>
 </div>
 
-<script src="js/rbac.js"></script>
+<script src="js/rbac.js?v=31"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=29"></script>
+<script src="js/portal.js?v=31"></script>
 <script>
 try {
 Portal.init();
 
-// 팀장 전용 접근 제한
-if (!RBAC.isTeamLeader()) {
+// 팀장: 조회+작성 / 실장(section_chief): 열람만 (전역 읽기전용 가드가 작성 차단)
+if (!RBAC.canViewLeaderScreens()) {
   document.querySelector('.main-content').innerHTML = `
     <header class="page-header">
       <h1 class="page-title"><i class="fas fa-clipboard-list"></i> 결산 리뷰</h1>
@@ -532,12 +535,18 @@ async function saveReview() {
         method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
       });
     }
-    if (!res.ok) throw new Error();
+    if (!res.ok) {
+      // 서버 응답 본문 읽어 사유 표시 (silent fail 방지)
+      let detail = `HTTP ${res.status}`;
+      try { const errBody = await res.json(); if (errBody?.error) detail += ` — ${errBody.error}`; } catch {}
+      throw new Error(detail);
+    }
     Portal.showToast('결산 리뷰가 저장되었습니다.', 'success');
     await loadAllReviews();
     loadReview();
   } catch(e) {
-    Portal.showToast('저장에 실패했습니다.', 'error');
+    console.error('saveReview failed:', e);
+    Portal.showToast('저장에 실패했습니다. (' + (e?.message || '알 수 없는 오류') + ')', 'error');
   }
 }
 
@@ -664,6 +673,16 @@ function goToMonth(year, month) {
   loadReview();
   loadChkSummary();
 }
+
+// ── 인라인 onclick 핸들러 위해 핵심 함수를 글로벌(window) 노출 ──
+//  전체 스크립트가 try {...} 로 감싸여 있어 일부 브라우저/strict 환경에서
+//  function 선언이 글로벌 스코프로 hoist 안 되는 경우 onclick 호출이
+//  silent ReferenceError 로 죽으므로(토스트도 안 뜸) 안전망으로 명시 노출.
+Object.assign(window, {
+  saveReview, cancelEdit, openNewReview, openEditReview, loadReviewById,
+  switchView, renderCalView, addIssue, removeIssue, updateIssue,
+  onFilterChange, goToMonth,
+});
 
 // ── 초기화 ────────────────────────────────────────────────
 buildSelects();

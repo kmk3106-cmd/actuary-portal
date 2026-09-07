@@ -698,9 +698,9 @@
   </div>
 </div>
 
-<script src="js/rbac.js"></script>
+<script src="js/rbac.js?v=31"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js"></script>
+<script src="js/portal.js?v=31"></script>
 <!-- EasyMDE 에디터 -->
 <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
 <!-- 마크다운 렌더러 -->
@@ -747,7 +747,7 @@ function bootPage() {
   const initDocId = params.get('doc');
 
   Promise.all([loadCategories(), loadDocs()]).then(() => {
-    if (initDocId) openDoc(parseInt(initDocId, 10));
+    if (initDocId) openDoc(initDocId);
   });
 
   // 검색 debounce
@@ -918,7 +918,7 @@ function renderDocList(docs, query) {
     const dateStr  = fmtShortDate(doc.updated_at || doc.created_at);
     const active   = doc.id === currentDocId ? ' active' : '';
     const draft    = !doc.is_published ? '<span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:4px;">초안</span>' : '';
-    html += `<div class="kb-doc-item${active}" onclick="openDoc(${doc.id})" id="docItem_${doc.id}">
+    html += `<div class="kb-doc-item${active}" onclick="openDoc('${doc.id}')" id="docItem_${doc.id}">
       <div class="kb-doc-title">${escHtml(doc.title || '(제목 없음)')}${draft}</div>
       <div class="kb-doc-meta">
         <span class="kb-cat-chip ${catColor}">${escHtml(catName)}</span>
@@ -1001,11 +1001,11 @@ function renderDocDetail(doc) {
 
   // 수정/삭제 버튼
   const editBtns = canEdit ? `
-    <button class="btn btn-secondary btn-sm" onclick="openEditDocModal(${doc.id})">
+    <button class="btn btn-secondary btn-sm" onclick="openEditDocModal('${doc.id}')">
       <i class="fas fa-edit"></i> <span>수정</span>
     </button>` : '';
   const deleteBtns = canDelete ? `
-    <button class="btn btn-danger btn-sm" onclick="deleteDoc(${doc.id})">
+    <button class="btn btn-danger btn-sm" onclick="deleteDoc('${doc.id}')">
       <i class="fas fa-trash"></i> <span>삭제</span>
     </button>` : '';
 
@@ -1025,7 +1025,7 @@ function renderDocDetail(doc) {
           <span class="kb-meta-item"><i class="fas fa-thumbs-up"></i><span id="helpfulCount">${doc.helpful_count || 0}</span>명 도움됨</span>
         </div>
         <div class="kb-detail-actions">
-          <button class="btn-helpful" id="helpfulBtn" onclick="voteHelpful(${doc.id}, this)">
+          <button class="btn-helpful" id="helpfulBtn" onclick="voteHelpful('${doc.id}', this)">
             <i class="fas fa-thumbs-up"></i> 도움됨
           </button>
           ${editBtns}
@@ -1041,7 +1041,7 @@ function renderDocDetail(doc) {
 
       <!-- 버전 이력 -->
       <div class="kb-versions">
-        <button class="kb-versions-toggle" onclick="toggleVersions(${doc.id}, this)">
+        <button class="kb-versions-toggle" onclick="toggleVersions('${doc.id}', this)">
           <i class="fas fa-history"></i>
           버전 이력 보기
           <i class="fas fa-chevron-down chevron"></i>

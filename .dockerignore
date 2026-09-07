@@ -1,49 +1,38 @@
-# Git / 개발환경
+# 빌드 컨텍스트 축소 (이미지에 안 들어가도 되는 것들)
+# 단, docker-compose 는 소스를 바인드마운트하므로 .dockerignore 는 이미지 빌드 단계에만 영향.
+
 .git
 .gitignore
+.gitattributes
+node_modules
+
+# Claude / IDE 작업물
 .claude
 .vscode
 .idea
 
-# Windows 전용
-*.bat
-
-# 로그 / 임시
-logs/
-bot/logs/
+# 데이터 백업·로그 (이미지에 포함될 필요 없음, 마운트로 들어옴)
+server/data/backup
+server/data/*.log
+server/data/*.txt
+bot/logs
+bot/__pycache__
 *.log
-tmp/
+logs
 
-# 노드 캐시
-node_modules
-npm-debug.log*
+# 빌드/스크린샷/실험물
+capture
+tmp
+tmp_*.txt
+*.png
+*.jpg
 
-# 파이썬 캐시
-__pycache__/
-*.py[cod]
-*.pyo
-.pytest_cache/
-.venv/
-venv/
+# 환경
+*.local
+.env.local
 
-# 환경변수 (실행 시 별도 주입)
-.env
-bot/.env
-server/.env
-
-# 데이터 (볼륨으로 마운트)
-server/data/*.db
-server/data/*.db-*
-server/data/portal-db.json
-server/data/bot-heartbeat.json
-server/data/backups/
-
-# 개인정보 포함 스냅샷
-*.xlsx
-users_new.json
-
-# 오피스 잠금
-~$*
-
-# 문서 대용량
-audit-report.html
+# 도커 자산 자체는 컨텍스트 외(자기참조 방지)
+Dockerfile.server
+Dockerfile.bot
+docker-compose.yml
+.dockerignore

@@ -12,6 +12,8 @@ DB_PATH = Path(os.getenv('DB_PATH', str(BASE_DIR.parent / 'server' / 'data' / 'a
 LOG_DIR = Path(os.getenv('LOG_DIR', str(BASE_DIR / 'logs')))
 HEARTBEAT_PATH = Path(os.getenv('HEARTBEAT_PATH', str(BASE_DIR.parent / 'server' / 'data' / 'bot-heartbeat.json')))
 PORTAL_URL = os.getenv('PORTAL_URL', 'http://127.0.0.1:8888').rstrip('/')
+# 사용자에게 보낼 외부 접속용 URL (Cloudflare 터널 공개 도메인). 내부 health-check 는 PORTAL_URL 사용.
+PORTAL_PUBLIC_URL = os.getenv('PORTAL_PUBLIC_URL', 'https://portal.kkuks.com').rstrip('/')
 
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '').strip()
 

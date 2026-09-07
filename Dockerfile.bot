@@ -1,38 +1,15 @@
-# 계리결산팀 포탈 - 텔레그램 봇 이미지
+# 계리결산 포탈 — 텔레그램 봇 컨테이너
+# 소스는 docker-compose 에서 바인드마운트. 의존성만 이미지에 설치(pandas 휠 활용).
 FROM python:3.12-slim
-
-ENV TZ=Asia/Seoul \
-    PYTHONUNBUFFERED=1 \
-    PYTHONIOENCODING=utf-8 \
-    PYTHONUTF8=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      tzdata tini curl \
-    && ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime \
-    && echo "${TZ}" > /etc/timezone \
-    && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
-
-# 봇 의존성만 먼저
-COPY bot/requirements.txt bot/requirements.txt
-RUN pip install -r bot/requirements.txt
-
-# 전체 코드 (봇은 server/data/actuarial.db 를 공유해서 읽음)
-COPY . .
-
-RUN mkdir -p /app/bot/logs /app/server/data
-
-# 봇은 포트 안 열지만 heartbeat 파일 갱신으로 살아있는지 확인
-HEALTHCHECK --interval=60s --timeout=5s --start-period=30s --retries=3 \
-    CMD python -c "import os, json, time, pathlib; \
-p = pathlib.Path('/app/server/data/bot-heartbeat.json'); \
-d = json.loads(p.read_text()) if p.exists() else {}; \
-ts = d.get('ts', 0); \
-raise SystemExit(0 if (time.time()-ts) < 300 else 1)" || exit 1
-
-ENTRYPOINT ["/usr/bin/tini", "--"]
-WORKDIR /app/bot
-CMD ["python", "app.py"]
+ENV PYTHONIOENCODING=utf-8 \
+    PYTHONUTF8=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+# 시간대(KST) 필요 시 tzdata 추가
+RUN apt-get update && apt-get install -y --no-install-recommends tzdata \
+    && ln -fs /usr/share/zoneinfo/Asia/Seoul /etc/localtime \
+    && rm -rf /var/lib/apt/lists/*
+COPY bot/requirements.txt /tmp/requirements.txt
+RUN pip install -r /tmp/requirements.txt
+CMD ["python", "bot/app.py"]

@@ -17,6 +17,21 @@ bot/logs/
 bot/data/bot.log
 server.log
 server.err
+server/cloudflare.log
+server/*.log
+server/data/server-*.txt
+server/data/*.log
+
+# DB 백업 스냅샷 (개인정보·해시 포함)
+server/data/backup/
+
+# 임시 점검·디버그 산출물 (규칙 3: tmp/_check_NN_*.py 등은 추적하지 않음)
+tmp/
+tmp_*.txt
+tmp_*.json
+
+# 디자인 참고 캡처/스크린샷
+capture/
 
 # Python 캐시
 __pycache__/
