@@ -673,7 +673,7 @@ else { bootPage(); }
 function bootPage() {
   currentUser     = RBAC.getCurrentUser();
   isLeader        = currentUser && currentUser.role === 'team_leader';
-  isLeaderOrChief = isLeader || (currentUser && currentUser.role === 'section_chief');
+  isLeaderOrChief = isLeader || (currentUser && (currentUser.role === 'section_chief' || currentUser.role === 'division_head'));
 
   // 전원 신규 등록 가능
   document.getElementById('headerActions').innerHTML = `

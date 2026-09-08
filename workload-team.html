@@ -454,14 +454,14 @@ function bootPage() {
   currentUser = RBAC.getCurrentUser();
   console.log('[DIAG] user role=' + currentUser?.role);
   const allowed = currentUser &&
-    (currentUser.role === 'team_leader' || currentUser.role === 'section_chief');
+    (currentUser.role === 'team_leader' || currentUser.role === 'section_chief' || currentUser.role === 'division_head');
 
   if (!allowed) {
     document.getElementById('pageBody').innerHTML = `
       <div class="access-gate">
         <div class="access-gate-icon"><i class="fas fa-lock"></i></div>
         <h2>접근 권한이 없습니다</h2>
-        <p>팀 업무량 모니터링 페이지는 <strong>팀장</strong> 또는 <strong>실장</strong>만 접근할 수 있습니다.<br>
+        <p>팀 업무량 모니터링 페이지는 <strong>본부장</strong>, <strong>팀장</strong>, <strong>실장</strong>만 접근할 수 있습니다.<br>
            본인 업무량 확인은 <a href="workload-me.html" style="color:var(--primary);">내 업무량</a> 페이지를 이용해주세요.</p>
         <a href="index.html" class="btn btn-secondary"><i class="fas fa-home"></i> 대시보드로 이동</a>
       </div>`;

@@ -733,7 +733,7 @@ else { bootPage(); }
 function bootPage() {
   currentUser     = RBAC.getCurrentUser();
   isLeader        = currentUser && currentUser.role === 'team_leader';
-  isLeaderOrChief = isLeader || (currentUser && currentUser.role === 'section_chief');
+  isLeaderOrChief = isLeader || (currentUser && (currentUser.role === 'section_chief' || currentUser.role === 'division_head'));
 
   if (isLeaderOrChief) {
     document.getElementById('headerActions').innerHTML = `

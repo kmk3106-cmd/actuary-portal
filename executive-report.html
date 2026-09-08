@@ -860,13 +860,13 @@
         <div class="exec-sec">
           <button class="exec-sec-header open" onclick="toggleSec(this)">
             <span class="exec-sec-num">10</span>
-            <span class="exec-sec-title">인력·자원 현황<small>인사카드 요약 (극비 · 팀장·실장 전용)</small></span>
+            <span class="exec-sec-title">인력·자원 현황<small>인사카드 요약 (극비 · 본부장·팀장·실장 전용)</small></span>
             <i class="fas fa-chevron-down exec-sec-chevron"></i>
           </button>
           <div class="exec-sec-body open">
             <p class="exec-sec-desc">재직 팀원의 인사카드 요약을 표로 보고드립니다. 편집은 <a href="personnel.html" style="color:#4338ca;font-weight:700;text-decoration:underline;">인사카드</a> 화면에서.</p>
 
-            <!-- 인사카드 요약 표 (극비 · 팀장/실장 전용 · 인사카드와 연동) -->
+            <!-- 인사카드 요약 표 (극비 · 본부장/팀장/실장 전용 · 인사카드와 연동) -->
             <div id="personnelTableSection" style="margin-top:12px;">
               <!-- 폼은 hidden 으로 두어 저장/복원 로직이 깨지지 않게 유지 -->
               <input type="hidden" id="fHeadcount">
@@ -1020,9 +1020,9 @@
 try {
 Portal.init();
 
-// 접근 정책: 팀장·실장·팀원 전원 열람 가능.
+// 접근 정책: 본부장·팀장·실장·팀원 전원 열람 가능.
 // - 팀장: 편집 가능
-// - 실장: 전역 fetch 가드(POST/PUT/DELETE 차단)로 자동 읽기전용
+// - 실장·본부장: 전역 fetch 가드(POST/PUT/DELETE 차단)로 자동 읽기전용
 // - 팀원: 편집 가능 (본인 담당 매트릭스/담당표/부가업무 rows 직접 입력)
 // 이전에는 팀장 전용 페이지였으나(2026-09), 팀원이 담당 데이터를
 // 직접 입력해야 하는 요건이 생겨 개방으로 전환.
@@ -1672,7 +1672,7 @@ function boosterLicensesDocRowsHtml(list) {
 }
 
 // ══════════════════════════════════════════════════════════
-// 인사카드 요약 표 (극비 · 팀장/실장 전용) + 성향 6축 미니 hexagon
+// 인사카드 요약 표 (극비 · 본부장/팀장/실장 전용) + 성향 6축 미니 hexagon
 // 편집 SSOT 은 personnel.html — 여기서는 조회만.
 // ══════════════════════════════════════════════════════════
 const TRAIT_AXES = [
@@ -1695,9 +1695,9 @@ function traitAvatarGradient(name) {
   return `linear-gradient(135deg, ${a} 0%, ${b} 100%)`;
 }
 
-// 팀원(employee) 은 인력·자원 탭 자체 접근 차단 (극비). team_leader/section_chief 만 조회.
+// 팀원(employee) 은 인력·자원 탭 자체 접근 차단 (극비). team_leader/section_chief/division_head 만 조회.
 function canViewPersonnelSecret() {
-  return !!(currentUser && (currentUser.role === 'team_leader' || currentUser.role === 'section_chief'));
+  return !!(currentUser && (currentUser.role === 'team_leader' || currentUser.role === 'section_chief' || currentUser.role === 'division_head'));
 }
 
 function traitHexMini(scores, size) {
@@ -1795,7 +1795,7 @@ async function loadMemberTraits() {
       <div class="p-secret-guard">
         <i class="fas fa-lock"></i>
         <div class="msg">인력·자원 정보는 극비 자료입니다.</div>
-        <div class="sub">팀장·실장만 열람할 수 있습니다.</div>
+        <div class="sub">본부장·팀장·실장만 열람할 수 있습니다.</div>
       </div>`;
     if (tableSection) tableSection.innerHTML = guard;
     if (hexSection) hexSection.innerHTML = guard;
@@ -1812,7 +1812,7 @@ async function loadMemberTraits() {
     const users = (uData.rows || uData.data || [])
       .filter(u => u.is_active !== false && u.full_name)
       .sort((a, b) => {
-        const order = { team_leader: 0, section_chief: 1, employee: 2, member: 2 };
+        const order = { division_head: 0, team_leader: 1, section_chief: 2, employee: 3, member: 3 };
         const oa = order[a.role] ?? 3, ob = order[b.role] ?? 3;
         if (oa !== ob) return oa - ob;
         return (a.full_name || '').localeCompare(b.full_name || '', 'ko');
@@ -1936,6 +1936,7 @@ async function saveTraitEdit() {
 }
 
 function roleChipHtml(role) {
+  if (role === 'division_head') return `<span class="role-chip div-head">본부장</span>`;
   if (role === 'team_leader')   return `<span class="role-chip leader">팀장</span>`;
   if (role === 'section_chief') return `<span class="role-chip chief">실장</span>`;
   return `<span class="role-chip employee">팀원</span>`;
@@ -2114,11 +2115,11 @@ function applyPeopleTabSecrecy() {
   const btn = document.getElementById('execTabBtn-people');
   if (!btn) return;
   if (canViewPersonnelSecret()) {
-    // 팀장/실장: 자물쇠 아이콘 배지
+    // 본부장/팀장/실장: 자물쇠 아이콘 배지
     if (!btn.querySelector('.tab-lock')) {
       const lock = document.createElement('i');
       lock.className = 'fas fa-lock tab-lock';
-      lock.title = '극비 (팀장·실장 전용)';
+      lock.title = '극비 (본부장·팀장·실장 전용)';
       btn.appendChild(lock);
     }
   } else {

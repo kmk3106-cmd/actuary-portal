@@ -209,7 +209,7 @@
     // RBAC 필터
     if (user.role === 'employee') {
       allLogs = allLogs.filter(l => l.interviewee_name === user.full_name && !l.is_confidential);
-    } else if (user.role === 'section_chief') {
+    } else if (user.role === 'section_chief' || user.role === 'division_head') {
       allLogs = allLogs.filter(l => !l.is_confidential);
     }
 
