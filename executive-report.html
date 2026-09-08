@@ -916,10 +916,20 @@
         <div class="extra-cat-section" id="memberTraitsHexSection">
           <div class="traits-section-head" style="margin-top:22px;">
             <div class="icon-wrap" style="background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);box-shadow:0 4px 12px rgba(99,102,241,.28);"><i class="fas fa-users-viewfinder"></i></div>
-            <div>
+            <div style="flex:1;">
               <h4><i class="fas fa-lock" style="color:#dc2626;font-size:13px;margin-right:4px;"></i>팀원 성향 스냅샷 <span style="color:#dc2626;font-size:12px;font-weight:700;">[극비]</span></h4>
               <p>계리결산팀 팀원의 강점·특성을 6축 레이더로 도식화. 편집은 <a href="personnel.html" style="color:#4338ca;font-weight:700;text-decoration:underline;">인사카드</a> 편집 화면에서.</p>
             </div>
+            <button type="button" id="btnExportTraitsPdf" onclick="exportTraitsSnapshotToPdf()"
+              style="align-self:center;padding:9px 16px;border-radius:10px;border:1.5px solid #6366f1;
+                     background:#fff;color:#4338ca;font-size:13px;font-weight:700;cursor:pointer;
+                     display:inline-flex;align-items:center;gap:7px;transition:all .15s;
+                     white-space:nowrap;flex-shrink:0;"
+              onmouseover="this.style.background='#eef2ff';this.style.borderColor='#4f46e5';"
+              onmouseout="this.style.background='#fff';this.style.borderColor='#6366f1';">
+              <i class="fas fa-file-pdf"></i>
+              <span>PDF 다운로드</span>
+            </button>
           </div>
           <div class="traits-axis-legend">
             <span class="traits-axis-chip">전문성<small>계리·시스템 지식</small></span>
@@ -1013,6 +1023,9 @@
   </div>
 </div>
 
+<!-- PDF 추출용 라이브러리 (팀원 성향 스냅샷 → 고해상도 PDF) -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="js/rbac.js?v=31"></script>
 <script src="js/auth.js"></script>
 <script src="js/portal.js?v=31"></script>
@@ -2835,6 +2848,111 @@ loadMemberTraits();
 // 폼 내 입력 변경 시 임시저장 예약 (델리게이션 — 개별 필드마다 리스너 부착 불필요)
 document.getElementById('editView').addEventListener('input', scheduleDraftSave);
 document.getElementById('editView').addEventListener('change', scheduleDraftSave);
+
+// ─────────────────────────────────────────────────────────────
+// 팀원 성향 스냅샷 → 고해상도 PDF 추출
+// ─────────────────────────────────────────────────────────────
+async function exportTraitsSnapshotToPdf() {
+  const target = document.getElementById('memberTraitsHexSection');
+  const btn    = document.getElementById('btnExportTraitsPdf');
+  if (!target) { alert('성향 스냅샷 섹션을 찾을 수 없습니다.'); return; }
+  if (typeof html2canvas === 'undefined' || !window.jspdf) {
+    alert('PDF 라이브러리 로드에 실패했습니다. 네트워크 연결을 확인해주세요.');
+    return;
+  }
+
+  // 버튼 자체는 캡처에서 감춤 (PDF 안에 버튼이 찍히지 않도록)
+  const btnOriginalVisibility = btn ? btn.style.visibility : '';
+  if (btn) btn.style.visibility = 'hidden';
+  const spinner = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.style.visibility = btnOriginalVisibility;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>생성 중...</span>';
+  }
+
+  try {
+    // 캡처 직전 강제 리페인트 대기
+    await new Promise(r => setTimeout(r, 100));
+    // 버튼만 캡처에서 제외하기 위해 잠시 숨김
+    if (btn) btn.style.visibility = 'hidden';
+
+    // 스크롤을 성향 스냅샷 섹션 상단으로 (캡처 정확도)
+    target.scrollIntoView({behavior:'instant', block:'start'});
+    await new Promise(r => setTimeout(r, 200));
+
+    // html2canvas 옵션 — scale=2 로 고해상도
+    const canvas = await html2canvas(target, {
+      scale: 2,
+      backgroundColor: '#ffffff',
+      logging: false,
+      useCORS: true,
+      allowTaint: false,
+      // 오프스크린 요소도 캡처하도록 강제 (SVG 등)
+      windowWidth: target.scrollWidth,
+      windowHeight: target.scrollHeight,
+    });
+
+    if (btn) btn.style.visibility = btnOriginalVisibility;
+
+    // A4 세로 (210 x 297 mm) 기준으로 이미지 크기 계산
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 8;
+    const usableW = pageW - margin * 2;
+
+    // 이미지의 실제 mm 폭 · 높이 (원본 aspect 유지)
+    const imgWmm = usableW;
+    const imgHmm = (canvas.height * imgWmm) / canvas.width;
+
+    if (imgHmm <= pageH - margin * 2) {
+      // 한 페이지 안에 들어가는 경우
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      pdf.addImage(imgData, 'JPEG', margin, margin, imgWmm, imgHmm, undefined, 'FAST');
+    } else {
+      // 여러 페이지로 분할 — 원본 캔버스를 페이지 높이만큼씩 잘라 붙임
+      const pxPerMm = canvas.width / imgWmm;
+      const pageContentPx = Math.floor((pageH - margin * 2) * pxPerMm);
+      let yOffsetPx = 0;
+      let pageNo = 0;
+      while (yOffsetPx < canvas.height) {
+        const sliceHeight = Math.min(pageContentPx, canvas.height - yOffsetPx);
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = sliceHeight;
+        const ctx = sliceCanvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+        ctx.drawImage(canvas, 0, yOffsetPx, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+        const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.95);
+        const sliceHmm = (sliceHeight * imgWmm) / canvas.width;
+        if (pageNo > 0) pdf.addPage();
+        pdf.addImage(sliceData, 'JPEG', margin, margin, imgWmm, sliceHmm, undefined, 'FAST');
+        yOffsetPx += sliceHeight;
+        pageNo++;
+      }
+    }
+
+    const today = new Date().toISOString().slice(0, 10);  // YYYY-MM-DD
+    pdf.save(`팀원_성향_스냅샷_${today}.pdf`);
+
+    if (typeof Portal !== 'undefined' && Portal.showToast) {
+      Portal.showToast('PDF 다운로드 완료', 'success');
+    }
+  } catch (err) {
+    console.error('[traits-pdf] export failed:', err);
+    alert('PDF 생성 실패: ' + (err.message || err));
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.style.visibility = btnOriginalVisibility;
+      btn.innerHTML = spinner;
+    }
+  }
+}
+window.exportTraitsSnapshotToPdf = exportTraitsSnapshotToPdf;
 
 } catch (e) {
   if (e.message !== 'RBAC_BLOCK') throw e;
