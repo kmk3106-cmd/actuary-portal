@@ -478,6 +478,11 @@ function buildCardHtml(u) {
         <span class="info-val">${u.division || '계리실'} / ${u.department || '계리결산팀'}</span>
       </div>
       <div class="info-row">
+        <i class="fas fa-birthday-cake info-icon"></i>
+        <span class="info-label">생년월일</span>
+        <span class="info-val">${fmtDate(u.birth_date)}</span>
+      </div>
+      <div class="info-row">
         <i class="fas fa-calendar-plus info-icon"></i>
         <span class="info-label">부임일</span>
         <span class="info-val">${fmtDate(u.dept_date)}</span>
