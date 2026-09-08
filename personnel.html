@@ -42,6 +42,8 @@
     .bg-G2 { background:#dcfce7; color:#166534; }
     .bg-G1 { background:#fef3c7; color:#92400e; }
     .badge-leader { background:#fef2f2; color:#991b1b; font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px; }
+    .badge-div-head { background:#ede9fe; color:#5b21b6; font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px; }
+    .badge-chief { background:#fef3c7; color:#92400e; font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px; }
     .badge-position { background:#f3f4f6; color:#374151; font-size:11px; font-weight:600; padding:2px 8px; border-radius:6px; }
 
     /* 카드 바디 */
@@ -225,6 +227,22 @@
           </select>
         </div>
       </div>
+      <div class="form-row" id="fRoleRow" style="display:none;">
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label" style="color:#b45309;">
+            <i class="fas fa-shield-alt"></i> 권한 (팀장 전용 수정 - 신중히)
+          </label>
+          <select class="form-input form-select" id="fRole">
+            <option value="employee">직원 (employee)</option>
+            <option value="section_chief">실장 (section_chief)</option>
+            <option value="team_leader">팀장 (team_leader)</option>
+            <option value="division_head">본부장 (division_head)</option>
+          </select>
+          <div style="font-size:11px;color:#9ca3af;margin-top:4px;">
+            본부장·실장·팀장은 임원업무보고·성과관리·리뷰 등 관리자 화면 열람 가능
+          </div>
+        </div>
+      </div>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">입사일자</label>
@@ -320,8 +338,9 @@
           <label class="form-label">역할</label>
           <select class="form-input form-select" id="nfRole">
             <option value="employee">직원 (employee)</option>
-            <option value="section_chief">파트장 (section_chief)</option>
+            <option value="section_chief">실장 (section_chief)</option>
             <option value="team_leader">팀장 (team_leader)</option>
+            <option value="division_head">본부장 (division_head)</option>
           </select>
         </div>
         <div class="form-group">
@@ -418,7 +437,9 @@ async function loadUsers() {
 
 function buildCardHtml(u) {
   const gKey = (u.grade || 'G1직급').replace('직급','');
-  const isLdr = u.role === 'team_leader';
+  const isLdr    = u.role === 'team_leader';
+  const isDivHd  = u.role === 'division_head';
+  const isChief  = u.role === 'section_chief';
   const isRetired = u.is_active === false;
   const yrs = u.dept_date ? calcYears(u.dept_date) : (u.years ? u.years + '년' : '-');
   const initial = (u.full_name || u.username || '?').slice(0, 1);
@@ -430,7 +451,9 @@ function buildCardHtml(u) {
         <h3>${u.full_name || u.username}</h3>
         <div class="card-badges">
           <span class="badge-grade bg-${gKey}">${u.grade || '-'}</span>
-          ${isLdr ? '<span class="badge-leader"><i class="fas fa-crown"></i> 팀장</span>' : ''}
+          ${isDivHd ? '<span class="badge-div-head"><i class="fas fa-star"></i> 본부장</span>' : ''}
+          ${isChief ? '<span class="badge-chief"><i class="fas fa-user-tie"></i> 실장</span>' : ''}
+          ${isLdr   ? '<span class="badge-leader"><i class="fas fa-crown"></i> 팀장</span>' : ''}
           <span class="badge-position">${u.position || '-'}</span>
           ${isRetired ? '<span class="badge-retired"><i class="fas fa-user-slash"></i> 퇴직</span>' : ''}
         </div>
@@ -557,6 +580,24 @@ function openEdit(userId) {
   document.getElementById('fSpecialty').value = u.specialty || '';
   document.getElementById('fTask').value = u.task_area || '';
   document.getElementById('fNote').value = u.notes || '';
+
+  // 역할(role) 편집 — 팀장에게만 표시. 본인 카드는 자기 role 강등 방지 위해 감춤.
+  const roleRow = document.getElementById('fRoleRow');
+  const isSelf  = currentUser && (currentUser.user_id === userId || currentUser.id === userId);
+  if (isLeader && !isSelf) {
+    roleRow.style.display = '';
+    const roleEl = document.getElementById('fRole');
+    roleEl.value = u.role || 'employee';
+    if (!roleEl.value && u.role) {
+      const opt = document.createElement('option');
+      opt.value = u.role; opt.textContent = u.role;
+      roleEl.appendChild(opt);
+      roleEl.value = u.role;
+    }
+  } else {
+    roleRow.style.display = 'none';
+  }
+
   document.getElementById('editModal').classList.add('open');
 }
 
@@ -578,6 +619,12 @@ async function saveCard() {
     task_area:     document.getElementById('fTask').value.trim(),
     notes:         document.getElementById('fNote').value.trim(),
   };
+  // 팀장이 role 편집 필드를 열어둔 경우에만 role 필드 포함 (본인 카드/직원 화면에서는 배제)
+  const roleRow = document.getElementById('fRoleRow');
+  if (isLeader && roleRow && roleRow.style.display !== 'none') {
+    const newRole = document.getElementById('fRole').value.trim();
+    if (newRole) body.role = newRole;
+  }
   try {
     const res = await fetch('/tables/users/' + userId, {
       method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)

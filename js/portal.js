@@ -180,7 +180,7 @@ const Portal = (() => {
     const currentPage = window.location.pathname.split('/').pop() || 'index.html';
 
     const isLeader = user.role === 'team_leader';
-    const isLeaderOrChief = isLeader || user.role === 'section_chief';
+    const isLeaderOrChief = isLeader || user.role === 'section_chief' || user.role === 'division_head';
     let navHtml = '';
     let sectionIdx = 0;
     for (const section of NAV) {

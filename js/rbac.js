@@ -1,6 +1,6 @@
 /**
  * RBAC (Role-Based Access Control) Engine
- * 역할: team_leader(팀장) / section_chief(실장) / member(팀원)
+ * 역할: division_head(본부장) / team_leader(팀장) / section_chief(실장) / member(팀원)
  */
 
 const RBAC = (() => {
@@ -8,7 +8,8 @@ const RBAC = (() => {
   const ROLES = {
     MEMBER: 'member',
     TEAM_LEADER: 'team_leader',
-    SECTION_CHIEF: 'section_chief'
+    SECTION_CHIEF: 'section_chief',
+    DIVISION_HEAD: 'division_head'
   };
 
   const SESSION_KEY = 'rbac_session';
@@ -35,16 +36,17 @@ const RBAC = (() => {
 
   function isTeamLeader() { return hasRole(ROLES.TEAM_LEADER); }
   function isSectionChief() { return hasRole(ROLES.SECTION_CHIEF); }
+  function isDivisionHead() { return hasRole(ROLES.DIVISION_HEAD); }
   function isMember() { return hasRole(ROLES.MEMBER) || hasRole('employee'); }
   function isEmployee() { return hasRole(ROLES.MEMBER) || hasRole('employee'); }
 
-  // 실장(section_chief) = 전 화면 열람 가능하나 쓰기/삭제 금지(읽기 전용).
+  // 실장(section_chief)·본부장(division_head) = 전 화면 열람 가능하나 쓰기/삭제 금지(읽기 전용).
   // portal.js 전역 fetch 가드가 이 값을 보고 모든 변경 API를 차단한다.
-  function isReadOnly() { return hasRole(ROLES.SECTION_CHIEF); }
+  function isReadOnly() { return hasRole(ROLES.SECTION_CHIEF) || hasRole(ROLES.DIVISION_HEAD); }
 
-  // 팀장 전용 화면(설정·결산리뷰 등)을 '열람'할 수 있는 역할.
-  // 실장은 열람만 허용(쓰기는 isReadOnly 가드가 차단).
-  function canViewLeaderScreens() { return isTeamLeader() || isSectionChief(); }
+  // 팀장 전용 화면(설정·결산리뷰·임원업무보고 등)을 '열람'할 수 있는 역할.
+  // 실장·본부장은 열람만 허용(쓰기는 isReadOnly 가드가 차단).
+  function canViewLeaderScreens() { return isTeamLeader() || isSectionChief() || isDivisionHead(); }
 
   // 면담일지 접근 권한
   function checkInterviewAccess(action, log = null) {
@@ -63,7 +65,7 @@ const RBAC = (() => {
       case 'read':
         if (!log) return { allowed: false, message: '면담일지 정보가 없습니다.' };
         if (role === ROLES.TEAM_LEADER) return { allowed: true };
-        if (role === ROLES.SECTION_CHIEF) {
+        if (role === ROLES.SECTION_CHIEF || role === ROLES.DIVISION_HEAD) {
           if (log.is_confidential) return { allowed: false, message: '기밀 면담일지는 팀장만 열람 가능합니다.' };
           return { allowed: true };
         }
@@ -96,17 +98,17 @@ const RBAC = (() => {
     const user = getCurrentUser();
     if (!user) return [];
     if (user.role === ROLES.TEAM_LEADER) return logs;
-    if (user.role === ROLES.SECTION_CHIEF) return logs.filter(l => !l.is_confidential);
+    if (user.role === ROLES.SECTION_CHIEF || user.role === ROLES.DIVISION_HEAD) return logs.filter(l => !l.is_confidential);
     // employee or member: own non-confidential only
     return logs.filter(l => l.interviewee_id === user.user_id && !l.is_confidential);
   }
 
   function getRoleLabel(role) {
-    return { team_leader: '팀장', section_chief: '실장', member: '팀원', employee: '팀원' }[role] || role;
+    return { division_head: '본부장', team_leader: '팀장', section_chief: '실장', member: '팀원', employee: '팀원' }[role] || role;
   }
 
   function getRoleBadgeClass(role) {
-    return { team_leader: 'badge-team-leader', section_chief: 'badge-section-chief', member: 'badge-employee', employee: 'badge-employee' }[role] || 'badge-employee';
+    return { division_head: 'badge-division-head', team_leader: 'badge-team-leader', section_chief: 'badge-section-chief', member: 'badge-employee', employee: 'badge-employee' }[role] || 'badge-employee';
   }
 
   return {
@@ -117,6 +119,7 @@ const RBAC = (() => {
     hasRole,
     isTeamLeader,
     isSectionChief,
+    isDivisionHead,
     isMember,
     isEmployee,
     isReadOnly,
