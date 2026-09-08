@@ -233,10 +233,10 @@
             <i class="fas fa-shield-alt"></i> 권한 (팀장 전용 수정 - 신중히)
           </label>
           <select class="form-input form-select" id="fRole">
-            <option value="employee">직원 (employee)</option>
-            <option value="section_chief">실장 (section_chief)</option>
-            <option value="team_leader">팀장 (team_leader)</option>
-            <option value="division_head">본부장 (division_head)</option>
+            <option value="employee">직원</option>
+            <option value="section_chief">실장</option>
+            <option value="team_leader">팀장</option>
+            <option value="division_head">본부장</option>
           </select>
           <div style="font-size:11px;color:#9ca3af;margin-top:4px;">
             본부장·실장·팀장은 임원업무보고·성과관리·리뷰 등 관리자 화면 열람 가능
@@ -337,10 +337,10 @@
         <div class="form-group">
           <label class="form-label">역할</label>
           <select class="form-input form-select" id="nfRole">
-            <option value="employee">직원 (employee)</option>
-            <option value="section_chief">실장 (section_chief)</option>
-            <option value="team_leader">팀장 (team_leader)</option>
-            <option value="division_head">본부장 (division_head)</option>
+            <option value="employee">직원</option>
+            <option value="section_chief">실장</option>
+            <option value="team_leader">팀장</option>
+            <option value="division_head">본부장</option>
           </select>
         </div>
         <div class="form-group">
@@ -357,6 +357,13 @@
           <label class="form-label">부서 부임일자</label>
           <input type="date" class="form-input" id="nfDeptDate">
         </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">생년월일</label>
+          <input type="date" class="form-input" id="nfBirthDate">
+        </div>
+        <div class="form-group"></div>
       </div>
       <div class="section-divider"><i class="fas fa-lock"></i> 계정 설정</div>
       <div class="form-row">
@@ -650,6 +657,7 @@ function openAddModal() {
   document.getElementById('nfRole').value = 'employee';
   document.getElementById('nfJoinDate').value = '';
   document.getElementById('nfDeptDate').value = '';
+  document.getElementById('nfBirthDate').value = '';
   document.getElementById('addModal').classList.add('open');
 }
 
@@ -682,6 +690,7 @@ async function saveNewEmployee() {
     department:  document.getElementById('nfDept').value.trim() || '계리결산팀',
     join_date:   document.getElementById('nfJoinDate').value || null,
     dept_date:   document.getElementById('nfDeptDate').value || null,
+    birth_date:  document.getElementById('nfBirthDate').value || null,
     is_active:   true,
   };
   try {
