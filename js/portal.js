@@ -137,9 +137,10 @@ const Portal = (() => {
     {
       section: '업무',
       items: [
-        { href: 'work-personal.html',  icon: 'fa-tasks',      label: '개인별 업무입력' },
-        { href: 'workload-me.html',    icon: 'fa-chart-line', label: '내 업무량' },
-        { href: 'workload-team.html',  icon: 'fa-users',      label: '팀 업무량 모니터링', leaderOrChief: true }
+        { href: 'work-personal.html',  icon: 'fa-tasks',        label: '개인별 업무입력' },
+        { href: 'weekly-report.html',  icon: 'fa-calendar-week',label: '주간업무 보고' },
+        { href: 'workload-me.html',    icon: 'fa-chart-line',   label: '내 업무량' },
+        { href: 'workload-team.html',  icon: 'fa-users',        label: '팀 업무량 모니터링', leaderOrChief: true }
       ]
     },
     {

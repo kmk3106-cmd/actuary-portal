@@ -251,6 +251,8 @@ function migrateDb(db) {
     'engagement_points', 'point_rules', 'prize_rules', 'prize_history',
     // ── 임원업무보고: 팀원 성향(6축 레이더) ──
     'member_traits',
+    // ── 주간업무보고 (원본 xlsx 인별/업무유형별 통합 대체) ──
+    'weekly_tasks',
   ];
   for (const table of requiredTables) {
     if (!Array.isArray(db[table])) {
@@ -2310,6 +2312,96 @@ const server = http.createServer((req, res) => {
         send(404, { error: 'Unknown workload endpoint' });
       } catch (e) {
         send(500, { error: String(e.message || e) });
+      }
+    })();
+    return;
+  }
+
+  // ── 주간업무 xlsx 내보내기 ──
+  // GET /weekly/export?year=2026&week=37&view=person|typegroup|all
+  //     &label=<주차 라벨>&base=<YYYY-MM-DD>&member=<팀원 이름>(옵션: 팀원 뷰용 필터)
+  // 인증은 프런트 RBAC 에 위임 (기존 workload/tables 엔드포인트 동일 패턴).
+  if (urlPath.startsWith('/weekly/export')) {
+    const sendJson = (status, body) => {
+      res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(body));
+    };
+    (async () => {
+      try {
+        const u = new URL(urlPath, 'http://x');
+        const year = Number(u.searchParams.get('year'));
+        const week = Number(u.searchParams.get('week'));
+        const view = (u.searchParams.get('view') || 'person').toLowerCase();
+        const label = u.searchParams.get('label') || `${String(year).slice(2)}년 ${week}주차`;
+        const base = u.searchParams.get('base') || new Date().toISOString().slice(0, 10);
+        const memberFilter = (u.searchParams.get('member') || '').trim();
+        if (!year || !week || !['person', 'typegroup', 'all'].includes(view)) {
+          sendJson(400, { error: 'year/week/view 필수' }); return;
+        }
+
+        const db = readDb();
+        const allRows = (db.weekly_tasks || []).filter(t =>
+          Number(t.year) === year && Number(t.week_no) === week
+        );
+        const rows = memberFilter
+          ? allRows.filter(t => (t.member_name || '') === memberFilter)
+          : allRows;
+        if (rows.length === 0) {
+          sendJson(404, { error: '해당 주차에 등록된 업무가 없습니다.' }); return;
+        }
+
+        const os = require('os');
+        const path = require('path');
+        const fs = require('fs');
+        const { spawn } = require('child_process');
+
+        const tmp = os.tmpdir();
+        const stamp = Date.now();
+        const dataPath = path.join(tmp, `wr_data_${stamp}.json`);
+        const outPath  = path.join(tmp, `wr_out_${stamp}.xlsx`);
+        fs.writeFileSync(dataPath, JSON.stringify(rows), 'utf-8');
+
+        const script = path.join(__dirname, '..', 'reports', 'make_weekly_report.py');
+        const py = process.env.PYTHON_EXE || 'python';
+        const child = spawn(py, [
+          script,
+          '--data', dataPath,
+          '--week', label,
+          '--base-date', base,
+          '--out', outPath,
+          '--view', view,
+        ], { windowsHide: true });
+
+        let stderr = '';
+        child.stderr.on('data', c => { stderr += c.toString('utf8'); });
+        let responded = false;
+        child.on('error', e => {
+          if (responded) return; responded = true;
+          try { fs.unlinkSync(dataPath); } catch (_) { /* ignore */ }
+          sendJson(500, { error: 'python spawn 실패: ' + e.message });
+        });
+        child.on('close', code => {
+          if (responded) return; responded = true;
+          try { fs.unlinkSync(dataPath); } catch (_) { /* ignore */ }
+          if (code !== 0 || !fs.existsSync(outPath)) {
+            sendJson(500, { error: 'xlsx 생성 실패', stderr: stderr.slice(0, 500) });
+            return;
+          }
+          const buf = fs.readFileSync(outPath);
+          try { fs.unlinkSync(outPath); } catch (_) { /* ignore */ }
+          const suffix = view === 'typegroup' ? '업무유형별' : (view === 'all' ? '통합' : '인별');
+          const filename = `계리결산팀_주간업무_${year}년_${week}주차_${suffix}.xlsx`;
+          const encoded = encodeURIComponent(filename);
+          res.writeHead(200, {
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': `attachment; filename="report.xlsx"; filename*=UTF-8''${encoded}`,
+            'Content-Length': buf.length,
+            'Cache-Control': 'no-store',
+          });
+          res.end(buf);
+        });
+      } catch (e) {
+        sendJson(500, { error: String(e.message || e) });
       }
     })();
     return;
