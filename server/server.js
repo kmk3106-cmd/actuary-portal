@@ -2335,6 +2335,7 @@ const server = http.createServer((req, res) => {
         const label = u.searchParams.get('label') || `${String(year).slice(2)}년 ${week}주차`;
         const base = u.searchParams.get('base') || new Date().toISOString().slice(0, 10);
         const memberFilter = (u.searchParams.get('member') || '').trim();
+        const membersCsv = (u.searchParams.get('members') || '').trim();
         if (!year || !week || !['person', 'typegroup', 'all'].includes(view)) {
           sendJson(400, { error: 'year/week/view 필수' }); return;
         }
@@ -2343,9 +2344,13 @@ const server = http.createServer((req, res) => {
         const allRows = (db.weekly_tasks || []).filter(t =>
           Number(t.year) === year && Number(t.week_no) === week
         );
-        const rows = memberFilter
-          ? allRows.filter(t => (t.member_name || '') === memberFilter)
-          : allRows;
+        let rows = allRows;
+        if (membersCsv) {
+          const set = new Set(membersCsv.split(',').map(s => s.trim()).filter(Boolean));
+          rows = allRows.filter(t => set.has(t.member_name || ''));
+        } else if (memberFilter) {
+          rows = allRows.filter(t => (t.member_name || '') === memberFilter);
+        }
         if (rows.length === 0) {
           sendJson(404, { error: '해당 주차에 등록된 업무가 없습니다.' }); return;
         }

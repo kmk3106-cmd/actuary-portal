@@ -12,7 +12,7 @@
     .wr-toolbar {
       display:flex; gap:10px; align-items:center; flex-wrap:wrap;
       background:#fff; border:1.5px solid #e5e7eb; border-radius:14px;
-      padding:14px 18px; margin-bottom:18px;
+      padding:14px 18px; margin-bottom:16px;
     }
     .wr-toolbar select, .wr-toolbar input {
       padding:8px 12px; border:1.5px solid #e5e7eb; border-radius:9px;
@@ -22,6 +22,14 @@
     .wr-toolbar .label { font-size:12px; color:#6b7280; font-weight:600; margin-left:4px; }
     .wr-toolbar .spacer { flex:1; }
     .wr-toolbar .base-hint { font-size:12px; color:#9ca3af; font-style:italic; margin-left:8px; }
+
+    .wr-period-badge {
+      display:inline-flex; align-items:center; gap:6px;
+      padding:8px 14px; background:linear-gradient(135deg,#eff6ff,#e0e7ff);
+      color:#3730a3; font-weight:800; font-size:13.5px; border-radius:9px;
+      border:1.5px solid #c7d2fe;
+    }
+    .wr-period-badge i { color:#6366f1; }
 
     .wr-btn {
       display:inline-flex; align-items:center; gap:6px;
@@ -34,6 +42,24 @@
     .wr-btn-primary:hover { background:linear-gradient(135deg,#3a6fd8,#5849c4); color:#fff; }
     .wr-btn-download { background:linear-gradient(135deg,#059669,#10b981); color:#fff; border-color:transparent; }
     .wr-btn-download:hover { background:linear-gradient(135deg,#047857,#059669); color:#fff; }
+
+    .wr-view-panel {
+      background:#fff; border:1.5px solid #e5e7eb; border-radius:14px;
+      padding:12px 16px; margin-bottom:16px;
+      display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    }
+    .wr-view-panel .lbl { font-size:12.5px; font-weight:700; color:#374151; }
+    .wr-view-panel .chip {
+      display:inline-flex; align-items:center; gap:6px;
+      padding:5px 10px 5px 12px; border-radius:999px;
+      background:#eef2ff; color:#3730a3; font-size:12.5px; font-weight:700;
+    }
+    .wr-view-panel .chip.me { background:linear-gradient(135deg,#c7d2fe,#a5b4fc); color:#312e81; }
+    .wr-view-panel .chip .x {
+      cursor:pointer; padding:0 4px; margin-left:2px; color:#6366f1;
+      font-weight:900; border:none; background:none;
+    }
+    .wr-view-panel .chip .x:hover { color:#dc2626; }
 
     .wr-stat-bar {
       display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;
@@ -49,8 +75,7 @@
     .wr-stat-value.o { color:#9ca3af; }
 
     .wr-table-wrap {
-      background:#fff; border:1.5px solid #e5e7eb; border-radius:14px;
-      overflow:hidden;
+      background:#fff; border:1.5px solid #e5e7eb; border-radius:14px; overflow:hidden;
     }
     .wr-table-head {
       padding:14px 18px; border-bottom:1px solid #f3f4f6;
@@ -59,7 +84,7 @@
     .wr-table-title { font-size:15px; font-weight:700; color:#111827; display:flex; align-items:center; gap:8px; }
     .wr-table-title i { color:#4f86f7; }
     .wr-table-scroll { overflow-x:auto; }
-    .wr-tbl { width:100%; border-collapse:collapse; font-size:13px; min-width:1080px; }
+    .wr-tbl { width:100%; border-collapse:collapse; font-size:13px; min-width:1560px; }
     .wr-tbl thead th {
       background:linear-gradient(180deg,#f8fafc 0%,#f1f5f9 100%);
       color:#334155; font-weight:800; font-size:11.5px;
@@ -70,6 +95,17 @@
     }
     .wr-tbl tbody tr:hover { background:#fafbff; }
     .wr-tbl tbody tr.new-row { background:#fefce8; }
+    .wr-tbl tbody tr.readonly-row td { background:#fbfbfd; }
+    .wr-tbl tbody tr.group-header td {
+      background:linear-gradient(90deg,#f8faff,#fff);
+      padding:10px 12px; border-top:2px solid #c7d2fe;
+      font-weight:800; color:#3730a3; font-size:13px;
+    }
+    .wr-tbl tbody tr.group-header .badge {
+      display:inline-block; padding:2px 8px; margin-left:8px;
+      background:#e0e7ff; color:#4338ca; border-radius:999px; font-size:11px; font-weight:700;
+    }
+    .wr-tbl tbody tr.group-header .badge.me { background:#dcfce7; color:#166534; }
     .wr-tbl input, .wr-tbl select, .wr-tbl textarea {
       width:100%; padding:6px 8px; border:1px solid transparent; border-radius:6px;
       font-size:12.5px; font-family:inherit; color:#111827; background:#fff;
@@ -78,10 +114,13 @@
     .wr-tbl input:focus, .wr-tbl select:focus, .wr-tbl textarea:focus {
       outline:none; border-color:#4f86f7; background:#eff6ff;
     }
-    .wr-tbl input:hover, .wr-tbl select:hover, .wr-tbl textarea:hover {
-      border-color:#e5e7eb;
-    }
+    .wr-tbl input:hover, .wr-tbl select:hover, .wr-tbl textarea:hover { border-color:#e5e7eb; }
     .wr-tbl textarea { min-height:34px; line-height:1.4; }
+    .wr-tbl tr.readonly-row input,
+    .wr-tbl tr.readonly-row select,
+    .wr-tbl tr.readonly-row textarea {
+      background:transparent; color:#4b5563; cursor:default; pointer-events:none;
+    }
     .wr-tbl .del-btn {
       width:26px; height:26px; padding:0; border:none; background:#fef2f2;
       color:#ef4444; border-radius:6px; cursor:pointer; font-size:11px;
@@ -92,6 +131,13 @@
     .wr-tbl .status-완료   { color:#059669; font-weight:700; }
     .wr-tbl .member-cell   { font-weight:800; color:#0f172a; padding-left:10px; }
     .wr-tbl .empty-msg     { text-align:center; padding:40px; color:#9ca3af; font-size:13px; }
+
+    /* 업무구분 셀렉트 색상 */
+    .ext-신규 { background:#e0f2fe !important; color:#0369a1; font-weight:700; }
+    .ext-연장 { background:#fef3c7 !important; color:#92400e; font-weight:700; }
+    .ext-종료 { background:#d1fae5 !important; color:#065f46; font-weight:700; }
+    .ext-상시 { background:#f1f5f9 !important; color:#475569; font-weight:600; }
+    .ext-보류 { background:#fee2e2 !important; color:#991b1b; font-weight:700; }
 
     .wr-add-block {
       padding:12px 18px; background:#fafbfc; border-top:1px solid #f3f4f6;
@@ -129,13 +175,23 @@
         <select id="yearSel"></select>
         <select id="weekSel"></select>
         <input type="date" id="baseDate">
-        <span class="base-hint">기준일 (선택 시 해당 주차 자동)</span>
+        <span class="wr-period-badge"><i class="fas fa-calendar-day"></i><span id="periodText">-</span></span>
         <span class="spacer"></span>
-        <select id="memberFilterSel" style="display:none;"><option value="">전체 팀원</option></select>
         <button class="wr-btn" id="btnDlPerson"    onclick="downloadReport('person')"    style="display:none;"><i class="fas fa-file-excel"></i> 인별 다운로드</button>
         <button class="wr-btn wr-btn-download" id="btnDlType" onclick="downloadReport('typegroup')" style="display:none;"><i class="fas fa-file-excel"></i> 업무유형별 다운로드</button>
-        <button class="wr-btn wr-btn-download" id="btnDlAll"  onclick="downloadReport('all')"       style="display:none;"><i class="fas fa-file-excel"></i> 통합 다운로드 (2시트)</button>
-        <button class="wr-btn"                  id="btnDlMe"                                        style="display:none;" onclick="downloadReport('person')"><i class="fas fa-file-excel"></i> 내 주간업무 다운로드</button>
+        <button class="wr-btn wr-btn-download" id="btnDlAll"  onclick="downloadReport('all')"       style="display:none;"><i class="fas fa-file-excel"></i> 통합 다운로드</button>
+        <button class="wr-btn" id="btnDlMineAll" onclick="downloadReport('person', true)" style="display:none;"><i class="fas fa-file-excel"></i> 내 주간업무만 다운로드</button>
+        <button class="wr-btn wr-btn-download" id="btnDlMyView" onclick="downloadReport('person', false)" style="display:none;"><i class="fas fa-file-excel"></i> 현재 뷰 다운로드</button>
+      </div>
+
+      <!-- 팀장·실장: 전체 필터 · 직원: 팀원 추가 조회 (union) -->
+      <div class="wr-view-panel" id="viewPanel">
+        <span class="lbl" id="viewPanelLbl">현재 뷰</span>
+        <div id="viewChips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+        <span class="spacer"></span>
+        <span class="lbl" id="addMemberLbl" style="display:none;">팀원 추가 조회 :</span>
+        <select id="addMemberSel" style="display:none;"></select>
+        <button class="wr-btn" id="btnResetView" style="display:none;" onclick="resetView()"><i class="fas fa-undo"></i> 초기화</button>
       </div>
 
       <div class="wr-stat-bar">
@@ -151,16 +207,19 @@
             <i class="fas fa-list-check"></i>
             <span id="tblTitle">주간업무 입력</span>
           </div>
-          <div class="wr-save-hint" id="saveHint">저장 시 자동 반영됩니다.</div>
+          <div class="wr-save-hint" id="saveHint">저장 시 서버에 반영됩니다.</div>
         </div>
         <div class="wr-table-scroll">
           <table class="wr-tbl">
             <thead>
               <tr>
                 <th style="width:80px;">팀원</th>
-                <th style="width:140px;">구분</th>
-                <th style="min-width:280px;">업무내용 <span style="color:#dc2626">*</span></th>
-                <th style="min-width:170px;">이슈·비고</th>
+                <th style="width:130px;">구분</th>
+                <th style="width:90px;">업무구분</th>
+                <th style="min-width:240px;">업무내용 <span style="color:#dc2626">*</span></th>
+                <th style="min-width:220px;">이번주 한 일</th>
+                <th style="min-width:220px;">다음주 할 일</th>
+                <th style="min-width:150px;">이슈·비고</th>
                 <th style="width:120px;">시작일</th>
                 <th style="width:120px;">완료(예정)</th>
                 <th style="width:80px;">진척율</th>
@@ -191,23 +250,25 @@
 Portal.init();
 try {
 
-const isLeader = RBAC.isTeamLeader();
 const currentUser = RBAC.getCurrentUser();
-const canManageAll = !!(currentUser && (currentUser.role === 'team_leader' || currentUser.role === 'section_chief'));
+const roleOf = currentUser && currentUser.role;
+const isLeader = roleOf === 'team_leader';
+const isChief  = roleOf === 'section_chief';
+const canManageAll = !!(isLeader || isChief);       // 팀장·실장 = 전체 관리 뷰
 const myName = (currentUser && (currentUser.full_name || currentUser.username)) || '';
 
-// UI 토글 (팀장·실장 = 전체 조회 · 팀장은 편집·다운로드 · 실장은 조회·다운로드)
+// 다운로드 버튼 노출
 if (canManageAll) {
-  document.getElementById('memberFilterSel').style.display = '';
   document.getElementById('btnDlPerson').style.display = '';
   document.getElementById('btnDlType').style.display = '';
   document.getElementById('btnDlAll').style.display = '';
 } else {
-  document.getElementById('btnDlMe').style.display = '';
-  document.getElementById('thWorkType').style.display = 'none';   // 팀원은 업무유형 열 미노출
+  document.getElementById('btnDlMineAll').style.display = '';
+  document.getElementById('btnDlMyView').style.display = '';
+  document.getElementById('thWorkType').style.display = 'none';
 }
 
-// ── 주차 계산 (ISO 8601 week) ───────────────────────────────
+// ── 주차 계산 (ISO 8601) ────────────────────────────────
 function isoWeek(d) {
   const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
   const dayNum = dt.getUTCDay() || 7;
@@ -218,31 +279,38 @@ function isoWeek(d) {
 }
 function mondayOfWeek(year, week) {
   const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
-  const dow = simple.getUTCDay();
   const iso = new Date(simple);
+  const dow = simple.getUTCDay();
   if (dow <= 4) iso.setUTCDate(simple.getUTCDate() - simple.getUTCDay() + 1);
   else iso.setUTCDate(simple.getUTCDate() + 8 - simple.getUTCDay());
   return iso;
+}
+function sundayOfWeek(year, week) {
+  const m = mondayOfWeek(year, week);
+  const s = new Date(m); s.setUTCDate(m.getUTCDate() + 6); return s;
 }
 function weeksInYear(year) {
   const d = new Date(Date.UTC(year, 11, 31));
   return isoWeek(d).week === 1 ? isoWeek(new Date(Date.UTC(year, 11, 24))).week : isoWeek(d).week;
 }
 function nthWeekOfMonth(dateObj) {
-  // 해당 월의 몇 번째 주차인지 (첫날 포함 주 = 1주차)
   const y = dateObj.getFullYear(), m = dateObj.getMonth();
   const firstMondayOffset = new Date(y, m, 1).getDay();
   const day = dateObj.getDate();
   return Math.ceil((day + (firstMondayOffset === 0 ? 6 : firstMondayOffset - 1)) / 7);
 }
 function weekLabel(year, week) {
-  // "'26년 9월 2주차" 형태
   const mon = mondayOfWeek(year, week);
   const nth = nthWeekOfMonth(mon);
-  return `'${String(year).slice(2)}년 ${mon.getMonth() + 1}월 ${nth}주차`;
+  return `'${String(year).slice(2)}년 ${mon.getUTCMonth() + 1}월 ${nth}주차`;
+}
+function weekPeriodText(year, week) {
+  const mon = mondayOfWeek(year, week), sun = sundayOfWeek(year, week);
+  const fmt = d => `${d.getUTCFullYear()}.${String(d.getUTCMonth() + 1).padStart(2, '0')}.${String(d.getUTCDate()).padStart(2, '0')}`;
+  return `${fmt(mon)} ~ ${fmt(sun)}`;
 }
 
-// ── 툴바 세팅 ──────────────────────────────────────────────
+// ── 툴바 세팅 ────────────────────────────────────
 const today = new Date();
 const cur = isoWeek(today);
 const yearSel = document.getElementById('yearSel');
@@ -256,7 +324,7 @@ function fillWeekSel(year) {
   const total = weeksInYear(year);
   for (let w = 1; w <= total; w++) {
     const mon = mondayOfWeek(year, w);
-    const label = `${w}주차 (${mon.getMonth() + 1}/${mon.getDate()} ~)`;
+    const label = `${w}주차 (${mon.getUTCMonth() + 1}/${mon.getUTCDate()} ~)`;
     const o = document.createElement('option'); o.value = w; o.textContent = label;
     weekSel.appendChild(o);
   }
@@ -264,15 +332,20 @@ function fillWeekSel(year) {
 fillWeekSel(cur.year);
 document.getElementById('weekSel').value = cur.week;
 document.getElementById('baseDate').value = today.toISOString().slice(0, 10);
+updatePeriodText();
 
 yearSel.addEventListener('change', () => { fillWeekSel(Number(yearSel.value)); onWeekChange(); });
 document.getElementById('weekSel').addEventListener('change', onWeekChange);
 document.getElementById('baseDate').addEventListener('change', onBaseChange);
-document.getElementById('memberFilterSel').addEventListener('change', renderRows);
 
+function updatePeriodText() {
+  const y = Number(yearSel.value), w = Number(document.getElementById('weekSel').value);
+  document.getElementById('periodText').textContent = weekPeriodText(y, w);
+}
 function onWeekChange() {
   const y = Number(yearSel.value), w = Number(document.getElementById('weekSel').value);
   document.getElementById('baseDate').value = mondayOfWeek(y, w).toISOString().slice(0, 10);
+  updatePeriodText();
   loadWeek();
 }
 function onBaseChange() {
@@ -280,44 +353,104 @@ function onBaseChange() {
   if (isNaN(d)) return;
   const { year, week } = isoWeek(d);
   yearSel.value = year; fillWeekSel(year); document.getElementById('weekSel').value = week;
+  updatePeriodText();
   loadWeek();
 }
 
 // ── 상태 ──────────────────────────────────────────────
-let ROWS = [];             // 화면 상 편집 중인 행들 (기존 + 신규)
-let USER_LIST = [];        // 팀원 목록 (활성)
-let currentYear, currentWeek, currentLabel, currentBase;
+let ROWS = [];
+let USER_LIST = [];       // 팀원 목록
+let VIEW_MEMBERS = [];    // 현재 화면에 표시 중인 팀원 (union 뷰용, 직원 모드)
+let currentYear, currentWeek, currentLabel, currentBase, currentPeriod;
+
+const EXTS = ['신규', '연장', '종료', '상시', '보류'];
 
 async function loadUsers() {
-  try {
-    const r = await fetch('/tables/users?limit=200');
-    const d = await r.json();
-    USER_LIST = (d.rows || d.data || [])
-      .filter(u => u.is_active !== false && u.full_name && u.role !== 'team_leader')
-      .map(u => u.full_name)
-      .sort((a, b) => a.localeCompare(b, 'ko'));
-    const sel = document.getElementById('memberFilterSel');
-    sel.innerHTML = '<option value="">전체 팀원</option>' +
-      USER_LIST.map(n => `<option value="${n}">${n}</option>`).join('');
-  } catch (e) { console.error(e); }
+  const r = await fetch('/tables/users?limit=200');
+  const d = await r.json();
+  USER_LIST = (d.rows || d.data || [])
+    .filter(u => u.is_active !== false && u.full_name && u.role !== 'team_leader')
+    .map(u => u.full_name)
+    .sort((a, b) => a.localeCompare(b, 'ko'));
+}
+
+function initViewMembers() {
+  // 팀장·실장 = 전 팀원 union · 직원 = 자기만 (버튼으로 추가)
+  if (canManageAll) {
+    VIEW_MEMBERS = USER_LIST.slice();  // 전원
+  } else {
+    VIEW_MEMBERS = [myName];
+  }
+  renderViewPanel();
+}
+
+function renderViewPanel() {
+  const chips = document.getElementById('viewChips');
+  const lbl   = document.getElementById('viewPanelLbl');
+  const addLbl = document.getElementById('addMemberLbl');
+  const addSel = document.getElementById('addMemberSel');
+  const resetBtn = document.getElementById('btnResetView');
+
+  if (canManageAll) {
+    lbl.textContent = '전체 팀원 표시 중 (팀장·실장 뷰)';
+    chips.innerHTML = VIEW_MEMBERS.map(n => `<span class="chip">${escHtml(n)}</span>`).join('');
+    addLbl.style.display = 'none';
+    addSel.style.display = 'none';
+    resetBtn.style.display = 'none';
+    return;
+  }
+  // 직원 모드
+  lbl.textContent = `내 업무 + 조회 중`;
+  chips.innerHTML = VIEW_MEMBERS.map((n, i) => {
+    const cls = n === myName ? 'chip me' : 'chip';
+    const closeBtn = n === myName ? '' : `<button class="x" title="닫기" onclick="removeViewMember('${escAttr(n)}')">×</button>`;
+    return `<span class="${cls}">${escHtml(n)}${closeBtn}</span>`;
+  }).join('');
+
+  // 추가 가능 팀원 목록 (본인 + 이미 뷰에 있는 사람 제외)
+  const remaining = USER_LIST.filter(n => !VIEW_MEMBERS.includes(n));
+  addLbl.style.display = '';
+  addSel.style.display = '';
+  addSel.innerHTML = '<option value="">-- 팀원 선택 --</option>' +
+    remaining.map(n => `<option value="${escAttr(n)}">${escHtml(n)}</option>`).join('');
+  addSel.onchange = () => {
+    const v = addSel.value; if (!v) return;
+    if (!VIEW_MEMBERS.includes(v)) VIEW_MEMBERS.push(v);
+    addSel.value = '';
+    renderViewPanel();
+    renderRows();
+  };
+  resetBtn.style.display = VIEW_MEMBERS.length > 1 ? '' : 'none';
+}
+
+function removeViewMember(name) {
+  VIEW_MEMBERS = VIEW_MEMBERS.filter(n => n !== name);
+  renderViewPanel();
+  renderRows();
+}
+function resetView() {
+  VIEW_MEMBERS = [myName];
+  renderViewPanel();
+  renderRows();
 }
 
 async function loadWeek() {
-  currentYear = Number(yearSel.value);
-  currentWeek = Number(document.getElementById('weekSel').value);
+  currentYear  = Number(yearSel.value);
+  currentWeek  = Number(document.getElementById('weekSel').value);
   currentLabel = weekLabel(currentYear, currentWeek);
-  currentBase = document.getElementById('baseDate').value;
-  document.getElementById('tblTitle').textContent = `${currentLabel}  |  기준일 ${currentBase}`;
+  currentBase  = document.getElementById('baseDate').value;
+  currentPeriod = weekPeriodText(currentYear, currentWeek);
+  document.getElementById('tblTitle').textContent =
+    `${currentLabel}  (${currentPeriod})  |  기준일 ${currentBase}`;
   setHint('로딩 중…');
   try {
-    const r = await fetch(`/tables/weekly_tasks?limit=500`);
+    const r = await fetch(`/tables/weekly_tasks?limit=1000`);
     const d = await r.json();
     const all = (d.rows || d.data || []);
-    ROWS = all
-      .filter(t => Number(t.year) === currentYear && Number(t.week_no) === currentWeek)
-      .filter(t => canManageAll ? true : (t.member_name === myName));
-    // 팀원은 최소 3행 자동 생성 (아직 아무것도 없을 때)
-    if (!canManageAll && ROWS.length === 0) {
+    ROWS = all.filter(t => Number(t.year) === currentYear && Number(t.week_no) === currentWeek);
+    // 팀원 첫 방문 시 자기 것 없으면 3행 자동 준비
+    const mine = ROWS.filter(r => r.member_name === myName);
+    if (!canManageAll && mine.length === 0) {
       for (let i = 0; i < 3; i++) ROWS.push(newEmptyRow(myName));
     }
     renderRows();
@@ -330,77 +463,120 @@ async function loadWeek() {
 function newEmptyRow(name) {
   return {
     _new: true,
-    year: currentYear, week_no: currentWeek, week_label: currentLabel, base_date: currentBase,
-    member_name: name || (canManageAll ? '' : myName),
-    category: '', task_content: '', issue_note: '',
-    start_date: '', end_date: '',
+    year: currentYear, week_no: currentWeek, week_label: currentLabel, base_date: currentBase, week_period: currentPeriod,
+    member_name: name || myName,
+    category: '', extension_type: '', task_content: '',
+    this_week_done: '', next_week_plan: '',
+    issue_note: '', start_date: '', end_date: '',
     progress: null, status: '',
     work_type: '', work_type_detail: '',
   };
 }
 
-function memberFilterVal() {
-  return canManageAll ? (document.getElementById('memberFilterSel').value || '') : myName;
+function canEditRow(r) {
+  if (isLeader) return true;                     // 팀장 = 모두 편집
+  if (isChief)  return false;                    // 실장 = 조회 (다운로드 O, 편집 X)
+  return (r.member_name || '') === myName;       // 직원 = 자기 것만
 }
 
 function renderRows() {
   const tbody = document.getElementById('wrTbody');
-  const filter = memberFilterVal();
-  const view = filter ? ROWS.filter(r => (r.member_name || '') === filter) : ROWS;
+  // 뷰 대상 결정
+  let view;
+  if (canManageAll) {
+    view = ROWS.slice();
+  } else {
+    view = ROWS.filter(r => VIEW_MEMBERS.includes(r.member_name || ''));
+  }
+  // 정렬: VIEW_MEMBERS 순서 우선, 같은 팀원 내에서는 신규 → 기존 순
+  if (!canManageAll) {
+    const order = new Map(VIEW_MEMBERS.map((n, i) => [n, i]));
+    view.sort((a, b) => {
+      const oa = order.get(a.member_name) ?? 999;
+      const ob = order.get(b.member_name) ?? 999;
+      if (oa !== ob) return oa - ob;
+      // 신규 행을 상단으로
+      return (a._new ? 0 : 1) - (b._new ? 0 : 1);
+    });
+  } else {
+    // 팀장 뷰: 이름 가나다
+    view.sort((a, b) => (a.member_name || '').localeCompare(b.member_name || '', 'ko'));
+  }
 
   if (view.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="10" class="empty-msg">
-      ${canManageAll
-        ? '등록된 업무가 없습니다. 아래 [새 업무 추가] 로 시작하세요.'
-        : '이번 주 등록된 업무가 없습니다. 아래 [새 업무 추가] 로 채워주세요.'}
-    </td></tr>`;
+    const msg = canManageAll
+      ? '이번 주 등록된 업무가 없습니다. 팀원이 입력하기를 기다려주세요.'
+      : (VIEW_MEMBERS.length === 1
+        ? '이번 주 등록된 업무가 없습니다. 아래 [새 업무 추가] 로 채워주세요.'
+        : '선택한 팀원들에 등록된 업무가 없습니다.');
+    tbody.innerHTML = `<tr><td colspan="13" class="empty-msg">${msg}</td></tr>`;
     updateStats(view);
     return;
   }
 
-  tbody.innerHTML = view.map((r, viewIdx) => {
+  // 그룹 헤더 (직원 뷰: 팀원 바뀔 때마다 헤더 삽입)
+  let html = '';
+  let lastMember = null;
+  view.forEach(r => {
     const globalIdx = ROWS.indexOf(r);
-    const memberEditable = canManageAll;
+    const editable = canEditRow(r);
+    const readonlyCls = editable ? '' : 'readonly-row';
+    const disAttr = editable ? '' : 'disabled';
+
+    if (!canManageAll && r.member_name !== lastMember) {
+      const isMe = r.member_name === myName;
+      html += `<tr class="group-header"><td colspan="13">
+        <i class="fas fa-user${isMe ? '-check' : ''}"></i> ${escHtml(r.member_name)}
+        <span class="badge ${isMe ? 'me' : ''}">${isMe ? '내 업무' : '조회'}</span>
+      </td></tr>`;
+      lastMember = r.member_name;
+    }
+
+    const typeCell = isLeader ? `
+      <select ${disAttr} onchange="upd(${globalIdx},'work_type',this.value)">
+        <option value="">-</option>
+        ${['Ⅰ','Ⅱ','Ⅲ','Ⅳ','Ⅴ','Ⅵ'].map(k => `<option value="${k}" ${r.work_type===k?'selected':''}>${k}</option>`).join('')}
+      </select>` : (canManageAll ? escHtml(r.work_type || '-') : '');
+
+    const memberEditable = isLeader;   // 팀장만 팀원 변경 가능
     const memberCell = memberEditable
       ? `<select onchange="upd(${globalIdx},'member_name',this.value)">
            <option value="">-</option>
            ${USER_LIST.map(n => `<option value="${n}" ${r.member_name===n?'selected':''}>${n}</option>`).join('')}
          </select>`
-      : `<div class="member-cell">${escHtml(r.member_name || myName)}</div>`;
+      : `<div class="member-cell">${escHtml(r.member_name || '')}</div>`;
 
-    const typeCell = canManageAll ? `
-      <select onchange="upd(${globalIdx},'work_type',this.value)">
-        <option value="">-</option>
-        <option value="Ⅰ" ${r.work_type==='Ⅰ'?'selected':''}>Ⅰ</option>
-        <option value="Ⅱ" ${r.work_type==='Ⅱ'?'selected':''}>Ⅱ</option>
-        <option value="Ⅲ" ${r.work_type==='Ⅲ'?'selected':''}>Ⅲ</option>
-        <option value="Ⅳ" ${r.work_type==='Ⅳ'?'selected':''}>Ⅳ</option>
-        <option value="Ⅴ" ${r.work_type==='Ⅴ'?'selected':''}>Ⅴ</option>
-        <option value="Ⅵ" ${r.work_type==='Ⅵ'?'selected':''}>Ⅵ</option>
-      </select>` : '';
-
-    return `
-      <tr class="${r._new ? 'new-row' : ''}">
+    html += `
+      <tr class="${r._new ? 'new-row' : ''} ${readonlyCls}">
         <td>${memberCell}</td>
-        <td><input type="text" placeholder="예: IFRS17 결산" value="${escAttr(r.category || '')}"
+        <td><input type="text" ${disAttr} placeholder="예: IFRS17 결산" value="${escAttr(r.category || '')}"
           oninput="upd(${globalIdx},'category',this.value)"></td>
-        <td><textarea rows="1" placeholder="업무내용" oninput="upd(${globalIdx},'task_content',this.value)">${escHtml(r.task_content || '')}</textarea></td>
-        <td><textarea rows="1" placeholder="이슈·비고" oninput="upd(${globalIdx},'issue_note',this.value)">${escHtml(r.issue_note || '')}</textarea></td>
-        <td><input type="text" placeholder="YYYY-MM-DD" value="${escAttr(r.start_date || '')}" oninput="upd(${globalIdx},'start_date',this.value)"></td>
-        <td><input type="text" placeholder="YYYY-MM-DD" value="${escAttr(r.end_date || '')}"   oninput="upd(${globalIdx},'end_date',this.value)"></td>
-        <td><input type="number" min="0" max="100" step="10" placeholder="%" value="${r.progress == null ? '' : Math.round(r.progress * 100)}"
+        <td><select ${disAttr} class="ext-${r.extension_type || ''}" onchange="upd(${globalIdx},'extension_type',this.value); this.className='ext-'+(this.value||'')">
+          <option value="">-</option>
+          ${EXTS.map(x => `<option value="${x}" ${r.extension_type===x?'selected':''}>${x}</option>`).join('')}
+        </select></td>
+        <td><textarea ${disAttr} rows="1" placeholder="업무내용 (필수)" oninput="upd(${globalIdx},'task_content',this.value)">${escHtml(r.task_content || '')}</textarea></td>
+        <td><textarea ${disAttr} rows="1" placeholder="이번 주에 한 일" oninput="upd(${globalIdx},'this_week_done',this.value)">${escHtml(r.this_week_done || '')}</textarea></td>
+        <td><textarea ${disAttr} rows="1" placeholder="다음 주에 할 일" oninput="upd(${globalIdx},'next_week_plan',this.value)">${escHtml(r.next_week_plan || '')}</textarea></td>
+        <td><textarea ${disAttr} rows="1" placeholder="이슈·비고" oninput="upd(${globalIdx},'issue_note',this.value)">${escHtml(r.issue_note || '')}</textarea></td>
+        <td><input type="text" ${disAttr} placeholder="YYYY-MM-DD" value="${escAttr(r.start_date || '')}" oninput="upd(${globalIdx},'start_date',this.value)"></td>
+        <td><input type="text" ${disAttr} placeholder="YYYY-MM-DD" value="${escAttr(r.end_date || '')}"   oninput="upd(${globalIdx},'end_date',this.value)"></td>
+        <td><input type="number" ${disAttr} min="0" max="100" step="10" placeholder="%" value="${r.progress == null ? '' : Math.round(r.progress * 100)}"
           oninput="upd(${globalIdx},'progress', this.value === '' ? null : (Number(this.value)/100))"></td>
-        <td><select class="status-${r.status || ''}" onchange="upd(${globalIdx},'status',this.value)">
+        <td><select ${disAttr} class="status-${r.status || ''}" onchange="upd(${globalIdx},'status',this.value); this.className='status-'+(this.value||'')">
           <option value="">-</option>
           <option value="미착수" ${r.status==='미착수'?'selected':''}>미착수</option>
           <option value="진행중" ${r.status==='진행중'?'selected':''}>진행중</option>
           <option value="완료"   ${r.status==='완료'  ?'selected':''}>완료</option>
         </select></td>
         <td>${typeCell}</td>
-        <td><button class="del-btn" title="삭제" onclick="delRow(${globalIdx})"><i class="fas fa-times"></i></button></td>
+        <td>${editable && (isLeader || r._new || r.member_name === myName)
+              ? `<button class="del-btn" title="삭제" onclick="delRow(${globalIdx})"><i class="fas fa-times"></i></button>`
+              : ''}</td>
       </tr>`;
-  }).join('');
+  });
 
+  tbody.innerHTML = html;
   updateStats(view);
 }
 
@@ -417,27 +593,18 @@ function updateStats(view) {
 
 function upd(idx, key, val) {
   if (!ROWS[idx]) return;
+  if (!canEditRow(ROWS[idx])) return;    // 안전망
   ROWS[idx][key] = val;
   ROWS[idx]._dirty = true;
-  // 팀원 이름 셀렉트가 바뀌면 유형 옆 상태 클래스 갱신 위해 재렌더는 생략 (성능),
-  // 상태 셀렉트 색상만 즉시 반영이 필요하면 렌더 재호출 대신 클래스 조작으로 충분.
-  if (key === 'status') {
-    // 셀렉트 텍스트 색상 즉시 변경
-    const sel = event && event.target;
-    if (sel) sel.className = 'status-' + (val || '');
-  }
   setHint('저장하지 않은 변경사항 있음', 'saving');
 }
+
 function delRow(idx) {
   const r = ROWS[idx];
   if (!r) return;
-  if (r._new) {
-    ROWS.splice(idx, 1);
-    renderRows();
-    return;
-  }
+  if (!canEditRow(r)) return;
+  if (r._new) { ROWS.splice(idx, 1); renderRows(); return; }
   if (!confirm('이 업무를 삭제하시겠습니까?')) return;
-  // 서버에서 즉시 삭제 + 목록에서 제거
   fetch('/tables/weekly_tasks/' + encodeURIComponent(r.id), { method: 'DELETE' })
     .then(res => {
       if (!res.ok) throw new Error('삭제 실패');
@@ -449,11 +616,11 @@ function delRow(idx) {
 }
 
 function addRow() {
-  const target = memberFilterVal() || (canManageAll ? '' : myName);
+  // 팀장·실장 시 첫 팀원(가나다)에게, 직원은 자기 이름으로
+  const target = canManageAll ? '' : myName;
   ROWS.push(newEmptyRow(target));
   renderRows();
   setHint('행 추가됨 · 저장 필요', 'saving');
-  // 스크롤 맨 아래로 (편의)
   setTimeout(() => {
     const trs = document.querySelectorAll('#wrTbody tr');
     if (trs.length) trs[trs.length - 1].scrollIntoView({ block: 'nearest' });
@@ -462,15 +629,18 @@ function addRow() {
 
 async function saveAll() {
   setHint('저장 중…', 'saving');
-  const dirty = ROWS.filter(r => (r._new || r._dirty) && (r.task_content || '').trim());
+  // 저장 대상 : 편집 가능 & 변경/신규 & task_content 있는 것
+  const dirty = ROWS.filter(r => canEditRow(r) && (r._new || r._dirty) && (r.task_content || '').trim());
   if (dirty.length === 0) { setHint('저장할 변경사항이 없습니다.', 'saved'); return; }
   let ok = 0, fail = 0;
   for (const r of dirty) {
-    // 팀원이 자기 것만 수정하도록 서버측 강제는 없음 (기존 패턴). 프런트에서는 정상 흐름 지원.
     const payload = {
-      year: currentYear, week_no: currentWeek, week_label: currentLabel, base_date: currentBase,
+      year: currentYear, week_no: currentWeek, week_label: currentLabel, base_date: currentBase, week_period: currentPeriod,
       member_name: r.member_name || myName,
-      category: r.category || '', task_content: r.task_content || '', issue_note: r.issue_note || '',
+      category: r.category || '', extension_type: r.extension_type || '',
+      task_content: r.task_content || '',
+      this_week_done: r.this_week_done || '', next_week_plan: r.next_week_plan || '',
+      issue_note: r.issue_note || '',
       start_date: r.start_date || '', end_date: r.end_date || '',
       progress: r.progress, status: r.status || '',
       work_type: r.work_type || '', work_type_detail: r.work_type_detail || '',
@@ -479,13 +649,11 @@ async function saveAll() {
       let res;
       if (r._new) {
         res = await fetch('/tables/weekly_tasks', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
         });
       } else {
         res = await fetch('/tables/weekly_tasks/' + encodeURIComponent(r.id), {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
         });
       }
       if (!res.ok) throw new Error(String(res.status));
@@ -493,22 +661,29 @@ async function saveAll() {
       Object.assign(r, saved);
       delete r._new; delete r._dirty;
       ok++;
-    } catch (e) {
-      fail++;
-    }
+    } catch (e) { fail++; }
   }
   renderRows();
   if (fail === 0) setHint(`${ok}건 저장 완료`, 'saved');
   else setHint(`${ok}건 성공 · ${fail}건 실패`, 'error');
 }
 
-function downloadReport(view) {
+// 다운로드 :
+//   canManageAll → view='person'|'typegroup'|'all', 대상=전체
+//   직원 → view='person', mineOnly=true 면 자기만, false 면 현재 뷰(union) 전체
+function downloadReport(view, mineOnly) {
   const year = currentYear, week = currentWeek;
   const label = encodeURIComponent(currentLabel);
   const base = encodeURIComponent(currentBase);
   let url = `/weekly/export?year=${year}&week=${week}&view=${view}&label=${label}&base=${base}`;
-  if (!canManageAll) url += '&member=' + encodeURIComponent(myName);
-  // 파일 다운로드 트리거 (a[href][download] 방식보다 window.open 이 안전)
+  if (!canManageAll) {
+    if (mineOnly) {
+      url += '&member=' + encodeURIComponent(myName);
+    } else {
+      // 현재 뷰(union) 팀원들 전체 · 서버는 &member 단일 지원 → 여러 명은 CSV
+      url += '&members=' + encodeURIComponent(VIEW_MEMBERS.join(','));
+    }
+  }
   window.open(url, '_blank');
 }
 
@@ -520,10 +695,11 @@ function setHint(msg, cls) {
 function escAttr(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;'); }
 function escHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
-// ── 초기화 ─────────────────────────────────────────────
-Object.assign(window, { upd, delRow, addRow, saveAll, downloadReport });
+Object.assign(window, { upd, delRow, addRow, saveAll, downloadReport, removeViewMember, resetView });
+
 (async () => {
   await loadUsers();
+  initViewMembers();
   await loadWeek();
 })();
 
