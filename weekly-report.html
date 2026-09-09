@@ -192,7 +192,9 @@
         <span class="spacer"></span>
         <span class="lbl" id="addMemberLbl" style="display:none;">팀원 추가 조회 :</span>
         <select id="addMemberSel" style="display:none;"></select>
-        <button class="wr-btn" id="btnResetView" style="display:none;" onclick="resetView()"><i class="fas fa-undo"></i> 초기화</button>
+        <button class="wr-btn" id="btnResetView" style="display:none;" onclick="resetView()" title="union 뷰 초기화"><i class="fas fa-users-slash"></i> 뷰 초기화</button>
+        <button class="wr-btn" id="btnRevert" onclick="revertChanges()" title="저장하지 않은 변경사항을 서버 상태로 되돌리기"><i class="fas fa-undo"></i> 되돌리기</button>
+        <button class="wr-btn wr-btn-primary" onclick="saveAll()"><i class="fas fa-save"></i> 저장</button>
       </div>
 
       <div class="wr-stat-bar">
@@ -234,9 +236,7 @@
         </div>
         <div class="wr-add-block">
           <button class="wr-btn" onclick="addRow()"><i class="fas fa-plus"></i> 새 업무 추가</button>
-          <div>
-            <button class="wr-btn wr-btn-primary" onclick="saveAll()"><i class="fas fa-save"></i> 저장</button>
-          </div>
+          <span style="font-size:11.5px;color:#9ca3af;">저장 · 되돌리기 버튼은 상단 뷰 패널에 있습니다.</span>
         </div>
       </div>
 
@@ -688,6 +688,27 @@ function downloadReport(view, mineOnly) {
   window.open(url, '_blank');
 }
 
+// ── 되돌리기 : 저장하지 않은 모든 변경을 서버 상태로 복원 ────
+async function revertChanges() {
+  const dirty = ROWS.filter(r => r._new || r._dirty);
+  if (dirty.length === 0) {
+    setHint('되돌릴 변경사항이 없습니다.', 'saved');
+    return;
+  }
+  const newCount   = dirty.filter(r => r._new).length;
+  const dirtyCount = dirty.length - newCount;
+  const msg =
+    `저장하지 않은 변경을 서버 상태로 되돌립니다.\n\n` +
+    (newCount   ? `· 새로 추가한 ${newCount}건 : 제거됨\n` : '') +
+    (dirtyCount ? `· 수정한 ${dirtyCount}건 : 저장 전 값으로 복원\n` : '') +
+    `\n계속하시겠습니까?`;
+  if (!confirm(msg)) return;
+
+  setHint('되돌리는 중…', 'saving');
+  await loadWeek();      // 서버에서 다시 읽어와 화면 재구성 (_new / _dirty 모두 리셋됨)
+  setHint('되돌리기 완료 · 서버 상태로 복원', 'saved');
+}
+
 // ── 이전 주 업무 불러오기 (carry-over) ─────────────────
 async function carryOverPrevWeek() {
   const toYear = currentYear, toWeek = currentWeek;
@@ -753,7 +774,7 @@ function setHint(msg, cls) {
 function escAttr(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;'); }
 function escHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
-Object.assign(window, { upd, delRow, addRow, saveAll, downloadReport, removeViewMember, resetView, carryOverPrevWeek });
+Object.assign(window, { upd, delRow, addRow, saveAll, downloadReport, removeViewMember, resetView, carryOverPrevWeek, revertChanges });
 
 (async () => {
   await loadUsers();
