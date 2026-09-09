@@ -376,8 +376,8 @@ function onBaseChange() {
 let ROWS = [];
 let USER_LIST = [];       // 팀원 목록
 let VIEW_MEMBERS = [];    // 현재 화면에 표시 중인 팀원 (union 뷰용, 직원 모드)
-let PENDING_DELETES = []; // 저장 대기 중인 삭제 rows (되돌리기 가능)
-let LAST_CARRY_OVER = null; // { ids: [], from: '2026-W36', to: '2026-W37', at: <ms> } — 되돌리기 캐시
+let UNDO_STACK = [];      // 액션 히스토리 (LIFO) — 직전 행위 하나씩 되돌리기
+// 각 entry : { label: string, kind: 'carry_over'|'delete_mark'|'add_new', undo: async () => void }
 let currentYear, currentWeek, currentLabel, currentBase, currentPeriod;
 
 const EXTS = ['신규', '연장', '종료', '상시', '보류'];
@@ -468,6 +468,9 @@ async function loadWeek() {
   document.getElementById('tblTitle').textContent =
     `${currentLabel}  (${currentPeriod})  |  기준일 ${currentBase}`;
   setHint('로딩 중…');
+  // 새 주차로 이동 시 undo 스택 리셋 (이전 주의 undo 는 무의미)
+  UNDO_STACK = [];
+  updateUndoButton();
   try {
     const r = await fetch(`/tables/weekly_tasks?limit=1000`);
     const d = await r.json();
@@ -635,35 +638,56 @@ function delRow(idx) {
   if (!r) return;
   if (!canEditRow(r)) return;
   if (r._new) {
-    // 미저장 신규 행은 즉시 제거 (되돌릴 게 없음)
+    // 미저장 신규 행 : 즉시 제거 + undo stack 에서 해당 add_new 도 pop (있으면)
+    const before = { r, idx };
     ROWS.splice(idx, 1);
+    // 스택에서 이 행을 가리키는 add_new 액션 제거 (있을 때)
+    UNDO_STACK = UNDO_STACK.filter(e => !(e.kind === 'add_new' && e._ref === r));
+    updateUndoButton();
     renderRows();
     setHint('신규 행이 제거되었습니다.', 'saved');
     return;
   }
-  // 기존 행 : 즉시 삭제하지 않고 pending 마킹 → 저장 시 실제 DELETE, 되돌리기 시 취소
+  // 기존 행 : 즉시 삭제하지 않고 pending 마킹 → 저장 시 실제 DELETE
   if (r._pending_delete) {
-    // 이미 pending 이면 취소 (토글)
+    // 재클릭 = 취소 (토글) → 관련 undo entry 도 pop (있으면)
     delete r._pending_delete;
+    UNDO_STACK = UNDO_STACK.filter(e => !(e.kind === 'delete_mark' && e._ref === r));
+    updateUndoButton();
+    renderRows();
     setHint('삭제 예정을 취소했습니다.', 'saved');
-  } else {
-    r._pending_delete = true;
-    setHint('삭제 예정 · [저장] 눌러야 반영, [되돌리기] 로 취소 가능', 'saving');
+    return;
   }
+  r._pending_delete = true;
+  const preview = (r.task_content || '').slice(0, 24);
+  pushUndo({
+    kind: 'delete_mark',
+    _ref: r,
+    label: `삭제 예정 · ${r.member_name || '?'} · "${preview}${preview.length >= 24 ? '…' : ''}"`,
+    undo: async () => {
+      delete r._pending_delete;
+      renderRows();
+    },
+  });
   renderRows();
+  setHint('삭제 예정 · [저장] 눌러야 반영, [되돌리기] 로 취소', 'saving');
 }
-function undoPendingDelete(idx) {
-  const r = ROWS[idx];
-  if (!r) return;
-  delete r._pending_delete;
-  renderRows();
-  setHint('삭제 예정을 취소했습니다.', 'saved');
-}
+function undoPendingDelete(idx) { delRow(idx); }
 
 function addRow() {
-  // 팀장·실장 시 첫 팀원(가나다)에게, 직원은 자기 이름으로
   const target = canManageAll ? '' : myName;
-  ROWS.push(newEmptyRow(target));
+  const newRow = newEmptyRow(target);
+  ROWS.push(newRow);
+  pushUndo({
+    kind: 'add_new',
+    _ref: newRow,
+    label: `새 업무 행 추가 (${target || '팀원 미지정'})`,
+    undo: async () => {
+      const idx = ROWS.indexOf(newRow);
+      if (idx >= 0) ROWS.splice(idx, 1);
+      renderRows();
+    },
+  });
   renderRows();
   setHint('행 추가됨 · 저장 필요', 'saving');
   setTimeout(() => {
@@ -728,8 +752,11 @@ async function saveAll() {
     } catch (e) { fail++; }
   }
   renderRows();
-  // carry-over 캐시는 첫 저장이 성공하면 무효화 (되돌리기 대상에서 제외)
-  if ((ok + delOk) > 0 && LAST_CARRY_OVER) LAST_CARRY_OVER = null;
+  // 저장이 하나라도 성공하면 undo 스택 초기화 (저장 후 되돌리기는 위험)
+  if ((ok + delOk) > 0) {
+    UNDO_STACK = [];
+    updateUndoButton();
+  }
   const totalFail = fail + delFail;
   let hint = '';
   if (delOk) hint += `삭제 ${delOk}건 `;
@@ -758,48 +785,48 @@ function downloadReport(view, mineOnly) {
   window.open(url, '_blank');
 }
 
-// ── 되돌리기 : 저장 전 변경 · 삭제예정 · 최근 carry-over 롤백 ────
-async function revertChanges() {
-  const dirty       = ROWS.filter(r => r._new || r._dirty);
-  const pendingDel  = ROWS.filter(r => r._pending_delete);
-  const newCount    = dirty.filter(r => r._new).length;
-  const editCount   = dirty.length - newCount;
-  const co = (LAST_CARRY_OVER && (Date.now() - LAST_CARRY_OVER.at) < 30 * 60 * 1000) ? LAST_CARRY_OVER : null;
+// ── 되돌리기 (LIFO) : 직전 행위 하나만 취소 ─────────────
+function pushUndo(entry) {
+  UNDO_STACK.push(entry);
+  updateUndoButton();
+}
+function updateUndoButton() {
+  const btn = document.getElementById('btnRevert');
+  if (!btn) return;
+  if (UNDO_STACK.length === 0) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-undo"></i> 되돌리기';
+    btn.title = '되돌릴 행위가 없습니다.';
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'not-allowed';
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fas fa-undo"></i> 되돌리기 (${UNDO_STACK.length})`;
+    btn.title = `직전 행위: ${UNDO_STACK[UNDO_STACK.length - 1].label}`;
+    btn.style.opacity = '';
+    btn.style.cursor = '';
+  }
+}
 
-  if (dirty.length === 0 && pendingDel.length === 0 && !co) {
-    setHint('되돌릴 변경사항이 없습니다.', 'saved');
+async function revertChanges() {
+  if (UNDO_STACK.length === 0) {
+    setHint('되돌릴 행위가 없습니다.', 'saved');
     return;
   }
-  const msg =
-    `저장하지 않은 변경 · 삭제 예정 · 최근 carry-over 를 되돌립니다.\n\n` +
-    (newCount     ? `· 새로 추가한 ${newCount}건 : 제거\n` : '') +
-    (editCount    ? `· 수정한 ${editCount}건 : 서버 값으로 복원\n` : '') +
-    (pendingDel.length ? `· 삭제 예정 ${pendingDel.length}건 : 취소\n` : '') +
-    (co ? `· 직전 이전주 불러오기(${co.from} → ${co.to}) ${co.ids.length}건 : 서버에서 삭제\n` : '') +
-    `\n계속하시겠습니까?`;
-  if (!confirm(msg)) return;
-
+  const entry = UNDO_STACK[UNDO_STACK.length - 1];
+  const stackInfo = UNDO_STACK.length > 1
+    ? `\n\n(남은 되돌리기 가능 : ${UNDO_STACK.length - 1}건 — 계속 눌러서 앞선 행위도 순차 취소)`
+    : '';
+  if (!confirm(`직전 행위를 되돌립니다:\n\n· ${entry.label}${stackInfo}\n\n계속하시겠습니까?`)) return;
   setHint('되돌리는 중…', 'saving');
-
-  // carry-over 롤백 : 서버에서 실제 DELETE
-  let coFail = 0;
-  if (co) {
-    for (const id of co.ids) {
-      try {
-        const res = await fetch('/tables/weekly_tasks/' + encodeURIComponent(id), { method: 'DELETE' });
-        if (!res.ok && res.status !== 404) coFail++;
-      } catch (_) { coFail++; }
-    }
-    LAST_CARRY_OVER = null;
+  try {
+    await entry.undo();
+    UNDO_STACK.pop();
+    updateUndoButton();
+    setHint(`되돌렸습니다: ${entry.label}`, 'saved');
+  } catch (e) {
+    setHint('되돌리기 실패: ' + (e.message || e), 'error');
   }
-
-  // pending_delete / _new / _dirty 는 loadWeek() 로 서버 상태 재로드하면 리셋됨
-  await loadWeek();
-
-  let hint = '되돌리기 완료';
-  if (co)     hint += ` · carry-over ${co.ids.length - coFail}건 삭제`;
-  if (coFail) hint += ` (실패 ${coFail}건)`;
-  setHint(hint, coFail ? 'error' : 'saved');
 }
 
 // ── 이전 주 업무 불러오기 (carry-over) ─────────────────
@@ -849,19 +876,27 @@ async function carryOverPrevWeek() {
     });
     const d = await res.json();
     if (!res.ok) throw new Error(d.error || String(res.status));
-    // 되돌리기 캐시 (5분 유효)
+    // undo 스택에 push (carry-over 되돌리기 시 해당 rows 서버 DELETE)
     if (Array.isArray(d.carried_ids) && d.carried_ids.length > 0) {
-      LAST_CARRY_OVER = {
-        ids: d.carried_ids.slice(),
-        from: `${fromYear}-W${fromWeek}`,
-        to: `${toYear}-W${toWeek}`,
-        at: Date.now(),
-      };
+      const carriedIds = d.carried_ids.slice();
+      pushUndo({
+        kind: 'carry_over',
+        label: `이전 주 불러오기 · ${d.carried}건 (${fromLabel} → ${currentLabel})`,
+        undo: async () => {
+          for (const id of carriedIds) {
+            try {
+              const r2 = await fetch('/tables/weekly_tasks/' + encodeURIComponent(id), { method: 'DELETE' });
+              if (!r2.ok && r2.status !== 404) throw new Error(String(r2.status));
+            } catch (_) { /* 계속 진행 - 실패 카운트는 표시 안 함 (원자성보다 관용) */ }
+          }
+          await loadWeek();
+        },
+      });
     }
     let msg = `${d.carried}건 복사 완료`;
     if (d.skipped_done)      msg += ` · 완료 ${d.skipped_done}건 스킵`;
     if (d.skipped_duplicate) msg += ` · 중복 ${d.skipped_duplicate}건 스킵`;
-    if (LAST_CARRY_OVER)     msg += ' · [되돌리기] 가능';
+    if (d.carried > 0)       msg += ' · [되돌리기] 로 취소 가능';
     setHint(msg, 'saved');
     await loadWeek();  // 재로드
   } catch (e) {
@@ -883,6 +918,7 @@ Object.assign(window, { upd, delRow, undoPendingDelete, addRow, saveAll, downloa
   await loadUsers();
   initViewMembers();
   await loadWeek();
+  updateUndoButton();
 })();
 
 } catch (e) {
