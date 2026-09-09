@@ -482,13 +482,95 @@ const Portal = (() => {
     document.body.style.paddingTop = (parseFloat(getComputedStyle(document.body).paddingTop) || 0) + 34 + 'px';
   }
 
+  // ── 모바일/태블릿/폴더블 반응형 강화 ─────────────────────────
+  // 모든 페이지 공통(portal.js 는 전 페이지 로드) — 표가 화면보다 넓으면
+  // 가로 스크롤 컨테이너로 자동 감싸 '칸 부족 시 스크롤' 을 보장하고,
+  // 좁은 화면 터치 타깃·여백을 보정한다. main.css 를 건드리지 않도록
+  // 필요한 CSS 는 JS 가 <style> 로 주입한다.
+  function injectResponsiveStyle() {
+    if (document.getElementById('portal-responsive-style')) return;
+    const css = `
+      /* 표 가로 스크롤 래퍼 (칸 부족 시 스크롤) */
+      .rtable-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin; max-width: 100%; }
+      .rtable-scroll > table { min-width: max-content; }
+      .rtable-scroll::-webkit-scrollbar { height: 8px; }
+      .rtable-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+      .rtable-scroll::-webkit-scrollbar-track { background: transparent; }
+      /* 가로 스크롤 가능함을 알리는 옅은 그라데이션 힌트 (우측) */
+      .rtable-scroll.is-scrollable { position: relative; }
+      /* 이미지·코드블록이 화면 밖으로 나가지 않도록 */
+      .content-body img, .content-body pre, .modal-body img { max-width: 100%; }
+      /* 태블릿 이하: 터치 타깃 최소 높이 확보 */
+      @media (max-width: 900px) {
+        .btn, .nav-item, .status-btn, .settle-view-btn, .btn-add-row,
+        .btn-card-edit, .btn-card-reset, .btn-card-retire, .btn-card-delete { min-height: 40px; }
+        .exec-toolbar .btn, .exec-toolbar .load-select { min-height: 40px; }
+      }
+      /* 폴더블 커버/좁은 폰(≤380px): 여백·제목 축소로 가독성 확보 */
+      @media (max-width: 380px) {
+        .content-body { padding-left: 12px !important; padding-right: 12px !important; }
+        .page-title { font-size: 18px; }
+        .page-title small { display: block; margin-top: 2px; font-size: 12px; }
+      }
+      /* 초슬림(≤320px, 폴더블 커버 등): 카드 그리드 1열 강제 */
+      @media (max-width: 340px) {
+        .card-grid, .traits-grid, .stats-grid { grid-template-columns: 1fr !important; }
+      }
+    `;
+    const style = document.createElement('style');
+    style.id = 'portal-responsive-style';
+    style.textContent = css;
+    document.head.appendChild(style);
+  }
+
+  // 스크롤 가능한 조상이 이미 있으면(중복 래핑 방지) 건드리지 않는다.
+  const SCROLL_ANCESTORS = '.rtable-scroll,.table-scroll,.table-responsive,.personnel-table-wrap,.table-scroll-wrap,.doc-table-wrap';
+  function wrapWideTables(root) {
+    const scope = root && root.querySelectorAll ? root : document;
+    scope.querySelectorAll('table').forEach(function (tbl) {
+      if (tbl.closest(SCROLL_ANCESTORS)) return;          // 이미 스크롤 컨테이너 안
+      if (tbl.closest('.sidebar')) return;                 // 사이드바 제외
+      const parent = tbl.parentElement;
+      if (!parent) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'rtable-scroll';
+      parent.insertBefore(wrap, tbl);
+      wrap.appendChild(tbl);
+    });
+  }
+
+  function enableResponsiveTables() {
+    injectResponsiveStyle();
+    wrapWideTables(document);
+    // 동적으로 렌더되는 표(결산 매트릭스·목록 등)도 감싸도록 관찰 (디바운스)
+    if (window.MutationObserver && !window.__rtableObserver) {
+      let t = null;
+      const obs = new MutationObserver(function (muts) {
+        let hasTable = false;
+        for (const m of muts) {
+          for (const n of m.addedNodes) {
+            if (n.nodeType === 1 && (n.tagName === 'TABLE' || (n.querySelector && n.querySelector('table')))) { hasTable = true; break; }
+          }
+          if (hasTable) break;
+        }
+        if (!hasTable) return;
+        clearTimeout(t);
+        t = setTimeout(function () { wrapWideTables(document); }, 120);
+      });
+      obs.observe(document.body, { childList: true, subtree: true });
+      window.__rtableObserver = obs;
+    }
+  }
+
   function init() {
     if (!requireAuth()) return false;
     buildSidebar();
     ensureToastContainer();
     showReadOnlyBanner();
+    try { enableResponsiveTables(); } catch (_) { /* 반응형 강화 실패해도 페이지는 정상 */ }
     return true;
   }
 
-  return { init, buildSidebar, toggleSidebar, closeSidebar, showToast, formatDate, formatDateTime, todayStr, currentYearMonth, confirm, recalcPerfBasicFinal };
+  return { init, buildSidebar, toggleSidebar, closeSidebar, showToast, formatDate, formatDateTime, todayStr, currentYearMonth, confirm, recalcPerfBasicFinal, enableResponsiveTables };
 })();
