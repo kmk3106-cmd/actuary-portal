@@ -358,12 +358,17 @@ function updatePeriodText() {
   document.getElementById('periodText').textContent = weekPeriodText(y, w);
 }
 function onWeekChange() {
+  // 사용자가 주차를 실제로 바꾼 순간에만 스택 리셋 (이전 주 undo 는 무의미)
+  UNDO_STACK = [];
+  updateUndoButton();
   const y = Number(yearSel.value), w = Number(document.getElementById('weekSel').value);
   document.getElementById('baseDate').value = mondayOfWeek(y, w).toISOString().slice(0, 10);
   updatePeriodText();
   loadWeek();
 }
 function onBaseChange() {
+  UNDO_STACK = [];
+  updateUndoButton();
   const d = new Date(document.getElementById('baseDate').value);
   if (isNaN(d)) return;
   const { year, week } = isoWeek(d);
@@ -468,9 +473,11 @@ async function loadWeek() {
   document.getElementById('tblTitle').textContent =
     `${currentLabel}  (${currentPeriod})  |  기준일 ${currentBase}`;
   setHint('로딩 중…');
-  // 새 주차로 이동 시 undo 스택 리셋 (이전 주의 undo 는 무의미)
-  UNDO_STACK = [];
-  updateUndoButton();
+  // 스택은 여기서 리셋하지 않는다.
+  // - carryOverPrevWeek 이 pushUndo() 직후 loadWeek() 를 호출하므로
+  //   여기서 리셋하면 방금 넣은 carry_over 엔트리가 날아감.
+  // - 스택 리셋은 (a) 사용자가 실제로 주차/연도/기준일을 바꾼 이벤트 핸들러,
+  //   (b) 저장 성공 지점에서만 명시적으로 수행.
   try {
     const r = await fetch(`/tables/weekly_tasks?limit=1000`);
     const d = await r.json();
