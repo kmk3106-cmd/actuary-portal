@@ -96,6 +96,9 @@
     .wr-tbl tbody tr:hover { background:#fafbff; }
     .wr-tbl tbody tr.new-row { background:#fefce8; }
     .wr-tbl tbody tr.readonly-row td { background:#fbfbfd; }
+    .wr-tbl tbody tr.pending-delete-row td { background:#fef2f2 !important; opacity:0.6; text-decoration:line-through; }
+    .wr-tbl tbody tr.pending-delete-row td:first-child { text-decoration:none; }
+    .wr-tbl tbody tr.pending-delete-row .del-btn { background:#fee2e2; color:#991b1b; }
     .wr-tbl tbody tr.group-header td {
       background:linear-gradient(90deg,#f8faff,#fff);
       padding:10px 12px; border-top:2px solid #c7d2fe;
@@ -195,6 +198,17 @@
         <button class="wr-btn" id="btnResetView" style="display:none;" onclick="resetView()" title="union 뷰 초기화"><i class="fas fa-users-slash"></i> 뷰 초기화</button>
         <button class="wr-btn" id="btnRevert" onclick="revertChanges()" title="저장하지 않은 변경사항을 서버 상태로 되돌리기"><i class="fas fa-undo"></i> 되돌리기</button>
         <button class="wr-btn wr-btn-primary" onclick="saveAll()"><i class="fas fa-save"></i> 저장</button>
+      </div>
+
+      <!-- 업무유형 로마자 범례 (팀장만 편집 · 전원 조회) -->
+      <div class="wr-view-panel" style="background:linear-gradient(135deg,#f8fafc,#eff6ff);border-color:#dbeafe;">
+        <span class="lbl">업무유형</span>
+        <span class="chip" title="IFRS17 결산">Ⅰ · IFRS17 결산</span>
+        <span class="chip" title="결산 실무 (준비금·비금·계약)">Ⅱ · 결산 실무</span>
+        <span class="chip" title="차세대 시스템 구축">Ⅲ · 차세대</span>
+        <span class="chip" title="모델·시스템 관리">Ⅳ · 모델·시스템</span>
+        <span class="chip" title="대내외 대응 (감독원·회계법인·계리법인)">Ⅴ · 대내외 대응</span>
+        <span class="chip" title="관리회계 · 사업계획 · 기타 과제">Ⅵ · 관리회계·기타</span>
       </div>
 
       <div class="wr-stat-bar">
@@ -362,9 +376,19 @@ function onBaseChange() {
 let ROWS = [];
 let USER_LIST = [];       // 팀원 목록
 let VIEW_MEMBERS = [];    // 현재 화면에 표시 중인 팀원 (union 뷰용, 직원 모드)
+let PENDING_DELETES = []; // 저장 대기 중인 삭제 rows (되돌리기 가능)
+let LAST_CARRY_OVER = null; // { ids: [], from: '2026-W36', to: '2026-W37', at: <ms> } — 되돌리기 캐시
 let currentYear, currentWeek, currentLabel, currentBase, currentPeriod;
 
 const EXTS = ['신규', '연장', '종료', '상시', '보류'];
+const WORK_TYPE_LABEL = {
+  'Ⅰ': 'IFRS17 결산',
+  'Ⅱ': '결산 실무(준비금·비금·계약)',
+  'Ⅲ': '차세대 시스템 구축',
+  'Ⅳ': '모델·시스템 관리',
+  'Ⅴ': '대내외 대응',
+  'Ⅵ': '관리회계 및 기타',
+};
 
 async function loadUsers() {
   const r = await fetch('/tables/users?limit=200');
@@ -534,10 +558,10 @@ function renderRows() {
     }
 
     const typeCell = isLeader ? `
-      <select ${disAttr} onchange="upd(${globalIdx},'work_type',this.value)">
+      <select ${disAttr} onchange="upd(${globalIdx},'work_type',this.value)" title="Ⅰ IFRS17 결산 · Ⅱ 결산 실무 · Ⅲ 차세대 · Ⅳ 모델·시스템 · Ⅴ 대내외 대응 · Ⅵ 관리회계·기타">
         <option value="">-</option>
-        ${['Ⅰ','Ⅱ','Ⅲ','Ⅳ','Ⅴ','Ⅵ'].map(k => `<option value="${k}" ${r.work_type===k?'selected':''}>${k}</option>`).join('')}
-      </select>` : (canManageAll ? escHtml(r.work_type || '-') : '');
+        ${['Ⅰ','Ⅱ','Ⅲ','Ⅳ','Ⅴ','Ⅵ'].map(k => `<option value="${k}" ${r.work_type===k?'selected':''} title="${escAttr(WORK_TYPE_LABEL[k])}">${k} · ${escHtml(WORK_TYPE_LABEL[k].slice(0,10))}</option>`).join('')}
+      </select>` : (canManageAll ? `<span title="${escAttr(WORK_TYPE_LABEL[r.work_type] || '')}">${escHtml(r.work_type || '-')}</span>` : '');
 
     const memberEditable = isLeader;   // 팀장만 팀원 변경 가능
     const memberCell = memberEditable
@@ -547,9 +571,15 @@ function renderRows() {
          </select>`
       : `<div class="member-cell">${escHtml(r.member_name || '')}</div>`;
 
+    const delPending = !!r._pending_delete;
+    const rowClasses = [
+      r._new ? 'new-row' : '',
+      readonlyCls,
+      delPending ? 'pending-delete-row' : '',
+    ].filter(Boolean).join(' ');
     html += `
-      <tr class="${r._new ? 'new-row' : ''} ${readonlyCls}">
-        <td>${memberCell}</td>
+      <tr class="${rowClasses}">
+        <td>${delPending ? '<span style="color:#dc2626;font-weight:800;font-size:11px;">✕ 삭제 예정</span><br>' : ''}${memberCell}</td>
         <td><input type="text" ${disAttr} placeholder="예: IFRS17 결산" value="${escAttr(r.category || '')}"
           oninput="upd(${globalIdx},'category',this.value)"></td>
         <td><select ${disAttr} class="ext-${r.extension_type || ''}" onchange="upd(${globalIdx},'extension_type',this.value); this.className='ext-'+(this.value||'')">
@@ -604,16 +634,30 @@ function delRow(idx) {
   const r = ROWS[idx];
   if (!r) return;
   if (!canEditRow(r)) return;
-  if (r._new) { ROWS.splice(idx, 1); renderRows(); return; }
-  if (!confirm('이 업무를 삭제하시겠습니까?')) return;
-  fetch('/tables/weekly_tasks/' + encodeURIComponent(r.id), { method: 'DELETE' })
-    .then(res => {
-      if (!res.ok) throw new Error('삭제 실패');
-      ROWS.splice(idx, 1);
-      renderRows();
-      setHint('삭제되었습니다.', 'saved');
-    })
-    .catch(e => setHint('삭제 실패: ' + (e.message || e), 'error'));
+  if (r._new) {
+    // 미저장 신규 행은 즉시 제거 (되돌릴 게 없음)
+    ROWS.splice(idx, 1);
+    renderRows();
+    setHint('신규 행이 제거되었습니다.', 'saved');
+    return;
+  }
+  // 기존 행 : 즉시 삭제하지 않고 pending 마킹 → 저장 시 실제 DELETE, 되돌리기 시 취소
+  if (r._pending_delete) {
+    // 이미 pending 이면 취소 (토글)
+    delete r._pending_delete;
+    setHint('삭제 예정을 취소했습니다.', 'saved');
+  } else {
+    r._pending_delete = true;
+    setHint('삭제 예정 · [저장] 눌러야 반영, [되돌리기] 로 취소 가능', 'saving');
+  }
+  renderRows();
+}
+function undoPendingDelete(idx) {
+  const r = ROWS[idx];
+  if (!r) return;
+  delete r._pending_delete;
+  renderRows();
+  setHint('삭제 예정을 취소했습니다.', 'saved');
 }
 
 function addRow() {
@@ -630,9 +674,28 @@ function addRow() {
 
 async function saveAll() {
   setHint('저장 중…', 'saving');
-  // 저장 대상 : 편집 가능 & 변경/신규 & task_content 있는 것
-  const dirty = ROWS.filter(r => canEditRow(r) && (r._new || r._dirty) && (r.task_content || '').trim());
-  if (dirty.length === 0) { setHint('저장할 변경사항이 없습니다.', 'saved'); return; }
+  // 1) 삭제 예정 rows 를 먼저 서버 DELETE (신규 미저장 삭제는 렌더링 단계에서 이미 처리됨)
+  const toDelete = ROWS.filter(r => canEditRow(r) && r._pending_delete && r.id && !r._new);
+  let delOk = 0, delFail = 0;
+  const successfullyDeleted = new Set();
+  for (const r of toDelete) {
+    try {
+      const res = await fetch('/tables/weekly_tasks/' + encodeURIComponent(r.id), { method: 'DELETE' });
+      if (!res.ok && res.status !== 404) throw new Error(String(res.status));
+      delOk++;
+      successfullyDeleted.add(r);
+    } catch (_) { delFail++; }
+  }
+  if (successfullyDeleted.size > 0) {
+    ROWS = ROWS.filter(r => !successfullyDeleted.has(r));
+  }
+
+  // 2) 저장 대상 : 편집 가능 & 변경/신규 & task_content 있는 것 & 삭제예정 아님
+  const dirty = ROWS.filter(r => canEditRow(r) && (r._new || r._dirty) && !r._pending_delete && (r.task_content || '').trim());
+  if (dirty.length === 0 && delOk === 0 && delFail === 0) {
+    setHint('저장할 변경사항이 없습니다.', 'saved');
+    return;
+  }
   let ok = 0, fail = 0;
   for (const r of dirty) {
     const payload = {
@@ -665,8 +728,15 @@ async function saveAll() {
     } catch (e) { fail++; }
   }
   renderRows();
-  if (fail === 0) setHint(`${ok}건 저장 완료`, 'saved');
-  else setHint(`${ok}건 성공 · ${fail}건 실패`, 'error');
+  // carry-over 캐시는 첫 저장이 성공하면 무효화 (되돌리기 대상에서 제외)
+  if ((ok + delOk) > 0 && LAST_CARRY_OVER) LAST_CARRY_OVER = null;
+  const totalFail = fail + delFail;
+  let hint = '';
+  if (delOk) hint += `삭제 ${delOk}건 `;
+  if (ok)    hint += `저장 ${ok}건 `;
+  if (!hint) hint = '변경사항 없음 ';
+  if (totalFail) hint += `· 실패 ${totalFail}건`;
+  setHint(hint.trim(), totalFail ? 'error' : 'saved');
 }
 
 // 다운로드 :
@@ -688,25 +758,48 @@ function downloadReport(view, mineOnly) {
   window.open(url, '_blank');
 }
 
-// ── 되돌리기 : 저장하지 않은 모든 변경을 서버 상태로 복원 ────
+// ── 되돌리기 : 저장 전 변경 · 삭제예정 · 최근 carry-over 롤백 ────
 async function revertChanges() {
-  const dirty = ROWS.filter(r => r._new || r._dirty);
-  if (dirty.length === 0) {
+  const dirty       = ROWS.filter(r => r._new || r._dirty);
+  const pendingDel  = ROWS.filter(r => r._pending_delete);
+  const newCount    = dirty.filter(r => r._new).length;
+  const editCount   = dirty.length - newCount;
+  const co = (LAST_CARRY_OVER && (Date.now() - LAST_CARRY_OVER.at) < 30 * 60 * 1000) ? LAST_CARRY_OVER : null;
+
+  if (dirty.length === 0 && pendingDel.length === 0 && !co) {
     setHint('되돌릴 변경사항이 없습니다.', 'saved');
     return;
   }
-  const newCount   = dirty.filter(r => r._new).length;
-  const dirtyCount = dirty.length - newCount;
   const msg =
-    `저장하지 않은 변경을 서버 상태로 되돌립니다.\n\n` +
-    (newCount   ? `· 새로 추가한 ${newCount}건 : 제거됨\n` : '') +
-    (dirtyCount ? `· 수정한 ${dirtyCount}건 : 저장 전 값으로 복원\n` : '') +
+    `저장하지 않은 변경 · 삭제 예정 · 최근 carry-over 를 되돌립니다.\n\n` +
+    (newCount     ? `· 새로 추가한 ${newCount}건 : 제거\n` : '') +
+    (editCount    ? `· 수정한 ${editCount}건 : 서버 값으로 복원\n` : '') +
+    (pendingDel.length ? `· 삭제 예정 ${pendingDel.length}건 : 취소\n` : '') +
+    (co ? `· 직전 이전주 불러오기(${co.from} → ${co.to}) ${co.ids.length}건 : 서버에서 삭제\n` : '') +
     `\n계속하시겠습니까?`;
   if (!confirm(msg)) return;
 
   setHint('되돌리는 중…', 'saving');
-  await loadWeek();      // 서버에서 다시 읽어와 화면 재구성 (_new / _dirty 모두 리셋됨)
-  setHint('되돌리기 완료 · 서버 상태로 복원', 'saved');
+
+  // carry-over 롤백 : 서버에서 실제 DELETE
+  let coFail = 0;
+  if (co) {
+    for (const id of co.ids) {
+      try {
+        const res = await fetch('/tables/weekly_tasks/' + encodeURIComponent(id), { method: 'DELETE' });
+        if (!res.ok && res.status !== 404) coFail++;
+      } catch (_) { coFail++; }
+    }
+    LAST_CARRY_OVER = null;
+  }
+
+  // pending_delete / _new / _dirty 는 loadWeek() 로 서버 상태 재로드하면 리셋됨
+  await loadWeek();
+
+  let hint = '되돌리기 완료';
+  if (co)     hint += ` · carry-over ${co.ids.length - coFail}건 삭제`;
+  if (coFail) hint += ` (실패 ${coFail}건)`;
+  setHint(hint, coFail ? 'error' : 'saved');
 }
 
 // ── 이전 주 업무 불러오기 (carry-over) ─────────────────
@@ -756,9 +849,19 @@ async function carryOverPrevWeek() {
     });
     const d = await res.json();
     if (!res.ok) throw new Error(d.error || String(res.status));
+    // 되돌리기 캐시 (5분 유효)
+    if (Array.isArray(d.carried_ids) && d.carried_ids.length > 0) {
+      LAST_CARRY_OVER = {
+        ids: d.carried_ids.slice(),
+        from: `${fromYear}-W${fromWeek}`,
+        to: `${toYear}-W${toWeek}`,
+        at: Date.now(),
+      };
+    }
     let msg = `${d.carried}건 복사 완료`;
     if (d.skipped_done)      msg += ` · 완료 ${d.skipped_done}건 스킵`;
     if (d.skipped_duplicate) msg += ` · 중복 ${d.skipped_duplicate}건 스킵`;
+    if (LAST_CARRY_OVER)     msg += ' · [되돌리기] 가능';
     setHint(msg, 'saved');
     await loadWeek();  // 재로드
   } catch (e) {
@@ -774,7 +877,7 @@ function setHint(msg, cls) {
 function escAttr(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;'); }
 function escHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
-Object.assign(window, { upd, delRow, addRow, saveAll, downloadReport, removeViewMember, resetView, carryOverPrevWeek, revertChanges });
+Object.assign(window, { upd, delRow, undoPendingDelete, addRow, saveAll, downloadReport, removeViewMember, resetView, carryOverPrevWeek, revertChanges });
 
 (async () => {
   await loadUsers();

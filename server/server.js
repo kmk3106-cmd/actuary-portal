@@ -2359,6 +2359,7 @@ const server = http.createServer((req, res) => {
           const now = Date.now();
           let carried = 0, skippedDone = 0, skippedDup = 0;
           const perMember = {};
+          const carriedIds = [];
           for (const r of src) {
             const pg = Number(r.progress);
             const done = (r.status === '완료') || (pg >= 1);
@@ -2392,6 +2393,7 @@ const server = http.createServer((req, res) => {
             };
             table.push(copy);
             existingKeys.add(key);
+            carriedIds.push(copy.id);
             carried++;
             const m = copy.member_name || '(미지정)';
             perMember[m] = (perMember[m] || 0) + 1;
@@ -2400,6 +2402,7 @@ const server = http.createServer((req, res) => {
           sendJson(200, {
             carried, skipped_done: skippedDone, skipped_duplicate: skippedDup,
             per_member: perMember,
+            carried_ids: carriedIds,       // 되돌리기용 - 프론트가 캐시했다가 revert 시 DELETE
             from: { year: from.year, week: from.week },
             to: { year: to.year, week: to.week },
           });
