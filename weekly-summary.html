@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>주간업무 실적 집계 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css?v=28">
+  <style>
+    .ws-toolbar {
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      background:#fff; border:1.5px solid #e5e7eb; border-radius:14px;
+      padding:14px 18px; margin-bottom:18px;
+    }
+    .ws-toolbar select, .ws-toolbar input {
+      padding:8px 12px; border:1.5px solid #e5e7eb; border-radius:9px;
+      font-size:13.5px; color:#374151; background:#fff;
+    }
+    .ws-toolbar select:focus { outline:none; border-color:#4f86f7; }
+    .ws-toolbar .lbl { font-size:12px; color:#6b7280; font-weight:600; margin-left:4px; }
+    .ws-toolbar .spacer { flex:1; }
+
+    .ws-btn {
+      display:inline-flex; align-items:center; gap:6px;
+      padding:8px 14px; border-radius:9px; border:1.5px solid #e5e7eb;
+      background:#fff; color:#374151; font-size:13.5px; font-weight:600; cursor:pointer;
+    }
+    .ws-btn:hover { border-color:#4f86f7; color:#4f86f7; background:#eff6ff; }
+    .ws-btn-dl { background:linear-gradient(135deg,#059669,#10b981); color:#fff; border-color:transparent; }
+    .ws-btn-dl:hover { background:linear-gradient(135deg,#047857,#059669); color:#fff; }
+
+    .ws-period-badge {
+      padding:8px 14px; background:linear-gradient(135deg,#eff6ff,#e0e7ff);
+      color:#3730a3; font-weight:800; font-size:13.5px; border-radius:9px;
+      border:1.5px solid #c7d2fe;
+    }
+
+    .ws-stat-row {
+      display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px;
+    }
+    .ws-card {
+      background:#fff; border:1.5px solid #f3f4f6; border-radius:14px;
+      padding:16px 20px; text-align:center;
+    }
+    .ws-card .l { font-size:11px; color:#9ca3af; font-weight:500; margin-bottom:4px; }
+    .ws-card .v { font-size:28px; font-weight:800; color:#111827; }
+    .ws-card .v.g { color:#10b981; }
+    .ws-card .v.b { color:#3b82f6; }
+    .ws-card .v.o { color:#9ca3af; }
+    .ws-card .v.p { color:#6366f1; }
+
+    .ws-panel { background:#fff; border:1.5px solid #e5e7eb; border-radius:14px; overflow:hidden; margin-bottom:18px; }
+    .ws-panel-head {
+      padding:14px 18px; border-bottom:1px solid #f3f4f6;
+      display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+    }
+    .ws-panel-title { font-size:15px; font-weight:800; color:#111827; display:flex; align-items:center; gap:8px; }
+    .ws-panel-title i { color:#6366f1; }
+    .ws-panel .scroll { overflow-x:auto; }
+    .ws-tbl { width:100%; border-collapse:collapse; font-size:13px; min-width:900px; }
+    .ws-tbl thead th {
+      background:linear-gradient(180deg,#f8fafc,#f1f5f9);
+      color:#334155; font-weight:800; font-size:11.5px;
+      padding:10px 8px; border-bottom:2px solid #cbd5e1; white-space:nowrap; text-align:center;
+    }
+    .ws-tbl tbody td {
+      padding:8px; border-bottom:1px solid #f3f4f6; text-align:center; color:#1e293b;
+    }
+    .ws-tbl tbody tr:hover { background:#fafbff; }
+    .ws-tbl .name-cell { text-align:left; font-weight:800; color:#0f172a; padding-left:14px; background:#eff6ff; }
+    .ws-tbl .wt-cell { font-weight:800; color:#4338ca; }
+    .ws-tbl tbody tr.total-row td { background:#f1f5f9; font-weight:800; color:#0f172a; }
+    .ws-tbl .empty-cell { color:#cbd5e1; }
+    .ws-tbl .pct { color:#4338ca; font-weight:700; }
+
+    .ws-empty { padding:40px; text-align:center; color:#9ca3af; }
+
+    @media (max-width:768px) {
+      .ws-stat-row { grid-template-columns:1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-chart-line"></i> 주간업무 실적 집계</h1>
+    </header>
+    <main class="content-body">
+
+      <div class="ws-toolbar">
+        <span class="lbl">기간</span>
+        <select id="yearSel"></select>
+        <select id="periodSel">
+          <option value="month">월간</option>
+          <option value="quarter">분기</option>
+          <option value="year">연간</option>
+        </select>
+        <select id="valueSel"></select>
+        <span class="ws-period-badge" id="periodBadge">-</span>
+        <span class="spacer"></span>
+        <button class="ws-btn ws-btn-dl" onclick="downloadXlsx('all')"><i class="fas fa-file-excel"></i> 통합 다운로드</button>
+        <button class="ws-btn ws-btn-dl" onclick="downloadXlsx('member')"><i class="fas fa-file-excel"></i> 인별 다운로드</button>
+        <button class="ws-btn ws-btn-dl" onclick="downloadXlsx('worktype')"><i class="fas fa-file-excel"></i> 업무유형별 다운로드</button>
+      </div>
+
+      <div class="ws-stat-row">
+        <div class="ws-card"><div class="l">과제 건수</div>  <div class="v"   id="stTotal">0</div></div>
+        <div class="ws-card"><div class="l">완료</div>       <div class="v g" id="stDone">0</div></div>
+        <div class="ws-card"><div class="l">진행중</div>     <div class="v b" id="stDoing">0</div></div>
+        <div class="ws-card"><div class="l">미착수</div>     <div class="v o" id="stNone">0</div></div>
+        <div class="ws-card"><div class="l">평균 진척율</div><div class="v p" id="stAvg">-</div></div>
+      </div>
+
+      <!-- 인별 집계 -->
+      <div class="ws-panel">
+        <div class="ws-panel-head">
+          <div class="ws-panel-title"><i class="fas fa-user-check"></i> 인별 집계</div>
+          <div style="font-size:12px;color:#9ca3af;">각 팀원별 총 · 완료 · 진행중 · 미착수 · 평균진척율 · 업무유형별 건수 · 업무구분별 건수</div>
+        </div>
+        <div class="scroll"><table class="ws-tbl" id="memberTbl"></table></div>
+      </div>
+
+      <!-- 업무유형별 집계 -->
+      <div class="ws-panel">
+        <div class="ws-panel-head">
+          <div class="ws-panel-title"><i class="fas fa-layer-group"></i> 업무유형별 집계</div>
+          <div style="font-size:12px;color:#9ca3af;">Ⅰ IFRS17 · Ⅱ 결산실무 · Ⅲ 차세대 · Ⅳ 모델·시스템 · Ⅴ 대내외 · Ⅵ 관리회계·기타</div>
+        </div>
+        <div class="scroll"><table class="ws-tbl" id="worktypeTbl"></table></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="js/rbac.js?v=31"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js?v=33"></script>
+<script>
+Portal.init();
+try {
+
+const WORK_TYPES = [
+  ['Ⅰ', 'IFRS17 결산'],
+  ['Ⅱ', '결산 실무'],
+  ['Ⅲ', '차세대'],
+  ['Ⅳ', '모델·시스템'],
+  ['Ⅴ', '대내외 대응'],
+  ['Ⅵ', '관리회계·기타'],
+];
+const EXTS = ['신규', '연장', '종료', '상시', '보류'];
+
+const today = new Date();
+const yearSel = document.getElementById('yearSel');
+for (let y = today.getFullYear() - 2; y <= today.getFullYear() + 1; y++) {
+  const o = document.createElement('option'); o.value = y; o.textContent = y + '년'; yearSel.appendChild(o);
+}
+yearSel.value = today.getFullYear();
+
+const periodSel = document.getElementById('periodSel');
+const valueSel  = document.getElementById('valueSel');
+periodSel.addEventListener('change', () => { rebuildValueSel(); load(); });
+yearSel.addEventListener('change', load);
+valueSel.addEventListener('change', load);
+
+function rebuildValueSel() {
+  const p = periodSel.value;
+  valueSel.innerHTML = '';
+  if (p === 'year') {
+    valueSel.disabled = true;
+    return;
+  }
+  valueSel.disabled = false;
+  if (p === 'month') {
+    for (let m = 1; m <= 12; m++) {
+      const o = document.createElement('option'); o.value = m; o.textContent = m + '월'; valueSel.appendChild(o);
+    }
+    valueSel.value = today.getMonth() + 1;
+  } else {
+    for (let q = 1; q <= 4; q++) {
+      const o = document.createElement('option'); o.value = q; o.textContent = 'Q' + q; valueSel.appendChild(o);
+    }
+    valueSel.value = Math.floor(today.getMonth() / 3) + 1;
+  }
+}
+rebuildValueSel();
+
+let currentQuery = null;
+
+async function load() {
+  const year = Number(yearSel.value);
+  const period = periodSel.value;
+  const value = Number(valueSel.value || 0);
+  currentQuery = { year, period, value };
+  const label = period === 'year' ? `${year}년 전체` : period === 'month' ? `${year}년 ${value}월` : `${year}년 ${value}분기`;
+  document.getElementById('periodBadge').textContent = label;
+
+  const params = new URLSearchParams({ year, period });
+  if (period !== 'year') params.set('value', value);
+  try {
+    const r = await fetch('/weekly/summary?' + params.toString());
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || String(r.status));
+    render(d);
+  } catch (e) {
+    document.getElementById('memberTbl').innerHTML   = `<tbody><tr><td class="ws-empty">로드 실패: ${escHtml(e.message || e)}</td></tr></tbody>`;
+    document.getElementById('worktypeTbl').innerHTML = '';
+  }
+}
+
+function render(d) {
+  // 상단 통계 (합계)
+  let sumTotal = 0, sumDone = 0, sumDoing = 0, sumNone = 0, pgSum = 0, pgCnt = 0;
+  Object.values(d.by_member).forEach(v => {
+    sumTotal += v.total; sumDone += v.done; sumDoing += v.doing; sumNone += v.none;
+    if (v.avg_progress != null) { pgSum += v.avg_progress * v.total; pgCnt += v.total; }
+  });
+  const avgPg = pgCnt > 0 ? (pgSum / pgCnt) : null;
+  document.getElementById('stTotal').textContent = sumTotal;
+  document.getElementById('stDone').textContent  = sumDone;
+  document.getElementById('stDoing').textContent = sumDoing;
+  document.getElementById('stNone').textContent  = sumNone;
+  document.getElementById('stAvg').textContent   = avgPg != null ? (avgPg * 100).toFixed(1) + '%' : '-';
+
+  renderMemberTbl(d.by_member);
+  renderWorktypeTbl(d.by_worktype, d.by_member);
+}
+
+function renderMemberTbl(byMember) {
+  const names = Object.keys(byMember);
+  const thead = `
+    <thead><tr>
+      <th style="width:100px;">팀원</th>
+      <th>총</th><th>완료</th><th>진행중</th><th>미착수</th><th>평균 진척</th>
+      ${WORK_TYPES.map(([k, l]) => `<th title="${l}">${k}</th>`).join('')}
+      ${EXTS.map(e => `<th>${e}</th>`).join('')}
+    </tr></thead>`;
+  if (!names.length) {
+    document.getElementById('memberTbl').innerHTML = thead + `<tbody><tr><td colspan="18" class="ws-empty">등록된 업무가 없습니다.</td></tr></tbody>`;
+    return;
+  }
+  // 정렬: 원본 순서 유지 (server 응답 그대로)
+  const rows = names.map(n => {
+    const b = byMember[n];
+    const wtCells = WORK_TYPES.map(([k]) => cellNum((b.by_worktype || {})[k])).join('');
+    const extCells = EXTS.map(e => cellNum((b.by_ext || {})[e])).join('');
+    const avg = b.avg_progress != null ? `<span class="pct">${(b.avg_progress * 100).toFixed(1)}%</span>` : '<span class="empty-cell">-</span>';
+    return `<tr>
+      <td class="name-cell">${escHtml(n)}</td>
+      ${cellNum(b.total)}${cellNum(b.done)}${cellNum(b.doing)}${cellNum(b.none)}
+      <td>${avg}</td>
+      ${wtCells}${extCells}
+    </tr>`;
+  }).join('');
+  // 합계
+  const sums = { total: 0, done: 0, doing: 0, none: 0, wt: {}, ext: {}, pgSum: 0, pgCnt: 0 };
+  WORK_TYPES.forEach(([k]) => sums.wt[k] = 0);
+  EXTS.forEach(e => sums.ext[e] = 0);
+  names.forEach(n => {
+    const b = byMember[n];
+    sums.total += b.total; sums.done += b.done; sums.doing += b.doing; sums.none += b.none;
+    if (b.avg_progress != null) { sums.pgSum += b.avg_progress * b.total; sums.pgCnt += b.total; }
+    WORK_TYPES.forEach(([k]) => sums.wt[k] += (b.by_worktype || {})[k] || 0);
+    EXTS.forEach(e => sums.ext[e] += (b.by_ext || {})[e] || 0);
+  });
+  const totalAvg = sums.pgCnt > 0 ? `<span class="pct">${(sums.pgSum / sums.pgCnt * 100).toFixed(1)}%</span>` : '-';
+  const totalWt  = WORK_TYPES.map(([k]) => cellNum(sums.wt[k])).join('');
+  const totalExt = EXTS.map(e => cellNum(sums.ext[e])).join('');
+  const totalRow = `<tr class="total-row">
+    <td class="name-cell">합계</td>
+    ${cellNum(sums.total)}${cellNum(sums.done)}${cellNum(sums.doing)}${cellNum(sums.none)}
+    <td>${totalAvg}</td>
+    ${totalWt}${totalExt}
+  </tr>`;
+  document.getElementById('memberTbl').innerHTML = thead + `<tbody>${rows}${totalRow}</tbody>`;
+}
+
+function renderWorktypeTbl(byWt, byMember) {
+  const memberNames = Object.keys(byMember);
+  const thead = `
+    <thead><tr>
+      <th style="width:70px;">유형</th>
+      <th style="width:180px;">설명</th>
+      <th>총</th><th>완료</th><th>진행중</th><th>미착수</th><th>평균 진척</th>
+      ${memberNames.map(n => `<th>${escHtml(n)}</th>`).join('')}
+    </tr></thead>`;
+  const rows = WORK_TYPES.map(([k, label]) => {
+    const w = byWt[k] || {};
+    const avg = w.avg_progress != null ? `<span class="pct">${(w.avg_progress * 100).toFixed(1)}%</span>` : '<span class="empty-cell">-</span>';
+    const memCells = memberNames.map(n => cellNum((w.by_member || {})[n])).join('');
+    return `<tr>
+      <td class="wt-cell">${k}</td>
+      <td style="text-align:left;padding-left:12px;">${escHtml(label)}</td>
+      ${cellNum(w.total || 0)}${cellNum(w.done || 0)}${cellNum(w.doing || 0)}${cellNum(w.none || 0)}
+      <td>${avg}</td>${memCells}
+    </tr>`;
+  }).join('');
+  // 미지정 행 (필요시)
+  let etcRow = '';
+  const etc = byWt['(미지정)'];
+  if (etc && etc.total > 0) {
+    const avg = etc.avg_progress != null ? `<span class="pct">${(etc.avg_progress * 100).toFixed(1)}%</span>` : '-';
+    const memCells = memberNames.map(n => cellNum((etc.by_member || {})[n])).join('');
+    etcRow = `<tr style="background:#fefce8;">
+      <td class="wt-cell" style="color:#92400e;">?</td>
+      <td style="text-align:left;padding-left:12px;color:#b45309;">(미지정) - 팀장 재분류 필요</td>
+      ${cellNum(etc.total)}${cellNum(etc.done)}${cellNum(etc.doing)}${cellNum(etc.none)}
+      <td>${avg}</td>${memCells}
+    </tr>`;
+  }
+  document.getElementById('worktypeTbl').innerHTML = thead + `<tbody>${rows}${etcRow}</tbody>`;
+}
+
+function cellNum(v) {
+  if (!v) return `<td class="empty-cell">-</td>`;
+  return `<td>${v}</td>`;
+}
+function escHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+function downloadXlsx(groupby) {
+  if (!currentQuery) return;
+  const { year, period, value } = currentQuery;
+  const params = new URLSearchParams({ year, period, groupby });
+  if (period !== 'year') params.set('value', value);
+  window.open('/weekly/summary/export?' + params.toString(), '_blank');
+}
+
+Object.assign(window, { downloadXlsx });
+load();
+
+} catch (e) {
+  if (e && e.message !== 'RBAC_BLOCK') throw e;
+}
+</script>
+</body>
+</html>

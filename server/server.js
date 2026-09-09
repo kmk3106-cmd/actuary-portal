@@ -2414,6 +2414,207 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // ── 주간업무 기간 집계 (월간/분기/년간) ──
+  // GET /weekly/summary?year=2026&period=month|quarter|year&value=9
+  //   period=month  → value = 1~12
+  //   period=quarter→ value = 1~4
+  //   period=year   → value 무시
+  //   응답 : { period, weeks:[...], by_member:{...}, by_worktype:{...}, tasks:[...] }
+  if (urlPath.startsWith('/weekly/summary') && !urlPath.includes('/export')) {
+    const sendJson = (status, body) => {
+      res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(body));
+    };
+    try {
+      const u = new URL(urlPath, 'http://x');
+      const year = Number(u.searchParams.get('year'));
+      const period = (u.searchParams.get('period') || 'month').toLowerCase();
+      const value = Number(u.searchParams.get('value') || 0);
+      if (!year || !['month', 'quarter', 'year'].includes(period)) {
+        sendJson(400, { error: 'year/period 필수' }); return;
+      }
+      const db = readDb();
+      const rows = (db.weekly_tasks || []).filter(t => Number(t.year) === year);
+      // 기간 필터 : task 의 base_date 를 기준으로 월/분기 매칭
+      let filtered;
+      if (period === 'year') {
+        filtered = rows;
+      } else if (period === 'month') {
+        filtered = rows.filter(t => {
+          const bd = String(t.base_date || '');
+          if (bd.length < 7) return false;
+          const m = Number(bd.slice(5, 7));
+          return m === value;
+        });
+      } else { // quarter
+        filtered = rows.filter(t => {
+          const bd = String(t.base_date || '');
+          if (bd.length < 7) return false;
+          const m = Number(bd.slice(5, 7));
+          const q = Math.floor((m - 1) / 3) + 1;
+          return q === value;
+        });
+      }
+      // 집계 (업무내용 있는 것만 counting 대상)
+      const validTasks = filtered.filter(t => (t.task_content || '').trim());
+      const acc = () => ({ total: 0, done: 0, doing: 0, none: 0, prog_sum: 0, prog_cnt: 0, by_worktype: { 'Ⅰ':0,'Ⅱ':0,'Ⅲ':0,'Ⅳ':0,'Ⅴ':0,'Ⅵ':0,'(미지정)':0 }, by_member: {}, by_ext: {} });
+      const byMember = {};
+      const byWorktype = { 'Ⅰ': acc(), 'Ⅱ': acc(), 'Ⅲ': acc(), 'Ⅳ': acc(), 'Ⅴ': acc(), 'Ⅵ': acc(), '(미지정)': acc() };
+
+      for (const t of validTasks) {
+        const m = t.member_name || '(미지정)';
+        const wt = t.work_type || '(미지정)';
+        const status = t.status || '';
+        const pg = (t.progress == null || t.progress === '') ? null : Number(t.progress);
+        const done = status === '완료' || pg >= 1;
+        const doing = !done && ((pg != null && pg > 0) || status === '진행중');
+        const none = !done && !doing;
+
+        byMember[m] = byMember[m] || acc();
+        byMember[m].total++;
+        if (done) byMember[m].done++;
+        if (doing) byMember[m].doing++;
+        if (none) byMember[m].none++;
+        if (pg != null) { byMember[m].prog_sum += pg; byMember[m].prog_cnt++; }
+        byMember[m].by_worktype[wt] = (byMember[m].by_worktype[wt] || 0) + 1;
+        const ex = t.extension_type || '(미지정)';
+        byMember[m].by_ext[ex] = (byMember[m].by_ext[ex] || 0) + 1;
+
+        const wtBucket = byWorktype[wt] || (byWorktype[wt] = acc());
+        wtBucket.total++;
+        if (done) wtBucket.done++;
+        if (doing) wtBucket.doing++;
+        if (none) wtBucket.none++;
+        if (pg != null) { wtBucket.prog_sum += pg; wtBucket.prog_cnt++; }
+        wtBucket.by_member[m] = (wtBucket.by_member[m] || 0) + 1;
+      }
+
+      // 평균 진척율 계산
+      const finalize = obj => {
+        Object.keys(obj).forEach(k => {
+          const v = obj[k];
+          v.avg_progress = v.prog_cnt > 0 ? (v.prog_sum / v.prog_cnt) : null;
+          delete v.prog_sum; delete v.prog_cnt;
+        });
+      };
+      finalize(byMember);
+      finalize(byWorktype);
+
+      // 주차 목록 (해당 기간에 등록된 rows 의 (year, week_no))
+      const weekSet = new Set(filtered.map(t => `${t.year}-W${t.week_no}`));
+      const weeks = [...weekSet].sort();
+
+      sendJson(200, {
+        year, period, value,
+        weeks,
+        task_count: validTasks.length,
+        by_member: byMember,
+        by_worktype: byWorktype,
+      });
+    } catch (e) {
+      sendJson(500, { error: String(e.message || e) });
+    }
+    return;
+  }
+
+  // ── 주간업무 기간 집계 xlsx 다운로드 ──
+  // GET /weekly/summary/export?year=&period=&value=[&groupby=member|worktype|all]
+  if (urlPath.startsWith('/weekly/summary/export')) {
+    const sendJson = (status, body) => {
+      res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(body));
+    };
+    try {
+      const u = new URL(urlPath, 'http://x');
+      const year = Number(u.searchParams.get('year'));
+      const period = (u.searchParams.get('period') || 'month').toLowerCase();
+      const value = Number(u.searchParams.get('value') || 0);
+      const groupby = (u.searchParams.get('groupby') || 'all').toLowerCase();
+      if (!year || !['month', 'quarter', 'year'].includes(period)) {
+        sendJson(400, { error: 'year/period 필수' }); return;
+      }
+      const db = readDb();
+      const rows = (db.weekly_tasks || []).filter(t => Number(t.year) === year);
+      let filtered;
+      if (period === 'year') {
+        filtered = rows;
+      } else if (period === 'month') {
+        filtered = rows.filter(t => {
+          const bd = String(t.base_date || '');
+          if (bd.length < 7) return false;
+          return Number(bd.slice(5, 7)) === value;
+        });
+      } else {
+        filtered = rows.filter(t => {
+          const bd = String(t.base_date || '');
+          if (bd.length < 7) return false;
+          const q = Math.floor((Number(bd.slice(5, 7)) - 1) / 3) + 1;
+          return q === value;
+        });
+      }
+      if (filtered.length === 0) {
+        sendJson(404, { error: '해당 기간에 데이터가 없습니다.' }); return;
+      }
+
+      const os = require('os');
+      const path = require('path');
+      const fs = require('fs');
+      const { spawn } = require('child_process');
+      const tmp = os.tmpdir();
+      const stamp = Date.now();
+      const dataPath = path.join(tmp, `ws_data_${stamp}.json`);
+      const outPath  = path.join(tmp, `ws_out_${stamp}.xlsx`);
+      fs.writeFileSync(dataPath, JSON.stringify(filtered), 'utf-8');
+
+      const script = path.join(__dirname, '..', 'reports', 'make_weekly_summary.py');
+      const py = process.env.PYTHON_EXE || 'python';
+      const args = [
+        script,
+        '--data', dataPath,
+        '--year', String(year),
+        '--period', period,
+        '--out', outPath,
+        '--groupby', groupby,
+      ];
+      if (value) args.push('--value', String(value));
+
+      const child = spawn(py, args, { windowsHide: true });
+      let stderr = '';
+      child.stderr.on('data', c => { stderr += c.toString('utf8'); });
+      let responded = false;
+      child.on('error', e => {
+        if (responded) return; responded = true;
+        try { fs.unlinkSync(dataPath); } catch (_) {}
+        sendJson(500, { error: 'python spawn 실패: ' + e.message });
+      });
+      child.on('close', code => {
+        if (responded) return; responded = true;
+        try { fs.unlinkSync(dataPath); } catch (_) {}
+        if (code !== 0 || !fs.existsSync(outPath)) {
+          sendJson(500, { error: 'xlsx 생성 실패', stderr: stderr.slice(0, 500) });
+          return;
+        }
+        const buf = fs.readFileSync(outPath);
+        try { fs.unlinkSync(outPath); } catch (_) {}
+        const periodLabel = period === 'year' ? `${year}년`
+          : period === 'quarter' ? `${year}년_Q${value}` : `${year}년_${value}월`;
+        const grpLabel = groupby === 'member' ? '인별' : (groupby === 'worktype' ? '업무유형별' : '통합');
+        const filename = `계리결산팀_${periodLabel}_실적_${grpLabel}.xlsx`;
+        const encoded = encodeURIComponent(filename);
+        res.writeHead(200, {
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'Content-Disposition': `attachment; filename="report.xlsx"; filename*=UTF-8''${encoded}`,
+          'Content-Length': buf.length,
+          'Cache-Control': 'no-store',
+        });
+        res.end(buf);
+      });
+    } catch (e) {
+      sendJson(500, { error: String(e.message || e) });
+    }
+    return;
+  }
+
   // ── 주간업무 xlsx 내보내기 ──
   // GET /weekly/export?year=2026&week=37&view=person|typegroup|all
   //     &label=<주차 라벨>&base=<YYYY-MM-DD>&member=<팀원 이름>(옵션: 팀원 뷰용 필터)
