@@ -572,6 +572,9 @@
           <select class="load-select" id="loadSelect" onchange="onLoadSelectChange()">
             <option value="">-- 불러오기 (과거 보고서) --</option>
           </select>
+          <button class="btn btn-secondary" onclick="reloadSharedReport()" title="다른 팀원이 저장한 최신 내용을 서버에서 다시 불러옵니다">
+            <i class="fas fa-sync-alt"></i> <span>최신 불러오기</span>
+          </button>
           <span class="exec-status-chip new" id="statusChip"><i class="fas fa-circle" style="font-size:6px;"></i> 새 보고서</span>
           <div class="exec-toolbar-spacer"></div>
           <button class="btn btn-secondary" onclick="printReport()">
@@ -1048,6 +1051,16 @@ let allReports = [];
 let previewMode = false;
 let draftDirty = false;
 let draftSaveTimer = null;
+
+// ── 공유 보고서 동기화 상태 ──────────────────────────
+// 보고서는 (연, 월) 당 서버 레코드 1건을 팀 전원이 공유한다.
+// loadedSnapshot / loadedUpdatedAt: 내가 마지막으로 서버에서 읽은 시점의 행 데이터·시각 —
+// 저장 시 그 사이 다른 사용자가 추가한 행을 3-way 병합하는 기준(base).
+let loadedSnapshot = null;
+let loadedUpdatedAt = null;
+let unsavedEdits = false;   // 서버 저장 안 된 편집 존재 여부 (탭 복귀 자동 최신화 억제용)
+let lastYm = null;          // 직전에 로드한 연월 (월 변경 시 이전 달 임시본 보존용)
+let refreshingShared = false;
 
 const ROW_DEFAULTS = {
   ach:  () => ({ title: '', content: '', effect: '' }),
@@ -2448,6 +2461,10 @@ function applyPayload(p) {
 
 function resetFormState() {
   currentReportId = null;
+  loadedSnapshot = null;   // 초기화 후 저장해도 다른 사용자가 추가한 행은 병합으로 보존됨
+  loadedUpdatedAt = null;
+  unsavedEdits = false;
+  draftDirty = false;
   rows = {
     ach: [ROW_DEFAULTS.ach()], ong: [ROW_DEFAULTS.ong()],
     iss: [ROW_DEFAULTS.iss()], plan: [ROW_DEFAULTS.plan()], dec: [ROW_DEFAULTS.dec()],
@@ -2472,7 +2489,19 @@ function resetFormState() {
   setStatusChip('new');
 }
 
-function onYmChange() { setStatusChip(currentReportId ? 'saved' : 'new'); scheduleDraftSave(); }
+// 연월 변경 → 그 달의 공유 보고서를 로드. 이전 달에 미저장 편집이 있으면 이전 달 키로 임시본 보존.
+function onYmChange() {
+  const newYm = currentYmStr();
+  if (unsavedEdits && lastYm && lastYm !== newYm) {
+    try {
+      const payload = collectPayload();
+      const { y, m } = ymParts(lastYm);
+      payload.year = y; payload.month = m;
+      localStorage.setItem('execReportDraft_' + ymKey(lastYm), JSON.stringify({ payload, savedAt: Date.now(), reportId: currentReportId }));
+    } catch (_) {}
+  }
+  loadSharedReport({});
+}
 
 // ── 상태 칩 ───────────────────────────────────────────
 function setStatusChip(kind, label) {
@@ -2493,6 +2522,7 @@ function draftKey() {
 }
 function scheduleDraftSave() {
   draftDirty = true;
+  unsavedEdits = true;   // 입력·행 추가/삭제 등 모든 편집 경로가 여기를 거침
   if (draftSaveTimer) clearTimeout(draftSaveTimer);
   draftSaveTimer = setTimeout(() => saveDraft(false), 900);
 }
@@ -2521,20 +2551,38 @@ function restoreDraftIfAny(silent) {
 }
 
 // ── 저장 (서버) ───────────────────────────────────────
+// (연, 월) 공유 레코드 1건에 upsert. 내가 읽어온 뒤 다른 사용자가 저장했으면
+// 그 사람이 추가한 행을 내 행에 합쳐서(3-way 병합) 저장 — 서로 덮어쓰지 않는다.
 async function saveReport() {
   const payload = collectPayload();
-  payload.created_by = currentUser?.full_name || currentUser?.username || '';
+  const actorName = currentUser?.full_name || currentUser?.username || '';
+  payload.updated_by = actorName;
   payload.updated_at = Date.now();
   try {
+    // 1) 이달 공유 레코드 탐색 — 다른 팀원이 먼저 만든 보고서가 있으면 그 레코드에 저장 (중복 생성 방지)
+    let list = allReports;
+    try { list = await fetchReports(); } catch (_) {}
+    const shared = findReportForYm(`${payload.year}-${String(payload.month).padStart(2, '0')}`, list);
+    if (shared) currentReportId = shared.id;
+
+    // 2) 동시 편집 병합 — 서버본이 내가 읽은 시각과 다르면 그 사이 추가된 행을 덧붙임
+    let toSave = payload, added = 0;
+    if (shared && String(shared.updated_at) !== String(loadedUpdatedAt)) {
+      const m = mergePayloadRows(loadedSnapshot, payload, shared);
+      toSave = m.payload; added = m.added;
+    }
+
+    // 3) PUT(공유 레코드) / POST(이달 첫 저장)
     let res;
     if (currentReportId) {
       res = await fetch('/tables/executive_reports/' + currentReportId, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(toSave)
       });
     } else {
-      payload.created_at = Date.now();
+      toSave.created_at = Date.now();
+      toSave.created_by = actorName;
       res = await fetch('/tables/executive_reports', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(toSave)
       });
     }
     if (!res.ok) {
@@ -2542,42 +2590,209 @@ async function saveReport() {
       try { const errBody = await res.json(); if (errBody?.error) detail += ` — ${errBody.error}`; } catch (_) {}
       throw new Error(detail);
     }
-    if (!currentReportId) {
-      const created = await res.json().catch(() => null);
-      currentReportId = created?.id || created?.data?.id || null;
+    const saved = await res.json().catch(() => null);
+    const rec = (saved && (saved.data || saved)) || {};
+    if (!currentReportId) currentReportId = rec.id || null;
+
+    // 4) 병합 기준 갱신 + 합쳐진 행을 화면에도 반영
+    loadedSnapshot = snapshotRows(toSave);
+    loadedUpdatedAt = rec.updated_at ?? null;
+    if (loadedUpdatedAt == null) {
+      try {
+        const l = await fetchReports();
+        const r2 = l.find(x => x.id === currentReportId);
+        if (r2) loadedUpdatedAt = r2.updated_at ?? null;
+      } catch (_) {}
     }
+    if (added > 0) applyPayload(toSave);
+    unsavedEdits = false;
+    draftDirty = false;
     localStorage.removeItem(draftKey());
     setStatusChip('saved');
-    Portal.showToast('임원 업무보고서가 저장되었습니다.', 'success');
+    Portal.showToast(added > 0
+      ? `저장되었습니다. 다른 사용자가 추가한 ${added}건의 행을 함께 반영했습니다.`
+      : '임원 업무보고서가 저장되었습니다.', 'success');
     await loadReportList();
+    document.getElementById('loadSelect').value = currentReportId || '';
   } catch (e) {
     console.error('saveReport failed:', e);
     Portal.showToast('저장에 실패했습니다. (' + (e?.message || '알 수 없는 오류') + ')', 'error');
   }
 }
 
-// ── 불러오기 (과거 보고서 목록) ───────────────────────
-async function loadReportList() {
-  try {
-    const res = await fetch('/tables/executive_reports?limit=100');
-    const data = await res.json();
-    allReports = (data.rows || data.data || []).sort((a, b) => (b.year * 100 + b.month) - (a.year * 100 + a.month));
-    const sel = document.getElementById('loadSelect');
-    const cur = sel.value;
-    sel.innerHTML = '<option value="">-- 불러오기 (과거 보고서) --</option>' +
-      allReports.map(r => `<option value="${r.id}">${r.year}년 ${r.month}월 · ${esc(r.receiver || '')} 보고</option>`).join('');
-    sel.value = cur;
-  } catch (_) { /* 목록 로드 실패해도 폼은 정상 동작 */ }
+// ── 행(row) 3-way 병합 — 동시 편집 시 서로 덮어쓰지 않도록 ─────────
+// ROW_FIELDS: 여러 사람이 각자 행을 추가하는 표 성격의 payload 필드.
+//   map  = { 카테고리키: row[] }  /  list = row[]
+const ROW_FIELDS = [
+  { field: 'settle_extra_by_category', kind: 'map'  },
+  { field: 'governance_docs',          kind: 'map'  },
+  { field: 'booster_licenses',         kind: 'list' },
+  { field: 'achievements',             kind: 'list' },
+  { field: 'ongoing',                  kind: 'list' },
+  { field: 'issues',                   kind: 'list' },
+  { field: 'next_plan',                kind: 'list' },
+  { field: 'decisions',                kind: 'list' },
+];
+function rowKey(r) {
+  const o = {};
+  Object.keys(r || {}).sort().forEach(k => { o[k] = String(r[k] == null ? '' : r[k]).trim(); });
+  return JSON.stringify(o);
 }
+function isBlankRow(r) { return Object.values(r || {}).every(v => String(v == null ? '' : v).trim() === ''); }
+// base: 내가 읽어온 시점 / mine: 지금 내 화면 / theirs: 지금 서버
+// → 내 행은 그대로 두고, 서버에 새로 생긴 행(base 에도 내 화면에도 없는 행)만 덧붙인다.
+//   내가 지운 행(base 에 있었는데 mine 에 없음)은 지운 채로 유지된다.
+function mergeRows(base, mine, theirs) {
+  const baseKeys = new Set((base || []).map(rowKey));
+  const mineKeys = new Set((mine || []).map(rowKey));
+  const added = (theirs || []).filter(r => !isBlankRow(r) && !baseKeys.has(rowKey(r)) && !mineKeys.has(rowKey(r)));
+  return { rows: [...(mine || []), ...added], added: added.length };
+}
+function mergePayloadRows(basePayload, minePayload, theirsPayload) {
+  const out = { ...minePayload };
+  const base = basePayload || {}, theirs = theirsPayload || {};
+  let added = 0;
+  ROW_FIELDS.forEach(({ field, kind }) => {
+    if (kind === 'list') {
+      const m = mergeRows(base[field], minePayload[field], theirs[field]);
+      out[field] = m.rows; added += m.added;
+    } else {
+      const keys = new Set([...Object.keys(minePayload[field] || {}), ...Object.keys(theirs[field] || {})]);
+      const merged = {};
+      keys.forEach(k => {
+        const m = mergeRows((base[field] || {})[k], (minePayload[field] || {})[k], (theirs[field] || {})[k]);
+        merged[k] = m.rows; added += m.added;
+      });
+      out[field] = merged;
+    }
+  });
+  return { payload: out, added };
+}
+function snapshotRows(p) {
+  const s = {};
+  ROW_FIELDS.forEach(({ field, kind }) => {
+    s[field] = (p && p[field] != null) ? JSON.parse(JSON.stringify(p[field])) : (kind === 'map' ? {} : []);
+  });
+  return s;
+}
+
+// ── 불러오기 (과거 보고서 목록) ───────────────────────
+function currentYmStr() { return document.getElementById('fYm').value || defaultYm(); }
+function ymParts(ymStr) { const [y, m] = String(ymStr).split('-'); return { y: Number(y), m: Number(m) }; }
+
+async function fetchReports() {
+  const res = await fetch('/tables/executive_reports?limit=100');
+  const data = await res.json();
+  allReports = (data.rows || data.data || []).sort((a, b) => (b.year * 100 + b.month) - (a.year * 100 + a.month));
+  const sel = document.getElementById('loadSelect');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">-- 불러오기 (과거 보고서) --</option>' +
+    allReports.map(r => `<option value="${r.id}">${r.year}년 ${r.month}월 · ${esc(r.receiver || '')} 보고</option>`).join('');
+  sel.value = cur;
+  return allReports;
+}
+async function loadReportList() {
+  try { await fetchReports(); } catch (_) { /* 목록 로드 실패해도 폼은 정상 동작 */ }
+}
+
+// (연, 월) 공유 레코드 찾기 — 중복이 있으면 가장 최근 저장본을 채택 (나머지는 콘솔 경고)
+function findReportForYm(ymStr, list) {
+  const { y, m } = ymParts(ymStr);
+  const cands = (list || allReports).filter(r => Number(r.year) === y && Number(r.month) === m);
+  if (!cands.length) return null;
+  cands.sort((a, b) => (Number(b.updated_at) || 0) - (Number(a.updated_at) || 0));
+  if (cands.length > 1) console.warn('[exec-report] 같은 연월 보고서 중복:', cands.map(c => c.id), '→', cands[0].id, '채택');
+  return cands[0];
+}
+
+// 서버 레코드를 화면 상태로 채택 (+ 병합 기준 스냅샷 갱신)
+function adoptRecord(r, chipLabel) {
+  applyPayload(r);
+  currentReportId = r.id;
+  loadedSnapshot = snapshotRows(r);
+  loadedUpdatedAt = r.updated_at ?? null;
+  unsavedEdits = false;
+  draftDirty = false;
+  setStatusChip('saved', chipLabel);
+  document.getElementById('loadSelect').value = r.id;
+  if (previewMode) renderPreviewDoc();
+}
+
+// 페이지 진입 / 연월 변경 / [최신 불러오기]: 이번 달 공유 보고서를 서버에서 로드.
+//  - 서버본이 있으면 그것이 기준. 이 브라우저에 서버보다 최신의 미저장 임시본(localStorage)이 있으면
+//    그 행들을 서버본 위에 합쳐 복원(둘 다 잃지 않음) 후 [저장] 안내.
+//  - 서버본이 없으면(이달 첫 작성) 임시본만 복원, 그것도 없으면 빈 폼.
+async function loadSharedReport(opts) {
+  opts = opts || {};
+  if (draftSaveTimer) { clearTimeout(draftSaveTimer); draftSaveTimer = null; }
+  const ymStr = currentYmStr();
+  let list = allReports;
+  try { list = await fetchReports(); } catch (_) {}
+  const server = findReportForYm(ymStr, list);
+  const dKey = 'execReportDraft_' + ymKey(ymStr);
+  let draft = null;
+  try { const raw = localStorage.getItem(dKey); if (raw) draft = JSON.parse(raw); } catch (_) {}
+
+  if (server) {
+    adoptRecord(server);
+    const draftNewer = draft && draft.payload && (Number(draft.savedAt) || 0) > (Number(server.updated_at) || 0);
+    if (draftNewer) {
+      const m = mergePayloadRows({}, draft.payload, server);   // base 없음 → 서버 행 ∪ 임시본 행
+      applyPayload(m.payload);
+      unsavedEdits = true;
+      setStatusChip('draft', '저장됨 + 미저장 수정본 복원');
+      if (!opts.silent) Portal.showToast('서버 저장본에 이 브라우저의 미저장 수정본을 합쳐 복원했습니다. 확인 후 [저장]을 눌러주세요.', 'info');
+    } else {
+      try { localStorage.removeItem(dKey); } catch (_) {}
+      if (!opts.silent && !opts.initial) Portal.showToast(`${server.year}년 ${server.month}월 공유 보고서를 불러왔습니다.`, 'info');
+    }
+  } else {
+    if (!opts.initial) { resetFormState(); document.getElementById('fYm').value = ymStr; }
+    currentReportId = null; loadedSnapshot = null; loadedUpdatedAt = null; unsavedEdits = false; draftDirty = false;
+    if (draft && draft.payload) {
+      applyPayload(draft.payload);
+      unsavedEdits = true;
+      setStatusChip('draft', '임시저장본 복원됨');
+    } else {
+      setStatusChip('new');
+    }
+  }
+  lastYm = ymStr;
+  if (opts.initial) loadAutoFillHints();
+}
+
+// [최신 불러오기] 버튼 — 미저장 편집이 있으면 확인 후 진행 (임시본은 서버본 위에 합쳐 복원됨)
+function reloadSharedReport() {
+  const go = () => loadSharedReport({});
+  if (unsavedEdits) {
+    saveDraft(false);   // 현재 편집을 임시본으로 먼저 보존 → loadSharedReport 가 서버본 위에 합쳐 복원
+    Portal.confirm('저장하지 않은 수정이 있습니다. 서버 최신본을 불러올까요?\n(내가 편집한 행은 서버본 위에 합쳐서 복원됩니다)', go);
+  } else {
+    go();
+  }
+}
+
+// 탭 복귀 시 자동 최신화 — 미저장 편집이 없을 때만, 다른 사용자가 저장했으면 조용히 반영
+async function refreshIfIdle() {
+  if (refreshingShared || unsavedEdits || !currentReportId) return;
+  refreshingShared = true;
+  try {
+    const list = await fetchReports();
+    const r = list.find(x => x.id === currentReportId);
+    if (r && String(r.updated_at) !== String(loadedUpdatedAt)) {
+      adoptRecord(r, '다른 사용자 저장본 반영됨');
+      Portal.showToast('다른 사용자가 저장한 최신 내용을 반영했습니다.', 'info');
+    }
+  } catch (_) {} finally { refreshingShared = false; }
+}
+
 function onLoadSelectChange() {
   const id = document.getElementById('loadSelect').value;
   if (!id) return;
   const r = allReports.find(x => x.id === id);
   if (!r) return;
-  applyPayload(r);
-  currentReportId = r.id;
-  setStatusChip('saved');
-  if (previewMode) renderPreviewDoc();
+  adoptRecord(r);
+  lastYm = currentYmStr();
   Portal.showToast(`${r.year}년 ${r.month}월 보고서를 불러왔습니다.`, 'info');
 }
 
@@ -2827,6 +3042,7 @@ Object.assign(window, {
   addGovDocRow, removeGovDocRow, updateGovDocField, toggleGovDocCard,
   addBoosterLicenseRow, removeBoosterLicenseRow, updateBoosterLicenseField, toggleBoosterLicenseCard,
   openTraitEdit, closeTraitEdit, saveTraitEdit,
+  reloadSharedReport,
 });
 
 // ── 초기화 실행 ───────────────────────────────────────
@@ -2837,10 +3053,8 @@ renderGovernanceDocs();
 renderBoosterLicenses();
 applyPeopleTabSecrecy();
 restoreExecTab();
-const restored = restoreDraftIfAny(true);
-if (!restored) setStatusChip('new');
-loadReportList();
-loadAutoFillHints();
+// 이번 달 공유 보고서 자동 로드 (서버본 우선, 미저장 임시본은 위에 합쳐 복원). loadAutoFillHints 는 로드 완료 후 내부에서 호출.
+loadSharedReport({ initial: true });
 loadSettleProcessData();
 loadKpiSectionData();
 loadMemberTraits();
@@ -2848,6 +3062,10 @@ loadMemberTraits();
 // 폼 내 입력 변경 시 임시저장 예약 (델리게이션 — 개별 필드마다 리스너 부착 불필요)
 document.getElementById('editView').addEventListener('input', scheduleDraftSave);
 document.getElementById('editView').addEventListener('change', scheduleDraftSave);
+
+// 탭/창 복귀 시 다른 사용자의 저장본을 자동 반영 (미저장 편집 중이면 건드리지 않음)
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshIfIdle(); });
+window.addEventListener('focus', refreshIfIdle);
 
 // ─────────────────────────────────────────────────────────────
 // 팀원 성향 스냅샷 → 고해상도 PDF 추출
