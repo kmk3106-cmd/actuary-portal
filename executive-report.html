@@ -2618,7 +2618,7 @@ async function saveReport() {
     localStorage.removeItem(draftKey());
     setStatusChip('saved');
     Portal.showToast(added > 0
-      ? `저장되었습니다. 다른 사용자가 추가한 ${added}건의 행을 함께 반영했습니다.`
+      ? `저장되었습니다. 다른 사용자가 입력한 ${added}건의 항목을 함께 보존했습니다.`
       : '임원 업무보고서가 저장되었습니다.', 'success');
     await loadReportList();
     document.getElementById('loadSelect').value = currentReportId || '';
@@ -2641,6 +2641,11 @@ const ROW_FIELDS = [
   { field: 'next_plan',                kind: 'list' },
   { field: 'decisions',                kind: 'list' },
 ];
+// 단일 텍스트 필드 — 내가 비워둔 칸은 서버(남이 채운) 값으로 채워 넣는다 (빈 값이 채운 값을 덮지 않음).
+const SCALAR_FILL_FIELDS = ['report_date', 'reporter', 'receiver', 'exec_summary', 'settle_process_note', 'settle_score_summary', 'kpi_q3_progress_note'];
+// 중첩 객체 {키: 값} — 키별로 동일 원칙 적용.
+const OBJECT_FILL_FIELDS = ['compliance', 'hr', 'kpi_q3_targets', 'kpi_q3_actuals'];
+function isBlankVal(v) { return v === '' || v == null; }
 function rowKey(r) {
   const o = {};
   Object.keys(r || {}).sort().forEach(k => { o[k] = String(r[k] == null ? '' : r[k]).trim(); });
@@ -2673,6 +2678,19 @@ function mergePayloadRows(basePayload, minePayload, theirsPayload) {
       });
       out[field] = merged;
     }
+  });
+  // 단일 텍스트: 내가 비워둔 칸만 서버 값으로 채움 (남이 입력한 요약·노트가 사라지지 않도록)
+  SCALAR_FILL_FIELDS.forEach(f => {
+    if (isBlankVal(minePayload[f]) && !isBlankVal(theirs[f])) { out[f] = theirs[f]; added++; }
+  });
+  // 중첩 객체(compliance/hr/KPI 목표·실적): 키별로 내가 빈 값만 서버 값으로 채움
+  OBJECT_FILL_FIELDS.forEach(f => {
+    const mo = minePayload[f] || {}, to = theirs[f] || {};
+    const merged = { ...mo };
+    Object.keys(to).forEach(k => {
+      if (isBlankVal(mo[k]) && !isBlankVal(to[k])) { merged[k] = to[k]; added++; }
+    });
+    out[f] = merged;
   });
   return { payload: out, added };
 }
