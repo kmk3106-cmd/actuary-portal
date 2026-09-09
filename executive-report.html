@@ -558,6 +558,18 @@
     </header>
     <main class="content-body">
 
+      <!-- 인력·자원(HR) 숨김 필드 — 탭/극비가드가 innerHTML 교체로 지우지 못하도록
+           탭 패널 바깥(항상 존재하는 content-body 직속)에 둔다. 팀원 계정에서 인력·자원
+           탭이 극비 가드로 치환돼도 저장/복원(collectPayload/applyPayload)이 깨지지 않게.
+           (과거: 이 필드들이 #personnelTableSection 안에 있어 팀원 저장 시 null → 크래시) -->
+      <input type="hidden" id="fHeadcount">
+      <input type="hidden" id="fVacationDays">
+      <input type="hidden" id="fTraining">
+      <input type="hidden" id="fHiring">
+      <div id="headcountHint" style="display:none;"></div>
+      <div id="vacationHint" style="display:none;"></div>
+
+
       <div class="exec-sticky-head no-print">
         <div class="exec-toolbar">
           <button class="btn btn-secondary" id="btnTogglePreview" onclick="togglePreview()">
@@ -871,13 +883,6 @@
 
             <!-- 인사카드 요약 표 (극비 · 본부장/팀장/실장 전용 · 인사카드와 연동) -->
             <div id="personnelTableSection" style="margin-top:12px;">
-              <!-- 폼은 hidden 으로 두어 저장/복원 로직이 깨지지 않게 유지 -->
-              <input type="hidden" id="fHeadcount">
-              <input type="hidden" id="fVacationDays">
-              <input type="hidden" id="fTraining">
-              <input type="hidden" id="fHiring">
-              <div id="headcountHint" style="display:none;"></div>
-              <div id="vacationHint" style="display:none;"></div>
               <div class="traits-section-head" style="margin-top:0;">
                 <div class="icon-wrap"><i class="fas fa-shield-halved"></i></div>
                 <div>
@@ -1103,6 +1108,9 @@ function escAttr(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').re
 function nl2br(s) { return esc(s).replace(/\n/g, '<br>'); }
 function ymKey(ym) { return String(ym || '').replace('-', ''); }
 function num(v) { return (v === '' || v == null || isNaN(v)) ? null : Number(v); }
+// null 안전 폼 접근 — 요소가 (극비 가드 등으로) 사라져도 저장/복원이 크래시하지 않도록.
+function val(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+function setVal(id, v) { const el = document.getElementById(id); if (el) el.value = v; }
 
 // ══════════════════════════════════════════════════════════
 // 섹션 3: 월 결산 프로세스 (settle_items × users → D+N × 인력 매트릭스)
@@ -2385,10 +2393,10 @@ function collectPayload() {
       internal: document.getElementById('fInternalNote').value.trim(),
     },
     hr: {
-      headcount: num(document.getElementById('fHeadcount').value),
-      vacation_days: num(document.getElementById('fVacationDays').value),
-      training: document.getElementById('fTraining').value.trim(),
-      hiring: document.getElementById('fHiring').value.trim(),
+      headcount: num(val('fHeadcount')),
+      vacation_days: num(val('fVacationDays')),
+      training: val('fTraining').trim(),
+      hiring: val('fHiring').trim(),
     },
     next_plan: rows.plan.filter(r => r.item || r.owner || r.due),
     decisions: rows.dec.filter(r => r.issue || r.decision),
@@ -2446,10 +2454,10 @@ function applyPayload(p) {
   document.getElementById('fInternalNote').value = c.internal || '';
 
   const hr = p.hr || {};
-  document.getElementById('fHeadcount').value = hr.headcount ?? '';
-  document.getElementById('fVacationDays').value = hr.vacation_days ?? '';
-  document.getElementById('fTraining').value = hr.training || '';
-  document.getElementById('fHiring').value = hr.hiring || '';
+  setVal('fHeadcount', hr.headcount ?? '');
+  setVal('fVacationDays', hr.vacation_days ?? '');
+  setVal('fTraining', hr.training || '');
+  setVal('fHiring', hr.hiring || '');
 
   rows.ach  = (p.achievements && p.achievements.length) ? p.achievements : [ROW_DEFAULTS.ach()];
   rows.ong  = (p.ongoing && p.ongoing.length) ? p.ongoing : [ROW_DEFAULTS.ong()];
