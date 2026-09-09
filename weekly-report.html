@@ -705,31 +705,16 @@ function addRow() {
 
 async function saveAll() {
   setHint('저장 중…', 'saving');
-  // 1) 삭제 예정 rows 를 먼저 서버 DELETE (신규 미저장 삭제는 렌더링 단계에서 이미 처리됨)
-  const toDelete = ROWS.filter(r => canEditRow(r) && r._pending_delete && r.id && !r._new);
-  let delOk = 0, delFail = 0;
-  const successfullyDeleted = new Set();
-  for (const r of toDelete) {
-    try {
-      const res = await fetch('/tables/weekly_tasks/' + encodeURIComponent(r.id), { method: 'DELETE' });
-      if (!res.ok && res.status !== 404) throw new Error(String(res.status));
-      delOk++;
-      successfullyDeleted.add(r);
-    } catch (_) { delFail++; }
-  }
-  if (successfullyDeleted.size > 0) {
-    ROWS = ROWS.filter(r => !successfullyDeleted.has(r));
-  }
+  const t0 = performance.now();
 
-  // 2) 저장 대상 : 편집 가능 & 변경/신규 & task_content 있는 것 & 삭제예정 아님
-  const dirty = ROWS.filter(r => canEditRow(r) && (r._new || r._dirty) && !r._pending_delete && (r.task_content || '').trim());
-  if (dirty.length === 0 && delOk === 0 && delFail === 0) {
-    setHint('저장할 변경사항이 없습니다.', 'saved');
-    return;
-  }
-  let ok = 0, fail = 0;
-  for (const r of dirty) {
-    const payload = {
+  // 삭제 대상 : pending & id 있음 (신규 미저장은 이미 로컬 제거됨)
+  const toDelete = ROWS.filter(r => canEditRow(r) && r._pending_delete && r.id && !r._new);
+  const deletes = toDelete.map(r => r.id);
+
+  // upsert 대상 : (신규 or dirty) & task_content 있음 & 삭제예정 아님
+  const dirtyRows = ROWS.filter(r => canEditRow(r) && (r._new || r._dirty) && !r._pending_delete && (r.task_content || '').trim());
+  const upserts = dirtyRows.map(r => {
+    const p = {
       year: currentYear, week_no: currentWeek, week_label: currentLabel, base_date: currentBase, week_period: currentPeriod,
       member_name: r.member_name || myName,
       category: r.category || '', extension_type: r.extension_type || '',
@@ -740,37 +725,53 @@ async function saveAll() {
       progress: r.progress, status: r.status || '',
       work_type: r.work_type || '', work_type_detail: r.work_type_detail || '',
     };
-    try {
-      let res;
-      if (r._new) {
-        res = await fetch('/tables/weekly_tasks', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
-        });
-      } else {
-        res = await fetch('/tables/weekly_tasks/' + encodeURIComponent(r.id), {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
-        });
+    if (!r._new && r.id) p.id = r.id;   // 기존 행이면 id 포함해서 PATCH-merge
+    return p;
+  });
+
+  if (deletes.length === 0 && upserts.length === 0) {
+    setHint('저장할 변경사항이 없습니다.', 'saved');
+    return;
+  }
+
+  try {
+    const res = await fetch('/weekly/bulk-save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ upserts, deletes }),
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || String(res.status));
+
+    // 삭제 성공 rows 를 ROWS 에서 제거
+    if (d.deleted_count > 0) {
+      const delSet = new Set(deletes);
+      ROWS = ROWS.filter(r => !delSet.has(r.id));
+    }
+    // upsert 결과 반영 : bulk-save 는 upserts 순서 = upserted 순서 보장
+    for (let i = 0; i < upserts.length; i++) {
+      const saved = (d.upserted || [])[i];
+      const r = dirtyRows[i];
+      if (saved && r) {
+        Object.assign(r, saved);
+        delete r._new; delete r._dirty;
       }
-      if (!res.ok) throw new Error(String(res.status));
-      const saved = await res.json();
-      Object.assign(r, saved);
-      delete r._new; delete r._dirty;
-      ok++;
-    } catch (e) { fail++; }
+    }
+
+    renderRows();
+    if ((d.upserted?.length || 0) + (d.deleted_count || 0) > 0) {
+      UNDO_STACK = [];
+      updateUndoButton();
+    }
+    const ms = Math.round(performance.now() - t0);
+    const parts = [];
+    if (d.deleted_count) parts.push(`삭제 ${d.deleted_count}건`);
+    if (d.upserted?.length) parts.push(`저장 ${d.upserted.length}건`);
+    if (d.failures?.length) parts.push(`실패 ${d.failures.length}건`);
+    setHint((parts.join(' · ') || '변경사항 없음') + `  (${ms}ms)`, d.failures?.length ? 'error' : 'saved');
+  } catch (e) {
+    setHint('저장 실패: ' + (e.message || e), 'error');
   }
-  renderRows();
-  // 저장이 하나라도 성공하면 undo 스택 초기화 (저장 후 되돌리기는 위험)
-  if ((ok + delOk) > 0) {
-    UNDO_STACK = [];
-    updateUndoButton();
-  }
-  const totalFail = fail + delFail;
-  let hint = '';
-  if (delOk) hint += `삭제 ${delOk}건 `;
-  if (ok)    hint += `저장 ${ok}건 `;
-  if (!hint) hint = '변경사항 없음 ';
-  if (totalFail) hint += `· 실패 ${totalFail}건`;
-  setHint(hint.trim(), totalFail ? 'error' : 'saved');
 }
 
 // 다운로드 :
@@ -883,19 +884,19 @@ async function carryOverPrevWeek() {
     });
     const d = await res.json();
     if (!res.ok) throw new Error(d.error || String(res.status));
-    // undo 스택에 push (carry-over 되돌리기 시 해당 rows 서버 DELETE)
+    // undo 스택에 push (carry-over 되돌리기 시 벌크 DELETE)
     if (Array.isArray(d.carried_ids) && d.carried_ids.length > 0) {
       const carriedIds = d.carried_ids.slice();
       pushUndo({
         kind: 'carry_over',
         label: `이전 주 불러오기 · ${d.carried}건 (${fromLabel} → ${currentLabel})`,
         undo: async () => {
-          for (const id of carriedIds) {
-            try {
-              const r2 = await fetch('/tables/weekly_tasks/' + encodeURIComponent(id), { method: 'DELETE' });
-              if (!r2.ok && r2.status !== 404) throw new Error(String(r2.status));
-            } catch (_) { /* 계속 진행 - 실패 카운트는 표시 안 함 (원자성보다 관용) */ }
-          }
+          // 벌크 1회 호출 → 서버 파일 write 1번
+          await fetch('/weekly/bulk-save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deletes: carriedIds, upserts: [] }),
+          });
           await loadWeek();
         },
       });

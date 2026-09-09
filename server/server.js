@@ -2317,6 +2317,84 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // ── 주간업무 벌크 저장 (upserts + deletes 를 단일 트랜잭션) ──
+  // POST /weekly/bulk-save
+  //   body: {
+  //     upserts: [ { id?, ...fields } ],   // id 있으면 merge, 없으면 새로 INSERT
+  //     deletes: [ id, id, ... ],
+  //   }
+  //   응답: { upserted: [ {id,...} ], deleted_count, failures: [...] }
+  //
+  // 성능 이점 : 개별 /tables/weekly_tasks POST/PATCH/DELETE N번 → 파일 write 1번
+  if (urlPath === '/weekly/bulk-save' && req.method === 'POST') {
+    const sendJson = (status, body) => {
+      res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(body));
+    };
+    const chunks = [];
+    req.on('data', c => chunks.push(c));
+    req.on('end', () => {
+      try {
+        const body = JSON.parse(Buffer.concat(chunks).toString('utf-8') || '{}');
+        const upserts = Array.isArray(body.upserts) ? body.upserts : [];
+        const deletes = Array.isArray(body.deletes) ? body.deletes.filter(Boolean) : [];
+        withDb(db => {
+          const table = db.weekly_tasks || (db.weekly_tasks = []);
+          const now = Date.now();
+          // deletes
+          const delSet = new Set(deletes);
+          const before = table.length;
+          if (delSet.size > 0) {
+            db.weekly_tasks = table.filter(t => !delSet.has(t.id));
+          }
+          const deletedCount = before - db.weekly_tasks.length;
+
+          // upserts
+          const upserted = [];
+          const failures = [];
+          const idIndex = new Map(db.weekly_tasks.map((t, i) => [t.id, i]));
+          for (const u of upserts) {
+            try {
+              if (u && u.id && idIndex.has(u.id)) {
+                // PATCH (merge)
+                const i = idIndex.get(u.id);
+                const merged = Object.assign({}, db.weekly_tasks[i], u, { updated_at: now });
+                db.weekly_tasks[i] = merged;
+                upserted.push(merged);
+              } else {
+                // INSERT
+                const rec = Object.assign(
+                  {},
+                  u || {},
+                  {
+                    id: (u && u.id) || 'wee_' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10),
+                    created_at: now,
+                    updated_at: now,
+                  }
+                );
+                db.weekly_tasks.push(rec);
+                idIndex.set(rec.id, db.weekly_tasks.length - 1);
+                upserted.push(rec);
+              }
+            } catch (e) {
+              failures.push({ item: u, error: String(e.message || e) });
+            }
+          }
+
+          sendJson(200, {
+            deleted_count: deletedCount,
+            upserted,
+            failures,
+            written: deletedCount > 0 || upserted.length > 0,
+          });
+        });
+      } catch (e) {
+        sendJson(500, { error: String(e.message || e) });
+      }
+    });
+    return;
+  }
+
   // ── 주간업무 이전 주 → 이번 주 복사 (carry-over) ──
   // POST /weekly/carry-over
   //   body: { from:{year,week}, to:{year,week, week_label, base_date}, members?:[...] }
