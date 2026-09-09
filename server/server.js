@@ -2317,6 +2317,100 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // ── 주간업무 이전 주 → 이번 주 복사 (carry-over) ──
+  // POST /weekly/carry-over
+  //   body: { from:{year,week}, to:{year,week, week_label, base_date}, members?:[...] }
+  //   규칙 : 이전 주 status==='완료' 또는 progress===1 인 행은 스킵
+  //         extension_type='상시' 는 그대로 유지, 그 외는 '연장' 으로 재분류
+  //         this_week_done · next_week_plan · status 초기화 (progress 는 유지)
+  if (urlPath === '/weekly/carry-over' && req.method === 'POST') {
+    const sendJson = (status, body) => {
+      res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(body));
+    };
+    const chunks = [];
+    req.on('data', c => chunks.push(c));
+    req.on('end', () => {
+      try {
+        const body = JSON.parse(Buffer.concat(chunks).toString('utf-8') || '{}');
+        const from = body.from || {};
+        const to = body.to || {};
+        if (!from.year || !from.week || !to.year || !to.week) {
+          sendJson(400, { error: 'from/to (year, week) 필수' }); return;
+        }
+        const memberSet = Array.isArray(body.members) && body.members.length
+          ? new Set(body.members) : null;
+
+        withDb(db => {
+          const table = db.weekly_tasks || (db.weekly_tasks = []);
+          // 이번 주에 이미 있는 (member × task_content) 조합은 스킵 → 중복 방지
+          const existingKeys = new Set(
+            table
+              .filter(t => Number(t.year) === Number(to.year) && Number(t.week_no) === Number(to.week))
+              .map(t => `${t.member_name || ''}::${(t.task_content || '').trim()}`)
+          );
+
+          const src = table.filter(t =>
+            Number(t.year) === Number(from.year) &&
+            Number(t.week_no) === Number(from.week) &&
+            (!memberSet || memberSet.has(t.member_name || ''))
+          );
+
+          const now = Date.now();
+          let carried = 0, skippedDone = 0, skippedDup = 0;
+          const perMember = {};
+          for (const r of src) {
+            const pg = Number(r.progress);
+            const done = (r.status === '완료') || (pg >= 1);
+            if (done) { skippedDone++; continue; }
+            const key = `${r.member_name || ''}::${(r.task_content || '').trim()}`;
+            if (existingKeys.has(key)) { skippedDup++; continue; }
+            const newExt = (r.extension_type === '상시') ? '상시' : '연장';
+            const copy = {
+              id: 'wee_' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10),
+              year: Number(to.year),
+              week_no: Number(to.week),
+              week_label: to.week_label || r.week_label || '',
+              base_date: to.base_date || r.base_date || '',
+              week_period: to.week_period || '',
+              member_name: r.member_name || '',
+              category: r.category || '',
+              extension_type: newExt,
+              task_content: r.task_content || '',
+              this_week_done: '',       // 새 주에 다시 씀
+              next_week_plan: '',       // 새 주에 다시 씀
+              issue_note: r.issue_note || '',   // 이슈는 지속되는 경우 많음 → 유지
+              start_date: r.start_date || '',   // 원래 시작일 유지
+              end_date: r.end_date || '',       // 예상 완료일 유지
+              progress: (r.progress == null || r.progress === '') ? null : Number(r.progress), // 진행률 이월
+              status: r.status || '',           // 상태 이월 (완료는 위에서 스킵)
+              work_type: r.work_type || '',
+              work_type_detail: r.work_type_detail || '',
+              created_at: now,
+              updated_at: now,
+              carried_from: `${from.year}-W${from.week}`,   // 감사용
+            };
+            table.push(copy);
+            existingKeys.add(key);
+            carried++;
+            const m = copy.member_name || '(미지정)';
+            perMember[m] = (perMember[m] || 0) + 1;
+          }
+          if (carried > 0) writeDb(db);
+          sendJson(200, {
+            carried, skipped_done: skippedDone, skipped_duplicate: skippedDup,
+            per_member: perMember,
+            from: { year: from.year, week: from.week },
+            to: { year: to.year, week: to.week },
+          });
+        });
+      } catch (e) {
+        sendJson(500, { error: String(e.message || e) });
+      }
+    });
+    return;
+  }
+
   // ── 주간업무 xlsx 내보내기 ──
   // GET /weekly/export?year=2026&week=37&view=person|typegroup|all
   //     &label=<주차 라벨>&base=<YYYY-MM-DD>&member=<팀원 이름>(옵션: 팀원 뷰용 필터)

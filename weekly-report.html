@@ -176,6 +176,7 @@
         <select id="weekSel"></select>
         <input type="date" id="baseDate">
         <span class="wr-period-badge"><i class="fas fa-calendar-day"></i><span id="periodText">-</span></span>
+        <button class="wr-btn" id="btnCarryOver" onclick="carryOverPrevWeek()" title="직전 주 업무를 이번 주로 복사 (완료 항목 제외 · 자동 '연장' 표시)"><i class="fas fa-clone"></i> 이전 주 불러오기</button>
         <span class="spacer"></span>
         <button class="wr-btn" id="btnDlPerson"    onclick="downloadReport('person')"    style="display:none;"><i class="fas fa-file-excel"></i> 인별 다운로드</button>
         <button class="wr-btn wr-btn-download" id="btnDlType" onclick="downloadReport('typegroup')" style="display:none;"><i class="fas fa-file-excel"></i> 업무유형별 다운로드</button>
@@ -687,6 +688,63 @@ function downloadReport(view, mineOnly) {
   window.open(url, '_blank');
 }
 
+// ── 이전 주 업무 불러오기 (carry-over) ─────────────────
+async function carryOverPrevWeek() {
+  const toYear = currentYear, toWeek = currentWeek;
+  // 직전 주 계산 (ISO week 기준)
+  let fromYear = toYear, fromWeek = toWeek - 1;
+  if (fromWeek < 1) { fromYear -= 1; fromWeek = weeksInYear(fromYear); }
+  const fromLabel = weekLabel(fromYear, fromWeek);
+  const fromPeriod = weekPeriodText(fromYear, fromWeek);
+  const toPeriod = weekPeriodText(toYear, toWeek);
+
+  // 팀원은 자기 것만, 팀장/실장은 전체 (또는 union 뷰에 담긴 팀원)
+  let members = null;
+  if (!canManageAll) {
+    members = [myName];
+  }
+
+  const scopeMsg = canManageAll ? '전체 팀원' : `본인(${myName})`;
+  const ok = confirm(
+    `직전 주 업무를 이번 주로 복사합니다.\n\n` +
+    `[출처] ${fromLabel} (${fromPeriod})\n` +
+    `[대상] ${currentLabel} (${toPeriod})\n` +
+    `[범위] ${scopeMsg}\n\n` +
+    `· 이전 주 '완료' 항목은 제외\n` +
+    `· 이미 이번 주에 등록된 동일 업무는 스킵 (중복 방지)\n` +
+    `· 기존 '상시' 는 상시 유지, 그 외는 '연장' 으로 자동 표시\n` +
+    `· 이번주/다음주 텍스트는 초기화 (새로 작성)\n` +
+    `· 진척율·상태·이슈·시작일·완료일은 이월\n\n` +
+    `계속하시겠습니까?`
+  );
+  if (!ok) return;
+
+  setHint('이전 주 데이터 복사 중…', 'saving');
+  try {
+    const res = await fetch('/weekly/carry-over', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: { year: fromYear, week: fromWeek },
+        to: {
+          year: toYear, week: toWeek,
+          week_label: currentLabel, base_date: currentBase, week_period: currentPeriod,
+        },
+        members: members,
+      }),
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || String(res.status));
+    let msg = `${d.carried}건 복사 완료`;
+    if (d.skipped_done)      msg += ` · 완료 ${d.skipped_done}건 스킵`;
+    if (d.skipped_duplicate) msg += ` · 중복 ${d.skipped_duplicate}건 스킵`;
+    setHint(msg, 'saved');
+    await loadWeek();  // 재로드
+  } catch (e) {
+    setHint('복사 실패: ' + (e.message || e), 'error');
+  }
+}
+
 function setHint(msg, cls) {
   const el = document.getElementById('saveHint');
   el.textContent = msg;
@@ -695,7 +753,7 @@ function setHint(msg, cls) {
 function escAttr(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;'); }
 function escHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
-Object.assign(window, { upd, delRow, addRow, saveAll, downloadReport, removeViewMember, resetView });
+Object.assign(window, { upd, delRow, addRow, saveAll, downloadReport, removeViewMember, resetView, carryOverPrevWeek });
 
 (async () => {
   await loadUsers();
