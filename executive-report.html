@@ -1824,8 +1824,12 @@ function traitRadarSvg(scores, opts) {
     if (i === 3) dy = 12;
     return `<text x="${x}" y="${y + dy}" text-anchor="${anchor}" font-size="11" font-weight="700" fill="#475569">${ax.label}</text>`;
   }).join('');
+  // 라벨('커뮤니케이션' 6글자 등)이 viewBox 밖으로 잘리지 않도록 상하좌우 여백(PAD)을 준다.
+  // viewBox 를 정사각으로 키워(폭=높이) 종횡비는 유지하면서 라벨 공간만 확보.
+  const PAD = 48;
+  const VB = size + PAD * 2;
   return `
-    <svg class="trait-radar" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="6축 성향 레이더">
+    <svg class="trait-radar" viewBox="${-PAD} ${-PAD} ${VB} ${VB}" width="${size}" height="${size}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="6축 성향 레이더">
       <defs>
         <radialGradient id="traitFill${opts.suffix || ''}" cx="50%" cy="50%" r="50%">
           <stop offset="0%" stop-color="#a5b4fc" stop-opacity="0.55"/>
