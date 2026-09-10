@@ -45,7 +45,7 @@ process.on('unhandledRejection', (reason, promise) => {
 const PORT = parseInt(process.env.PORT || '8888', 10);
 const HOST = process.env.HOST || '0.0.0.0';
 const ROOT = path.resolve(__dirname, '..');
-const DATA_PATH = path.join(__dirname, 'data', 'portal-db.json');
+const DATA_PATH = process.env.DATA_PATH || path.join(__dirname, 'data', 'portal-db.json');
 
 const PASSWORD_SHA256 = crypto.createHash('sha256').update('password').digest('hex');
 
@@ -2381,11 +2381,14 @@ const server = http.createServer((req, res) => {
             }
           }
 
+          const written = deletedCount > 0 || upserted.length > 0;
+          if (written) writeDb(db);   // ← 디스크 영속 (누락 시 저장 후 새로고침하면 사라짐)
+
           sendJson(200, {
             deleted_count: deletedCount,
             upserted,
             failures,
-            written: deletedCount > 0 || upserted.length > 0,
+            written,
           });
         });
       } catch (e) {
