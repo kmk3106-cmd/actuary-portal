@@ -65,9 +65,13 @@
       display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;
     }
     .wr-stat-card {
-      background:#fff; border:1.5px solid #f3f4f6; border-radius:14px;
+      background:#fff; border:1.5px solid #f3f4f6; border-top:3px solid #e5e7eb; border-radius:14px;
       padding:14px 20px; text-align:center;
     }
+    .wr-stat-bar .wr-stat-card:nth-child(1) { border-top-color:#4f86f7; }
+    .wr-stat-bar .wr-stat-card:nth-child(2) { border-top-color:#10b981; }
+    .wr-stat-bar .wr-stat-card:nth-child(3) { border-top-color:#3b82f6; }
+    .wr-stat-bar .wr-stat-card:nth-child(4) { border-top-color:#9ca3af; }
     .wr-stat-label { font-size:11px; color:#9ca3af; font-weight:500; margin-bottom:4px; }
     .wr-stat-value { font-size:24px; font-weight:800; color:#111827; }
     .wr-stat-value.g { color:#10b981; }
@@ -83,7 +87,19 @@
     }
     .wr-table-title { font-size:15px; font-weight:700; color:#111827; display:flex; align-items:center; gap:8px; }
     .wr-table-title i { color:#4f86f7; }
-    .wr-table-scroll { overflow-x:auto; }
+    .wr-table-scroll {
+      position:relative; overflow-x:auto; -webkit-overflow-scrolling:touch;
+      background-color:#fff;
+      background-image:
+        linear-gradient(to right, #fff, rgba(255,255,255,0)),
+        linear-gradient(to left, #fff, rgba(255,255,255,0)),
+        linear-gradient(to right, rgba(15,23,42,.12), rgba(15,23,42,0)),
+        linear-gradient(to left, rgba(15,23,42,.12), rgba(15,23,42,0));
+      background-repeat:no-repeat;
+      background-size:28px 100%, 28px 100%, 10px 100%, 10px 100%;
+      background-position:left, right, left, right;
+      background-attachment:local, local, scroll, scroll;
+    }
     .wr-tbl { width:100%; border-collapse:collapse; font-size:13px; min-width:1560px; }
     .wr-tbl thead th {
       background:linear-gradient(180deg,#f8fafc 0%,#f1f5f9 100%);
@@ -97,12 +113,29 @@
     .wr-tbl tbody tr.new-row { background:#fefce8; }
     .wr-tbl tbody tr.readonly-row td { background:#fbfbfd; }
     .wr-tbl tbody tr.pending-delete-row td { background:#fef2f2 !important; opacity:0.6; text-decoration:line-through; }
-    .wr-tbl tbody tr.pending-delete-row td:first-child { text-decoration:none; }
+    .wr-tbl tbody tr.pending-delete-row td:first-child { text-decoration:none; background:#fef2f2 !important; }
     .wr-tbl tbody tr.pending-delete-row .del-btn { background:#fee2e2; color:#991b1b; }
     .wr-tbl tbody tr.group-header td {
       background:linear-gradient(90deg,#f8faff,#fff);
       padding:10px 12px; border-top:2px solid #c7d2fe;
       font-weight:800; color:#3730a3; font-size:13px;
+    }
+
+    /* 첫 컬럼(팀원) 좌측 고정 — 표를 가로로 스크롤해도 누구 업무인지 항상 확인 가능 */
+    .wr-tbl thead th:first-child,
+    .wr-tbl tbody td:first-child {
+      position:sticky; left:0; z-index:2;
+      box-shadow:2px 0 4px rgba(15,23,42,.07);
+    }
+    .wr-tbl thead th:first-child {
+      z-index:3; background:linear-gradient(180deg,#f8fafc 0%,#f1f5f9 100%);
+    }
+    .wr-tbl tbody td:first-child { background:#fff; }
+    .wr-tbl tbody tr:hover td:first-child { background:#fafbff; }
+    .wr-tbl tbody tr.new-row td:first-child { background:#fefce8; }
+    .wr-tbl tbody tr.readonly-row td:first-child { background:#fbfbfd; }
+    .wr-tbl tbody tr.group-header td:first-child {
+      background:linear-gradient(90deg,#f8faff,#fff); box-shadow:none;
     }
     .wr-tbl tbody tr.group-header .badge {
       display:inline-block; padding:2px 8px; margin-left:8px;
@@ -160,6 +193,29 @@
     @media (max-width:768px) {
       .wr-stat-bar { grid-template-columns:1fr 1fr; }
       .wr-toolbar { padding:10px 12px; }
+      .wr-toolbar select, .wr-toolbar input, .wr-btn, .wr-view-panel .wr-btn, #addMemberSel {
+        min-height:40px; font-size:14px; padding:9px 14px;
+      }
+      .wr-tbl .del-btn { width:32px; height:32px; font-size:12px; }
+      .wr-view-panel .chip { padding:7px 11px 7px 13px; gap:8px; }
+      .wr-view-panel .chip .x { padding:3px 7px; font-size:14px; }
+      .wr-table-head::after {
+        content:"손가락으로 표를 좌우로 밀어 전체 항목을 확인하세요";
+        flex-basis:100%; font-size:11px; color:#94a3b8;
+      }
+    }
+    @media (max-width:480px) {
+      .wr-toolbar { flex-direction:column; align-items:stretch; }
+      .wr-toolbar .spacer { display:none; }
+      .wr-toolbar .wr-btn, .wr-toolbar select, .wr-toolbar input, .wr-toolbar .wr-period-badge {
+        justify-content:center; text-align:center;
+      }
+      #viewPanel { flex-direction:column; align-items:stretch; }
+      #viewPanel .spacer { display:none; }
+      #viewPanel > .wr-btn, #viewPanel #addMemberSel { justify-content:center; text-align:center; }
+      .wr-stat-bar { gap:8px; }
+      .wr-stat-card { padding:12px 10px; }
+      .wr-stat-value { font-size:21px; }
     }
   </style>
 </head>

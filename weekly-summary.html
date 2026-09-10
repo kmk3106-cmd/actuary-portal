@@ -41,9 +41,14 @@
       display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px;
     }
     .ws-card {
-      background:#fff; border:1.5px solid #f3f4f6; border-radius:14px;
+      background:#fff; border:1.5px solid #f3f4f6; border-top:3px solid #e5e7eb; border-radius:14px;
       padding:16px 20px; text-align:center;
     }
+    .ws-stat-row .ws-card:nth-child(1) { border-top-color:#4f86f7; }
+    .ws-stat-row .ws-card:nth-child(2) { border-top-color:#10b981; }
+    .ws-stat-row .ws-card:nth-child(3) { border-top-color:#3b82f6; }
+    .ws-stat-row .ws-card:nth-child(4) { border-top-color:#9ca3af; }
+    .ws-stat-row .ws-card:nth-child(5) { border-top-color:#6366f1; }
     .ws-card .l { font-size:11px; color:#9ca3af; font-weight:500; margin-bottom:4px; }
     .ws-card .v { font-size:28px; font-weight:800; color:#111827; }
     .ws-card .v.g { color:#10b981; }
@@ -58,7 +63,19 @@
     }
     .ws-panel-title { font-size:15px; font-weight:800; color:#111827; display:flex; align-items:center; gap:8px; }
     .ws-panel-title i { color:#6366f1; }
-    .ws-panel .scroll { overflow-x:auto; }
+    .ws-panel .scroll {
+      position:relative; overflow-x:auto; -webkit-overflow-scrolling:touch;
+      background-color:#fff;
+      background-image:
+        linear-gradient(to right, #fff, rgba(255,255,255,0)),
+        linear-gradient(to left, #fff, rgba(255,255,255,0)),
+        linear-gradient(to right, rgba(15,23,42,.12), rgba(15,23,42,0)),
+        linear-gradient(to left, rgba(15,23,42,.12), rgba(15,23,42,0));
+      background-repeat:no-repeat;
+      background-size:28px 100%, 28px 100%, 10px 100%, 10px 100%;
+      background-position:left, right, left, right;
+      background-attachment:local, local, scroll, scroll;
+    }
     .ws-tbl { width:100%; border-collapse:collapse; font-size:13px; min-width:900px; }
     .ws-tbl thead th {
       background:linear-gradient(180deg,#f8fafc,#f1f5f9);
@@ -71,14 +88,54 @@
     .ws-tbl tbody tr:hover { background:#fafbff; }
     .ws-tbl .name-cell { text-align:left; font-weight:800; color:#0f172a; padding-left:14px; background:#eff6ff; }
     .ws-tbl .wt-cell { font-weight:800; color:#4338ca; }
-    .ws-tbl tbody tr.total-row td { background:#f1f5f9; font-weight:800; color:#0f172a; }
+    .ws-tbl tbody tr.total-row td { background:#f1f5f9; font-weight:800; color:#0f172a; border-top:2px solid #cbd5e1; }
     .ws-tbl .empty-cell { color:#cbd5e1; }
-    .ws-tbl .pct { color:#4338ca; font-weight:700; }
+    .ws-tbl .pct {
+      display:inline-block; background:#eef2ff; color:#3730a3; font-weight:700;
+      padding:2px 10px; border-radius:999px; font-size:12px;
+    }
+
+    /* 인별 집계 : 팀원 컬럼 좌측 고정 (컬럼 18개 — 가로 스크롤 중에도 이름 항상 노출) */
+    #memberTbl thead th:first-child,
+    #memberTbl tbody td:first-child {
+      position:sticky; left:0; z-index:2; box-shadow:2px 0 4px rgba(15,23,42,.07);
+    }
+    #memberTbl thead th:first-child { z-index:3; background:linear-gradient(180deg,#f8fafc,#f1f5f9); }
+    #memberTbl tbody td:first-child { background:#eff6ff; }
+    #memberTbl tbody tr:hover td:first-child { background:#e4edff; }
+    #memberTbl tbody tr.total-row td:first-child { background:#f1f5f9; box-shadow:none; }
+
+    /* 업무유형별 집계 : 유형+설명 컬럼 좌측 고정 (팀원 수가 늘어도 유형 정보 항상 노출) */
+    #worktypeTbl thead th:nth-child(1), #worktypeTbl tbody td:nth-child(1),
+    #worktypeTbl thead th:nth-child(2), #worktypeTbl tbody td:nth-child(2) {
+      position:sticky; z-index:2; background:#fff;
+    }
+    #worktypeTbl thead th:nth-child(1), #worktypeTbl tbody td:nth-child(1) { left:0; }
+    #worktypeTbl thead th:nth-child(2), #worktypeTbl tbody td:nth-child(2) {
+      left:70px; box-shadow:2px 0 4px rgba(15,23,42,.07);
+    }
+    #worktypeTbl thead th:nth-child(1), #worktypeTbl thead th:nth-child(2) {
+      z-index:3; background:linear-gradient(180deg,#f8fafc,#f1f5f9);
+    }
+    #worktypeTbl tbody tr:hover td:nth-child(1), #worktypeTbl tbody tr:hover td:nth-child(2) { background:#fafbff; }
 
     .ws-empty { padding:40px; text-align:center; color:#9ca3af; }
 
     @media (max-width:768px) {
       .ws-stat-row { grid-template-columns:1fr 1fr; }
+      .ws-toolbar select, .ws-toolbar input, .ws-btn { min-height:40px; font-size:14px; padding:9px 14px; }
+      .ws-panel-head::after {
+        content:"손가락으로 표를 좌우로 밀어 전체 항목을 확인하세요";
+        flex-basis:100%; font-size:11px; color:#94a3b8;
+      }
+    }
+    @media (max-width:480px) {
+      .ws-toolbar { flex-direction:column; align-items:stretch; }
+      .ws-toolbar .spacer { display:none; }
+      .ws-toolbar select, .ws-btn, .ws-period-badge { justify-content:center; text-align:center; }
+      .ws-stat-row { gap:8px; }
+      .ws-card { padding:12px 10px; }
+      .ws-card .v { font-size:22px; }
     }
   </style>
 </head>
