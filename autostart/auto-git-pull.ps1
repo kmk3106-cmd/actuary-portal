@@ -38,18 +38,59 @@ $changed = @(& git @G diff --name-only $before $after)
 $restartNode = @($changed | Where-Object { $_ -match '^(server/|ecosystem\.config\.js$)' }).Count -gt 0
 $restartBot  = @($changed | Where-Object { $_ -match '^bot/.*\.py$' }).Count -gt 0
 
-$restarted = @()
-if ($restartNode) {
-    & net stop ActuaryPortalNode | Out-Null
-    Start-Sleep -Seconds 2
-    & net start ActuaryPortalNode | Out-Null
-    $restarted += 'Node'
+# ── 견고한 재시작: Windows 서비스 → PM2 → node 직접 재기동 순으로 폴백 ──
+# (서비스가 설치돼 있어야만 재시작되던 과거 버전 때문에 server/*.js 변경이
+#  반영 안 되던 문제 방지. 어느 실행 방식이든 코드 변경이 확실히 반영되도록.)
+function Restart-Node {
+    if (Get-Service -Name 'ActuaryPortalNode' -ErrorAction SilentlyContinue) {
+        & net stop ActuaryPortalNode | Out-Null; Start-Sleep -Seconds 2; & net start ActuaryPortalNode | Out-Null
+        return 'service:ActuaryPortalNode'
+    }
+    if (Get-Service -Name 'actuary-portal' -ErrorAction SilentlyContinue) {
+        Restart-Service -Name 'actuary-portal' -Force
+        return 'service:actuary-portal'
+    }
+    if (Get-Command pm2 -ErrorAction SilentlyContinue) {
+        & pm2 restart actuary-portal 2>&1 | Out-Null
+        return 'pm2'
+    }
+    # 최후: server/server.js 를 실행 중인 node 프로세스만 종료 후 숨김창으로 재기동
+    Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -match 'server[\\/]+server\.js' } |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Start-Sleep -Seconds 1
+    $out = Join-Path $Repo 'server\server.log'
+    Start-Process -WindowStyle Hidden -FilePath 'node' -ArgumentList 'server/server.js' `
+        -WorkingDirectory $Repo -RedirectStandardOutput $out -RedirectStandardError ($out + '.err')
+    return 'node-direct'
 }
-if ($restartBot) {
-    & net stop ActuaryPortalBot | Out-Null
+function Restart-Bot {
+    if (Get-Service -Name 'ActuaryPortalBot' -ErrorAction SilentlyContinue) {
+        & net stop ActuaryPortalBot | Out-Null; Start-Sleep -Seconds 2; & net start ActuaryPortalBot | Out-Null
+        return 'service:ActuaryPortalBot'
+    }
+    if (Get-Service -Name 'actuary-portal-bot' -ErrorAction SilentlyContinue) {
+        Restart-Service -Name 'actuary-portal-bot' -Force
+        return 'service:actuary-portal-bot'
+    }
+    if (Get-Command pm2 -ErrorAction SilentlyContinue) {
+        & pm2 restart actuary-bot 2>&1 | Out-Null
+        return 'pm2'
+    }
+    return 'manual-needed'
+}
+
+$restarted = @()
+if ($restartNode) { $restarted += 'Node(' + (Restart-Node) + ')' }
+if ($restartBot)  { $restarted += 'Bot('  + (Restart-Bot)  + ')' }
+
+# 재시작 후 헬스체크 (실패해도 로그만)
+if ($restartNode) {
     Start-Sleep -Seconds 2
-    & net start ActuaryPortalBot | Out-Null
-    $restarted += 'Bot'
+    try {
+        $code = (Invoke-WebRequest -Uri 'http://127.0.0.1:8888/login.html' -UseBasicParsing -TimeoutSec 5).StatusCode
+        Log "HEALTH after restart: HTTP $code"
+    } catch { Log "HEALTH after restart: no-response ($($_.Exception.Message))" }
 }
 
 $shortBefore = $before.Substring(0, 7)
