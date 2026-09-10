@@ -357,7 +357,7 @@
       display: inline-flex; padding: 1px 8px; font-size: 10.5px; font-weight: 700;
       background: #eef2ff; color: #4338ca; border-radius: 999px;
     }
-    .trait-radar { display: block; margin: 4px auto 6px; max-width: 100%; height: auto; }
+    .trait-radar { display: block; margin: 2px auto 6px; width: 100%; max-width: 300px; height: auto; align-self: center; }
     .trait-radar-empty {
       display: flex; align-items: center; justify-content: center;
       height: 240px; color: #cbd5e1; font-size: 12.5px; text-align: center;
@@ -402,7 +402,8 @@
     }
     @media (max-width: 640px) {
       .traits-grid { grid-template-columns: 1fr; }
-      .trait-radar { max-width: 260px; }
+      .trait-radar { max-width: 300px; }
+      .trait-card { align-items: stretch; }
     }
 
     /* ── 인사카드 요약 표 (극비 · 인력·자원 탭 부속) ─────────── */
@@ -1788,8 +1789,8 @@ function traitRadarSvg(scores, opts) {
   opts = opts || {};
   const size = opts.size || 240;
   const cx = size / 2, cy = size / 2;
-  const R = size * 0.34;
-  const labelR = R + 20;
+  const R = size * 0.40;        // 차트를 크게(카드 여백 최소화)
+  const labelR = R + 18;
   const axes = 6;
   const start = -Math.PI / 2;
   function pt(r, i) {
@@ -1824,12 +1825,12 @@ function traitRadarSvg(scores, opts) {
     if (i === 3) dy = 12;
     return `<text x="${x}" y="${y + dy}" text-anchor="${anchor}" font-size="11" font-weight="700" fill="#475569">${ax.label}</text>`;
   }).join('');
-  // 라벨('커뮤니케이션' 6글자 등)이 viewBox 밖으로 잘리지 않도록 상하좌우 여백(PAD)을 준다.
-  // viewBox 를 정사각으로 키워(폭=높이) 종횡비는 유지하면서 라벨 공간만 확보.
-  const PAD = 48;
+  // 라벨('커뮤니케이션' 6글자 등)이 viewBox 밖으로 잘리지 않도록 상하좌우 여백(PAD).
+  // 정사각 viewBox 로 확장(폭=높이) → 종횡비 유지. 차트 R 을 키웠으므로 여백 안에서도 크게 보인다.
+  const PAD = 50;
   const VB = size + PAD * 2;
   return `
-    <svg class="trait-radar" viewBox="${-PAD} ${-PAD} ${VB} ${VB}" width="${size}" height="${size}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="6축 성향 레이더">
+    <svg class="trait-radar" viewBox="${-PAD} ${-PAD} ${VB} ${VB}" width="${VB}" height="${VB}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="6축 성향 레이더">
       <defs>
         <radialGradient id="traitFill${opts.suffix || ''}" cx="50%" cy="50%" r="50%">
           <stop offset="0%" stop-color="#a5b4fc" stop-opacity="0.55"/>
