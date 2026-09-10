@@ -490,6 +490,12 @@ const Portal = (() => {
   function injectResponsiveStyle() {
     if (document.getElementById('portal-responsive-style')) return;
     const css = `
+      /* ── 레이아웃 가로 넘침 방지(핵심) ──
+         사이드바 옆 flex 자식(.main-content)이 nowrap 툴바/탭 때문에 뷰포트보다
+         넓어지는 것을 min-width:0 으로 차단. 안 그러면 폼·표까지 전부 우측으로 삐짐. */
+      .app-layout { max-width: 100%; }
+      .main-content { min-width: 0; max-width: 100%; }
+      .content-body, .page-header { max-width: 100%; }
       /* 표 가로 스크롤 래퍼 (칸 부족 시 스크롤) */
       .rtable-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch;
         scrollbar-width: thin; max-width: 100%; }
@@ -506,6 +512,22 @@ const Portal = (() => {
         .btn, .nav-item, .status-btn, .settle-view-btn, .btn-add-row,
         .btn-card-edit, .btn-card-reset, .btn-card-retire, .btn-card-delete { min-height: 40px; }
         .exec-toolbar .btn, .exec-toolbar .load-select { min-height: 40px; }
+        /* 헤더/툴바/필터바: 한 줄에 다 못 넣으면 줄바꿈 (가로 넘침 방지) */
+        .page-header, .header-actions, .toolbar, .exec-toolbar, .filter-bar,
+        .wr-toolbar, .ws-toolbar, .audit-toolbar, .automation-toolbar,
+        .rewards-header, .settle-view-tabs { flex-wrap: wrap !important; }
+        .page-header .header-actions { width: 100%; }
+        /* 탭 바(항목 많음)는 줄바꿈 대신 가로 스크롤 — 탭 모양 유지 */
+        .exec-tabs, [role="tablist"], .tab-bar, .tabs, .kb-tabs {
+          overflow-x: auto; -webkit-overflow-scrolling: touch;
+          flex-wrap: nowrap; scrollbar-width: thin; }
+        /* 제목이 길면 다음 줄로 (자르지 않음) */
+        .page-title { word-break: keep-all; overflow-wrap: anywhere; }
+        .page-title small { display: inline-block; }
+        /* 카드 헤더(제목+범례 등): 제목이 세로로 찌부러지지 않게 + 범례는 줄바꿈 */
+        .chart-card-header, .card-header, .sec-head, .exec-sec-header { flex-wrap: wrap; }
+        .chart-card-title, .sec-title { white-space: nowrap; flex-shrink: 0; }
+        .legend-row, .traits-axis-legend { flex-wrap: wrap; }
       }
       /* 폴더블 커버/좁은 폰(≤380px): 여백·제목 축소로 가독성 확보 */
       @media (max-width: 380px) {
