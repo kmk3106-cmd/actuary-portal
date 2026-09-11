@@ -60,6 +60,89 @@ WORK_TYPES = [
 ]
 WORK_TYPE_KEYS = [k for k, _ in WORK_TYPES]
 
+# ══════════════════════════════════════════════════════════
+# 표준분류(카테고리 정규화) — 통합 엑셀에서 유사 표기 통합 + 세부미지정 매칭
+#   SSOT: reports/category_rules.json (없으면 아래 임베디드 기본값 사용)
+#   IFRS17 과 IFRS4 는 다른 회계기준 → 절대 병합 금지 (규칙 순서로 각각 먼저 매칭)
+# ══════════════════════════════════════════════════════════
+DEFAULT_CATEGORY_RULES = {
+    'fallback_label': '기타',
+    'rules': [
+        {'label': 'IFRS17 결산', 'any': ['ifrs17', 'ifrs 17', 'ifrs-17']},
+        {'label': 'IFRS4 결산',  'any': ['ifrs4', 'ifrs 4', 'ifrs-4']},
+        {'label': '결산 실무',   'any': ['tbasb', '준비금', '비금', '실효', '만기', '생존', '사고', '사차',
+                                         '위보', '보험료 분해', '보험료분해', '계리계약', '최초인식', '후속측정',
+                                         '보증준비금', '평균기준가', '잔존만기', '결산대상계약']},
+        {'label': '차세대',      'any': ['차세대', '통합테스트', 'uat', '3차 통합']},
+        {'label': '대내외 대응', 'any': ['대내외', '감독원', '금융감독원', '계리법인', '회계법인', '발송',
+                                         '요청자료', '제출', 'cpc', '업무보고서', '질문 대응', '질문대응',
+                                         '심의위원회', '적정성 검토', '적정성검토']},
+        {'label': '모델·시스템 관리', 'any': ['모델', '시스템', '로직', '마이그레이션', 'output table', 'output',
+                                              '고도화', '배포', '테이블 생성', 'logtable', 'irimb']},
+        {'label': '결산 실무',   'any': ['결산', '구월보', '보종', '보종코드']},
+        {'label': '관리회계·기타', 'any': ['관리회계', '사업계획', '시책', '프로모션', '제도 변경', '제도변경', '이관']},
+    ],
+}
+
+# 통합 시트 그룹 표기 순서
+CANONICAL_ORDER = ['IFRS17 결산', 'IFRS4 결산', '결산 실무', '차세대',
+                   '모델·시스템 관리', '대내외 대응', '관리회계·기타', '기타']
+
+
+def load_category_rules(path=None):
+    """rules JSON 로드 (인자 → reports/category_rules.json → 임베디드 기본값)."""
+    candidates = []
+    if path:
+        candidates.append(path)
+    candidates.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'category_rules.json'))
+    for p in candidates:
+        try:
+            if p and os.path.exists(p):
+                with open(p, encoding='utf-8') as f:
+                    data = json.load(f)
+                if isinstance(data, dict) and data.get('rules'):
+                    return data
+        except Exception as e:  # noqa: BLE001
+            sys.stderr.write('[category_rules 로드 실패, 기본값 사용] %s\n' % e)
+    return DEFAULT_CATEGORY_RULES
+
+
+def _match_category_rules(text, rules):
+    t = (text or '').lower()
+    if not t.strip():
+        return None
+    for r in rules.get('rules', []):
+        for kw in r.get('any', []):
+            if kw and kw.lower() in t:
+                return r.get('label')
+    return None
+
+
+# 미지정 성격의 구분값 — 업무내용으로 추론 (요구사항 #2: 세부미지정 매칭)
+GENERIC_CATEGORIES = {'기타', '기타업무', '미분류', '미지정', '(미분류)', '(미지정)', '(세부 미지정)', 'etc', '-'}
+
+
+def normalize_category(category, task_content, work_type_detail=None, rules=None):
+    """구분/업무내용을 표준분류 라벨로 정규화.
+    1) 구분(category)이 있고 '미지정 성격'이 아니면 → 구분 텍스트로 매칭 (없으면 원문 유지)
+    2) 구분이 비었거나 '기타/미분류/미지정' 이면 → 세부구분+업무내용으로 추론
+    3) 그래도 없으면 fallback('기타')
+    """
+    rules = rules or DEFAULT_CATEGORY_RULES
+    cat = (category or '').strip()
+    if cat and cat not in GENERIC_CATEGORIES:
+        lbl = _match_category_rules(cat, rules)
+        return lbl if lbl else cat
+    # 구분이 비었거나 미지정 성격 → 세부구분 + 업무내용으로 추론
+    text = ' '.join([str(work_type_detail or ''), str(task_content or '')])
+    lbl = _match_category_rules(text, rules)
+    if lbl:
+        return lbl
+    wtd = (work_type_detail or '').strip()
+    if wtd and wtd not in GENERIC_CATEGORIES:
+        return wtd
+    return rules.get('fallback_label', '기타')
+
 # ── 업무연장구분 값 (드롭다운) ─────────────────────────────
 # 신규: 이번 주 새로 시작 · 연장: 지난 주에서 이월 진행중 · 종료: 이번 주 완료
 # 상시: 매주 반복 (상시·수시) · 보류: 대기 상태
@@ -166,15 +249,15 @@ def _apply_status_conditional(ws, data_range):
 # ══════════════════════════════════════════════════════════
 # 인별 시트 (주간업무_인별) — 데이터 채움
 # ══════════════════════════════════════════════════════════
-def build_person_sheet(wb, week_label, base_date, tasks):
+def build_person_sheet(wb, week_label, base_date, tasks, cat_rules=None):
     ws = wb.create_sheet('주간업무_인별')
-    # 컬럼 순서: 팀원 · 구분 · 업무구분 · 업무내용 · 이번주 한일 · 다음주 할일 · 이슈 · 시작일 · 완료 · 진척율 · 상태 · KEY
-    widths = {'A': 10, 'B': 16, 'C': 10, 'D': 42, 'E': 32, 'F': 32, 'G': 22, 'H': 12, 'I': 12, 'J': 10, 'K': 10, 'L': 10}
+    # 컬럼: 팀원 · 구분(원본) · 표준분류 · 업무구분 · 업무내용 · 이번주 · 다음주 · 이슈 · 시작 · 완료 · 진척율 · 상태 · KEY
+    widths = {'A': 10, 'B': 16, 'C': 15, 'D': 10, 'E': 42, 'F': 32, 'G': 32, 'H': 22, 'I': 12, 'J': 12, 'K': 10, 'L': 10, 'M': 10}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
-    ws.column_dimensions['L'].hidden = True
+    ws.column_dimensions['M'].hidden = True
 
-    last_col_letter = 'K'  # 병합 · 조건서식 등에서 사용
+    last_col_letter = 'L'  # 병합 · 조건서식 등에서 사용 (KEY=M 제외)
 
     ws.merge_cells(f'A1:{last_col_letter}1')
     ws['A1'] = '계리결산팀 주간업무 현황'
@@ -186,7 +269,7 @@ def build_person_sheet(wb, week_label, base_date, tasks):
     ws['A2'].font = SUB_FONT; ws['A2'].fill = SUB_FILL; ws['A2'].alignment = CENTER
     ws.row_dimensions[2].height = 22
 
-    headers = ['팀원', '구분', '업무구분', '업무내용',
+    headers = ['팀원', '구분', '표준분류', '업무구분', '업무내용',
                '이번주 한 일', '다음주 할 일', '이슈 · 비고',
                '시작일', '완료(예정)', '진척율', '상태', '팀원KEY']
     for i, h in enumerate(headers, 1):
@@ -222,41 +305,44 @@ def build_person_sheet(wb, week_label, base_date, tasks):
         for cat, items in by_cat.items():
             cat_top = row
             for t in items:
-                # C: 업무구분(extension_type) · D: 업무내용 · E: 이번주 한일 · F: 다음주 할일 · G: 이슈
+                # C: 표준분류 · D: 업무구분(ext) · E: 업무내용 · F: 이번주 · G: 다음주 · H: 이슈
+                std = normalize_category(t.get('category'), t.get('task_content'),
+                                         t.get('work_type_detail'), cat_rules)
                 ext = (t.get('extension_type') or '').strip()
-                ws.cell(row=row, column=3, value=(ext or None))
-                ws.cell(row=row, column=4, value=_prefix_task(t.get('task_content')))
-                ws.cell(row=row, column=5, value=(t.get('this_week_done') or None))
-                ws.cell(row=row, column=6, value=(t.get('next_week_plan') or None))
-                ws.cell(row=row, column=7, value=(t.get('issue_note') or None))
+                ws.cell(row=row, column=3, value=std)
+                ws.cell(row=row, column=4, value=(ext or None))
+                ws.cell(row=row, column=5, value=_prefix_task(t.get('task_content')))
+                ws.cell(row=row, column=6, value=(t.get('this_week_done') or None))
+                ws.cell(row=row, column=7, value=(t.get('next_week_plan') or None))
+                ws.cell(row=row, column=8, value=(t.get('issue_note') or None))
                 sd = _norm_date(t.get('start_date'))
                 ed = _norm_date(t.get('end_date'))
                 if sd is not None:
-                    ws.cell(row=row, column=8, value=sd)
+                    ws.cell(row=row, column=9, value=sd)
                 if ed is not None:
-                    ws.cell(row=row, column=9, value=ed)
+                    ws.cell(row=row, column=10, value=ed)
                 pg = _norm_progress(t.get('progress'))
                 if pg is not None:
-                    ws.cell(row=row, column=10, value=pg)
+                    ws.cell(row=row, column=11, value=pg)
                 st = (t.get('status') or '').strip()
-                ws.cell(row=row, column=11, value=(st or None))
-                ws.cell(row=row, column=12, value=name)
+                ws.cell(row=row, column=12, value=(st or None))
+                ws.cell(row=row, column=13, value=name)
                 # 스타일
-                for col in range(1, 13):
+                for col in range(1, 14):
                     c = ws.cell(row=row, column=col)
                     c.border = BORDER_ALL
                     c.font = BODY_FONT
-                    c.alignment = CENTER if col in (3, 8, 9, 10, 11) else LEFT
+                    c.alignment = CENTER if col in (3, 4, 9, 10, 11, 12) else LEFT
                 if isinstance(sd, date):
-                    ws.cell(row=row, column=8).number_format = 'yyyy-mm-dd'
-                if isinstance(ed, date):
                     ws.cell(row=row, column=9).number_format = 'yyyy-mm-dd'
+                if isinstance(ed, date):
+                    ws.cell(row=row, column=10).number_format = 'yyyy-mm-dd'
                 if pg is not None:
-                    ws.cell(row=row, column=10).number_format = '0.0%'
+                    ws.cell(row=row, column=11).number_format = '0.0%'
                 # 업무구분 색상 강조
                 if ext in EXT_COLORS:
                     bg, fg = EXT_COLORS[ext]
-                    cc = ws.cell(row=row, column=3)
+                    cc = ws.cell(row=row, column=4)
                     cc.fill = PatternFill('solid', fgColor=bg)
                     cc.font = Font(name='맑은 고딕', size=10, bold=True, color=fg)
                 ws.row_dimensions[row].height = 26
@@ -272,18 +358,18 @@ def build_person_sheet(wb, week_label, base_date, tasks):
         a = ws.cell(row=top, column=1, value=name)
         a.font = BOLD_FONT; a.fill = NAME_FILL; a.alignment = CENTER
 
-        dv_status.add(f'K{top}:K{row - 1}')
-        dv_pct.add(f'J{top}:J{row - 1}')
-        dv_ext.add(f'C{top}:C{row - 1}')
+        dv_status.add(f'L{top}:L{row - 1}')
+        dv_pct.add(f'K{top}:K{row - 1}')
+        dv_ext.add(f'D{top}:D{row - 1}')
 
     last_data = row - 1
     if last_data >= 4:
-        _apply_status_conditional(ws, f'K4:K{last_data}')
+        _apply_status_conditional(ws, f'L4:L{last_data}')
 
-    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=11)
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=12)
     ws.cell(row=row, column=1, value=(
         '※ 업무구분 : 신규 / 연장 (전주 이월) / 종료 (금주 완료) / 상시 (매주 반복) / 보류 (대기)   |   '
-        '상태 : 완료(100%) · 진행중(0~99%) · 미착수(0%)'
+        '표준분류 : 유사 업무 자동 통합 분류   |   상태 : 완료(100%) · 진행중(0~99%) · 미착수(0%)'
     ))
     ws.cell(row=row, column=1).font = FOOT_FONT
     ws.cell(row=row, column=1).fill = FOOT_FILL
@@ -317,12 +403,12 @@ def build_summary_sheet(wb, week_label, base_date, ordered_names, person_last_ro
         c.font = HEAD_FONT; c.fill = HEAD_FILL; c.alignment = CENTER; c.border = BORDER_ALL
     ws.row_dimensions[4].height = 24
 
-    # 인별 시트 컬럼 매핑 (확장 후):
-    #   D = 업무내용, J = 진척율, K = 상태, L = 팀원KEY
-    key_range = f"주간업무_인별!$L$4:$L${person_last_row}"
-    status_range = f"주간업무_인별!$K$4:$K${person_last_row}"
-    pct_range = f"주간업무_인별!$J$4:$J${person_last_row}"
-    task_range = f"주간업무_인별!$D$4:$D${person_last_row}"
+    # 인별 시트 컬럼 매핑 (표준분류 열 추가로 +1 시프트):
+    #   E = 업무내용, K = 진척율, L = 상태, M = 팀원KEY
+    key_range = f"주간업무_인별!$M$4:$M${person_last_row}"
+    status_range = f"주간업무_인별!$L$4:$L${person_last_row}"
+    pct_range = f"주간업무_인별!$K$4:$K${person_last_row}"
+    task_range = f"주간업무_인별!$E$4:$E${person_last_row}"
 
     r = 5
     for name in ordered_names:
@@ -371,17 +457,17 @@ def build_summary_sheet(wb, week_label, base_date, ordered_names, person_last_ro
 # ══════════════════════════════════════════════════════════
 # 통합 시트 (업무유형별) — 데이터 채움
 # ══════════════════════════════════════════════════════════
-def build_typegroup_sheet(wb, week_label, base_date, tasks):
-    ws = wb.create_sheet('통합_업무유형별')
-    # A: 세부구분 · B: 업무구분(ext) · C: 업무내용 · D: 이번주 한일 · E: 다음주 할일
-    # F: 담당 · G: 시작 · H: 완료 · I: 진척율 · J: 상태 · K: 이슈 · L: TYPE
-    widths = {'A': 22, 'B': 10, 'C': 42, 'D': 32, 'E': 32, 'F': 10, 'G': 12, 'H': 12, 'I': 10, 'J': 10, 'K': 20, 'L': 6}
+def build_typegroup_sheet(wb, week_label, base_date, tasks, cat_rules=None):
+    ws = wb.create_sheet('통합_표준분류별')
+    # A: 구분(원본) · B: 업무구분(ext) · C: 업무내용 · D: 이번주 한일 · E: 다음주 할일
+    # F: 담당 · G: 시작 · H: 완료 · I: 진척율 · J: 상태 · K: 이슈 · L: 표준분류(hidden)
+    widths = {'A': 18, 'B': 10, 'C': 42, 'D': 32, 'E': 32, 'F': 10, 'G': 12, 'H': 12, 'I': 10, 'J': 10, 'K': 20, 'L': 6}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
     ws.column_dimensions['L'].hidden = True
 
     ws.merge_cells('A1:K1')
-    ws['A1'] = '계리결산팀 주간업무 현황 (업무유형별 통합)'
+    ws['A1'] = '계리결산팀 주간업무 현황 (표준분류별 통합)'
     ws['A1'].font = TITLE_FONT; ws['A1'].fill = TITLE_FILL; ws['A1'].alignment = CENTER
     ws.row_dimensions[1].height = 28
 
@@ -390,21 +476,22 @@ def build_typegroup_sheet(wb, week_label, base_date, tasks):
     ws['A2'].font = SUB_FONT; ws['A2'].fill = SUB_FILL; ws['A2'].alignment = CENTER
     ws.row_dimensions[2].height = 22
 
-    headers = ['세부 구분', '업무구분', '업무내용',
+    headers = ['구분(원본)', '업무구분', '업무내용',
                '이번주 한 일', '다음주 할 일',
-               '담당', '시작일', '완료(예정)', '진척율', '상태', '이슈 · 비고', 'TYPE']
+               '담당', '시작일', '완료(예정)', '진척율', '상태', '이슈 · 비고', '표준분류']
     for i, h in enumerate(headers, 1):
         c = ws.cell(row=3, column=i, value=h)
         c.font = HEAD_FONT; c.fill = HEAD_FILL; c.alignment = CENTER; c.border = BORDER_ALL
     ws.row_dimensions[3].height = 26
 
-    # 업무유형(Ⅰ~Ⅵ) 별 그룹핑
-    by_type = OrderedDict((k, []) for k, _ in WORK_TYPES)
+    # 표준분류 기준 그룹핑 (유사 업무 통합 · 세부미지정 매칭)
+    by_std = OrderedDict()
     for t in tasks:
-        wt = (t.get('work_type') or '').strip()
-        if wt not in by_type:
-            wt = 'Ⅵ'   # 미지정은 기타로
-        by_type[wt].append(t)
+        std = normalize_category(t.get('category'), t.get('task_content'),
+                                 t.get('work_type_detail'), cat_rules)
+        by_std.setdefault(std, []).append(t)
+    ordered_stds = [c for c in CANONICAL_ORDER if c in by_std] + \
+                   [c for c in by_std.keys() if c not in CANONICAL_ORDER]
 
     dv_status = DataValidation(type='list', formula1='"미착수,진행중,완료"', allow_blank=True)
     dv_pct    = DataValidation(type='decimal', operator='between', formula1=0, formula2=1, allow_blank=True)
@@ -414,14 +501,14 @@ def build_typegroup_sheet(wb, week_label, base_date, tasks):
     ws.add_data_validation(dv_ext)
 
     row = 4
-    for k, label in WORK_TYPES:
-        items = by_type[k]
+    for std in ordered_stds:
+        items = by_std[std]
         done = sum(1 for t in items if (_norm_progress(t.get('progress')) or 0) >= 1.0)
         pcs = [_norm_progress(t.get('progress')) for t in items if _norm_progress(t.get('progress')) is not None]
         avg = round(sum(pcs) / len(pcs) * 100) if pcs else 0
-        # 카테고리 헤더 (A~E 라벨, F~K 통계)
+        # 표준분류 헤더 (A~E 라벨, F~K 통계)
         ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=5)
-        ws.cell(row=row, column=1, value=label).font = CAT_FONT
+        ws.cell(row=row, column=1, value=std).font = CAT_FONT
         ws.cell(row=row, column=1).fill = CAT_FILL
         ws.cell(row=row, column=1).alignment = LEFT
         ws.cell(row=row, column=1).border = BORDER_ALL
@@ -433,65 +520,61 @@ def build_typegroup_sheet(wb, week_label, base_date, tasks):
         ws.row_dimensions[row].height = 24
         row += 1
 
-        by_detail = OrderedDict()
-        for t in items:
-            d = (t.get('work_type_detail') or '').strip() or '(세부 미지정)'
-            by_detail.setdefault(d, []).append(t)
-        for detail, group in by_detail.items():
-            det_top = row
-            for t in group:
-                ext = (t.get('extension_type') or '').strip()
-                ws.cell(row=row, column=2, value=(ext or None))
-                ws.cell(row=row, column=3, value=(t.get('task_content') or '').strip())
-                ws.cell(row=row, column=4, value=(t.get('this_week_done') or None))
-                ws.cell(row=row, column=5, value=(t.get('next_week_plan') or None))
-                ws.cell(row=row, column=6, value=(t.get('member_name') or ''))
-                sd = _norm_date(t.get('start_date'))
-                ed = _norm_date(t.get('end_date'))
-                if sd is not None:
-                    ws.cell(row=row, column=7, value=sd)
-                if ed is not None:
-                    ws.cell(row=row, column=8, value=ed)
-                pg = _norm_progress(t.get('progress'))
-                if pg is not None:
-                    ws.cell(row=row, column=9, value=pg)
-                st = (t.get('status') or '').strip()
-                ws.cell(row=row, column=10, value=(st or None))
-                ws.cell(row=row, column=11, value=(t.get('issue_note') or None))
-                ws.cell(row=row, column=12, value=k)
-                for col in range(1, 13):
-                    c = ws.cell(row=row, column=col)
-                    c.border = BORDER_ALL
-                    c.font = BODY_FONT
-                    c.alignment = CENTER if col in (2, 6, 7, 8, 9, 10) else LEFT
-                if isinstance(sd, date):
-                    ws.cell(row=row, column=7).number_format = 'yyyy-mm-dd'
-                if isinstance(ed, date):
-                    ws.cell(row=row, column=8).number_format = 'yyyy-mm-dd'
-                if pg is not None:
-                    ws.cell(row=row, column=9).number_format = '0.0%'
-                if ext in EXT_COLORS:
-                    bg, fg = EXT_COLORS[ext]
-                    cc = ws.cell(row=row, column=2)
-                    cc.fill = PatternFill('solid', fgColor=bg)
-                    cc.font = Font(name='맑은 고딕', size=10, bold=True, color=fg)
-                ws.row_dimensions[row].height = 26
-                row += 1
-            if row - 1 > det_top:
-                ws.merge_cells(start_row=det_top, start_column=1, end_row=row - 1, end_column=1)
-            ws.cell(row=det_top, column=1, value=detail).font = BOLD_FONT
-            ws.cell(row=det_top, column=1).alignment = LEFT
-            ws.cell(row=det_top, column=1).fill = PatternFill('solid', fgColor='F1F5F9')
+        grp_top = row
+        # 그룹 내 정렬: 원본 구분 → 담당자 (유사 표기끼리 인접)
+        for t in sorted(items, key=lambda x: ((x.get('category') or '').strip(),
+                                              (x.get('member_name') or ''))):
+            ext = (t.get('extension_type') or '').strip()
+            ws.cell(row=row, column=1, value=((t.get('category') or '').strip() or '(미분류)'))
+            ws.cell(row=row, column=2, value=(ext or None))
+            ws.cell(row=row, column=3, value=(t.get('task_content') or '').strip())
+            ws.cell(row=row, column=4, value=(t.get('this_week_done') or None))
+            ws.cell(row=row, column=5, value=(t.get('next_week_plan') or None))
+            ws.cell(row=row, column=6, value=(t.get('member_name') or ''))
+            sd = _norm_date(t.get('start_date'))
+            ed = _norm_date(t.get('end_date'))
+            if sd is not None:
+                ws.cell(row=row, column=7, value=sd)
+            if ed is not None:
+                ws.cell(row=row, column=8, value=ed)
+            pg = _norm_progress(t.get('progress'))
+            if pg is not None:
+                ws.cell(row=row, column=9, value=pg)
+            st = (t.get('status') or '').strip()
+            ws.cell(row=row, column=10, value=(st or None))
+            ws.cell(row=row, column=11, value=(t.get('issue_note') or None))
+            ws.cell(row=row, column=12, value=std)
+            for col in range(1, 13):
+                c = ws.cell(row=row, column=col)
+                c.border = BORDER_ALL
+                c.font = BODY_FONT
+                c.alignment = CENTER if col in (2, 6, 7, 8, 9, 10) else LEFT
+            if isinstance(sd, date):
+                ws.cell(row=row, column=7).number_format = 'yyyy-mm-dd'
+            if isinstance(ed, date):
+                ws.cell(row=row, column=8).number_format = 'yyyy-mm-dd'
+            if pg is not None:
+                ws.cell(row=row, column=9).number_format = '0.0%'
+            if ext in EXT_COLORS:
+                bg, fg = EXT_COLORS[ext]
+                cc = ws.cell(row=row, column=2)
+                cc.fill = PatternFill('solid', fgColor=bg)
+                cc.font = Font(name='맑은 고딕', size=10, bold=True, color=fg)
+            ws.row_dimensions[row].height = 26
+            row += 1
 
-            dv_status.add(f'J{det_top}:J{row - 1}')
-            dv_pct.add(f'I{det_top}:I{row - 1}')
-            dv_ext.add(f'B{det_top}:B{row - 1}')
+        dv_status.add(f'J{grp_top}:J{row - 1}')
+        dv_pct.add(f'I{grp_top}:I{row - 1}')
+        dv_ext.add(f'B{grp_top}:B{row - 1}')
 
     if row > 4:
         _apply_status_conditional(ws, f'J4:J{row - 1}')
 
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=11)
-    ws.cell(row=row, column=1, value='※ 업무유형은 팀장이 재분류한 것으로, 인별 시트의 구분과 상이할 수 있음').font = FOOT_FONT
+    ws.cell(row=row, column=1, value=(
+        '※ 표준분류는 구분/업무내용을 기준으로 유사 업무를 자동 통합한 값입니다 '
+        '(IFRS17·IFRS4는 분리). 원본 구분은 A열에 그대로 표기.'
+    )).font = FOOT_FONT
     ws.cell(row=row, column=1).fill = FOOT_FILL
     ws.cell(row=row, column=1).alignment = LEFT
     ws.freeze_panes = 'A4'
@@ -504,7 +587,11 @@ def main():
     ap.add_argument('--base-date', required=True, help='기준일 YYYY-MM-DD')
     ap.add_argument('--out', required=True, help='출력 xlsx 경로')
     ap.add_argument('--view', choices=['person', 'typegroup', 'all'], default='all')
+    ap.add_argument('--category-rules', default=None,
+                    help='표준분류 규칙 JSON 경로 (기본: reports/category_rules.json)')
     args = ap.parse_args()
+
+    cat_rules = load_category_rules(args.category_rules)
 
     if not os.path.exists(args.data):
         print(f'ERROR: 데이터 파일 없음: {args.data}', file=sys.stderr)
@@ -524,10 +611,10 @@ def main():
 
     ordered_names, person_last = [], 3
     if args.view in ('person', 'all'):
-        ordered_names, person_last = build_person_sheet(wb, args.week, base_date, tasks)
+        ordered_names, person_last = build_person_sheet(wb, args.week, base_date, tasks, cat_rules)
         build_summary_sheet(wb, args.week, base_date, ordered_names, person_last)
     if args.view in ('typegroup', 'all'):
-        build_typegroup_sheet(wb, args.week, base_date, tasks)
+        build_typegroup_sheet(wb, args.week, base_date, tasks, cat_rules)
 
     os.makedirs(os.path.dirname(args.out) or '.', exist_ok=True)
     wb.save(args.out)
