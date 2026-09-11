@@ -3,8 +3,8 @@
 
 - 입력: --data <JSON 파일 경로> (weekly_tasks 배열)
 - 출력: --out <xlsx 경로>
-- 뷰:   --view person     ← 주간업무_인별 시트 + 요약 시트
-        --view typegroup  ← 통합_업무유형별 시트 (Ⅰ~Ⅵ 카테고리별 그룹핑)
+- 뷰:   --view person     ← 주간업무_인별 시트 + 요약 시트 (표준분류 열 포함)
+        --view typegroup  ← 통합_표준분류별 시트 (표준분류로 그룹핑·정렬)
         --view all        ← 3 시트 모두 (기본값)
 - 주차: --week "'26년 9월 2주차"  --base-date 2026-09-07
 
@@ -63,30 +63,31 @@ WORK_TYPE_KEYS = [k for k, _ in WORK_TYPES]
 # ══════════════════════════════════════════════════════════
 # 표준분류(카테고리 정규화) — 통합 엑셀에서 유사 표기 통합 + 세부미지정 매칭
 #   SSOT: reports/category_rules.json (없으면 아래 임베디드 기본값 사용)
-#   IFRS17 과 IFRS4 는 다른 회계기준 → 절대 병합 금지 (규칙 순서로 각각 먼저 매칭)
+#   지정 표준분류(우선순위): 결산업무 > 분석업무 > 대내외자료 및 대응 > CPC 및 공시자료 > AI 등 기타업무
+#   규칙 배열 순서 = 분류 우선순위(강한 마커 우선). sort_order = 통합 시트 그룹 정렬 순서.
 # ══════════════════════════════════════════════════════════
 DEFAULT_CATEGORY_RULES = {
-    'fallback_label': '기타',
+    'fallback_label': 'AI 등 기타업무',
+    'sort_order': ['결산업무', '분석업무', '대내외자료 및 대응', 'CPC 및 공시자료', 'AI 등 기타업무'],
     'rules': [
-        {'label': 'IFRS17 결산', 'any': ['ifrs17', 'ifrs 17', 'ifrs-17']},
-        {'label': 'IFRS4 결산',  'any': ['ifrs4', 'ifrs 4', 'ifrs-4']},
-        {'label': '결산 실무',   'any': ['tbasb', '준비금', '비금', '실효', '만기', '생존', '사고', '사차',
-                                         '위보', '보험료 분해', '보험료분해', '계리계약', '최초인식', '후속측정',
-                                         '보증준비금', '평균기준가', '잔존만기', '결산대상계약']},
-        {'label': '차세대',      'any': ['차세대', '통합테스트', 'uat', '3차 통합']},
-        {'label': '대내외 대응', 'any': ['대내외', '감독원', '금융감독원', '계리법인', '회계법인', '발송',
-                                         '요청자료', '제출', 'cpc', '업무보고서', '질문 대응', '질문대응',
-                                         '심의위원회', '적정성 검토', '적정성검토']},
-        {'label': '모델·시스템 관리', 'any': ['모델', '시스템', '로직', '마이그레이션', 'output table', 'output',
-                                              '고도화', '배포', '테이블 생성', 'logtable', 'irimb']},
-        {'label': '결산 실무',   'any': ['결산', '구월보', '보종', '보종코드']},
-        {'label': '관리회계·기타', 'any': ['관리회계', '사업계획', '시책', '프로모션', '제도 변경', '제도변경', '이관']},
+        {'label': 'CPC 및 공시자료', 'any': ['cpc', '공시이율', '공시', '심의위원회']},
+        {'label': '대내외자료 및 대응', 'any': ['대내외', '감독원', '금융감독원', '계리법인', '회계법인', '삼일',
+                                               '세이지', 'sage', '발송', '요청자료', '제출', '업무보고서',
+                                               '질문 대응', '질문대응', '감사자료', '검증대응', '자료제출', '내부회계']},
+        {'label': '결산업무', 'any': ['ifrs', '결산', '계리계약', '보험료분해', '보험료 분해', '비금', '준비금',
+                                      '실효', '만기', '생존', '사고', 'tbasb', '사차', '위보', '최초인식', '후속측정',
+                                      '보증준비금', '평균기준가', '잔존만기', '결산대상계약', '명세표', '수지차',
+                                      '마감', 'bel', '부채 추정', '보험부채', '배당', '적립액']},
+        {'label': '분석업무', 'any': ['분석', '재무영향', '영향분석', '민감도', '적정성', '산출방법', 'ibnr',
+                                      '모델 run', '모델run', 'run 수행']},
+        {'label': 'AI 등 기타업무', 'any': ['ai', '챔피언', '차세대', '통합테스트', '모델', '시스템', '로직',
+                                            '마이그레이션', '배포', '고도화', '관리회계', '사업계획', '시책',
+                                            '프로모션', '제도', '이관', '설립tf', '홈페이지', 'ga ']},
     ],
 }
 
-# 통합 시트 그룹 표기 순서
-CANONICAL_ORDER = ['IFRS17 결산', 'IFRS4 결산', '결산 실무', '차세대',
-                   '모델·시스템 관리', '대내외 대응', '관리회계·기타', '기타']
+# 통합 시트 그룹 표기(정렬) 순서 — rules 의 sort_order 가 있으면 그것을 우선 사용
+CANONICAL_ORDER = ['결산업무', '분석업무', '대내외자료 및 대응', 'CPC 및 공시자료', 'AI 등 기타업무']
 
 
 def load_category_rules(path=None):
@@ -123,25 +124,23 @@ GENERIC_CATEGORIES = {'기타', '기타업무', '미분류', '미지정', '(미�
 
 
 def normalize_category(category, task_content, work_type_detail=None, rules=None):
-    """구분/업무내용을 표준분류 라벨로 정규화.
-    1) 구분(category)이 있고 '미지정 성격'이 아니면 → 구분 텍스트로 매칭 (없으면 원문 유지)
-    2) 구분이 비었거나 '기타/미분류/미지정' 이면 → 세부구분+업무내용으로 추론
-    3) 그래도 없으면 fallback('기타')
+    """구분/업무내용을 표준분류 라벨로 정규화 (우선순위 로직).
+    - 구분(미지정 성격 제외) + 세부구분 + 업무내용을 하나의 텍스트로 합쳐,
+      rules 를 우선순위(배열 순서)대로 검사해 첫 매칭 라벨을 부여한다.
+      → CPC/대내외 같은 '강한 마커'가 구분 라벨보다 우선하도록 규칙 순서로 통제.
+    - 어디에도 안 걸리면 fallback_label (표준분류는 지정된 목록으로 닫힘).
     """
     rules = rules or DEFAULT_CATEGORY_RULES
+    parts = []
     cat = (category or '').strip()
     if cat and cat not in GENERIC_CATEGORIES:
-        lbl = _match_category_rules(cat, rules)
-        return lbl if lbl else cat
-    # 구분이 비었거나 미지정 성격 → 세부구분 + 업무내용으로 추론
-    text = ' '.join([str(work_type_detail or ''), str(task_content or '')])
-    lbl = _match_category_rules(text, rules)
-    if lbl:
-        return lbl
+        parts.append(cat)
     wtd = (work_type_detail or '').strip()
     if wtd and wtd not in GENERIC_CATEGORIES:
-        return wtd
-    return rules.get('fallback_label', '기타')
+        parts.append(wtd)
+    parts.append(str(task_content or ''))
+    lbl = _match_category_rules(' '.join(parts), rules)
+    return lbl if lbl else rules.get('fallback_label', 'AI 등 기타업무')
 
 # ── 업무연장구분 값 (드롭다운) ─────────────────────────────
 # 신규: 이번 주 새로 시작 · 연장: 지난 주에서 이월 진행중 · 종료: 이번 주 완료
@@ -490,8 +489,9 @@ def build_typegroup_sheet(wb, week_label, base_date, tasks, cat_rules=None):
         std = normalize_category(t.get('category'), t.get('task_content'),
                                  t.get('work_type_detail'), cat_rules)
         by_std.setdefault(std, []).append(t)
-    ordered_stds = [c for c in CANONICAL_ORDER if c in by_std] + \
-                   [c for c in by_std.keys() if c not in CANONICAL_ORDER]
+    sort_order = (cat_rules or {}).get('sort_order') or CANONICAL_ORDER
+    ordered_stds = [c for c in sort_order if c in by_std] + \
+                   [c for c in by_std.keys() if c not in sort_order]
 
     dv_status = DataValidation(type='list', formula1='"미착수,진행중,완료"', allow_blank=True)
     dv_pct    = DataValidation(type='decimal', operator='between', formula1=0, formula2=1, allow_blank=True)
