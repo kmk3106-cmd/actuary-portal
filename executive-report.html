@@ -1363,6 +1363,43 @@ let settleExtraByCategory = defaultSettleExtraByCategory();
 const extraCatOpenState = {};
 EXTRA_CAT_META.forEach(c => { extraCatOpenState[c.key] = true; });
 
+// ── RBAC · 결산외 업무 뷰 필터 ──────────────────────────────
+// team_leader   : 전 담당자 조회·편집
+// section_chief : 전 담당자 조회 (편집 X)
+// employee      : 본인(assignee==myName) 만 조회·편집
+//                 + [다른 팀원 조회] 로 union 추가 조회 (조회 전용)
+const EXTRA_CAT_ME = (currentUser && (currentUser.full_name || currentUser.username)) || '';
+const EXTRA_CAT_ROLE = currentUser && currentUser.role;
+const EXTRA_CAT_CAN_MANAGE = EXTRA_CAT_ROLE === 'team_leader' || EXTRA_CAT_ROLE === 'section_chief';
+const EXTRA_CAT_CAN_EDIT   = EXTRA_CAT_ROLE === 'team_leader';   // 실장·상무는 조회만
+let extraCatUnionMembers = [];   // 팀원이 union 조회에 추가한 담당자 이름
+
+function extraCatCanViewRow(assignee) {
+  if (EXTRA_CAT_CAN_MANAGE) return true;
+  const a = (assignee || '').trim();
+  if (!a) return true;                             // 신규 미지정 행 (팀원 본인이 방금 추가)
+  if (a === EXTRA_CAT_ME) return true;
+  return extraCatUnionMembers.includes(a);
+}
+function extraCatCanEditRow(assignee) {
+  if (EXTRA_CAT_CAN_EDIT) return true;             // 팀장 : 전 행 편집
+  if (EXTRA_CAT_CAN_MANAGE) return false;          // 실장·상무 : 조회만
+  const a = (assignee || '').trim();
+  return !a || a === EXTRA_CAT_ME;                 // 팀원 : 본인 것 & 신규 미지정 행만
+}
+function extraCatAddUnionMember(name) {
+  const n = (name || '').trim();
+  if (!n || n === EXTRA_CAT_ME) return;
+  if (extraCatUnionMembers.includes(n)) return;
+  extraCatUnionMembers.push(n);
+  renderSettleExtraCategories();
+}
+function extraCatRemoveUnionMember(name) {
+  extraCatUnionMembers = extraCatUnionMembers.filter(n => n !== name);
+  renderSettleExtraCategories();
+}
+Object.assign(window, { extraCatAddUnionMember, extraCatRemoveUnionMember });
+
 // 담당자 입력용 datalist — SETTLE_MEMBERS(users 자동 로드, 팀장 제외) 기반, select처럼 고르거나 자유 입력 모두 허용.
 function renderSettleMembersDatalist() {
   const dl = document.getElementById('settleMembersDatalist');
@@ -1370,28 +1407,77 @@ function renderSettleMembersDatalist() {
 }
 
 function extraCatRowsHtml(catKey) {
-  const rows = settleExtraByCategory[catKey] || [];
-  if (!rows.length) {
-    return `<tr><td colspan="5" class="settle-empty-msg">등록된 담당자가 없습니다.</td></tr>`;
+  const allRows = settleExtraByCategory[catKey] || [];
+  // [원본 idx, row] 로 묶어서 필터 → view idx 로 매핑 (원본 배열 인덱스 유지)
+  const view = allRows
+    .map((r, i) => [i, r])
+    .filter(([, r]) => extraCatCanViewRow(r.assignee));
+  if (!view.length) {
+    const msg = EXTRA_CAT_CAN_MANAGE
+      ? '등록된 담당자가 없습니다.'
+      : (extraCatUnionMembers.length
+          ? '내 · 선택 팀원 담당 업무가 없습니다.'
+          : `등록된 본인(${escAttr(EXTRA_CAT_ME)}) 담당 업무가 없습니다. [담당자 추가] 로 시작하세요.`);
+    return `<tr><td colspan="5" class="settle-empty-msg">${msg}</td></tr>`;
   }
-  return rows.map((r, i) => `
-    <tr>
-      <td><input type="text" class="form-control" list="settleMembersDatalist" placeholder="담당자 선택/입력" value="${escAttr(r.assignee)}"
+  return view.map(([i, r]) => {
+    const editable = extraCatCanEditRow(r.assignee);
+    const disAttr = editable ? '' : 'disabled readonly';
+    const rowStyle = editable ? '' : 'background:#fafbff;';
+    const badge = (!EXTRA_CAT_CAN_MANAGE && r.assignee && r.assignee !== EXTRA_CAT_ME)
+      ? `<span style="display:inline-block;font-size:10px;font-weight:700;color:#4338ca;background:#eef2ff;padding:1px 6px;border-radius:6px;margin-right:4px;">조회</span>`
+      : '';
+    const delCell = editable
+      ? `<button class="dyn-del-sm" onclick="removeExtraCatRow('${catKey}',${i})" aria-label="담당자 행 삭제"><i class="fas fa-times"></i></button>`
+      : '';
+    return `
+    <tr style="${rowStyle}">
+      <td>${badge}<input type="text" class="form-control" ${disAttr} list="settleMembersDatalist" placeholder="담당자 선택/입력" value="${escAttr(r.assignee)}"
         oninput="updateExtraCatField('${catKey}',${i},'assignee',this.value)"></td>
-      <td><input type="text" class="form-control" placeholder="업무명" value="${escAttr(r.task)}"
+      <td><input type="text" class="form-control" ${disAttr} placeholder="업무명" value="${escAttr(r.task)}"
         oninput="updateExtraCatField('${catKey}',${i},'task',this.value)"></td>
-      <td><input type="text" class="form-control" placeholder="주기" value="${escAttr(r.cycle)}"
+      <td><input type="text" class="form-control" ${disAttr} placeholder="주기" value="${escAttr(r.cycle)}"
         oninput="updateExtraCatField('${catKey}',${i},'cycle',this.value)"></td>
-      <td><textarea class="form-control" rows="1" placeholder="특이사항/상세"
+      <td><textarea class="form-control" ${disAttr} rows="1" placeholder="특이사항/상세"
         oninput="updateExtraCatField('${catKey}',${i},'note',this.value)">${esc(r.note)}</textarea></td>
-      <td style="text-align:center;"><button class="dyn-del-sm" onclick="removeExtraCatRow('${catKey}',${i})" aria-label="담당자 행 삭제"><i class="fas fa-times"></i></button></td>
-    </tr>`).join('');
+      <td style="text-align:center;">${delCell}</td>
+    </tr>`;
+  }).join('');
 }
 
 function extraCatCardHtml(cat) {
-  const rows = settleExtraByCategory[cat.key] || [];
+  const allRows = settleExtraByCategory[cat.key] || [];
   const isOpen = extraCatOpenState[cat.key] !== false;
-  const count = rows.length;
+  // 뷰 카운트 (팀원인 경우 필터 결과 기준)
+  const viewCount = EXTRA_CAT_CAN_MANAGE ? allRows.length
+                    : allRows.filter(r => extraCatCanViewRow(r.assignee)).length;
+  const badgeCls = viewCount ? '' : ' zero';
+  const badgeText = EXTRA_CAT_CAN_MANAGE ? `${allRows.length}명` : `${viewCount}건 (전체 ${allRows.length})`;
+
+  // 팀원 union 뷰 컨트롤 (팀원만 노출)
+  let unionBanner = '';
+  if (!EXTRA_CAT_CAN_MANAGE) {
+    const chips = extraCatUnionMembers.map(n =>
+      `<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px 3px 10px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px;font-weight:700;">${esc(n)}<button type="button" onclick="extraCatRemoveUnionMember('${escAttr(n)}')" style="border:none;background:none;color:#6366f1;cursor:pointer;font-weight:900;padding:0 4px;">×</button></span>`
+    ).join('');
+    const myChip = `<span style="display:inline-flex;padding:3px 10px;border-radius:999px;background:linear-gradient(135deg,#c7d2fe,#a5b4fc);color:#312e81;font-size:12px;font-weight:700;">${esc(EXTRA_CAT_ME)} <small style="color:#3730a3;margin-left:3px;">(본인)</small></span>`;
+    // 추가 가능 팀원 옵션 : SETTLE_MEMBERS (팀원 목록) 에서 본인·기존 union 제외
+    const options = (typeof SETTLE_MEMBERS !== 'undefined' ? SETTLE_MEMBERS : [])
+      .filter(n => n && n !== EXTRA_CAT_ME && !extraCatUnionMembers.includes(n))
+      .map(n => `<option value="${escAttr(n)}">${esc(n)}</option>`).join('');
+    unionBanner = `
+      <div style="padding:12px 20px;border-bottom:1px solid #eef2ff;background:#fafbff;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+        <span style="font-size:11.5px;font-weight:700;color:#374151;">현재 뷰 :</span>
+        ${myChip}${chips}
+        <span style="flex:1;"></span>
+        <span style="font-size:11px;color:#6b7280;">다른 팀원 추가 조회:</span>
+        <select class="form-control" style="min-width:130px;max-width:180px;font-size:12.5px;padding:5px 10px;" onchange="if(this.value){extraCatAddUnionMember(this.value);this.value='';}">
+          <option value="">— 선택 —</option>
+          ${options}
+        </select>
+      </div>`;
+  }
+
   return `
     <div class="extra-cat-card">
       <button type="button" class="extra-cat-head${isOpen ? ' open' : ''}" data-cat="${escAttr(cat.key)}" onclick="toggleExtraCatCard(this)">
@@ -1400,10 +1486,11 @@ function extraCatCardHtml(cat) {
           <span class="name">${esc(cat.label)}</span>
           <span class="desc">${esc(cat.desc)}</span>
         </span>
-        <span class="extra-cat-badge${count ? '' : ' zero'}">${count}명</span>
+        <span class="extra-cat-badge${badgeCls}">${badgeText}</span>
         <i class="fas fa-chevron-down extra-cat-chevron"></i>
       </button>
       <div class="extra-cat-body${isOpen ? ' open' : ''}">
+        ${unionBanner}
         <div class="table-scroll">
           <table class="settle-day-table">
             <thead><tr><th style="width:18%;">담당자</th><th style="width:24%;">업무명</th><th style="width:14%;">주기</th><th>특이사항/상세</th><th style="width:44px;"></th></tr></thead>
@@ -1412,7 +1499,7 @@ function extraCatCardHtml(cat) {
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button type="button" class="btn-add-row" onclick="addExtraCatRow('${cat.key}')"><i class="fas fa-plus"></i> 담당자 추가</button>
-          <button type="button" class="btn-add-row" style="background:#eef2ff;color:#4338ca;border-color:#c7d2fe;" onclick="sortExtraCatByAssignee('${cat.key}')" title="담당자 이름 가나다순으로 정렬 (빈 담당자는 맨 아래)"><i class="fas fa-arrow-down-a-z"></i> 담당자순 정렬</button>
+          ${EXTRA_CAT_CAN_EDIT ? `<button type="button" class="btn-add-row" style="background:#eef2ff;color:#4338ca;border-color:#c7d2fe;" onclick="sortExtraCatByAssignee('${cat.key}')" title="담당자 이름 가나다순으로 정렬 (빈 담당자는 맨 아래)"><i class="fas fa-arrow-down-a-z"></i> 담당자순 정렬</button>` : ''}
         </div>
       </div>
     </div>`;
@@ -1460,13 +1547,19 @@ function toggleExtraCatCard(btn) {
 
 function addExtraCatRow(catKey) {
   if (!settleExtraByCategory[catKey]) settleExtraByCategory[catKey] = [];
-  settleExtraByCategory[catKey].push({ assignee: '', task: '', cycle: '', note: '' });
+  // 실장·상무는 편집 불가 → 무시
+  if (EXTRA_CAT_CAN_MANAGE && !EXTRA_CAT_CAN_EDIT) return;
+  // 팀원이 추가하는 행은 assignee 를 본인으로 자동 세팅 (수정 가능)
+  const assignee = EXTRA_CAT_CAN_EDIT ? '' : EXTRA_CAT_ME;
+  settleExtraByCategory[catKey].push({ assignee, task: '', cycle: '', note: '' });
   renderSettleExtraCategories();
   scheduleDraftSave();
 }
 function removeExtraCatRow(catKey, idx) {
   const rows = settleExtraByCategory[catKey];
-  if (!rows) return;
+  if (!rows || !rows[idx]) return;
+  // RBAC 안전장치 : 팀원은 본인 행만 삭제, 실장은 삭제 불가
+  if (!extraCatCanEditRow(rows[idx].assignee)) return;
   rows.splice(idx, 1);
   renderSettleExtraCategories();
   scheduleDraftSave();
@@ -1474,6 +1567,8 @@ function removeExtraCatRow(catKey, idx) {
 function updateExtraCatField(catKey, idx, field, val) {
   const rows = settleExtraByCategory[catKey];
   if (!rows || !rows[idx]) return;
+  // RBAC 안전장치 : 팀원이 남 행을 몰래 편집하는 걸 방지
+  if (!extraCatCanEditRow(rows[idx].assignee)) return;
   rows[idx][field] = val;
   scheduleDraftSave();
 }
