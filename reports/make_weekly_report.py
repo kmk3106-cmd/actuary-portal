@@ -33,6 +33,7 @@ python reports/make_weekly_report.py \
 import argparse
 import json
 import os
+import re
 import sys
 from collections import OrderedDict
 from datetime import date, datetime
@@ -63,31 +64,34 @@ WORK_TYPE_KEYS = [k for k, _ in WORK_TYPES]
 # ══════════════════════════════════════════════════════════
 # 표준분류(카테고리 정규화) — 통합 엑셀에서 유사 표기 통합 + 세부미지정 매칭
 #   SSOT: reports/category_rules.json (없으면 아래 임베디드 기본값 사용)
-#   지정 표준분류(우선순위): 결산업무 > 분석업무 > 대내외자료 및 대응 > CPC 및 공시자료 > AI 등 기타업무
-#   규칙 배열 순서 = 분류 우선순위(강한 마커 우선). sort_order = 통합 시트 그룹 정렬 순서.
+#   지정 표준분류 7그룹(정렬순): 결산업무 · 계리모델관리 · 차세대추진 · 계리모델시스템 고도화 ·
+#     대내외자료 및 대응 · CPC 및 공시자료 · AI 및 기타업무
+#   규칙 배열 순서 = 분류 우선순위(프로젝트성 마커 차세대·밀리만·AI 를 앞에 두어 결산/공시보다 우선).
+#   sort_order = 통합 시트 그룹 정렬 순서.
 # ══════════════════════════════════════════════════════════
 DEFAULT_CATEGORY_RULES = {
-    'fallback_label': 'AI 등 기타업무',
-    'sort_order': ['결산업무', '분석업무', '대내외자료 및 대응', 'CPC 및 공시자료', 'AI 등 기타업무'],
+    'fallback_label': 'AI 및 기타업무',
+    'sort_order': ['결산업무', '계리모델관리', '차세대추진', '계리모델시스템 고도화',
+                   '대내외자료 및 대응', 'CPC 및 공시자료', 'AI 및 기타업무'],
     'rules': [
+        {'label': '차세대추진', 'any': ['차세대', '통합테스트', 'uat']},
+        {'label': '계리모델시스템 고도화', 'any': ['밀리만', '고도화', 'output table', '마이그레이션', '구조변경']},
+        {'label': '계리모델관리', 'any': ['통합계리', '모델 반영', '모델관리', '모델 운영', '로그테이블', 'logtable', 'irimb']},
+        {'label': 'AI 및 기타업무', 'any': ['ai', '챔피언']},
         {'label': 'CPC 및 공시자료', 'any': ['cpc', '공시이율', '공시', '심의위원회']},
         {'label': '대내외자료 및 대응', 'any': ['대내외', '감독원', '금융감독원', '계리법인', '회계법인', '삼일',
-                                               '세이지', 'sage', '발송', '요청자료', '제출', '업무보고서',
-                                               '질문 대응', '질문대응', '감사자료', '검증대응', '자료제출', '내부회계']},
+                                               '세이지', 'sage', '발송', '송부', '요청자료', '제출', '업무보고서',
+                                               '질문 대응', '질문대응', '감사자료', '검증대응', '자료제출', '내부회계', '예실차']},
         {'label': '결산업무', 'any': ['ifrs', '결산', '계리계약', '보험료분해', '보험료 분해', '비금', '준비금',
                                       '실효', '만기', '생존', '사고', 'tbasb', '사차', '위보', '최초인식', '후속측정',
                                       '보증준비금', '평균기준가', '잔존만기', '결산대상계약', '명세표', '수지차',
-                                      '마감', 'bel', '부채 추정', '보험부채', '배당', '적립액']},
-        {'label': '분석업무', 'any': ['분석', '재무영향', '영향분석', '민감도', '적정성', '산출방법', 'ibnr',
-                                      '모델 run', '모델run', 'run 수행']},
-        {'label': 'AI 등 기타업무', 'any': ['ai', '챔피언', '차세대', '통합테스트', '모델', '시스템', '로직',
-                                            '마이그레이션', '배포', '고도화', '관리회계', '사업계획', '시책',
-                                            '프로모션', '제도', '이관', '설립tf', '홈페이지', 'ga ']},
+                                      '마감', 'bel', '부채', '배당', '적립액', '사업비배부', '가중평균할인율', '재보험', '원수']},
     ],
 }
 
 # 통합 시트 그룹 표기(정렬) 순서 — rules 의 sort_order 가 있으면 그것을 우선 사용
-CANONICAL_ORDER = ['결산업무', '분석업무', '대내외자료 및 대응', 'CPC 및 공시자료', 'AI 등 기타업무']
+CANONICAL_ORDER = ['결산업무', '계리모델관리', '차세대추진', '계리모델시스템 고도화',
+                   '대내외자료 및 대응', 'CPC 및 공시자료', 'AI 및 기타업무']
 
 
 def load_category_rules(path=None):
@@ -456,8 +460,24 @@ def build_summary_sheet(wb, week_label, base_date, ordered_names, person_last_ro
 # ══════════════════════════════════════════════════════════
 # 통합 시트 (업무유형별) — 데이터 채움
 # ══════════════════════════════════════════════════════════
+def _typegroup_tab_name(week_label, base_date):
+    """통합 시트 탭 이름: '9월3주차(9월14~18)' 형태 (보고양식). 엑셀 금지문자 제거·31자 제한."""
+    from datetime import timedelta
+    core = re.sub(r"^'?\s*\d+\s*년\s*", '', str(week_label or '')).replace(' ', '').strip()
+    if not core:
+        core = '주간업무'
+    try:
+        mon = base_date - timedelta(days=base_date.weekday())
+        fri = mon + timedelta(days=4)
+        period = '(%d월%d~%d)' % (mon.month, mon.day, fri.day)
+    except Exception:
+        period = ''
+    name = (core + period)[:31]
+    return re.sub(r'[:\\/?*\[\]]', '', name) or '주간업무_통합'
+
+
 def build_typegroup_sheet(wb, week_label, base_date, tasks, cat_rules=None):
-    ws = wb.create_sheet('통합_표준분류별')
+    ws = wb.create_sheet(_typegroup_tab_name(week_label, base_date))
     # A: 구분(원본) · B: 업무구분(ext) · C: 업무내용 · D: 이번주 한일 · E: 다음주 할일
     # F: 담당 · G: 시작 · H: 완료 · I: 진척율 · J: 상태 · K: 이슈 · L: 표준분류(hidden)
     widths = {'A': 18, 'B': 10, 'C': 42, 'D': 32, 'E': 32, 'F': 10, 'G': 12, 'H': 12, 'I': 10, 'J': 10, 'K': 20, 'L': 6}
@@ -466,7 +486,7 @@ def build_typegroup_sheet(wb, week_label, base_date, tasks, cat_rules=None):
     ws.column_dimensions['L'].hidden = True
 
     ws.merge_cells('A1:K1')
-    ws['A1'] = '계리결산팀 주간업무 현황 (표준분류별 통합)'
+    ws['A1'] = '계리결산팀 주간업무'
     ws['A1'].font = TITLE_FONT; ws['A1'].fill = TITLE_FILL; ws['A1'].alignment = CENTER
     ws.row_dimensions[1].height = 28
 
@@ -610,11 +630,12 @@ def main():
     wb.remove(wb.active)
 
     ordered_names, person_last = [], 3
+    # 보고양식: 통합(표준분류) 시트를 맨 앞 탭으로
+    if args.view in ('typegroup', 'all'):
+        build_typegroup_sheet(wb, args.week, base_date, tasks, cat_rules)
     if args.view in ('person', 'all'):
         ordered_names, person_last = build_person_sheet(wb, args.week, base_date, tasks, cat_rules)
         build_summary_sheet(wb, args.week, base_date, ordered_names, person_last)
-    if args.view in ('typegroup', 'all'):
-        build_typegroup_sheet(wb, args.week, base_date, tasks, cat_rules)
 
     os.makedirs(os.path.dirname(args.out) or '.', exist_ok=True)
     wb.save(args.out)
