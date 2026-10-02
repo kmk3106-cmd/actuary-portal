@@ -190,6 +190,39 @@
       background:#fef2f2; color:#dc2626; border-radius:5px; margin-left:5px;
     }
 
+    /* ── 권장 주차 안내 배너 (설정: 주간업무 기본 주차 규칙 · weekly_settings) ── */
+    .wk-banner { display:none; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px;
+      padding:12px 16px; border-radius:12px; font-weight:700; font-size:14px; }
+    .wk-banner.show { display:flex; }
+    .wk-banner.warn { background:#fef3c7; border:2px solid #f59e0b; color:#92400e; }
+    .wk-banner.ok   { background:#ecfdf5; border:1.5px solid #10b981; color:#065f46; }
+    .wk-banner .big { font-size:17px; font-weight:900; }
+    .wk-banner .spacer { flex:1; }
+
+    /* ── 저장 주차 경고 팝업 (2단계) — 오버레이는 main.css .modal-overlay/.show 사용 (규칙 14) ── */
+    .wk-warn-box { background:#fff; border:4px solid #dc2626; border-radius:20px; width:560px; max-width:94vw;
+      padding:34px 30px 26px; text-align:center; box-shadow:0 24px 80px rgba(220,38,38,.35); }
+    .wk-warn-box.lv2 { border-color:#991b1b; background:#fff5f5; }
+    .wk-warn-icon { font-size:56px; color:#dc2626; margin-bottom:10px; }
+    .wk-warn-title { font-size:26px; font-weight:900; color:#dc2626; line-height:1.35; margin-bottom:12px; word-break:keep-all; }
+    .wk-warn-box.lv2 .wk-warn-title { font-size:30px; color:#991b1b; }
+    .wk-warn-sub { font-size:16px; color:#374151; margin-bottom:22px; line-height:1.6; }
+    .wk-warn-sub b { color:#dc2626; font-size:18px; }
+    .wk-warn-actions { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+    .wk-warn-actions .btn { font-size:15px; padding:12px 22px; font-weight:800; }
+    .wk-btn-danger { background:#dc2626 !important; color:#fff !important; border:none !important; }
+    .wk-btn-safe   { background:#2563eb !important; color:#fff !important; border:none !important; }
+    .wk-shake { animation: wkShake 1s cubic-bezier(.36,.07,.19,.97) both; }
+    @keyframes wkShake {
+      0%,100% { transform: translateX(0); }
+      10%,30%,50%,70%,90% { transform: translateX(-10px) rotate(-.6deg); }
+      20%,40%,60%,80%     { transform: translateX(10px)  rotate(.6deg); }
+    }
+    @media (max-width:768px) {
+      .wk-warn-title { font-size:21px; } .wk-warn-box.lv2 .wk-warn-title { font-size:24px; }
+      .wk-warn-icon { font-size:44px; }
+    }
+
     @media (max-width:768px) {
       .wr-stat-bar { grid-template-columns:1fr 1fr; }
       .wr-toolbar { padding:10px 12px; }
@@ -242,6 +275,14 @@
         <button class="wr-btn wr-btn-download" id="btnDlAll"  onclick="downloadReport('all')"       style="display:none;"><i class="fas fa-file-excel"></i> 통합 다운로드</button>
         <button class="wr-btn" id="btnDlMineAll" onclick="downloadReport('person', true)" style="display:none;"><i class="fas fa-file-excel"></i> 내 주간업무만 다운로드</button>
         <button class="wr-btn wr-btn-download" id="btnDlMyView" onclick="downloadReport('person', false)" style="display:none;"><i class="fas fa-file-excel"></i> 현재 뷰 다운로드</button>
+      </div>
+
+      <!-- 권장 주차 안내 배너 (규칙은 설정 > 주간업무 탭에서 변경) -->
+      <div class="wk-banner" id="wkBanner">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span id="wkBannerText"></span>
+        <span class="spacer"></span>
+        <button class="wr-btn" id="wkBannerBtn" onclick="goRecommendedWeek()" title="입력 중인 내용도 함께 권장 주차로 옮깁니다"><i class="fas fa-location-arrow"></i> 권장 주차로 이동</button>
       </div>
 
       <!-- 팀장·실장: 전체 필터 · 직원: 팀원 추가 조회 (union) -->
@@ -314,6 +355,30 @@
   </div>
 </div>
 
+<!-- 저장 주차 경고 팝업 (2단계) — 오버레이는 main.css .modal-overlay/.show (규칙 14) -->
+<div class="modal-overlay" id="wkWarn1">
+  <div class="wk-warn-box" id="wkWarn1Box">
+    <div class="wk-warn-icon"><i class="fas fa-exclamation-triangle"></i></div>
+    <div class="wk-warn-title" id="wkWarn1Title">전주에 입력하셨습니다!</div>
+    <div class="wk-warn-sub" id="wkWarn1Sub"></div>
+    <div class="wk-warn-actions">
+      <button class="btn wk-btn-safe" onclick="wkWarnAnswer(1,false)"><i class="fas fa-location-arrow"></i> 취소하고 권장 주차로 이동 (입력 내용 함께)</button>
+      <button class="btn wk-btn-danger" onclick="wkWarnAnswer(1,true)">그래도 저장</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="wkWarn2">
+  <div class="wk-warn-box lv2" id="wkWarn2Box">
+    <div class="wk-warn-icon"><i class="fas fa-radiation"></i></div>
+    <div class="wk-warn-title">주차가 다른데<br>그래도 저장하실래요?!!!</div>
+    <div class="wk-warn-sub" id="wkWarn2Sub"></div>
+    <div class="wk-warn-actions">
+      <button class="btn wk-btn-safe" onclick="wkWarnAnswer(2,false)"><i class="fas fa-times"></i> 아니오, 취소</button>
+      <button class="btn wk-btn-danger" onclick="wkWarnAnswer(2,true)">네, 이 주차에 저장</button>
+    </div>
+  </div>
+</div>
+
 <script src="js/rbac.js?v=31"></script>
 <script src="js/auth.js"></script>
 <script src="js/portal.js?v=36"></script>
@@ -379,6 +444,112 @@ function weekPeriodText(year, week) {
   const mon = mondayOfWeek(year, week), sun = sundayOfWeek(year, week);
   const fmt = d => `${d.getUTCFullYear()}.${String(d.getUTCMonth() + 1).padStart(2, '0')}.${String(d.getUTCDate()).padStart(2, '0')}`;
   return `${fmt(mon)} ~ ${fmt(sun)}`;
+}
+
+// ── 권장 주차 규칙 (SSOT: weekly_settings.next_week_from_dow · 설정 > 주간업무 탭) ──
+//   1=월 … 7=일 : 해당 요일부터 "다음 주차"가 기본 / 0 = 항상 당주차. 기본값 4(목요일부터).
+const WEEKLY_SETTINGS_TABLE = 'weekly_settings';
+const DEFAULT_NEXT_WEEK_FROM_DOW = 4;
+const DOW_LABEL = ['', '월', '화', '수', '목', '금', '토', '일'];
+let nextWeekFromDow = DEFAULT_NEXT_WEEK_FROM_DOW;
+
+async function loadWeeklySettings() {
+  try {
+    const r = await fetch(`/tables/${WEEKLY_SETTINGS_TABLE}?limit=10`);
+    const d = await r.json();
+    const row = (d.rows || d.data || [])[0];
+    if (row && row.next_week_from_dow != null && row.next_week_from_dow !== '') {
+      nextWeekFromDow = Number(row.next_week_from_dow);
+    }
+  } catch (e) { /* 설정 없으면 기본값 */ }
+}
+function addWeeks(year, week, n) {
+  let y = year, w = week + n;
+  while (w > weeksInYear(y)) { w -= weeksInYear(y); y++; }
+  while (w < 1) { y--; w += weeksInYear(y); }
+  return { year: y, week: w };
+}
+function recommendedWeek() {
+  const c = isoWeek(today);
+  const dowIso = today.getDay() === 0 ? 7 : today.getDay();
+  if (nextWeekFromDow >= 1 && dowIso >= nextWeekFromDow) return addWeeks(c.year, c.week, 1);
+  return c;
+}
+function isRecommendedWeek(y, w) {
+  const r = recommendedWeek();
+  return Number(y) === r.year && Number(w) === r.week;
+}
+function applyRecommendedWeek() {
+  const r = recommendedWeek();
+  yearSel.value = r.year;
+  fillWeekSel(r.year);
+  document.getElementById('weekSel').value = r.week;
+  document.getElementById('baseDate').value = mondayOfWeek(r.year, r.week).toISOString().slice(0, 10);
+  updatePeriodText();
+}
+function updateWeekBanner() {
+  const el = document.getElementById('wkBanner');
+  const txt = document.getElementById('wkBannerText');
+  const btn = document.getElementById('wkBannerBtn');
+  if (!el) return;
+  const r = recommendedWeek();
+  const y = Number(yearSel.value), w = Number(document.getElementById('weekSel').value);
+  const ruleTxt = nextWeekFromDow >= 1 ? `${DOW_LABEL[nextWeekFromDow]}요일부터 다음 주차` : '항상 당주차';
+  if (isRecommendedWeek(y, w)) {
+    el.className = 'wk-banner show ok';
+    el.querySelector('i').className = 'fas fa-check-circle';
+    txt.innerHTML = `<span class="big">${weekLabel(y, w)}</span> 입력 중 — 이번에 입력할 권장 주차입니다 <span style="font-weight:500;color:#047857">(규칙: ${ruleTxt})</span>`;
+    btn.style.display = 'none';
+  } else {
+    el.className = 'wk-banner show warn';
+    el.querySelector('i').className = 'fas fa-exclamation-triangle';
+    txt.innerHTML = `지금 <span class="big">${weekLabel(y, w)}</span> 를 보고 있습니다. 이번에 입력할 권장 주차는 <span class="big">${weekLabel(r.year, r.week)}</span> 입니다.`;
+    btn.style.display = '';
+  }
+}
+// 권장 주차로 이동 — 입력 중이던(미저장) 내 행을 함께 옮겨 유실 방지
+async function moveDraftToRecommendedWeek() {
+  const drafts = ROWS
+    .filter(r => canEditRow(r) && (r._new || r._dirty) && !r._pending_delete && (r.task_content || '').trim())
+    .map(r => Object.assign({}, r));
+  UNDO_STACK = [];
+  updateUndoButton();
+  applyRecommendedWeek();
+  await loadWeek();
+  if (drafts.length) {
+    ROWS = ROWS.filter(r => !(r._new && !(r.task_content || '').trim()));   // 자동 생성된 빈 행 제거
+    drafts.forEach(d => {
+      const n = newEmptyRow(d.member_name);
+      Object.assign(n, {
+        category: d.category, extension_type: d.extension_type, task_content: d.task_content,
+        this_week_done: d.this_week_done, next_week_plan: d.next_week_plan, issue_note: d.issue_note,
+        start_date: d.start_date, end_date: d.end_date, progress: d.progress, status: d.status,
+        work_type: d.work_type, work_type_detail: d.work_type_detail, _dirty: true,
+      });
+      ROWS.push(n);
+    });
+    renderRows();
+    setHint(`입력하신 ${drafts.length}건을 ${currentLabel} 로 옮겼습니다 · [저장]을 눌러 저장하세요`, 'saving');
+  }
+}
+function goRecommendedWeek() { return moveDraftToRecommendedWeek(); }
+
+// 2단계 경고 팝업 (Promise) — 1초 진동 애니메이션
+let _wkWarnResolve = null;
+function wkWarnShow(level) {
+  return new Promise(resolve => {
+    _wkWarnResolve = resolve;
+    const ov = document.getElementById('wkWarn' + level);
+    const box = document.getElementById('wkWarn' + level + 'Box');
+    box.classList.remove('wk-shake'); void box.offsetWidth; box.classList.add('wk-shake');
+    ov.classList.add('show');
+    setTimeout(() => box.classList.remove('wk-shake'), 1100);
+  });
+}
+function wkWarnAnswer(level, yes) {
+  document.getElementById('wkWarn' + level).classList.remove('show');
+  const r = _wkWarnResolve; _wkWarnResolve = null;
+  if (r) r(!!yes);
 }
 
 // ── 툴바 세팅 ────────────────────────────────────
@@ -528,6 +699,7 @@ async function loadWeek() {
   currentPeriod = weekPeriodText(currentYear, currentWeek);
   document.getElementById('tblTitle').textContent =
     `${currentLabel}  (${currentPeriod})  |  기준일 ${currentBase}`;
+  updateWeekBanner();
   setHint('로딩 중…');
   // 스택은 여기서 리셋하지 않는다.
   // - carryOverPrevWeek 이 pushUndo() 직후 loadWeek() 를 호출하므로
@@ -759,7 +931,27 @@ function addRow() {
   }, 30);
 }
 
+// 저장 전 주차 확인 — 권장 주차가 아니면 2단계 경고 팝업 (단순 텍스트 경고 X · 팝업 2회)
 async function saveAll() {
+  if (!isRecommendedWeek(currentYear, currentWeek)) {
+    const r = recommendedWeek();
+    const selLabel = weekLabel(currentYear, currentWeek);
+    const recLabel = weekLabel(r.year, r.week);
+    const isPast = (currentYear < r.year) || (currentYear === r.year && currentWeek < r.week);
+    document.getElementById('wkWarn1Title').textContent = isPast ? '전주에 입력하셨습니다!' : '다른 주차에 입력하셨습니다!';
+    document.getElementById('wkWarn1Sub').innerHTML =
+      `지금 저장하려는 주차: <b>${selLabel}</b> (${weekPeriodText(currentYear, currentWeek)})<br>` +
+      `이번에 입력할 권장 주차: <b>${recLabel}</b><br><br>그래도 저장하시겠습니까?`;
+    const ok1 = await wkWarnShow(1);
+    if (!ok1) { await moveDraftToRecommendedWeek(); return; }
+    document.getElementById('wkWarn2Sub').innerHTML = `<b>${selLabel}</b> &nbsp;≠&nbsp; 권장 <b>${recLabel}</b>`;
+    const ok2 = await wkWarnShow(2);
+    if (!ok2) { setHint('저장을 취소했습니다.', 'saved'); return; }
+  }
+  return doSaveAll();
+}
+
+async function doSaveAll() {
   setHint('저장 중…', 'saving');
   const t0 = performance.now();
 
@@ -976,11 +1168,13 @@ function setHint(msg, cls) {
 function escAttr(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;'); }
 function escHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
-Object.assign(window, { upd, delRow, undoPendingDelete, addRow, saveAll, downloadReport, removeViewMember, resetView, carryOverPrevWeek, revertChanges });
+Object.assign(window, { upd, delRow, undoPendingDelete, addRow, saveAll, downloadReport, removeViewMember, resetView, carryOverPrevWeek, revertChanges, goRecommendedWeek, wkWarnAnswer });
 
 (async () => {
   await loadUsers();
   initViewMembers();
+  await loadWeeklySettings();     // 설정(SSOT) 읽기
+  applyRecommendedWeek();         // 진입 시 권장 주차 자동 선택 (예: 목요일부터 다음 주차)
   await loadWeek();
   updateUndoButton();
 })();
