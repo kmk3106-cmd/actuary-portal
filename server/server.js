@@ -2696,6 +2696,90 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // ── 주간업무 월결산 / 년간집계 (완료·미진·진행중·착수예정) ──
+  // GET /weekly/closing?ym=202609&format=json|xlsx
+  // GET /weekly/closing?year=2026&format=json|xlsx
+  // 분류 로직 SSOT = reports/make_monthly_closing.py (서버는 호출·전달만, 규칙 11)
+  if (urlPath.startsWith('/weekly/closing')) {
+    const sendJson = (status, body) => {
+      res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(body));
+    };
+    (async () => {
+      try {
+        const u = new URL(urlPath, 'http://x');
+        const ym = (u.searchParams.get('ym') || '').trim();
+        const year = (u.searchParams.get('year') || '').trim();
+        const format = (u.searchParams.get('format') || 'json').toLowerCase();
+        if (!/^\d{6}$/.test(ym) && !/^\d{4}$/.test(year)) {
+          sendJson(400, { error: 'ym(YYYYMM) 또는 year(YYYY) 필수' }); return;
+        }
+        const db = readDb();
+        const rows = db.weekly_tasks || [];
+
+        const os = require('os');
+        const path = require('path');
+        const fs = require('fs');
+        const { spawn } = require('child_process');
+        const tmp = os.tmpdir();
+        const stamp = Date.now();
+        const dataPath = path.join(tmp, `wc_data_${stamp}.json`);
+        const outPath  = path.join(tmp, `wc_out_${stamp}.xlsx`);
+        const jsonPath = path.join(tmp, `wc_json_${stamp}.json`);
+        fs.writeFileSync(dataPath, JSON.stringify(rows), 'utf-8');
+
+        const script = path.join(__dirname, '..', 'reports', 'make_monthly_closing.py');
+        const py = process.env.PYTHON_EXE || 'python';
+        const args = [script, '--data', dataPath, '--out', outPath, '--json-out', jsonPath];
+        if (ym) args.push('--ym', ym); else args.push('--year', year);
+        const child = spawn(py, args, { windowsHide: true });
+
+        let stderr = '';
+        child.stderr.on('data', c => { stderr += c.toString('utf8'); });
+        let responded = false;
+        const cleanup = () => {
+          for (const p of [dataPath, outPath, jsonPath]) { try { fs.unlinkSync(p); } catch (_) { /* ignore */ } }
+        };
+        child.on('error', e => {
+          if (responded) return; responded = true;
+          cleanup();
+          sendJson(500, { error: 'python spawn 실패: ' + e.message });
+        });
+        child.on('close', code => {
+          if (responded) return; responded = true;
+          if (code !== 0) {
+            cleanup();
+            sendJson(500, { error: '월결산 생성 실패', stderr: stderr.slice(0, 800) });
+            return;
+          }
+          if (format === 'xlsx') {
+            if (!fs.existsSync(outPath)) { cleanup(); sendJson(500, { error: 'xlsx 미생성', stderr: stderr.slice(0, 500) }); return; }
+            const buf = fs.readFileSync(outPath);
+            cleanup();
+            const filename = ym
+              ? `계리결산팀_주간업무_월결산_${ym}.xlsx`
+              : `계리결산팀_주간업무_년간집계_${year}.xlsx`;
+            res.writeHead(200, {
+              'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              'Content-Disposition': `attachment; filename="closing.xlsx"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+              'Content-Length': buf.length,
+              'Cache-Control': 'no-store',
+            });
+            res.end(buf);
+            return;
+          }
+          if (!fs.existsSync(jsonPath)) { cleanup(); sendJson(500, { error: 'json 미생성', stderr: stderr.slice(0, 500) }); return; }
+          const body = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+          cleanup();
+          sendJson(200, Object.assign({ ok: true }, body));
+        });
+      } catch (e) {
+        sendJson(500, { error: String(e.message || e) });
+      }
+    })();
+    return;
+  }
+
   // ── 주간업무 xlsx 내보내기 ──
   // GET /weekly/export?year=2026&week=37&view=person|typegroup|all
   //     &label=<주차 라벨>&base=<YYYY-MM-DD>&member=<팀원 이름>(옵션: 팀원 뷰용 필터)

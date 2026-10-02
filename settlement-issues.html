@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>결산캘린더 이슈 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css?v=28">
+  <style>
+    /* ── 결산 캘린더와 동일 양식 (settlement.html 캘린더 CSS 재사용) ── */
+    .cal-wrapper { display:grid; grid-template-columns:1fr 320px; gap:24px; align-items:start; }
+    @media(max-width:1100px){ .cal-wrapper{grid-template-columns:1fr;} }
+    .cal-toolbar { display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+    .month-nav { display:flex; align-items:center; gap:8px; }
+    .nav-btn { width:36px; height:36px; border-radius:10px; border:1.5px solid #e5e7eb; background:#fff;
+      cursor:pointer; font-size:14px; color:#374151; display:flex; align-items:center; justify-content:center; transition:all .2s; }
+    .nav-btn:hover { border-color:#4f86f7; color:#4f86f7; }
+    .month-label { font-size:20px; font-weight:800; color:#111827; min-width:120px; text-align:center; }
+    .today-btn { padding:7px 14px; border-radius:10px; border:1.5px solid #e5e7eb; background:#fff;
+      font-size:13px; font-weight:600; color:#374151; cursor:pointer; transition:all .2s; }
+    .today-btn:hover { border-color:#4f86f7; color:#4f86f7; }
+    .toolbar-spacer { flex:1; }
+    .cat-filters { display:flex; gap:6px; flex-wrap:wrap; }
+    .cat-chip { display:flex; align-items:center; gap:5px; padding:5px 12px; border-radius:16px;
+      border:2px solid transparent; font-size:12px; font-weight:600; cursor:pointer; transition:all .2s; opacity:.5; }
+    .cat-chip.active { opacity:1; }
+    .cat-dot { width:8px; height:8px; border-radius:50%; }
+    .cat-공시이율 { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; } .cat-공시이율 .cat-dot { background:#3b82f6; }
+    .cat-가정 { background:#f0fdf4; color:#166534; border-color:#bbf7d0; } .cat-가정 .cat-dot { background:#22c55e; }
+    .cat-모델 { background:#fff7ed; color:#9a3412; border-color:#fed7aa; } .cat-모델 .cat-dot { background:#f97316; }
+    .cat-검증 { background:#faf5ff; color:#6b21a8; border-color:#e9d5ff; } .cat-검증 .cat-dot { background:#a855f7; }
+    .cat-보고 { background:#fef2f2; color:#991b1b; border-color:#fecaca; } .cat-보고 .cat-dot { background:#ef4444; }
+    .cat-기타 { background:#f9fafb; color:#374151; border-color:#e5e7eb; } .cat-기타 .cat-dot { background:#9ca3af; }
+    /* 이슈 유형 필터 칩 */
+    .cat-이슈 { background:#fffbeb; color:#92400e; border-color:#fde68a; } .cat-이슈 .cat-dot { background:#f59e0b; }
+    .cat-IT장애 { background:#fef2f2; color:#991b1b; border-color:#fecaca; } .cat-IT장애 .cat-dot { background:#dc2626; }
+
+    .cal-grid { background:#fff; border-radius:16px; box-shadow:0 1px 4px rgba(0,0,0,.06); border:1px solid #f3f4f6; overflow:hidden; }
+    .cal-weekdays { display:grid; grid-template-columns:repeat(7,1fr); background:#f8faff; border-bottom:1px solid #f3f4f6; }
+    .cal-weekday { padding:10px 0; text-align:center; font-size:12px; font-weight:700; color:#6b7280; }
+    .cal-weekday:first-child { color:#ef4444; } .cal-weekday:last-child { color:#3b82f6; }
+    .cal-days { display:grid; grid-template-columns:repeat(7,1fr); }
+    .cal-day { min-height:100px; border-right:1px solid #f3f4f6; border-bottom:1px solid #f3f4f6;
+      padding:8px 6px; cursor:pointer; transition:background .15s; position:relative; }
+    .cal-day:hover { background:#f8faff; }
+    .cal-day:nth-child(7n) { border-right:none; }
+    .cal-day.other-month { background:#fafafa; }
+    .cal-day.today { background:#f0f6ff; }
+    .cal-day.today .day-num { background:#4f86f7; color:#fff; border-radius:50%; }
+    .cal-day.selected { outline:2px solid #4f86f7; outline-offset:-2px; }
+    .cal-day.sunday .day-num { color:#ef4444; } .cal-day.saturday .day-num { color:#3b82f6; }
+    .cal-day.holiday { background:#f3f4f6 !important; } .cal-day.holiday:hover { background:#e9eaec !important; }
+    .cal-day.has-incident { box-shadow: inset 3px 0 0 #dc2626; }
+    .day-num { width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; color:#374151; }
+    .day-num.other { color:#d1d5db; }
+    .day-head { display:flex; align-items:center; gap:3px; margin-bottom:4px; }
+    .biz-day-tag { font-size:10px; font-weight:700; color:#ef4444; line-height:1; white-space:nowrap; flex-shrink:0; }
+    .day-holiday-name { font-size:9px; font-weight:600; color:#9ca3af; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:3px; line-height:1.3; }
+    .day-tasks { display:flex; flex-direction:column; gap:2px; }
+    .day-task-chip { font-size:11px; font-weight:600; padding:2px 6px; border-radius:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.5; cursor:pointer; }
+    .day-task-chip:hover { filter:brightness(.92); }
+    .chip-공시이율 { background:#dbeafe; color:#1e40af; } .chip-가정 { background:#dcfce7; color:#166534; }
+    .chip-모델 { background:#ffedd5; color:#9a3412; } .chip-검증 { background:#f3e8ff; color:#6b21a8; }
+    .chip-보고 { background:#fee2e2; color:#991b1b; } .chip-기타 { background:#f3f4f6; color:#374151; }
+    .chip-done { opacity:.55; text-decoration:line-through; }
+    .chip-마감 { background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; }
+    .chip-마감-done { background:#d1fae5 !important; color:#065f46 !important; border-color:#86efac !important; font-weight:700; }
+    .cal-day.all-done { background:#f0fdf4 !important; } .cal-day.all-done:hover { background:#dcfce7 !important; }
+    /* 이슈 칩 */
+    .chip-이슈 { background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
+    .chip-IT장애 { background:#fee2e2; color:#991b1b; border:1px solid #fecaca; font-weight:700; }
+    .chip-resolved { opacity:.6; text-decoration:line-through; }
+    .more-tasks { font-size:10px; color:#9ca3af; font-weight:600; padding:1px 4px; }
+    .day-task-chip-more { display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:700;
+      padding:1px 5px; border-radius:4px; background:#e5e7eb; color:#6b7280; cursor:pointer; line-height:1.5; }
+
+    /* 사이드 패널 */
+    .sidebar-panel { background:#fff; border-radius:16px; box-shadow:0 1px 4px rgba(0,0,0,.06); border:1px solid #f3f4f6; overflow:hidden; }
+    .panel-header { padding:18px 20px; border-bottom:1px solid #f3f4f6; display:flex; justify-content:space-between; align-items:center; }
+    .panel-title { font-size:15px; font-weight:700; color:#111827; } .panel-date { font-size:13px; color:#6b7280; }
+    .panel-body { padding:16px 20px; max-height:560px; overflow-y:auto; }
+    .panel-task-item { padding:12px; border-radius:10px; background:#f9fafb; margin-bottom:10px; border-left:3px solid #e5e7eb; transition:all .2s; }
+    .panel-task-item:hover { background:#f3f4f6; }
+    .panel-task-cat { font-size:11px; font-weight:700; margin-bottom:4px; }
+    .panel-task-title { font-size:14px; font-weight:600; color:#111827; margin-bottom:6px; }
+    .panel-task-row { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px; }
+    .panel-task-assignee { font-size:12px; color:#6b7280; }
+    .panel-task-actions { display:flex; gap:6px; margin-top:8px; }
+    .panel-task-actions button { padding:4px 10px; border-radius:6px; border:none; cursor:pointer; font-size:11px; font-weight:600; }
+    .btn-edit-task { background:#eff6ff; color:#3b82f6; } .btn-del-task { background:#fef2f2; color:#ef4444; }
+    .btn-resolve-task { background:#d1fae5; color:#065f46; }
+    .panel-empty { text-align:center; padding:28px 0; color:#d1d5db; font-size:13px; }
+    .panel-sec-title { font-size:11px; font-weight:700; margin:4px 0 6px; display:flex; align-items:center; gap:6px; }
+
+    /* 상태 배지 */
+    .st-badge { font-size:11px; font-weight:700; padding:2px 8px; border-radius:8px; white-space:nowrap; }
+    .st-발생 { background:#fee2e2; color:#991b1b; } .st-조치중 { background:#fef3c7; color:#92400e; } .st-해결 { background:#d1fae5; color:#065f46; }
+    .ty-badge { font-size:11px; font-weight:700; padding:2px 8px; border-radius:8px; white-space:nowrap; }
+    .ty-이슈 { background:#fef3c7; color:#92400e; } .ty-IT장애 { background:#fee2e2; color:#991b1b; }
+
+    /* 통계 스트립 */
+    .stats-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+    .stat-mini { background:#fff; border-radius:12px; padding:14px 16px; border:1px solid #f3f4f6; box-shadow:0 1px 4px rgba(0,0,0,.04); }
+    .stat-mini-label { font-size:11px; color:#9ca3af; font-weight:500; margin-bottom:4px; }
+    .stat-mini-val { font-size:22px; font-weight:800; }
+    .val-total { color:#374151; } .val-it { color:#dc2626; } .val-open { color:#d97706; } .val-done { color:#10b981; }
+
+    /* 이슈 로그 */
+    .iss-log { margin-top:28px; background:#fff; border-radius:16px; border:1.5px solid #e5e7eb; overflow:hidden; }
+    .iss-log-head { padding:16px 20px; border-bottom:1px solid #f3f4f6; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+    .iss-log-title { font-size:15px; font-weight:800; color:#111827; display:flex; align-items:center; gap:8px; }
+    .iss-filters { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .iss-filters select, .iss-filters input { padding:7px 10px; border:1.5px solid #e5e7eb; border-radius:9px; font-size:13px; font-family:inherit; background:#fff; color:#374151; }
+    .iss-filters select:focus, .iss-filters input:focus { outline:none; border-color:#4f86f7; }
+    .iss-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+    .iss-table th { background:#f8fafc; color:#374151; font-weight:700; font-size:11.5px; padding:9px 10px; border-bottom:2px solid #e5e7eb; text-align:left; white-space:nowrap; }
+    .iss-table td { padding:9px 10px; border-bottom:1px solid #f3f4f6; vertical-align:top; color:#111827; }
+    .iss-table tbody tr { cursor:pointer; } .iss-table tbody tr:hover td { background:#fafbff; }
+    .iss-table td.wrap { white-space:pre-line; min-width:220px; }
+    .iss-table td.muted { color:#6b7280; }
+    .iss-empty { padding:32px; text-align:center; color:#9ca3af; font-size:13px; }
+
+    /* 모달 (오버레이는 main.css .modal-overlay/.show 사용 — 규칙 14) */
+    .iss-box { background:#fff; border-radius:20px; width:560px; max-width:95vw; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2); }
+    .iss-box .mh { padding:22px 26px 0; display:flex; justify-content:space-between; align-items:center; }
+    .iss-box .mt { font-size:18px; font-weight:700; color:#111827; }
+    .iss-box .mc { width:40px; height:40px; border-radius:8px; border:none; background:#f3f4f6; cursor:pointer; font-size:14px; color:#6b7280; display:flex; align-items:center; justify-content:center; }
+    .iss-box .mb { padding:18px 26px 26px; }
+    .fg { margin-bottom:14px; } .fl { font-size:13px; font-weight:600; color:#374151; margin-bottom:6px; display:block; }
+    .fi, .fs, .fta { width:100%; padding:10px 13px; border:1.5px solid #e5e7eb; border-radius:10px; font-size:14px; color:#111827; background:#fff; font-family:inherit; box-sizing:border-box; }
+    .fi:focus, .fs:focus, .fta:focus { outline:none; border-color:#4f86f7; box-shadow:0 0 0 3px rgba(79,134,247,.1); }
+    .fta { resize:vertical; min-height:70px; }
+    .fr { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .mf { display:flex; justify-content:flex-end; gap:10px; padding-top:10px; border-top:1px solid #f3f4f6; margin-top:8px; }
+    .type-radio { display:flex; gap:8px; }
+    .type-radio label { flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:10px; border:2px solid #e5e7eb; border-radius:10px; cursor:pointer; font-weight:700; font-size:13.5px; color:#6b7280; }
+    .type-radio input { display:none; }
+    .type-radio input:checked + span.이슈 { color:#92400e; } .type-radio label:has(input:checked).l-이슈 { border-color:#f59e0b; background:#fffbeb; }
+    .type-radio label:has(input:checked).l-IT장애 { border-color:#dc2626; background:#fef2f2; } .type-radio input:checked + span.IT장애 { color:#991b1b; }
+
+    @media(max-width:768px){
+      .cal-day { min-height:68px; padding:4px 3px; } .day-num { width:20px; height:20px; font-size:11px; }
+      .biz-day-tag { font-size:9px; } .day-task-chip { font-size:9px; padding:1px 3px; }
+      .cal-weekday { padding:7px 0; font-size:11px; } .month-label { font-size:16px; min-width:90px; }
+      .stat-mini-val { font-size:18px; } .fr { grid-template-columns:1fr; } .stats-strip { grid-template-columns:1fr 1fr; }
+      .panel-header, .panel-body { padding:12px 14px; }
+    }
+    @media(max-width:480px){ .cal-day { min-height:50px; } .day-task-chip { font-size:8px; } .nav-btn { width:30px; height:30px; } }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-exclamation-circle" style="color:#dc2626"></i> 결산캘린더 이슈</h1>
+      <div class="header-actions">
+        <button class="btn btn-primary" onclick="openAddModal()"><i class="fas fa-plus"></i> 이슈·장애 등록</button>
+      </div>
+    </header>
+    <main class="content-body">
+
+      <div class="stats-strip">
+        <div class="stat-mini"><div class="stat-mini-label">이번달 이슈·장애</div><div class="stat-mini-val val-total" id="stTotal">0</div></div>
+        <div class="stat-mini"><div class="stat-mini-label">IT장애</div><div class="stat-mini-val val-it" id="stIt">0</div></div>
+        <div class="stat-mini"><div class="stat-mini-label">미해결 (발생·조치중)</div><div class="stat-mini-val val-open" id="stOpen">0</div></div>
+        <div class="stat-mini"><div class="stat-mini-label">해결</div><div class="stat-mini-val val-done" id="stDone">0</div></div>
+      </div>
+
+      <div class="cal-toolbar">
+        <div class="month-nav">
+          <button class="nav-btn" onclick="changeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
+          <span class="month-label" id="monthLabel"></span>
+          <button class="nav-btn" onclick="changeMonth(1)"><i class="fas fa-chevron-right"></i></button>
+        </div>
+        <button class="today-btn" onclick="goToday()">오늘</button>
+        <div class="toolbar-spacer"></div>
+        <div class="cat-filters" id="catFilters"></div>
+      </div>
+
+      <div class="cal-wrapper">
+        <div>
+          <div class="cal-grid">
+            <div class="cal-weekdays">
+              <div class="cal-weekday">일</div><div class="cal-weekday">월</div><div class="cal-weekday">화</div>
+              <div class="cal-weekday">수</div><div class="cal-weekday">목</div><div class="cal-weekday">금</div><div class="cal-weekday">토</div>
+            </div>
+            <div class="cal-days" id="calDays"></div>
+          </div>
+        </div>
+        <div class="sidebar-panel">
+          <div class="panel-header">
+            <span class="panel-title" id="panelTitle">날짜 선택</span>
+            <span class="panel-date" id="panelDateLabel"></span>
+          </div>
+          <div class="panel-body" id="panelBody">
+            <div class="panel-empty"><i class="fas fa-mouse-pointer" style="font-size:24px;display:block;margin-bottom:8px;"></i>캘린더에서 날짜를 클릭하면<br>그 날의 결산업무와 이슈를 볼 수 있습니다</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 이슈·장애 로그 (누적) -->
+      <div class="iss-log">
+        <div class="iss-log-head">
+          <div class="iss-log-title"><i class="fas fa-history" style="color:#4f86f7"></i> 이슈·IT장애 기록 <span id="logCount" style="font-size:12px;color:#9ca3af;font-weight:600"></span></div>
+          <div class="iss-filters">
+            <select id="fltPeriod"><option value="month">이번 달</option><option value="year">올해</option><option value="all">전체</option></select>
+            <select id="fltType"><option value="">유형 전체</option><option value="이슈">이슈</option><option value="IT장애">IT장애</option></select>
+            <select id="fltStatus"><option value="">상태 전체</option><option value="발생">발생</option><option value="조치중">조치중</option><option value="해결">해결</option></select>
+            <input type="text" id="fltQ" placeholder="제목·내용 검색">
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="iss-table">
+            <thead><tr><th>일자</th><th>유형</th><th>제목</th><th>관련 결산업무</th><th>상태</th><th>담당</th><th>조치내용</th><th>등록자</th></tr></thead>
+            <tbody id="logBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- 이슈 등록/수정 모달 -->
+<div class="modal-overlay" id="issModal">
+  <div class="iss-box">
+    <div class="mh"><span class="mt" id="modalTitle">이슈·장애 등록</span><button class="mc" onclick="closeModal()"><i class="fas fa-times"></i></button></div>
+    <div class="mb">
+      <input type="hidden" id="editId">
+      <div class="fg">
+        <label class="fl">유형 *</label>
+        <div class="type-radio">
+          <label class="l-이슈"><input type="radio" name="fType" value="이슈" checked><span class="이슈"><i class="fas fa-exclamation-triangle"></i> 이슈</span></label>
+          <label class="l-IT장애"><input type="radio" name="fType" value="IT장애"><span class="IT장애"><i class="fas fa-server"></i> IT장애</span></label>
+        </div>
+      </div>
+      <div class="fr">
+        <div class="fg"><label class="fl">발생일 *</label><input type="date" class="fi" id="fDate"></div>
+        <div class="fg"><label class="fl">상태</label>
+          <select class="fs" id="fStatus"><option value="발생">발생</option><option value="조치중">조치중</option><option value="해결">해결</option></select></div>
+      </div>
+      <div class="fg"><label class="fl">제목 *</label><input type="text" class="fi" id="fTitle" placeholder="예: 통합계리 배치 지연으로 D+5 계리계약 마감 영향"></div>
+      <div class="fg"><label class="fl">관련 결산업무</label>
+        <select class="fs" id="fRelated"><option value="">해당 없음</option></select></div>
+      <div class="fg"><label class="fl">상세 내용</label><textarea class="fta" id="fDetail" placeholder="무슨 일이 있었는지"></textarea></div>
+      <div class="fr">
+        <div class="fg"><label class="fl">원인</label><textarea class="fta" id="fCause" placeholder="파악된 원인"></textarea></div>
+        <div class="fg"><label class="fl">조치 내용</label><textarea class="fta" id="fAction" placeholder="취한 조치 / 재발 방지"></textarea></div>
+      </div>
+      <div class="fr">
+        <div class="fg"><label class="fl">담당자</label><input type="text" class="fi" id="fAssignee"></div>
+        <div class="fg"><label class="fl">해결일</label><input type="date" class="fi" id="fResolved"></div>
+      </div>
+      <div class="mf">
+        <button id="modalDelBtn" class="btn btn-danger" style="display:none;margin-right:auto" onclick="deleteIssue()"><i class="fas fa-trash"></i> 삭제</button>
+        <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+        <button class="btn btn-primary" onclick="saveIssue()"><i class="fas fa-save"></i> 저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/rbac.js?v=31"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js?v=36"></script>
+<script>
+Portal.init();
+try {
+
+// ══════════════════════════════════════════════════════════
+// 상수
+// ══════════════════════════════════════════════════════════
+const TABLE = 'settlement_calendar_issues';     // 이슈 저장 테이블 (generic /tables)
+const CATS = ['공시이율','가정','모델','검증','보고','기타'];
+const ISSUE_TYPES = ['이슈','IT장애'];
+const CAT_COLORS = { '공시이율':'#3b82f6','가정':'#22c55e','모델':'#f97316','검증':'#a855f7','보고':'#ef4444','기타':'#9ca3af' };
+const MAX_CHIPS_DESKTOP = 3, MAX_CHIPS_MOBILE = 1;
+
+const currentUser = RBAC.getCurrentUser();
+const isLeader = RBAC.isTeamLeader();
+const myName = (currentUser && (currentUser.full_name || currentUser.username)) || '';
+
+const today = new Date();
+let currentYear = today.getFullYear(), currentMonth = today.getMonth();
+let selectedDate = null;
+let activeCats = new Set([...CATS, ...ISSUE_TYPES]);
+
+let SETTLE_SCHEDULE = [];       // settle_items (D+N 영업일 마감업무)
+let calEvents = [];             // settlement_calendar (읽기전용)
+let ISSUES = [];                // settlement_calendar_issues
+let doneSetByYm = {};           // 'YYYY-MM' → Set(settle task id) : 어느 팀원이든 완료한 결산업무 (읽기전용)
+let scheduleDueDates = {};
+
+// ══════════════════════════════════════════════════════════
+// 공휴일 / 영업일 (settlement.html 과 동일)
+// ══════════════════════════════════════════════════════════
+const KR_HOLIDAYS = new Map([
+  ['2025-01-01','신정'],['2025-01-28','설날연휴'],['2025-01-29','설날'],['2025-01-30','설날연휴'],['2025-03-01','삼일절'],
+  ['2025-05-01','근로자의날'],['2025-05-05','어린이날'],['2025-05-06','대체공휴일'],['2025-06-06','현충일'],['2025-08-15','광복절'],
+  ['2025-10-03','개천절'],['2025-10-05','추석연휴'],['2025-10-06','추석'],['2025-10-07','추석연휴'],['2025-10-08','추석대체'],['2025-10-09','한글날'],['2025-12-25','크리스마스'],
+  ['2026-01-01','신정'],['2026-02-16','설날연휴'],['2026-02-17','설날'],['2026-02-18','설날연휴'],['2026-03-01','삼일절'],['2026-03-02','삼일절대체'],
+  ['2026-05-01','근로자의날'],['2026-05-05','어린이날'],['2026-05-24','석가탄신일'],['2026-05-25','석가탄신일대체'],['2026-06-03','제8회 전국동시지방선거'],
+  ['2026-06-06','현충일'],['2026-08-15','광복절'],['2026-09-24','추석연휴'],['2026-09-25','추석'],['2026-09-26','추석연휴'],['2026-09-28','추석대체'],
+  ['2026-10-03','개천절'],['2026-10-09','한글날'],['2026-12-25','크리스마스'],
+  ['2027-01-01','신정'],['2027-01-25','설날연휴'],['2027-01-26','설날'],['2027-01-27','설날연휴'],['2027-03-01','삼일절'],['2027-05-01','근로자의날'],
+  ['2027-05-05','어린이날'],['2027-05-13','석가탄신일'],['2027-06-06','현충일'],['2027-06-07','현충일대체'],['2027-08-15','광복절'],['2027-08-16','광복절대체'],
+  ['2027-10-03','개천절'],['2027-10-04','개천절대체'],['2027-10-09','한글날'],['2027-10-14','추석연휴'],['2027-10-15','추석'],['2027-10-16','추석연휴'],['2027-10-18','추석대체'],['2027-12-25','크리스마스'],
+]);
+function isBusinessDay(ds) { const d = new Date(ds + 'T00:00:00'); const w = d.getDay(); return w !== 0 && w !== 6 && !KR_HOLIDAYS.has(ds); }
+function getNthBizDay(year, month, n) {
+  const dim = new Date(year, month, 0).getDate(); let c = 0;
+  for (let d = 1; d <= dim; d++) { const ds = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`; if (isBusinessDay(ds) && ++c === n) return ds; }
+  return null;
+}
+function getBizDayNum(year, month, ds) {
+  const dim = new Date(year, month, 0).getDate(); let c = 0;
+  for (let d = 1; d <= dim; d++) { const s = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`; if (isBusinessDay(s)) { c++; if (s === ds) return c; } if (s > ds) break; }
+  return null;
+}
+function buildScheduleDueDates(year, month) {
+  const map = {}; SETTLE_SCHEDULE.forEach(t => { const ds = getNthBizDay(year, month, t.due); if (ds) (map[ds] = map[ds] || []).push(t); }); return map;
+}
+function todayDateStr() { return `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`; }
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttr(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
+
+// ══════════════════════════════════════════════════════════
+// 데이터 로드 (결산업무 레이어는 모두 읽기전용)
+// ══════════════════════════════════════════════════════════
+async function fetchRows(url) { const r = await fetch(url); const d = await r.json(); return d.rows || d.data || []; }
+async function loadSettleSchedule() {
+  try {
+    const rows = (await fetchRows('/tables/settle_items?limit=500')).filter(x => x.is_active !== false);
+    rows.sort((a,b) => (a.seq||0)-(b.seq||0));
+    SETTLE_SCHEDULE = rows.map(r => ({ id:r.id, label:r.label, group:r.group_name, due:r.due_biz_day, assignee:r.assignee }));
+  } catch (e) { console.error('settle_items 로드 실패', e); SETTLE_SCHEDULE = []; }
+  // 모달의 '관련 결산업무' 옵션
+  const sel = document.getElementById('fRelated');
+  sel.innerHTML = '<option value="">해당 없음</option>' + SETTLE_SCHEDULE.map(t => `<option value="${escAttr(t.label)}">D+${t.due} ${esc(t.label)}</option>`).join('');
+}
+async function loadCalEvents() { try { calEvents = await fetchRows('/tables/settlement_calendar?limit=1000'); } catch (e) { calEvents = []; } }
+async function loadDoneSets() {
+  // work_tasks(year, month, settlement_done[]) → 월별 완료 집합 (어느 팀원이든 완료면 완료)
+  try {
+    const rows = await fetchRows('/tables/work_tasks?limit=1000');
+    doneSetByYm = {};
+    rows.forEach(r => {
+      if (!r.year || !r.month) return;
+      const ym = `${r.year}-${String(r.month).padStart(2,'0')}`;
+      const s = doneSetByYm[ym] || (doneSetByYm[ym] = new Set());
+      (r.settlement_done || []).forEach(id => s.add(id));
+    });
+  } catch (e) { doneSetByYm = {}; }
+}
+function isSettleTaskCompleted(taskId, dateStr) {
+  const ym = (dateStr || '').slice(0,7); const s = doneSetByYm[ym]; return !!(s && s.has(taskId));
+}
+async function loadIssues() {
+  try { ISSUES = await fetchRows(`/tables/${TABLE}?limit=5000`); } catch (e) { ISSUES = []; }
+  ISSUES.sort((a,b) => (b.date||'').localeCompare(a.date||'') || (b.created_at||0) - (a.created_at||0));
+}
+
+// ══════════════════════════════════════════════════════════
+// 캘린더 렌더 (결산 캘린더 양식 그대로 + 이슈 칩)
+// ══════════════════════════════════════════════════════════
+function buildCatFilters() {
+  const wrap = document.getElementById('catFilters');
+  wrap.innerHTML = [...ISSUE_TYPES, ...CATS].map(c => `
+    <div class="cat-chip cat-${c} active" data-cat="${c}" onclick="toggleCat('${c}',this)"><span class="cat-dot"></span>${c}</div>`).join('');
+}
+function toggleCat(c, el) {
+  if (activeCats.has(c)) { activeCats.delete(c); el.classList.remove('active'); } else { activeCats.add(c); el.classList.add('active'); }
+  renderCalendar(); if (selectedDate) showDayPanel(selectedDate);
+}
+function changeMonth(delta) {
+  currentMonth += delta;
+  if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+  if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+  renderCalendar(); clearPanel(); renderLog();
+}
+function goToday() { currentYear = today.getFullYear(); currentMonth = today.getMonth(); renderCalendar(); selectedDate = todayDateStr(); showDayPanel(selectedDate); renderLog(); }
+
+function monthKey() { return `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`; }
+function monthIssues() { return ISSUES.filter(i => (i.date||'').startsWith(monthKey())); }
+function visibleIssues() { return ISSUES.filter(i => activeCats.has(i.type || '이슈')); }
+
+function updateStats() {
+  const m = monthIssues();
+  document.getElementById('stTotal').textContent = m.length;
+  document.getElementById('stIt').textContent = m.filter(i => i.type === 'IT장애').length;
+  document.getElementById('stOpen').textContent = m.filter(i => i.status !== '해결').length;
+  document.getElementById('stDone').textContent = m.filter(i => i.status === '해결').length;
+}
+
+function renderCalendar() {
+  scheduleDueDates = buildScheduleDueDates(currentYear, currentMonth + 1);
+  document.getElementById('monthLabel').textContent = `${currentYear}년 ${currentMonth+1}월`;
+  updateStats();
+
+  const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+  const daysInMonth = new Date(currentYear, currentMonth+1, 0).getDate();
+  const prevDays = new Date(currentYear, currentMonth, 0).getDate();
+  const todayStr = todayDateStr();
+  const isMobileView = window.matchMedia('(max-width:480px)').matches;
+  const maxShow = isMobileView ? MAX_CHIPS_MOBILE : MAX_CHIPS_DESKTOP;
+
+  const evMap = {};
+  calEvents.filter(t => t.date && activeCats.has(t.category || '기타')).forEach(t => (evMap[t.date] = evMap[t.date] || []).push(t));
+  const issMap = {};
+  visibleIssues().forEach(i => (issMap[i.date] = issMap[i.date] || []).push(i));
+
+  const container = document.getElementById('calDays'); container.innerHTML = '';
+  const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+
+  for (let i = 0; i < totalCells; i++) {
+    const cell = document.createElement('div'); cell.className = 'cal-day';
+    let dateStr, dayNum, isOther = false;
+    if (i < firstDay) {
+      dayNum = prevDays - firstDay + i + 1;
+      const yr = currentMonth === 0 ? currentYear - 1 : currentYear, mo = currentMonth === 0 ? 12 : currentMonth;
+      dateStr = `${yr}-${String(mo).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`; isOther = true; cell.classList.add('other-month');
+    } else if (i >= firstDay + daysInMonth) {
+      dayNum = i - firstDay - daysInMonth + 1;
+      const yr = currentMonth === 11 ? currentYear + 1 : currentYear, mo = currentMonth === 11 ? 1 : currentMonth + 2;
+      dateStr = `${yr}-${String(mo).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`; isOther = true; cell.classList.add('other-month');
+    } else {
+      dayNum = i - firstDay + 1;
+      dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+    }
+    if (dateStr === todayStr) cell.classList.add('today');
+    if (dateStr === selectedDate) cell.classList.add('selected');
+    const dow = i % 7; if (dow === 0) cell.classList.add('sunday'); if (dow === 6) cell.classList.add('saturday');
+    const holidayName = KR_HOLIDAYS.get(dateStr); if (holidayName) cell.classList.add('holiday');
+
+    const head = document.createElement('div'); head.className = 'day-head';
+    const num = document.createElement('div'); num.className = 'day-num' + (isOther ? ' other' : ''); num.textContent = dayNum; head.appendChild(num);
+    if (!isOther && isBusinessDay(dateStr)) {
+      const bizNum = getBizDayNum(currentYear, currentMonth + 1, dateStr);
+      if (bizNum !== null) { const tag = document.createElement('span'); tag.className = 'biz-day-tag'; tag.textContent = `D+${bizNum}`; head.appendChild(tag); }
+    }
+    cell.appendChild(head);
+    if (holidayName) { const h = document.createElement('div'); h.className = 'day-holiday-name'; h.textContent = holidayName; cell.appendChild(h); }
+
+    const wrap = document.createElement('div'); wrap.className = 'day-tasks';
+    let shown = 0, hidden = 0;
+
+    // 1) 이슈·장애 칩 (최우선 표시)
+    const dayIssues = issMap[dateStr] || [];
+    if (dayIssues.some(x => x.type === 'IT장애' && x.status !== '해결')) cell.classList.add('has-incident');
+    dayIssues.forEach(x => {
+      if (shown >= maxShow) { hidden++; return; }
+      const chip = document.createElement('div');
+      chip.className = `day-task-chip chip-${x.type || '이슈'}${x.status === '해결' ? ' chip-resolved' : ''}`;
+      chip.textContent = `${x.type === 'IT장애' ? '⚠ ' : '● '}${x.title || ''}`;
+      chip.title = `[${x.type}] ${x.title}\n상태: ${x.status || '발생'}${x.related_task ? '\n관련: ' + x.related_task : ''}`;
+      chip.onclick = (e) => { e.stopPropagation(); openEditModal(x.id); };
+      wrap.appendChild(chip); shown++;
+    });
+
+    // 2) 결산 마감업무 칩 (읽기전용, 결산 캘린더와 동일)
+    const dueTasks = scheduleDueDates[dateStr] || [];
+    if (dueTasks.length && !isOther) {
+      const doneCount = dueTasks.filter(t => isSettleTaskCompleted(t.id, dateStr)).length;
+      const allDone = doneCount === dueTasks.length;
+      if (shown < maxShow) {
+        const chip = document.createElement('div');
+        chip.className = `day-task-chip chip-마감${allDone ? ' chip-마감-done' : ''}`;
+        chip.textContent = dueTasks.length === 1
+          ? `D+${dueTasks[0].due} ${dueTasks[0].label}` + (allDone ? ' ✓' : '')
+          : (allDone ? `마감 ${dueTasks.length}건 ✓` : `마감 ${dueTasks.length}건 (${doneCount}/${dueTasks.length})`);
+        chip.title = dueTasks.map(t => `D+${t.due} ${t.label}${isSettleTaskCompleted(t.id, dateStr) ? ' ✓ 완료' : ''}`).join('\n');
+        wrap.appendChild(chip); shown++;
+      } else hidden++;
+      if (allDone) cell.classList.add('all-done');
+    }
+
+    // 3) 결산 캘린더 일정 칩 (읽기전용)
+    (evMap[dateStr] || []).forEach(t => {
+      if (shown >= maxShow) { hidden++; return; }
+      const chip = document.createElement('div');
+      chip.className = `day-task-chip chip-${t.category || '기타'}${t.status === 'completed' ? ' chip-done' : ''}`;
+      chip.textContent = t.task || ''; chip.title = t.task || '';
+      wrap.appendChild(chip); shown++;
+    });
+
+    if (hidden > 0) {
+      const more = document.createElement('div'); more.className = isMobileView ? 'day-task-chip-more' : 'more-tasks';
+      more.textContent = isMobileView ? `+${hidden}` : `+${hidden}개 더`;
+      more.onclick = (e) => { e.stopPropagation(); selectedDate = dateStr; showDayPanel(dateStr); renderCalendar(); };
+      wrap.appendChild(more);
+    }
+    cell.appendChild(wrap);
+    cell.onclick = () => { selectedDate = dateStr; showDayPanel(dateStr); renderCalendar(); };
+    container.appendChild(cell);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// 날짜 패널: 그 날의 결산업무(읽기전용) + 이슈 목록 + 등록 버튼
+// ══════════════════════════════════════════════════════════
+function showDayPanel(dateStr) {
+  const [y, m, d] = dateStr.split('-');
+  document.getElementById('panelTitle').textContent = `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
+  document.getElementById('panelDateLabel').textContent = dateStr;
+  const body = document.getElementById('panelBody');
+  const dueTasks = scheduleDueDates[dateStr] || [];
+  const dayIssues = visibleIssues().filter(i => i.date === dateStr);
+  const dayEvents = calEvents.filter(t => t.date === dateStr && activeCats.has(t.category || '기타'));
+
+  let html = '';
+  if (dueTasks.length) {
+    const dc = dueTasks.filter(t => isSettleTaskCompleted(t.id, dateStr)).length, all = dc === dueTasks.length;
+    html += `<div style="margin-bottom:12px">
+      <div class="panel-sec-title" style="color:${all ? '#065f46' : '#c2410c'}"><i class="fas fa-flag"></i> 결산 마감 업무 ${all ? '<span>✓ 전체 완료</span>' : `<span style="color:#6b7280">(${dc}/${dueTasks.length} 완료)</span>`}</div>
+      ${dueTasks.map(t => { const done = isSettleTaskCompleted(t.id, dateStr); return `
+        <div class="panel-task-item" style="border-left-color:${done ? '#10b981' : '#c2410c'};background:${done ? '#f0fdf4' : '#fff7ed'};">
+          <div class="panel-task-cat" style="color:${done ? '#065f46' : '#c2410c'};">D+${t.due} 영업일${done ? ' · ✓ 완료' : ''}</div>
+          <div class="panel-task-title">${esc(t.label)}</div>
+        </div>`; }).join('')}
+    </div>`;
+  }
+  if (dayEvents.length) {
+    html += `<div style="margin-bottom:12px"><div class="panel-sec-title" style="color:#4f86f7"><i class="fas fa-calendar-alt"></i> 결산 캘린더 일정</div>` +
+      dayEvents.map(t => { const c = CAT_COLORS[t.category] || CAT_COLORS['기타']; return `
+        <div class="panel-task-item" style="border-left-color:${c}"><div class="panel-task-cat" style="color:${c}">${esc(t.category || '기타')}</div>
+        <div class="panel-task-title">${esc(t.task || '')}</div><div class="panel-task-assignee"><i class="fas fa-user"></i> ${esc(t.assignee || '-')}</div></div>`; }).join('') + `</div>`;
+  }
+  html += `<div class="panel-sec-title" style="color:#dc2626"><i class="fas fa-exclamation-circle"></i> 이슈 · IT장애 (${dayIssues.length}건)</div>`;
+  if (!dayIssues.length) html += `<div class="panel-empty" style="padding:14px 0">이 날 기록된 이슈가 없습니다</div>`;
+  html += dayIssues.map(x => `
+    <div class="panel-task-item" style="border-left-color:${x.type === 'IT장애' ? '#dc2626' : '#f59e0b'}">
+      <div class="panel-task-row"><span class="ty-badge ty-${esc(x.type)}">${esc(x.type)}</span><span class="st-badge st-${esc(x.status || '발생')}">${esc(x.status || '발생')}</span></div>
+      <div class="panel-task-title" style="margin-top:6px">${esc(x.title)}</div>
+      ${x.related_task ? `<div style="font-size:11.5px;color:#c2410c;margin-bottom:4px"><i class="fas fa-link"></i> ${esc(x.related_task)}</div>` : ''}
+      ${x.detail ? `<div style="font-size:12px;color:#6b7280;white-space:pre-line;margin-bottom:4px">${esc(x.detail)}</div>` : ''}
+      ${x.action ? `<div style="font-size:12px;color:#065f46;white-space:pre-line"><b>조치:</b> ${esc(x.action)}</div>` : ''}
+      <div class="panel-task-row" style="margin-top:6px"><span class="panel-task-assignee"><i class="fas fa-user"></i> ${esc(x.assignee || '-')}</span><span style="font-size:11px;color:#9ca3af">${esc(x.created_by || '')}</span></div>
+      <div class="panel-task-actions">
+        <button class="btn-edit-task" onclick="openEditModal('${escAttr(x.id)}')"><i class="fas fa-pen"></i> 수정</button>
+        ${x.status !== '해결' ? `<button class="btn-resolve-task" onclick="quickResolve('${escAttr(x.id)}')"><i class="fas fa-check"></i> 해결</button>` : ''}
+        ${canDelete(x) ? `<button class="btn-del-task" onclick="deleteIssueById('${escAttr(x.id)}')"><i class="fas fa-trash"></i></button>` : ''}
+      </div>
+    </div>`).join('');
+  html += `<div style="text-align:center;margin-top:8px"><button class="btn btn-primary" style="width:100%" onclick="openAddModal('${dateStr}')"><i class="fas fa-plus"></i> 이 날 이슈·장애 등록</button></div>`;
+  body.innerHTML = html;
+}
+function clearPanel() {
+  selectedDate = null;
+  document.getElementById('panelTitle').textContent = '날짜 선택'; document.getElementById('panelDateLabel').textContent = '';
+  document.getElementById('panelBody').innerHTML = '<div class="panel-empty"><i class="fas fa-mouse-pointer" style="font-size:24px;display:block;margin-bottom:8px;"></i>캘린더에서 날짜를 클릭하세요</div>';
+}
+
+// ══════════════════════════════════════════════════════════
+// 이슈 로그 (누적 기록)
+// ══════════════════════════════════════════════════════════
+function renderLog() {
+  const period = document.getElementById('fltPeriod').value;
+  const type = document.getElementById('fltType').value, status = document.getElementById('fltStatus').value;
+  const q = (document.getElementById('fltQ').value || '').trim().toLowerCase();
+  let rows = ISSUES.slice();
+  if (period === 'month') rows = rows.filter(i => (i.date||'').startsWith(monthKey()));
+  else if (period === 'year') rows = rows.filter(i => (i.date||'').startsWith(String(currentYear)));
+  if (type) rows = rows.filter(i => i.type === type);
+  if (status) rows = rows.filter(i => (i.status || '발생') === status);
+  if (q) rows = rows.filter(i => [i.title, i.detail, i.cause, i.action, i.related_task, i.assignee].some(v => (v||'').toLowerCase().includes(q)));
+  document.getElementById('logCount').textContent = `${rows.length}건`;
+  const tb = document.getElementById('logBody');
+  if (!rows.length) { tb.innerHTML = `<tr><td colspan="8" class="iss-empty">기록된 이슈가 없습니다</td></tr>`; return; }
+  tb.innerHTML = rows.map(x => `
+    <tr onclick="openEditModal('${escAttr(x.id)}')">
+      <td style="white-space:nowrap">${esc(x.date)}</td>
+      <td><span class="ty-badge ty-${esc(x.type)}">${esc(x.type)}</span></td>
+      <td class="wrap"><b>${esc(x.title)}</b>${x.detail ? `<div class="muted" style="font-size:11.5px;margin-top:2px">${esc(x.detail)}</div>` : ''}</td>
+      <td class="muted">${esc(x.related_task || '-')}</td>
+      <td><span class="st-badge st-${esc(x.status || '발생')}">${esc(x.status || '발생')}</span></td>
+      <td style="white-space:nowrap">${esc(x.assignee || '-')}</td>
+      <td class="wrap muted">${esc(x.action || '-')}</td>
+      <td class="muted" style="white-space:nowrap">${esc(x.created_by || '')}</td>
+    </tr>`).join('');
+}
+['fltPeriod','fltType','fltStatus'].forEach(id => document.getElementById(id).addEventListener('change', renderLog));
+document.getElementById('fltQ').addEventListener('input', renderLog);
+
+// ══════════════════════════════════════════════════════════
+// 모달 / 저장 / 삭제
+// ══════════════════════════════════════════════════════════
+function canDelete(x) { return isLeader || (x.created_by && x.created_by === myName); }
+function setType(v) { document.querySelectorAll('input[name=fType]').forEach(r => r.checked = (r.value === v)); }
+function getType() { const r = document.querySelector('input[name=fType]:checked'); return r ? r.value : '이슈'; }
+
+function openAddModal(dateStr) {
+  document.getElementById('modalTitle').textContent = '이슈·장애 등록';
+  document.getElementById('editId').value = '';
+  setType('이슈');
+  document.getElementById('fDate').value = dateStr || selectedDate || todayDateStr();
+  document.getElementById('fStatus').value = '발생';
+  ['fTitle','fDetail','fCause','fAction','fResolved'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('fRelated').value = '';
+  document.getElementById('fAssignee').value = myName;
+  document.getElementById('modalDelBtn').style.display = 'none';
+  document.getElementById('issModal').classList.add('show');
+  setTimeout(() => document.getElementById('fTitle').focus(), 50);
+}
+function openEditModal(id) {
+  const x = ISSUES.find(i => i.id === id); if (!x) return;
+  document.getElementById('modalTitle').textContent = '이슈·장애 수정';
+  document.getElementById('editId').value = x.id;
+  setType(x.type || '이슈');
+  document.getElementById('fDate').value = x.date || '';
+  document.getElementById('fStatus').value = x.status || '발생';
+  document.getElementById('fTitle').value = x.title || '';
+  document.getElementById('fRelated').value = x.related_task || '';
+  if (x.related_task && document.getElementById('fRelated').value !== x.related_task) {
+    // 옵션에 없는 과거 값이면 임시 옵션 추가
+    const o = document.createElement('option'); o.value = x.related_task; o.textContent = x.related_task; document.getElementById('fRelated').appendChild(o);
+    document.getElementById('fRelated').value = x.related_task;
+  }
+  document.getElementById('fDetail').value = x.detail || '';
+  document.getElementById('fCause').value = x.cause || '';
+  document.getElementById('fAction').value = x.action || '';
+  document.getElementById('fAssignee').value = x.assignee || '';
+  document.getElementById('fResolved').value = x.resolved_date || '';
+  document.getElementById('modalDelBtn').style.display = canDelete(x) ? '' : 'none';
+  document.getElementById('issModal').classList.add('show');
+}
+function closeModal() { document.getElementById('issModal').classList.remove('show'); }
+document.getElementById('issModal').addEventListener('click', e => { if (e.target.id === 'issModal') closeModal(); });
+
+async function saveIssue() {
+  const id = document.getElementById('editId').value;
+  const payload = {
+    date: document.getElementById('fDate').value,
+    type: getType(),
+    title: document.getElementById('fTitle').value.trim(),
+    related_task: document.getElementById('fRelated').value,
+    detail: document.getElementById('fDetail').value.trim(),
+    cause: document.getElementById('fCause').value.trim(),
+    action: document.getElementById('fAction').value.trim(),
+    status: document.getElementById('fStatus').value,
+    assignee: document.getElementById('fAssignee').value.trim(),
+    resolved_date: document.getElementById('fResolved').value,
+    updated_by: myName, updated_at: Date.now(),
+  };
+  if (!payload.date) { Portal.toast ? Portal.toast('발생일을 입력하세요', 'error') : alert('발생일을 입력하세요'); return; }
+  if (!payload.title) { Portal.toast ? Portal.toast('제목을 입력하세요', 'error') : alert('제목을 입력하세요'); return; }
+  if (payload.status === '해결' && !payload.resolved_date) payload.resolved_date = todayDateStr();
+  try {
+    let res;
+    if (id) {
+      res = await fetch(`/tables/${TABLE}/${encodeURIComponent(id)}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    } else {
+      payload.created_by = myName; payload.created_at = Date.now();
+      res = await fetch(`/tables/${TABLE}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    closeModal();
+    await loadIssues();
+    selectedDate = payload.date;
+    const [y, m] = payload.date.split('-'); currentYear = +y; currentMonth = +m - 1;
+    renderCalendar(); showDayPanel(selectedDate); renderLog();
+    if (Portal.toast) Portal.toast(id ? '수정되었습니다' : '등록되었습니다', 'success');
+  } catch (e) { alert('저장 실패: ' + (e.message || e)); }
+}
+async function deleteIssue() { const id = document.getElementById('editId').value; if (id) await deleteIssueById(id); }
+async function deleteIssueById(id) {
+  const x = ISSUES.find(i => i.id === id); if (!x || !canDelete(x)) return;
+  if (!confirm(`삭제하시겠습니까?\n\n[${x.type}] ${x.title}`)) return;
+  try {
+    const res = await fetch(`/tables/${TABLE}/${encodeURIComponent(id)}`, { method:'DELETE' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    closeModal(); await loadIssues(); renderCalendar(); if (selectedDate) showDayPanel(selectedDate); renderLog();
+  } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
+}
+async function quickResolve(id) {
+  try {
+    const res = await fetch(`/tables/${TABLE}/${encodeURIComponent(id)}`, { method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ status:'해결', resolved_date: todayDateStr(), updated_by: myName, updated_at: Date.now() }) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    await loadIssues(); renderCalendar(); if (selectedDate) showDayPanel(selectedDate); renderLog();
+  } catch (e) { alert('처리 실패: ' + (e.message || e)); }
+}
+
+let _rt = null; window.addEventListener('resize', () => { clearTimeout(_rt); _rt = setTimeout(renderCalendar, 200); });
+
+Object.assign(window, { changeMonth, goToday, toggleCat, openAddModal, openEditModal, closeModal, saveIssue, deleteIssue, deleteIssueById, quickResolve });
+
+(async () => {
+  buildCatFilters();
+  await Promise.all([loadSettleSchedule(), loadCalEvents(), loadDoneSets(), loadIssues()]);
+  renderCalendar();
+  renderLog();
+})();
+
+} catch (e) { if (e && e.message !== 'RBAC_BLOCK') throw e; }
+</script>
+</body>
+</html>

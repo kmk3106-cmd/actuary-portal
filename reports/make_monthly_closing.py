@@ -252,51 +252,235 @@ def build(rows_by_bucket, ym, asof, weeks, out, cat_rules):
     wb.save(out)
 
 
-def main():
-    ap = argparse.ArgumentParser(description='주간업무 월결산 (완료/미진/진행중/착수예정) xlsx 생성')
-    ap.add_argument('--ym', required=True, help='기준 연월 YYYYMM (예: 202609)')
-    src = ap.add_mutually_exclusive_group(required=True)
-    src.add_argument('--data', help='weekly_tasks JSON 파일 경로')
-    src.add_argument('--url', help='포탈 URL (예: https://portal.kkuks.com) — /tables/weekly_tasks 조회')
-    ap.add_argument('--out', required=True, help='출력 xlsx 경로')
-    ap.add_argument('--asof', default=None, help='기준일 YYYY-MM-DD (기본: 해당 월 말일)')
-    ap.add_argument('--category-rules', default=None, help='표준분류 규칙 JSON (기본: reports/category_rules.json)')
-    ap.add_argument('--print', action='store_true', help='결과 요약을 콘솔에도 출력')
-    args = ap.parse_args()
+def _week_sort_key(s):
+    m = re.search(r'(\d+)주차', s or '')
+    return int(m.group(1)) if m else 0
 
-    if not re.match(r'^\d{6}$', args.ym):
-        print('ERROR: --ym 은 YYYYMM 형식', file=sys.stderr); sys.exit(2)
-    m_start, m_end = month_bounds(args.ym)
-    asof = date.fromisoformat(args.asof) if args.asof else m_end
-    cat_rules = load_category_rules(args.category_rules)
 
-    rows = load_rows(args)
-    # 해당 월 주차만 (기준일 base_date 의 월) · 정크 제외
+def compute_month(rows, ym, asof, cat_rules):
+    """해당 월 행만 추려 중복제거 + 4분류. (rows_by_bucket, latest, weeks, raw_count) 반환."""
+    m_start, _ = month_bounds(ym)
     month_rows = [t for t in rows
                   if str(t.get('base_date') or '')[:7] == m_start.strftime('%Y-%m')
                   and not str(t.get('member_name') or '').startswith('bench')]
-    weeks = sorted({t.get('week_label') for t in month_rows if t.get('week_label')},
-                   key=lambda s: int(re.search(r'(\d+)주차', s).group(1)) if re.search(r'(\d+)주차', s) else 0)
+    weeks = sorted({t.get('week_label') for t in month_rows if t.get('week_label')}, key=_week_sort_key)
     latest = dedupe_latest(month_rows)
-
     rows_by_bucket = OrderedDict((b, []) for b in BUCKETS)
     for t in latest:
         t['_std'] = normalize_category(t.get('category'), t.get('task_content'), t.get('work_type_detail'), cat_rules)
         rows_by_bucket[classify(t, asof)].append(t)
+    return rows_by_bucket, latest, weeks, len(month_rows)
 
-    build(rows_by_bucket, args.ym, asof, weeks, args.out, cat_rules)
-    print('OK: %s | 원행 %d → 중복제거 %d | %s' % (
-        args.out, len(month_rows), len(latest),
-        ' · '.join('%s %d' % (b, len(rows_by_bucket[b])) for b in BUCKETS)))
 
-    if args.print:
+def row_to_json(t):
+    p = _norm_progress(t.get('progress'))
+    return {
+        'id': t.get('id'), 'std': t.get('_std'), 'member': t.get('member_name') or '',
+        'task': norm_text(t.get('task_content')), 'ext': norm_text(t.get('extension_type')),
+        'progress': p, 'status': norm_text(t.get('status')),
+        'start_date': norm_text(t.get('start_date')), 'end_date': norm_text(t.get('end_date')),
+        'week_label': t.get('week_label') or '', 'issue_note': norm_text(t.get('issue_note')),
+        'category': norm_text(t.get('category')),
+    }
+
+
+def member_summary(rows_by_bucket):
+    members = _sort_members(sorted({t.get('member_name') for b in BUCKETS
+                                    for t in rows_by_bucket[b] if t.get('member_name')}))
+    out = []
+    for m in members:
+        row, tot = {'member': m}, 0
         for b in BUCKETS:
-            print('\n■ %s (%d건)' % (b, len(rows_by_bucket[b])))
-            for t in rows_by_bucket[b]:
-                p = _norm_progress(t.get('progress'))
-                print('  [%s] %s | %s | %s | 예정 %s' % (
-                    t['_std'], t.get('member_name'), norm_text(t.get('task_content'))[:44],
-                    ('%d%%' % round(p * 100)) if p is not None else '-', t.get('end_date') or '-'))
+            n = sum(1 for t in rows_by_bucket[b] if t.get('member_name') == m)
+            row[b] = n; tot += n
+        row['total'] = tot
+        out.append(row)
+    return out
+
+
+def counts_of(rows_by_bucket):
+    c = {b: len(rows_by_bucket[b]) for b in BUCKETS}
+    c['total'] = sum(c.values())
+    return c
+
+
+def month_payload(ym, asof, weeks, rows_by_bucket, raw_count):
+    return {
+        'mode': 'month', 'ym': ym, 'asof': asof.isoformat(), 'weeks': weeks, 'raw_rows': raw_count,
+        'counts': counts_of(rows_by_bucket),
+        'buckets': {b: [row_to_json(t) for t in rows_by_bucket[b]] for b in BUCKETS},
+        'by_member': member_summary(rows_by_bucket),
+    }
+
+
+def build_year(year, months, year_buckets, year_asof, out):
+    """년간집계 xlsx: 월별 추이(스냅샷) + 연간 업무별 현황(중복제거) + 인별요약."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = '년간집계_%d' % year
+    for c, w in {'A': 12, 'B': 10, 'C': 10, 'D': 10, 'E': 10, 'F': 10, 'G': 10}.items():
+        ws.column_dimensions[c].width = w
+    ws.merge_cells('A1:G1')
+    ws['A1'] = '계리결산팀 주간업무 년간집계 (%d년)' % year
+    ws['A1'].font = TITLE_FONT; ws['A1'].fill = TITLE_FILL; ws['A1'].alignment = CENTER
+    ws.row_dimensions[1].height = 28
+    ws.merge_cells('A2:G2')
+    ws['A2'] = '기준일 %s   |   월별 수치는 각 월말(당월은 기준일) 스냅샷, 연간 현황은 연중 동일 업무를 최근 상태로 1건 집계' % year_asof.strftime('%Y.%m.%d')
+    ws['A2'].font = SUB_FONT; ws['A2'].fill = SUB_FILL; ws['A2'].alignment = CENTER
+
+    row = 4
+    ws.cell(row=row, column=1, value='■ 월별 추이').font = CAT_FONT
+    row += 1
+    hdr = ['월'] + BUCKETS + ['합계', '완료율']
+    for i, h in enumerate(hdr, 1):
+        c = ws.cell(row=row, column=i, value=h)
+        c.font = HEAD_FONT; c.fill = HEAD_FILL; c.alignment = CENTER; c.border = BORDER_ALL
+    row += 1
+    for mo in months:
+        cnt = mo['counts']
+        vals = ['%s월' % int(mo['ym'][4:6])] + [cnt[b] for b in BUCKETS] + [cnt['total'], (cnt['완료'] / cnt['total']) if cnt['total'] else 0]
+        for i, v in enumerate(vals, 1):
+            c = ws.cell(row=row, column=i, value=v)
+            c.font = BODY_FONT; c.border = BORDER_ALL; c.alignment = CENTER
+        ws.cell(row=row, column=len(vals)).number_format = '0%'
+        row += 1
+    tot = {b: sum(m['counts'][b] for m in months) for b in BUCKETS}
+    tot_all = sum(tot.values())
+    vals = ['합계'] + [tot[b] for b in BUCKETS] + [tot_all, (tot['완료'] / tot_all) if tot_all else 0]
+    for i, v in enumerate(vals, 1):
+        c = ws.cell(row=row, column=i, value=v)
+        c.font = BOLD_FONT; c.border = BORDER_ALL; c.alignment = CENTER
+        c.fill = PatternFill('solid', fgColor='F1F5F9')
+    ws.cell(row=row, column=len(vals)).number_format = '0%'
+    row += 2
+
+    ws.cell(row=row, column=1, value='■ 연간 업무 현황 (중복제거)').font = CAT_FONT
+    row += 1
+    yc = counts_of(year_buckets)
+    for i, h in enumerate(['구분', '건수', '비중'], 1):
+        c = ws.cell(row=row, column=i, value=h)
+        c.font = HEAD_FONT; c.fill = HEAD_FILL; c.alignment = CENTER; c.border = BORDER_ALL
+    row += 1
+    for b in BUCKETS:
+        bg, fg = BUCKET_FILL[b]
+        ws.cell(row=row, column=1, value=b).font = Font(name='맑은 고딕', size=10, bold=True, color=fg)
+        ws.cell(row=row, column=1).fill = PatternFill('solid', fgColor=bg)
+        ws.cell(row=row, column=2, value=yc[b])
+        ws.cell(row=row, column=3, value=(yc[b] / yc['total']) if yc['total'] else 0).number_format = '0%'
+        for c in (1, 2, 3):
+            ws.cell(row=row, column=c).border = BORDER_ALL; ws.cell(row=row, column=c).alignment = CENTER
+        row += 1
+    ws.cell(row=row, column=1, value='합계').font = BOLD_FONT
+    ws.cell(row=row, column=2, value=yc['total']).font = BOLD_FONT
+    for c in (1, 2, 3):
+        ws.cell(row=row, column=c).border = BORDER_ALL; ws.cell(row=row, column=c).alignment = CENTER
+    ws.freeze_panes = 'A4'
+
+    ws2 = wb.create_sheet('인별요약(연간)')
+    hdr = ['팀원'] + BUCKETS + ['합계']
+    for i, h in enumerate(hdr, 1):
+        c = ws2.cell(row=1, column=i, value=h)
+        c.font = HEAD_FONT; c.fill = HEAD_FILL; c.alignment = CENTER; c.border = BORDER_ALL
+    ws2.column_dimensions['A'].width = 12
+    for r_i, m in enumerate(member_summary(year_buckets), 2):
+        vals = [m['member']] + [m[b] for b in BUCKETS] + [m['total']]
+        for i, v in enumerate(vals, 1):
+            c = ws2.cell(row=r_i, column=i, value=v)
+            c.border = BORDER_ALL; c.alignment = CENTER
+            c.font = BOLD_FONT if i in (1, len(vals)) else BODY_FONT
+    ws2.freeze_panes = 'B2'
+
+    os.makedirs(os.path.dirname(out) or '.', exist_ok=True)
+    wb.save(out)
+
+
+def main():
+    ap = argparse.ArgumentParser(description='주간업무 월결산/년간집계 (완료/미진/진행중/착수예정)')
+    period = ap.add_mutually_exclusive_group(required=True)
+    period.add_argument('--ym', help='월결산: 기준 연월 YYYYMM (예: 202609)')
+    period.add_argument('--year', help='년간집계: 연도 YYYY (예: 2026)')
+    src = ap.add_mutually_exclusive_group(required=True)
+    src.add_argument('--data', help='weekly_tasks JSON 파일 경로')
+    src.add_argument('--url', help='포탈 URL (예: https://portal.kkuks.com) — /tables/weekly_tasks 조회')
+    ap.add_argument('--out', default=None, help='출력 xlsx 경로 (생략 시 xlsx 미생성)')
+    ap.add_argument('--json-out', default=None, help='분류 결과 JSON 출력 경로 (화면 조회용)')
+    ap.add_argument('--asof', default=None, help='기준일 YYYY-MM-DD (기본: 월말 / 년간은 오늘)')
+    ap.add_argument('--category-rules', default=None, help='표준분류 규칙 JSON (기본: reports/category_rules.json)')
+    ap.add_argument('--print', action='store_true', help='결과 요약을 콘솔에도 출력')
+    args = ap.parse_args()
+    if not args.out and not args.json_out:
+        print('ERROR: --out 또는 --json-out 중 하나는 필요', file=sys.stderr); sys.exit(2)
+
+    cat_rules = load_category_rules(args.category_rules)
+    rows = load_rows(args)
+    today = date.today()
+
+    # ── 월결산 ──
+    if args.ym:
+        if not re.match(r'^\d{6}$', args.ym):
+            print('ERROR: --ym 은 YYYYMM 형식', file=sys.stderr); sys.exit(2)
+        _, m_end = month_bounds(args.ym)
+        asof = date.fromisoformat(args.asof) if args.asof else m_end
+        rows_by_bucket, latest, weeks, raw = compute_month(rows, args.ym, asof, cat_rules)
+        if args.out:
+            build(rows_by_bucket, args.ym, asof, weeks, args.out, cat_rules)
+        if args.json_out:
+            with open(args.json_out, 'w', encoding='utf-8') as f:
+                json.dump(month_payload(args.ym, asof, weeks, rows_by_bucket, raw), f, ensure_ascii=False)
+        print('OK: %s | 원행 %d → 중복제거 %d | %s' % (
+            args.out or args.json_out, raw, len(latest),
+            ' · '.join('%s %d' % (b, len(rows_by_bucket[b])) for b in BUCKETS)))
+        if args.print:
+            for b in BUCKETS:
+                print('\n■ %s (%d건)' % (b, len(rows_by_bucket[b])))
+                for t in rows_by_bucket[b]:
+                    p = _norm_progress(t.get('progress'))
+                    print('  [%s] %s | %s | %s | 예정 %s' % (
+                        t['_std'], t.get('member_name'), norm_text(t.get('task_content'))[:44],
+                        ('%d%%' % round(p * 100)) if p is not None else '-', t.get('end_date') or '-'))
+        return
+
+    # ── 년간집계 ──
+    if not re.match(r'^\d{4}$', args.year):
+        print('ERROR: --year 는 YYYY 형식', file=sys.stderr); sys.exit(2)
+    year = int(args.year)
+    year_asof = date.fromisoformat(args.asof) if args.asof else min(today, date(year, 12, 31))
+    months = []
+    for mo in range(1, 13):
+        ym = '%04d%02d' % (year, mo)
+        m_start, m_end = month_bounds(ym)
+        if m_start > year_asof:
+            break
+        asof = m_end if m_end < year_asof else year_asof
+        rb, latest, weeks, raw = compute_month(rows, ym, asof, cat_rules)
+        if raw == 0:
+            continue
+        months.append({'ym': ym, 'asof': asof.isoformat(), 'weeks': weeks, 'raw_rows': raw,
+                       'counts': counts_of(rb), 'by_member': member_summary(rb)})
+    # 연간 중복제거: 연중 동일 업무는 최근 상태 1건
+    year_rows = [t for t in rows
+                 if str(t.get('base_date') or '')[:4] == str(year)
+                 and not str(t.get('member_name') or '').startswith('bench')]
+    year_latest = dedupe_latest(year_rows)
+    year_buckets = OrderedDict((b, []) for b in BUCKETS)
+    for t in year_latest:
+        t['_std'] = normalize_category(t.get('category'), t.get('task_content'), t.get('work_type_detail'), cat_rules)
+        year_buckets[classify(t, year_asof)].append(t)
+    if args.out:
+        build_year(year, months, year_buckets, year_asof, args.out)
+    if args.json_out:
+        payload = {
+            'mode': 'year', 'year': year, 'asof': year_asof.isoformat(), 'months': months,
+            'year_counts': counts_of(year_buckets),
+            'buckets': {b: [row_to_json(t) for t in year_buckets[b]] for b in BUCKETS},
+            'by_member': member_summary(year_buckets),
+        }
+        with open(args.json_out, 'w', encoding='utf-8') as f:
+            json.dump(payload, f, ensure_ascii=False)
+    yc = counts_of(year_buckets)
+    print('OK: %s | %d년 %d개월 | 연간 %d건 | %s' % (
+        args.out or args.json_out, year, len(months), yc['total'],
+        ' · '.join('%s %d' % (b, yc[b]) for b in BUCKETS)))
 
 
 if __name__ == '__main__':

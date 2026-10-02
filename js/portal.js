@@ -131,6 +131,7 @@ const Portal = (() => {
       section: '결산',
       items: [
         { href: 'settlement.html',        icon: 'fa-calendar-alt', label: '결산 캘린더' },
+        { href: 'settlement-issues.html', icon: 'fa-exclamation-circle', label: '결산캘린더 이슈' },
         { href: 'settlement-review.html', icon: 'fa-clipboard-list', label: '결산 리뷰' }
       ]
     },
@@ -140,6 +141,7 @@ const Portal = (() => {
         { href: 'work-personal.html',  icon: 'fa-tasks',        label: '개인별 업무입력' },
         { href: 'weekly-report.html',  icon: 'fa-calendar-week',label: '주간업무 보고' },
         { href: 'weekly-summary.html', icon: 'fa-chart-line',   label: '주간업무 실적 집계' },
+        { href: 'weekly-closing.html', icon: 'fa-calendar-check', label: '주간업무 월결산' },
         { href: 'workload-me.html',    icon: 'fa-chart-line',   label: '내 업무량' },
         { href: 'workload-team.html',  icon: 'fa-users',        label: '팀 업무량 모니터링', leaderOrChief: true }
       ]

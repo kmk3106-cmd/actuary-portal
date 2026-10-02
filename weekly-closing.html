@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>주간업무 월결산 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css?v=28">
+  <style>
+    /* ── 탭 ── */
+    .wc-tabs { display:flex; gap:6px; margin-bottom:14px; border-bottom:2px solid #e5e7eb; }
+    .wc-tab { padding:10px 18px; font-size:14px; font-weight:700; color:#6b7280; cursor:pointer;
+      border-bottom:3px solid transparent; margin-bottom:-2px; transition:all .15s; }
+    .wc-tab:hover { color:#4f86f7; }
+    .wc-tab.active { color:#1e3a8a; border-bottom-color:#4f86f7; }
+
+    /* ── 툴바 ── */
+    .wc-toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      background:#fff; border:1.5px solid #e5e7eb; border-radius:14px; padding:12px 16px; margin-bottom:14px; }
+    .wc-toolbar select { padding:8px 12px; border:1.5px solid #e5e7eb; border-radius:9px; font-size:13.5px; color:#374151; background:#fff; font-family:inherit; }
+    .wc-toolbar select:focus { outline:none; border-color:#4f86f7; }
+    .wc-toolbar .lbl { font-size:12px; color:#6b7280; font-weight:600; }
+    .wc-toolbar .spacer { flex:1; }
+    .wc-meta { font-size:12px; color:#6b7280; margin-bottom:14px; line-height:1.7; }
+    .wc-meta b { color:#374151; }
+
+    /* ── KPI ── */
+    .wc-kpi { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:18px; }
+    .wc-card { background:#fff; border:1.5px solid #f3f4f6; border-radius:14px; padding:14px 16px; text-align:center;
+      cursor:pointer; transition:transform .12s, box-shadow .12s; }
+    .wc-card:hover { transform:translateY(-1px); box-shadow:0 4px 14px rgba(0,0,0,.06); }
+    .wc-card .k { font-size:11px; color:#9ca3af; font-weight:600; margin-bottom:4px; }
+    .wc-card .v { font-size:26px; font-weight:800; }
+    .wc-card .p { font-size:11px; color:#9ca3af; margin-top:2px; }
+    .c-완료 .v { color:#059669; }  .c-미진 .v { color:#dc2626; }
+    .c-진행중 .v { color:#2563eb; } .c-착수예정 .v { color:#6b7280; } .c-합계 .v { color:#111827; }
+    @media (max-width:900px){ .wc-kpi { grid-template-columns:repeat(2,1fr); } .wc-kpi .c-합계 { grid-column:1/-1; } }
+
+    /* ── 섹션 / 표 ── */
+    .wc-section { background:#fff; border:1.5px solid #e5e7eb; border-radius:14px; margin-bottom:16px; overflow:hidden; }
+    .wc-sec-head { padding:12px 16px; display:flex; align-items:center; gap:10px; font-weight:800; font-size:14px; cursor:pointer; user-select:none; }
+    .wc-sec-head .cnt { font-size:12px; font-weight:700; padding:2px 9px; border-radius:999px; background:rgba(0,0,0,.06); }
+    .wc-sec-head .tg { margin-left:auto; color:#9ca3af; font-size:12px; }
+    .h-완료 { background:#ecfdf5; color:#065f46; } .h-미진 { background:#fef2f2; color:#991b1b; }
+    .h-진행중 { background:#eff6ff; color:#1e40af; } .h-착수예정 { background:#f8fafc; color:#475569; }
+    .h-plain { background:#f8fafc; color:#111827; }
+    .wc-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+    .wc-table th { background:#f8fafc; color:#374151; font-weight:700; font-size:11.5px; padding:9px 8px; border-bottom:2px solid #e5e7eb; text-align:left; white-space:nowrap; }
+    .wc-table td { padding:8px; border-bottom:1px solid #f3f4f6; vertical-align:top; color:#111827; }
+    .wc-table tr:hover td { background:#fafbff; }
+    .wc-table td.num, .wc-table th.num { text-align:center; }
+    .wc-table td.task { min-width:260px; white-space:pre-line; }
+    .wc-badge { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+    .b-std { background:#eef2ff; color:#3730a3; }
+    .b-ext-신규{background:#e0f2fe;color:#0369a1;} .b-ext-연장{background:#fef3c7;color:#92400e;}
+    .b-ext-종료{background:#d1fae5;color:#065f46;} .b-ext-상시{background:#f1f5f9;color:#475569;} .b-ext-보류{background:#fee2e2;color:#991b1b;}
+    .b-st-완료{background:#d1fae5;color:#065f46;} .b-st-진행중{background:#dbeafe;color:#1e40af;} .b-st-미착수{background:#f1f5f9;color:#475569;}
+    .wc-prog { display:inline-block; min-width:52px; height:8px; background:#f1f5f9; border-radius:4px; overflow:hidden; vertical-align:middle; margin-right:6px; }
+    .wc-prog i { display:block; height:100%; background:linear-gradient(90deg,#4f86f7,#6c5ce7); }
+    .wc-empty { padding:28px; text-align:center; color:#9ca3af; font-size:13px; }
+    .wc-late { color:#dc2626; font-weight:700; }
+    .wc-note { font-size:11.5px; color:#9ca3af; padding:10px 16px; border-top:1px solid #f3f4f6; }
+    .wc-loading { padding:40px; text-align:center; color:#6b7280; }
+    .wc-err { background:#fef2f2; border:1px solid #fecaca; color:#991b1b; padding:12px 14px; border-radius:10px; font-size:13px; margin-bottom:14px; white-space:pre-wrap; }
+    .wc-rate { font-weight:800; color:#059669; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-calendar-check"></i> 주간업무 월결산</h1>
+      <div class="header-actions">
+        <button class="btn btn-primary" id="btnXlsx" onclick="downloadXlsx()"><i class="fas fa-file-excel"></i> 엑셀 다운로드</button>
+      </div>
+    </header>
+    <main class="content-body">
+
+      <div class="wc-tabs">
+        <div class="wc-tab active" data-mode="month" onclick="setMode('month')"><i class="fas fa-calendar-alt"></i> 월간집계</div>
+        <div class="wc-tab" data-mode="year" onclick="setMode('year')"><i class="fas fa-chart-bar"></i> 년간집계</div>
+      </div>
+
+      <div class="wc-toolbar">
+        <span class="lbl">기간</span>
+        <select id="selYear"></select>
+        <select id="selMonth"></select>
+        <button class="btn btn-secondary" onclick="load()"><i class="fas fa-sync"></i> 조회</button>
+        <span class="spacer"></span>
+        <span class="lbl" id="hintText">같은 업무는 가장 최근 주차 상태로 1건 집계</span>
+      </div>
+
+      <div id="errBox" class="wc-err" style="display:none"></div>
+      <div id="meta" class="wc-meta"></div>
+
+      <div class="wc-kpi" id="kpi"></div>
+
+      <div id="content"><div class="wc-loading"><i class="fas fa-spinner fa-spin"></i> 불러오는 중…</div></div>
+
+      <div class="wc-note" style="border:none;padding:6px 2px;">
+        ※ 완료: 상태 완료·진척 100%·종료 &nbsp;|&nbsp; 미진: 완료예정일 경과 미완료·보류 &nbsp;|&nbsp;
+        진행중: 상태 진행중·진척&gt;0·이월(연장/상시)·2주 이상 등장 &nbsp;|&nbsp; 착수예정: 미착수·진척 0%
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="js/rbac.js?v=31"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js?v=36"></script>
+<script>
+Portal.init();
+try {
+
+const BUCKETS = ['완료', '미진', '진행중', '착수예정'];
+const STD_ORDER = ['결산업무', '계리모델관리', '차세대추진', '계리모델시스템 고도화', '대내외자료 및 대응', 'CPC 및 공시자료', 'AI 및 기타업무'];
+const DEFAULT_PREV_MONTH_UNTIL_DAY = 10;   // 월초 10일까지는 전월을 기본 선택 (월결산 용도)
+
+let mode = 'month';
+let lastData = null;
+
+const today = new Date();
+const selYear = document.getElementById('selYear');
+const selMonth = document.getElementById('selMonth');
+
+// 기본 기간: 월초면 전월
+let defY = today.getFullYear(), defM = today.getMonth() + 1;
+if (today.getDate() <= DEFAULT_PREV_MONTH_UNTIL_DAY) { defM -= 1; if (defM < 1) { defM = 12; defY -= 1; } }
+for (let y = today.getFullYear() - 2; y <= today.getFullYear() + 1; y++) {
+  const o = document.createElement('option'); o.value = y; o.textContent = y + '년'; selYear.appendChild(o);
+}
+for (let m = 1; m <= 12; m++) {
+  const o = document.createElement('option'); o.value = m; o.textContent = m + '월'; selMonth.appendChild(o);
+}
+selYear.value = defY; selMonth.value = defM;
+
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function ym() { return `${selYear.value}${String(selMonth.value).padStart(2,'0')}`; }
+function fmtPct(p) { return p == null ? '-' : Math.round(p * 100) + '%'; }
+function isLate(r) {
+  // 완료예정일이 지났는데 미완료면 강조
+  const m = /^(\d{4})[.\-/]?(\d{1,2})[.\-/]?(\d{1,2})$/.exec(r.end_date || '');
+  if (!m) return false;
+  const d = new Date(+m[1], +m[2]-1, +m[3]);
+  return d < new Date(today.getFullYear(), today.getMonth(), today.getDate()) && r.status !== '완료' && (r.progress == null || r.progress < 1);
+}
+
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('.wc-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === m));
+  selMonth.style.display = (m === 'month') ? '' : 'none';
+  document.getElementById('hintText').textContent = m === 'month'
+    ? '같은 업무는 가장 최근 주차 상태로 1건 집계'
+    : '월별 수치 = 각 월말 스냅샷 · 연간 현황 = 연중 동일 업무 최근 상태 1건';
+  load();
+}
+
+function queryUrl(format) {
+  return mode === 'month'
+    ? `/weekly/closing?ym=${ym()}&format=${format}`
+    : `/weekly/closing?year=${selYear.value}&format=${format}`;
+}
+
+function downloadXlsx() { window.open(queryUrl('xlsx'), '_blank'); }
+
+async function load() {
+  const err = document.getElementById('errBox'); err.style.display = 'none';
+  document.getElementById('content').innerHTML = '<div class="wc-loading"><i class="fas fa-spinner fa-spin"></i> 집계 중…</div>';
+  document.getElementById('kpi').innerHTML = '';
+  document.getElementById('meta').innerHTML = '';
+  try {
+    const r = await fetch(queryUrl('json'));
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error((d.error || r.status) + (d.stderr ? '\n' + d.stderr : ''));
+    lastData = d;
+    if (d.mode === 'month') renderMonth(d); else renderYear(d);
+  } catch (e) {
+    err.textContent = '집계 실패: ' + (e.message || e);
+    err.style.display = '';
+    document.getElementById('content').innerHTML = '';
+  }
+}
+
+function kpiHtml(counts, onClickPrefix) {
+  const total = counts.total || 0;
+  return BUCKETS.map(b => `
+    <div class="wc-card c-${b}" onclick="scrollToSec('${onClickPrefix}${b}')">
+      <div class="k">${b}</div><div class="v">${counts[b] || 0}</div>
+      <div class="p">${total ? Math.round((counts[b]||0)/total*100) : 0}%</div>
+    </div>`).join('') + `
+    <div class="wc-card c-합계"><div class="k">합계</div><div class="v">${total}</div><div class="p">중복제거 기준</div></div>`;
+}
+function scrollToSec(id) { const el = document.getElementById(id); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); }
+
+function memberTable(byMember, title) {
+  if (!byMember || !byMember.length) return '';
+  return `<div class="wc-section">
+    <div class="wc-sec-head h-plain"><i class="fas fa-users" style="color:#4f86f7"></i> ${title}</div>
+    <table class="wc-table">
+      <thead><tr><th>팀원</th>${BUCKETS.map(b=>`<th class="num">${b}</th>`).join('')}<th class="num">합계</th><th class="num">완료율</th></tr></thead>
+      <tbody>${byMember.map(m => `<tr>
+        <td><b>${esc(m.member)}</b></td>${BUCKETS.map(b=>`<td class="num">${m[b]||0}</td>`).join('')}
+        <td class="num"><b>${m.total}</b></td>
+        <td class="num"><span class="wc-rate">${m.total ? Math.round((m['완료']||0)/m.total*100) : 0}%</span></td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+}
+
+function rowsTable(rows, bucket) {
+  if (!rows.length) return '<div class="wc-empty">해당 없음</div>';
+  const sorted = rows.slice().sort((a,b) => {
+    const oa = STD_ORDER.indexOf(a.std), ob = STD_ORDER.indexOf(b.std);
+    return ((oa<0?99:oa)-(ob<0?99:ob)) || a.member.localeCompare(b.member,'ko');
+  });
+  return `<table class="wc-table">
+    <thead><tr><th>표준분류</th><th>담당</th><th>구분</th><th>업무내용</th><th class="num">진척율</th><th class="num">상태</th><th class="num">완료(예정)</th><th>최근주차</th><th>이슈·비고</th></tr></thead>
+    <tbody>${sorted.map(r => `<tr>
+      <td><span class="wc-badge b-std">${esc(r.std)}</span></td>
+      <td><b>${esc(r.member)}</b></td>
+      <td>${r.ext ? `<span class="wc-badge b-ext-${esc(r.ext)}">${esc(r.ext)}</span>` : ''}</td>
+      <td class="task">${esc(r.task)}</td>
+      <td class="num"><span class="wc-prog"><i style="width:${Math.round((r.progress||0)*100)}%"></i></span>${fmtPct(r.progress)}</td>
+      <td class="num">${r.status ? `<span class="wc-badge b-st-${esc(r.status)}">${esc(r.status)}</span>` : '-'}</td>
+      <td class="num ${bucket==='미진'||isLate(r)?'wc-late':''}">${esc(r.end_date || '-')}</td>
+      <td style="white-space:nowrap">${esc(r.week_label)}</td>
+      <td style="color:#6b7280">${esc(r.issue_note)}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+function bucketSections(buckets, idPrefix) {
+  return BUCKETS.map(b => `
+    <div class="wc-section" id="${idPrefix}${b}">
+      <div class="wc-sec-head h-${b}" onclick="toggleSec(this)">
+        <i class="fas ${b==='완료'?'fa-check-circle':b==='미진'?'fa-exclamation-triangle':b==='진행중'?'fa-spinner':'fa-hourglass-start'}"></i>
+        ${b} 업무 <span class="cnt">${(buckets[b]||[]).length}건</span><span class="tg">접기/펼치기</span>
+      </div>
+      <div class="wc-sec-body">${rowsTable(buckets[b] || [], b)}</div>
+    </div>`).join('');
+}
+function toggleSec(h) { const b = h.nextElementSibling; b.style.display = (b.style.display === 'none') ? '' : 'none'; }
+
+function renderMonth(d) {
+  document.getElementById('meta').innerHTML =
+    `<b>${d.ym.slice(0,4)}년 ${parseInt(d.ym.slice(4))}월</b> · 기준일 <b>${d.asof}</b> · 집계 주차: ${esc((d.weeks||[]).join(', ') || '-')}
+     · 원 ${d.raw_rows}행 → 중복제거 <b>${d.counts.total}건</b>`;
+  document.getElementById('kpi').innerHTML = kpiHtml(d.counts, 'sec-');
+  document.getElementById('content').innerHTML =
+    (d.counts.total === 0 ? '<div class="wc-section"><div class="wc-empty">이 달에 등록된 주간업무가 없습니다.</div></div>' : '')
+    + memberTable(d.by_member, '인별 현황')
+    + bucketSections(d.buckets, 'sec-');
+}
+
+function renderYear(d) {
+  const months = d.months || [];
+  document.getElementById('meta').innerHTML =
+    `<b>${d.year}년</b> · 기준일 <b>${d.asof}</b> · 집계 ${months.length}개월 · 연간 중복제거 <b>${d.year_counts.total}건</b>`;
+  document.getElementById('kpi').innerHTML = kpiHtml(d.year_counts, 'ysec-');
+  const trend = `<div class="wc-section">
+    <div class="wc-sec-head h-plain"><i class="fas fa-chart-line" style="color:#4f86f7"></i> 월별 추이 (각 월말 스냅샷)</div>
+    <table class="wc-table">
+      <thead><tr><th>월</th>${BUCKETS.map(b=>`<th class="num">${b}</th>`).join('')}<th class="num">합계</th><th class="num">완료율</th><th>집계 주차</th></tr></thead>
+      <tbody>${months.length ? months.map(m => `<tr>
+        <td><b>${parseInt(m.ym.slice(4))}월</b></td>
+        ${BUCKETS.map(b=>`<td class="num">${m.counts[b]||0}</td>`).join('')}
+        <td class="num"><b>${m.counts.total}</b></td>
+        <td class="num"><span class="wc-rate">${m.counts.total ? Math.round((m.counts['완료']||0)/m.counts.total*100) : 0}%</span></td>
+        <td style="color:#6b7280;font-size:11.5px">${esc((m.weeks||[]).join(', '))}</td>
+      </tr>`).join('') : '<tr><td colspan="8" class="wc-empty">데이터 없음</td></tr>'}</tbody>
+    </table></div>`;
+  document.getElementById('content').innerHTML =
+    trend + memberTable(d.by_member, '인별 연간 현황 (중복제거)') + bucketSections(d.buckets, 'ysec-');
+}
+
+Object.assign(window, { setMode, load, downloadXlsx, toggleSec, scrollToSec });
+load();
+
+} catch (e) { if (e && e.message !== 'RBAC_BLOCK') throw e; }
+</script>
+</body>
+</html>
