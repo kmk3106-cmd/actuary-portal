@@ -106,28 +106,28 @@
       "reason": "K-ICS 실손 요구자본·생산적 금융 건전성 규제"
     },
     "fsc_gosi_86827": {
-      "relevance": "무관",
-      "reason": "실손의료보험 상품설계(급여·비급여)"
+      "relevance": "참고",
+      "reason": "급여 의료비 국민건강보험 조화(제7-63조) — 실손 상품구조"
     },
     "fss_info_000000000218": {
-      "relevance": "무관",
-      "reason": "실손의료보험 표준사업방법서·표준약관 개정(제4조·제10조·별표15) — 2/3 사전예고의 확정"
+      "relevance": "참고",
+      "reason": "실손의료보험 표준사업방법서·표준약관 개정 — 상품"
     },
     "fss_prv_4065": {
       "relevance": "관련",
       "reason": "계리적 가정 경험통계기간·사업비·손해율 가정·문서화 기준 + K-ICS·ORSA 산출기준 정비 예고"
     },
     "fss_info_000000000210": {
-      "relevance": "무관",
-      "reason": "판매수수료 공시(별표1의1)·상품위원회 운영(별표36)·보험상품 신고서 서식(확정)"
+      "relevance": "참고",
+      "reason": "상품위원회 운영(별표36)·상품 신고서 서식 — 상품"
     },
     "fss_prv_3905": {
-      "relevance": "무관",
-      "reason": "실손 표준사업방법서·표준약관"
+      "relevance": "참고",
+      "reason": "실손의료보험 상품구조 개선 — 상품"
     },
     "fss_prv_3886": {
-      "relevance": "무관",
-      "reason": "판매수수료 공시 기준"
+      "relevance": "참고",
+      "reason": "상품위원회 세부 기준·심의 예외 — 상품"
     },
     "fsc_ntc_4117": {
       "relevance": "참고",
@@ -166,8 +166,8 @@
       "reason": "손해사정 보조인 신고"
     },
     "fss_info_000000000187": {
-      "relevance": "무관",
-      "reason": "표준약관 소비자 편익(확정)"
+      "relevance": "참고",
+      "reason": "표준약관 소비자 편익(별표15) — 상품"
     },
     "fsc_ntc_4076": {
       "relevance": "무관",
@@ -182,8 +182,8 @@
       "reason": "지급여력비율 권고기준, 비상위험준비금 환입요건"
     },
     "fss_prv_3385": {
-      "relevance": "무관",
-      "reason": "표준약관 용어·소비자 편익"
+      "relevance": "참고",
+      "reason": "표준약관 감액기준(별표15) — 상품"
     },
     "fsc_gosi_84637": {
       "relevance": "무관",
@@ -222,8 +222,8 @@
       "reason": "K-ICS 공정가치 평가·갱신조정률 위험액(확정)"
     },
     "fss_info_000000000161": {
-      "relevance": "무관",
-      "reason": "표준사업방법서·약관·상품심사기준(확정)"
+      "relevance": "참고",
+      "reason": "표준사업방법서·약관·상품심사기준 — 상품"
     },
     "fsc_gosi_83588": {
       "relevance": "관련",
@@ -298,8 +298,8 @@
       "reason": "신회계·신지급여력 경영실태평가 계량항목"
     },
     "fss_info_000000000138": {
-      "relevance": "무관",
-      "reason": "반려동물보험 판매(확정)"
+      "relevance": "참고",
+      "reason": "반려동물보험(장기동물보험) 판매 — 상품"
     },
     "fss_info_000000000136": {
       "relevance": "무관",
@@ -310,8 +310,8 @@
       "reason": "실손 청구 전산화(시행령)"
     },
     "fss_prv_2621": {
-      "relevance": "무관",
-      "reason": "반려동물보험 판매 상품 확대"
+      "relevance": "참고",
+      "reason": "표준사업방법서 종류(장기동물보험) 추가 — 상품"
     },
     "fss_info_000000000130": {
       "relevance": "관련",
@@ -418,12 +418,12 @@
       "reason": "보험영업 비교공시"
     },
     "fsc_ntc_3863": {
-      "relevance": "참고",
-      "reason": "IFRS17 용어 정의(미상각신계약비 삭제) + 모집 규제"
+      "relevance": "관련",
+      "reason": "선임계리사 조문 정비(제95조)"
     },
     "fsc_ntc_3864": {
-      "relevance": "참고",
-      "reason": "IFRS17 관련 조문 + 디지털 모집 규제"
+      "relevance": "관련",
+      "reason": "평균해지율 정의 마련(제1-2조) — 계리적 가정"
     },
     "fss_prv_1864": {
       "relevance": "무관",
@@ -620,6 +620,62 @@
     "fss_press_196287": {
       "relevance": "무관",
       "reason": "외부감사규정 시행세칙 개정 — 타 규정"
+    },
+    "lawapi_law_289409": {
+      "relevance": "무관",
+      "reason": "보험사기방지 특별법 등 금융관계법률 범위 확대"
+    },
+    "lawapi_admrul_시행세칙_20260828": {
+      "relevance": "참고",
+      "reason": "별표15(표준약관)·별표1 개정 (개정문 확인 필요)"
+    },
+    "lawapi_admrul_시행세칙_20260713": {
+      "relevance": "무관",
+      "reason": "별지26 업무보고서 서식 개정 (개정문 확인 필요)"
+    },
+    "lawapi_law_285553": {
+      "relevance": "무관",
+      "reason": "보험대리점 영업보증금(판매채널)"
+    },
+    "lawapi_law_279285": {
+      "relevance": "참고",
+      "reason": "채무보증 요건 완화·자회사 업무범위 확대(자산운용·건전성 인접)"
+    },
+    "lawapi_law_269221": {
+      "relevance": "무관",
+      "reason": "보험계리사·손해사정사 1차 시험 면제 범위(자격시험)"
+    },
+    "lawapi_law_266041": {
+      "relevance": "무관",
+      "reason": "실손 요양기관 청구서류 전자 전송 — 청구 절차"
+    },
+    "lawapi_law_265581": {
+      "relevance": "무관",
+      "reason": "청년·취약계층 경제적 부담 완화 근거"
+    },
+    "lawapi_law_263733": {
+      "relevance": "무관",
+      "reason": "손해사정업무 위탁 준수사항·교육기준"
+    },
+    "lawapi_law_259985": {
+      "relevance": "무관",
+      "reason": "보험협회 규약 제·개정 준수사항"
+    },
+    "lawapi_law_257503": {
+      "relevance": "무관",
+      "reason": "보험회사 해외 진출 활성화"
+    },
+    "lawapi_law_255535": {
+      "relevance": "무관",
+      "reason": "실손의료보험 청구 전산 시스템 구축 — 청구 절차"
+    },
+    "lawapi_law_252315": {
+      "relevance": "관련",
+      "reason": "선임계리사 계리적 최적가정 검증 시행규칙 공포 (개정문 확인 필요)"
+    },
+    "lawapi_law_252115": {
+      "relevance": "관련",
+      "reason": "선임계리사 보조인력·전산시설 기준(시행령 제96조의2)"
     }
   }
 }

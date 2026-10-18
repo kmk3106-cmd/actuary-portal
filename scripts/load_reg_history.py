@@ -28,6 +28,18 @@ TOPIC_GROUPS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath
 TOPIC_GROUPS = {}
 
 
+VOLATILE_QUERY = ('sdate', 'edate', 'pageIndex', 'curPage', 'searchCnd', 'searchWrd', 'srchCtgry', 'srchKey', 'srchText', 'srchBeginDt', 'srchEndDt')   # 게시판 목록 조회 조건 — 날마다 바뀌어 같은 글의 URL 이 달라진다
+
+
+def canonical_key(url):
+    """source_key 용 정규화 URL: 조회 조건 쿼리를 떼고 글 식별자(lrgSlno·nttId 등)만 남긴다."""
+    if not url or '?' not in url:
+        return url or ''
+    base, q = url.split('?', 1)
+    keep = [kv for kv in q.split('&') if kv and kv.split('=', 1)[0] not in VOLATILE_QUERY]
+    return base + ('?' + '&'.join(keep) if keep else '')
+
+
 def load_topic_groups(path=TOPIC_GROUPS_PATH):
     """event_id → 묶음 필드. 파일이 없으면 빈 dict (화면이 자동 추정)."""
     if not os.path.exists(path):
@@ -82,6 +94,7 @@ def main():
     ap.add_argument('--update', action='store_true', help='이미 있는 건도 리포트·필드를 갱신')
     ap.add_argument('--no-attachments', action='store_true', help='원문 파일 업로드 생략')
     ap.add_argument('--dry-run', action='store_true')
+    ap.add_argument('--topic-groups', default=TOPIC_GROUPS_PATH, help='주제 묶음 확정 파일 (기본 config/reg_topic_groups.json)')
     a = ap.parse_args()
 
     events = json.load(open(a.data, encoding='utf-8'))
@@ -90,9 +103,16 @@ def main():
     want = set(x.strip() for x in a.ids.split(',') if x.strip())
     actor = {'id': a.author_id, 'name': a.author_name, 'role': 'team_leader'}
     global TOPIC_GROUPS
-    TOPIC_GROUPS = load_topic_groups()
+    TOPIC_GROUPS = load_topic_groups(a.topic_groups)
 
-    existing = {it.get('source_key'): it for it in get_all(a.base_url, REG_TABLE) if it.get('source_key')}
+    all_items = get_all(a.base_url, REG_TABLE)
+    # 같은 이벤트를 두 번 만들지 않는다: event_id 우선, 다음 정규화 source_key(게시판 URL 의 sdate·pageIndex 같은 조회 조건 제거), 마지막 원문 그대로
+    existing = {}
+    for it in all_items:
+        if it.get('source_key'):
+            existing[it['source_key']] = it
+            existing.setdefault(canonical_key(it['source_key']), it)
+    by_event = {it.get('event_id'): it for it in all_items if it.get('event_id')}
     docs_by_title = {d.get('title'): d for d in get_all(a.base_url, KB_TABLE) if d.get('category_id') == KB_CATEGORY}
     by_id = {e['id']: e for e in events}
     created = updated = skipped = merged = 0
@@ -103,12 +123,12 @@ def main():
         meta = index.get(ev['id'])
         if not meta:
             print(f'  - {ev["id"]} 리포트 없음 (건너뜀)', file=sys.stderr); continue
-        key = ev['url']
-        exists = existing.get(key)
+        key = canonical_key(ev['url'])
+        exists = by_event.get(ev['id']) or existing.get(key) or existing.get(ev['url'])
         # 금융위·금감원 공동 보도자료의 부(副) 건: 새로 만들지 않고, 이미 있으면 "통합됨" 표시만 (삭제 아님)
         if meta.get('merged_into'):
             primary_ev = by_id.get(meta['merged_into'])
-            primary_item = existing.get(primary_ev['url']) if primary_ev else None
+            primary_item = (by_event.get(primary_ev['id']) or existing.get(canonical_key(primary_ev['url'])) or existing.get(primary_ev['url'])) if primary_ev else None
             if exists and primary_item and not a.dry_run and exists.get('merged_into') != primary_item['id']:
                 api(a.base_url, 'PATCH', f'/tables/{REG_TABLE}/{urllib.parse.quote(exists["id"])}',
                     {'merged_into': primary_item['id'], 'merged_into_event_id': primary_ev['id'], 'is_duplicate': True, 'updated_by': a.author_name}, actor)
@@ -224,7 +244,8 @@ def main():
             st, body = api(a.base_url, 'POST', f'/tables/{REG_TABLE}', item, actor)
             if st not in (200, 201):
                 print(f'  ! {ev["id"]} reg_items 실패 {st}: {body}', file=sys.stderr); continue
-            existing[key] = body; created += 1
+            existing[key] = body
+            by_event[ev['id']] = body; created += 1
         print(f'  + {ev["id"]} {ev.get("date")} {ev["status"]} doc={doc_id} atts={len(atts)}', file=sys.stderr)
     print(f'완료: 생성 {created} · 갱신 {updated} · 건너뜀 {skipped} · 공동 보도자료 통합 표시 {merged}', file=sys.stderr)
 
