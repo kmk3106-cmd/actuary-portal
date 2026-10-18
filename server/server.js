@@ -17,7 +17,7 @@ const { applyAutoFix } = require('./audit-autofix');
 function loadEnv() {
   const envPath = path.join(__dirname, '.env');
   if (!fs.existsSync(envPath)) return;
-  const lines = fs.readFileSync(envPath, 'utf8').split('\n');
+  const lines = fs.readFileSync(envPath, 'utf8').replace(/^\uFEFF/, '').split('\n');   // 메모장 UTF-8(BOM) 저장 시 첫 키 앞에 BOM 이 붙는다
   for (const line of lines) {
     const t = line.trim();
     if (!t || t.startsWith('#')) continue;
@@ -2747,6 +2747,8 @@ const server = http.createServer((req, res) => {
           sendJson(200, {
             ok: true, last_run: runs[0] || null, runs,
             sources: regcollect.describeSources(),
+            law_api_key_set: regcollect.lawApiKeySet(),   // server/.env 의 LAW_API_KEY 가 읽혔는지 (값은 노출하지 않음)
+            env_file: fs.existsSync(path.join(__dirname, '.env')),
             new_count: inbox.filter(x => x.state === '신규').length,
           }); return;
         }

@@ -23,7 +23,8 @@ const MAX_RUNS_KEPT = 30;
 const MAX_REDIRECTS = 3;
 const USER_AGENT = process.env.REG_COLLECT_UA || 'ActuaryPortal-RegCollector/1.0 (+portal.kkuks.com)';
 const LAW_API_BASE = (process.env.LAW_API_BASE || 'https://www.law.go.kr').replace(/\/+$/, '');
-const LAW_API_KEY = process.env.LAW_API_KEY || '';
+// server.js 가 .env 를 읽기 전에 이 모듈이 require 되므로 키는 매번 process.env 에서 읽는다 (모듈 로드 시점에 고정하면 .env 값이 안 보인다)
+const lawApiKey = () => (process.env.LAW_API_KEY || '').trim();
 const SOURCES_PATH = process.env.REG_SOURCES_PATH || path.join(__dirname, '..', '..', 'config', 'reg_sources.json');
 
 // 파일 다운로드 허용 호스트 (SSRF 방지) — LAW_API_BASE 호스트는 테스트용으로 자동 포함
@@ -51,8 +52,8 @@ function loadSources() {
 function describeSources() {
   return loadSources().map(s => ({
     key: s.key, label: s.label || s.key, type: s.type, enabled: s.enabled !== false,
-    ready: s.type === 'law_api' ? !!LAW_API_KEY : true,
-    note: s.type === 'law_api' && !LAW_API_KEY ? 'LAW_API_KEY 환경변수 미설정 — open.law.go.kr 인증키 신청 후 설정' : '',
+    ready: s.type === 'law_api' ? !!lawApiKey() : true,
+    note: s.type === 'law_api' && !lawApiKey() ? 'LAW_API_KEY 환경변수 미설정 — server/.env 에 LAW_API_KEY=<open.law.go.kr 인증키> 추가 후 node 재시작' : '',
   }));
 }
 
@@ -97,14 +98,14 @@ function normDate(s) {
 
 /** A. 국가법령정보 공개 API — 행정규칙 목록 */
 async function collectLawApi(src, log) {
-  if (!LAW_API_KEY) throw new Error('LAW_API_KEY 미설정');
+  if (!lawApiKey()) throw new Error('LAW_API_KEY 미설정');
   const out = [];
   const queries = Array.isArray(src.queries) ? src.queries : [];
   const target = src.target || 'admrul';
   const display = Number(src.display) || 20;
   for (let i = 0; i < queries.length; i++) {
     const q = queries[i];
-    const url = `${LAW_API_BASE}/DRF/lawSearch.do?OC=${encodeURIComponent(LAW_API_KEY)}&target=${encodeURIComponent(target)}&type=JSON&display=${display}&query=${encodeURIComponent(q)}`;
+    const url = `${LAW_API_BASE}/DRF/lawSearch.do?OC=${encodeURIComponent(lawApiKey())}&target=${encodeURIComponent(target)}&type=JSON&display=${display}&query=${encodeURIComponent(q)}`;
     const r = await httpGet(url, { timeoutMs: Number(src.timeout_ms) || DEFAULT_TIMEOUT_MS });
     if (r.status !== 200) throw new Error(`HTTP ${r.status} (query=${q})`);
     let json;
@@ -234,4 +235,4 @@ async function downloadToFile(url, destDir, { timeoutMs = DEFAULT_TIMEOUT_MS } =
   return { stored_name: stored, original_name: name, size: r.body.length, ext, url: `/api/kb/download/${encodeURIComponent(stored)}`, source_url: url };
 }
 
-module.exports = { loadSources, describeSources, runCollect, downloadToFile, httpGet, LAW_API_KEY_SET: !!LAW_API_KEY };
+module.exports = { loadSources, describeSources, runCollect, downloadToFile, httpGet, lawApiKeySet: () => !!lawApiKey() };
