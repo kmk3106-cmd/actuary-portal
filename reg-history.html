@@ -670,8 +670,10 @@ function buildCases() {
   let gi = 0;
   // 주제 묶음: 예고↔발령 연결과 별개로, 규정이 달라도(감독규정 예고 → 세칙 예고 → 보도자료) 제목 핵심어가 겹치고 시기가 가까우면 한 묶음
   const topicOf = buildTopicGroups();
-  const order = CASES.slice().sort((a, b) => (a.latest || '').localeCompare(b.latest || ''));
-  const gno = new Map();   // topic id → 묶음 번호 (오래된 묶음이 1, 최근일수록 큰 번호)
+  // 묶음 번호: 묶음 안에서 가장 오래된 날짜 기준으로 오래된 묶음이 1, 최근일수록 큰 번호 (날짜 없는 건은 맨 뒤)
+  const topicMin = new Map(); for (const c of CASES) { const t = topicOf.get(c.id); const m = Math.min(...(c._days.length ? c._days : [Infinity])); topicMin.set(t, Math.min(topicMin.get(t) ?? Infinity, m)); }
+  const order = CASES.slice().sort((a, b) => (topicMin.get(topicOf.get(a.id)) - topicMin.get(topicOf.get(b.id))) || (a.latest || '').localeCompare(b.latest || ''));
+  const gno = new Map();   // topic id → 묶음 번호
   for (const c of order) {
     const t = topicOf.get(c.id); const members = t ? TOPICS.get(t) : null;
     const size = members ? Array.from(members).reduce((n, id) => n + (CASES.find(x => x.id === id) || { items: [] }).items.length, 0) : 0;
