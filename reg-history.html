@@ -503,6 +503,7 @@ function renderFilters() {
 }
 ['fType','fStatus','fImpact','fOwner','fRel'].forEach(id => document.getElementById(id).addEventListener('change', renderTimeline));
 document.getElementById('fQ').addEventListener('input', renderTimeline);
+(() => { const sel = document.getElementById('fRel'); let v = null; try { v = localStorage.getItem('reg_rel_filter'); } catch (e) {} sel.value = v === null ? '관련,참고' : v; sel.addEventListener('change', () => { try { localStorage.setItem('reg_rel_filter', sel.value); } catch (e) {} }); })();   // 기본은 '관련 + 참고' — 계리·상품·리스크 밖(무관)은 숨긴다. 바꾸면 브라우저가 기억
 (() => { const cb = document.getElementById('fGroupColor'); cb.checked = groupColorOn(); cb.addEventListener('change', () => { try { localStorage.setItem('reg_group_color', cb.checked ? '1' : '0'); } catch (e) {} renderTimeline(); }); })();   // 같은 건 색 묶기 — 브라우저별 기억, 끄면 즉시 원래 모양
 ['lcRel','lcType'].forEach(id => document.getElementById(id).addEventListener('change', renderLifecycle));
 document.getElementById('lcQ').addEventListener('input', renderLifecycle);
@@ -539,11 +540,11 @@ function renderTimeline() {
         const acts = arr(r.actions); const done = acts.filter(a => a.state === '완료').length;
         const rv = r.relevance || '';
         const gc = CASES.find(x => x.id === CASE_OF[r.id]); const grp = (gon && gc && gc.color !== null && gc.color !== undefined) ? gc : null;
-        html += `<div class="tl-row${r.id === selectedId ? ' active' : ''}${rv === '무관' ? ' rv-dim' : ''}${grp ? ' grp grp-' + grp.color : ''}" onclick="selectItem('${escAttr(r.id)}')"${grp ? ` title="묶음 ${grp.groupNo} (${grp.topicSize}건, 같은 주제): ${escAttr(grp.topicTitles.slice(0, 4).join(' / '))}"` : ''}>
+        html += `<div class="tl-row${r.id === selectedId ? ' active' : ''}${rv === '무관' ? ' rv-dim' : ''}${grp ? ' grp grp-' + grp.color : ''}" onclick="selectItem('${escAttr(r.id)}')"${grp ? ` title="묶음 ${grp.groupNo}${grp.topicLabel ? ' · ' + escAttr(grp.topicLabel) : ''} (${grp.topicSize}건, ${grp.topicFixed ? '야간 점검 확정' : '자동 추정'}): ${escAttr(grp.topicTitles.slice(0, 4).join(' / '))}"` : ''}>
           <div class="tl-dot dot-${esc(r.status)}"></div>
           <div class="tl-date">${fmtD(d)}<small>${esc(dLabel)}</small></div>
           <div class="tl-main"><div class="tl-title">${esc(r.title)}${r.title_manual ? '' : '<span class="ai-tag" title="자동 생성한 제목입니다. 수정 폼에서 고치면 담당자 확정으로 잠깁니다">AI 초안</span>'}</div>
-            <div class="tl-meta">${grp ? `<span class="grp-chip" title="같은 주제로 묶인 ${grp.topicSize}건 (예고·발령·보도자료, 규정이 달라도 제목 핵심어가 겹치고 시기가 가까우면)"><i class="fas fa-link"></i>묶음 ${grp.groupNo}</span>` : ''}${rv ? `<span class="bd rv-${esc(rv)}" title="${escAttr(r.relevance_reason || '')}">${rv === '관련' ? '팀 관련' : rv === '참고' ? '참고' : '무관'}</span>` : ''}<span class="bd st-${esc(r.status)}" title="${escAttr(stTitle(r))}">${esc(stLabel(r))}</span><span class="bd bd-type">${esc(r.reg_type)}</span>${(() => { const c = CASES.find(x => x.id === CASE_OF[r.id]); return c && r.status !== '보도자료' ? `<span class="lc-state ls-${c.stage.key}" style="margin:0;padding:2px 8px;font-size:11px">${esc(c.stage.label.split(' · ')[0])}</span>` : ''; })()}
+            <div class="tl-meta">${grp ? `<span class="grp-chip" title="${grp.topicFixed ? '야간 점검이 확정한 묶음' : '자동 추정 묶음 (제목 핵심어 · 시기)'} · ${grp.topicSize}건${grp.topicLabel ? ' · ' + escAttr(grp.topicLabel) : ''}"><i class="fas fa-${grp.topicFixed ? 'check' : 'link'}"></i>묶음 ${grp.groupNo}</span>` : ''}${rv ? `<span class="bd rv-${esc(rv)}" title="${escAttr(r.relevance_reason || '')}">${rv === '관련' ? '팀 관련' : rv === '참고' ? '참고' : '무관'}</span>` : ''}<span class="bd st-${esc(r.status)}" title="${escAttr(stTitle(r))}">${esc(stLabel(r))}</span><span class="bd bd-type">${esc(r.reg_type)}</span>${(() => { const c = CASES.find(x => x.id === CASE_OF[r.id]); return c && r.status !== '보도자료' ? `<span class="lc-state ls-${c.stage.key}" style="margin:0;padding:2px 8px;font-size:11px">${esc(c.stage.label.split(' · ')[0])}</span>` : ''; })()}
               ${r.impact_level ? `<span class="bd im-${esc(r.impact_level)}">영향 ${esc(r.impact_level)}</span>` : ''}
               ${r.report_doc_id ? '<span class="bd bd-rep"><i class="fas fa-file-alt"></i> 리포트</span>' : ''}
               ${acts.length ? `<span class="bd bd-act">조치 ${done}/${acts.length}</span>` : ''}
@@ -673,9 +674,13 @@ function buildCases() {
   // 묶음 번호: 묶음 안에서 가장 오래된 날짜 기준으로 오래된 묶음이 1, 최근일수록 큰 번호 (날짜 없는 건은 맨 뒤)
   const topicMin = new Map(); for (const c of CASES) { const t = topicOf.get(c.id); const m = Math.min(...(c._days.length ? c._days : [Infinity])); topicMin.set(t, Math.min(topicMin.get(t) ?? Infinity, m)); }
   const order = CASES.slice().sort((a, b) => (topicMin.get(topicOf.get(a.id)) - topicMin.get(topicOf.get(b.id))) || (a.latest || '').localeCompare(b.latest || ''));
-  const gno = new Map();   // topic id → 묶음 번호
+  const gno = new Map();   // topic id → 묶음 번호 (0부터; 표시는 +1)
+  // 점검 확정 번호는 그대로 쓰고, 자동 추정 묶음은 확정 번호 최대값 다음부터 오래된 순으로
+  const fixedNos = CASES.map(c => c._fixed).filter(Boolean); gi = fixedNos.length ? Math.max(...fixedNos) : 0;
+  for (const c of order) { const t = topicOf.get(c.id); if (c._fixed && !gno.has(t)) gno.set(t, c._fixed - 1); }
   for (const c of order) {
     const t = topicOf.get(c.id); const members = t ? TOPICS.get(t) : null;
+    c.topicFixed = !!c._fixed; c.topicLabel = (c.items.find(it => it.topic_group_label) || {}).topic_group_label || '';
     const size = members ? Array.from(members).reduce((n, id) => n + (CASES.find(x => x.id === id) || { items: [] }).items.length, 0) : 0;
     if (members && size >= 2) {   /* 주제 묶음이든 예고↔발령 한 건이든 행이 2개 이상이면 색을 준다 */ if (!gno.has(t)) gno.set(t, gi++); c.groupNo = gno.get(t) + 1; c.color = gno.get(t) % GROUP_COLORS; c.topicSize = size; c.topicTitles = Array.from(members).map(id => (CASES.find(x => x.id === id) || {}).title || '').filter(Boolean); }
     else { c.groupNo = null; c.color = null; c.topicSize = 0; c.topicTitles = []; }
@@ -701,8 +706,13 @@ function buildTopicGroups() {
   for (const c of CASES) { parent.set(c.id, c.id); c._toks = topicTokens(c); c._days = c.items.map(it => dayNum(sortDate(it))).filter(Boolean); }   // 건 안의 모든 날짜(예고·발령·보도) — 가장 가까운 날짜끼리 비교
   const df = new Map(); for (const c of CASES) for (const t of c._toks) df.set(t, (df.get(t) || 0) + 1);
   for (const c of CASES) c._toks = new Set(Array.from(c._toks).filter(t => df.get(t) <= TOPIC_MAX_DF));   // 흔한 낱말('업무보고서' 19건) 로는 묶지 않는다
+  // 야간 점검이 확정한 묶음(topic_group_no, docs/REG_NIGHTLY_REVIEW.md) 이 있으면 그 번호끼리 묶고, 그 건들은 자동 추정에서 뺀다
+  const fixedOf = c => { const nos = c.items.map(it => it.topic_group_source === 'reviewed' && it.topic_group_no ? it.topic_group_no : null).filter(Boolean); return nos.length ? Math.min(...nos) : null; };
+  const firstOfNo = new Map();
+  for (const c of CASES) { c._fixed = fixedOf(c); if (c._fixed) { if (firstOfNo.has(c._fixed)) union(c.id, firstOfNo.get(c._fixed)); else firstOfNo.set(c._fixed, c.id); } }
   for (let i = 0; i < CASES.length; i++) for (let j = i + 1; j < CASES.length; j++) {
     const a = CASES[i], b = CASES[j];
+    if (a._fixed || b._fixed) continue;
     let gap = Infinity; for (const x of a._days) for (const y of b._days) gap = Math.min(gap, Math.abs(x - y));
     if (gap > TOPIC_DAYS) continue;
     let shared = 0; for (const t of a._toks) if (b._toks.has(t)) shared++;

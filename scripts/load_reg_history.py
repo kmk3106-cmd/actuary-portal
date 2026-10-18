@@ -22,6 +22,22 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from publish_regulation import api, wrap_for_portal  # noqa: E402  (같은 임베드 규칙 재사용)
 
 KB_TABLE, REG_TABLE, KB_CATEGORY = 'kb_documents', 'reg_items', 'kbc_regulation'
+TOPIC_GROUPS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config', 'reg_topic_groups.json')   # 야간 점검이 확정한 묶음 (SSOT)
+
+
+TOPIC_GROUPS = {}
+
+
+def load_topic_groups(path=TOPIC_GROUPS_PATH):
+    """event_id → 묶음 필드. 파일이 없으면 빈 dict (화면이 자동 추정)."""
+    if not os.path.exists(path):
+        return {}
+    cfg = json.load(open(path, encoding='utf-8'))
+    out = {}
+    for g in cfg.get('groups', []):
+        for ev in g.get('event_ids', []):
+            out[ev] = {'topic_group_no': int(g['no']), 'topic_group_label': g.get('label', ''), 'topic_group_source': 'reviewed'}
+    return out
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024
 UPLOAD_EXTS = ('.hwpx', '.hwp', '.pdf', '.xlsx', '.docx', '.zip')
 STATUS_PREFIX = {'사전예고': '[사전예고]', '입법예고': '[규정변경예고]', '공포': '[고시]', '시행': '[개정]', '보도자료': '[보도자료]'}
@@ -73,6 +89,8 @@ def main():
     overrides = dict(x.split('=', 1) for x in a.doc_override)
     want = set(x.strip() for x in a.ids.split(',') if x.strip())
     actor = {'id': a.author_id, 'name': a.author_name, 'role': 'team_leader'}
+    global TOPIC_GROUPS
+    TOPIC_GROUPS = load_topic_groups()
 
     existing = {it.get('source_key'): it for it in get_all(a.base_url, REG_TABLE) if it.get('source_key')}
     docs_by_title = {d.get('title'): d for d in get_all(a.base_url, KB_TABLE) if d.get('category_id') == KB_CATEGORY}
@@ -194,6 +212,8 @@ def main():
             # 화면에서 담당자가 바꾼 관련성(relevance_manual) 은 자동 갱신으로 덮어쓰지 않는다
             **({'relevance': exists['relevance'], 'relevance_reason': exists.get('relevance_reason', '')} if exists and exists.get('relevance_manual') else {}),
             'gazette_no': ev.get('gazette_no', ''), 'notice_kind': ev.get('notice_kind', ''),
+            # 야간 점검이 확정한 주제 묶음 — 재적재해도 유지 (없는 건은 화면이 자동 추정)
+            **(TOPIC_GROUPS.get(ev['id']) or {'topic_group_no': None, 'topic_group_label': '', 'topic_group_source': ''}),
             'updated_by': a.author_name, 'auto_collected': True,
         }
         if exists:

@@ -1,0 +1,12 @@
+{
+  "_readme": [
+    "규정 개정이력 타임라인의 '같은 주제 묶음' 확정본 (SSOT). 매일 00:00 KST Claude 야간 점검(docs/REG_NIGHTLY_REVIEW.md)이 검토해 갱신한다.",
+    "여기 적힌 건은 화면(reg-history.html)이 자동 추정 대신 이 묶음을 그대로 쓴다. 적히지 않은 건만 제목 핵심어로 자동 추정한다.",
+    "번호(no)는 묶음 안 가장 오래된 날짜 순 — 오래된 묶음이 1, 최근일수록 큰 번호. 번호를 다시 매기면 전체를 다시 쓴다.",
+    "event_ids 는 reg_items.event_id (fss_prv_NNNN · fsc_ntc_NNNN · fss_info_… · fsc_gosi_NNNN · fss_press_… · fsc_press_… · lawapi_…).",
+    "적용: python scripts/apply_reg_review.py --base-url https://portal.kkuks.com --groups (실서버 reg_items 에 topic_group_* 반영). 적재 스크립트도 이 파일을 읽어 재적재 때 유지한다."
+  ],
+  "updated_at": "",
+  "updated_by": "",
+  "groups": []
+}
