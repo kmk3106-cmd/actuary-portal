@@ -91,12 +91,16 @@ def compare_rows(ev):
             ia = next((i for i, h in enumerate(head) if '현행' in h), None)
             ib = next((i for i, h in enumerate(head) if '개정' in h or '변경' in h), None)
             body_rows = t[1:]
+            joined = ' '.join(' '.join(c or '' for c in r) for r in t)
+            # 조문 대비표처럼 보이는가: 조문·별표·신설·삭제·점선 중 하나는 있고, 의견제출서·담당자 연락처 표는 아니어야 한다
+            looks_law = bool(re.search(r'제\s?\d+(?:-\d+)?조|별표|별지|신\s*설|삭\s*제|[-─—]{4,}|현행과\s*같음', joined)) \
+                and not re.search(r'접수부서|담당자|전화번호|팩스|의견제출자|연락처|메일', joined)
             if ia is None or ib is None or ia == ib:
                 # 세로 배치 대비표 (금감원 예고안 hwp): 한 열에만 글이 있고 (현행 행, 개정안 행) 이 번갈아 온다
                 filled_cols = [j for j in range(len(t[0])) if any((r[j] if j < len(r) else '') for r in t)]
-                joined = ' '.join(' '.join(r) for r in t)
-                looks_law = bool(re.search(r'제\s?\d+(?:-\d+)?조|별표|별지|신\s*설|삭\s*제|[-─—]{4,}|현행과\s*같음', joined)) and not re.search(r'접수부서|담당자|전화번호|팩스', joined)
-                if len(filled_cols) == 1 and len(t) >= 2 and looks_law:
+                if not looks_law:
+                    continue
+                if len(filled_cols) == 1 and len(t) >= 2:
                     j = filled_cols[0]
                     body_rows = [[(t[k][j] if j < len(t[k]) else ''), (t[k + 1][j] if k + 1 < len(t) and j < len(t[k + 1]) else '')] for k in range(0, len(t), 2)]
                     ia, ib = 0, 1
@@ -104,6 +108,8 @@ def compare_rows(ev):
                     ia, ib, body_rows = 0, 1, t
                 else:
                     continue
+            elif not looks_law and len(t) < 3:
+                continue
             cur = None
             for r in body_rows:
                 ca, cb = (r[ia] if ia < len(r) else '') or '', (r[ib] if ib < len(r) else '') or ''
@@ -187,7 +193,7 @@ def find_effective(ev, text):
 
 def short_purpose(ev):
     p = ev.get('purpose') or ''
-    p = re.sub(r'^[□◦○ㅇ\s]+', '', p)
+    p = re.sub(r'^[\sㅁ□◦○ㅇ▪■•\-]*(?:\d+\.\s*|[가-힣]\.\s)?', '', p)   # 글머리표·번호 제거
     p = re.split(r'(?<=[다요])\s|\s\(|\s에\s따라', p)[0] if p else ''
     if not p:
         p = ev.get('list_title', '')

@@ -40,7 +40,8 @@ DEFAULT_DELAY = 1.0
 TIMEOUT = 60
 RETRIES = 3
 MAX_FILES_PER_EVENT = 12
-DOWNLOAD_EXTS = ('.hwpx', '.hwp', '.pdf', '.zip', '.xlsx', '.docx')
+# 본문·표 추출이 되는 한글 파일과 별지 서식(xlsx)만 받는다. pdf 는 같은 내용의 사본이라 원문 링크로 대신한다 (수집 시간 ½).
+DOWNLOAD_EXTS = ('.hwpx', '.hwp', '.xlsx')
 
 FSS = 'https://www.fss.or.kr'
 FSC = 'https://www.fsc.go.kr'
@@ -536,7 +537,10 @@ def main():
                         try:
                             download(att, dest, a.delay)
                             if att.get('ext') == '.hwpx':
-                                att['extracted'] = hwpx_extract(att['local'])
+                                try:
+                                    att['extracted'] = hwpx_extract(att['local'])
+                                except zipfile.BadZipFile:          # 확장자만 hwpx 인 바이너리 hwp
+                                    att['extracted'] = hwp5_extract(att['local'])
                             elif att.get('ext') == '.hwp':
                                 att['extracted'] = hwp5_extract(att['local'])
                         except Exception as e:  # noqa
