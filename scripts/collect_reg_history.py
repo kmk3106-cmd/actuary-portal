@@ -63,6 +63,11 @@ SOURCES = {
         'list': FSC + '/po040301', 'query': '보험업감독규정', 'reg_name': '보험업감독규정', 'reg_type': '감독규정', 'status': '입법예고',
         'authority': '금융위원회',
     },
+    'fsc_ntc_law': {   # 보험업법·시행령·시행규칙 입법예고 (금융위 소관) — 규정명·구분은 제목에서 판별
+        'label': '금융위원회 입법예고 (보험업법·시행령·시행규칙)', 'kind': 'fsc_list',
+        'list': FSC + '/po040301', 'query': '보험업법', 'reg_name': '보험업법', 'reg_type': '법률', 'status': '입법예고',
+        'authority': '금융위원회',
+    },
     'fsc_gosi': {
         'label': '금융위원회 소관규정/고시', 'kind': 'fsc_list',
         'list': FSC + '/po040200', 'query': '보험업감독규정', 'reg_name': '보험업감독규정', 'reg_type': '감독규정', 'status': '공포',
@@ -462,10 +467,20 @@ def build_fss_event(key, src, row, fields, atts):
 
 def build_fsc_event(key, src, row, det, atts):
     nid = re.search(r'(?:noticeId=|po040200/)(\d+)', row['url'])
+    reg_name, reg_type = src['reg_name'], src['reg_type']
+    if key == 'fsc_ntc_law':
+        t = row['title'].replace(' ', '')
+        if '시행규칙' in t:
+            reg_name, reg_type = '보험업법 시행규칙', '시행규칙'
+        elif '시행령' in t:
+            reg_name, reg_type = '보험업법 시행령', '시행령'
+        if '감독규정' in t:
+            reg_name += ' · 보험업감독규정'
     ev = {
-        'id': f"{key}_{nid.group(1) if nid else 'x'}",
+        # 같은 게시물이 두 검색(감독규정·보험업법)에 걸리면 id 가 같아 병합 시 1건으로 합쳐진다
+        'id': f"{'fsc_ntc' if key == 'fsc_ntc_law' else key}_{nid.group(1) if nid else 'x'}",
         'source': key, 'source_label': src['label'], 'url': row['url'], 'list_title': row['title'],
-        'reg_name': src['reg_name'], 'reg_type': src['reg_type'], 'status': src['status'],
+        'reg_name': reg_name, 'reg_type': reg_type, 'status': src['status'],
         'authority': '금융위원회' + (' ' + det['dept'] if det.get('dept') else ''),
         'date': row.get('date') or det.get('date', ''),
         'body': det.get('body', ''),
