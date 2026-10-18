@@ -739,7 +739,7 @@ function renderLifecycle() {
   // 줄 순서: 상태 → 시행 여부 → 제목 → 메타 (모바일에서 상태가 먼저 보이게)
   el.innerHTML = rows.map(c => `<div class="lc-row${c.relevance === '무관' ? ' rv-dim' : ''}" data-stage="${c.stage.key}">
       <div><span class="lc-state ls-${c.stage.key}" style="margin:0 0 6px">${esc(c.stage.label)}</span>
-        <div class="lc-title">${esc(c.title)}${(c.decided || c.notice || c.root).title_manual ? '' : '<span class="ai-tag">AI 초안</span>'}</div>${(c.decided || c.notice || c.root).summary_line ? `<div class="tl-sum">${esc((c.decided || c.notice || c.root).summary_line)}</div>` : ''}
+        <div class="lc-title">${esc(c.title)}${(c.decided || c.notice || c.root).title_manual ? '' : '<span class="ai-tag">AI 초안</span>'}</div>
         <div class="lc-sub">${c.relevance ? `<span class="bd rv-${esc(c.relevance)}">${c.relevance === '관련' ? '팀 관련' : esc(c.relevance)}</span> ` : ''}<span class="bd bd-type">${esc(c.reg_type)}</span> ${esc(c.reg_name)}${c.notice && c.decided ? ' · 예고·발령 연결' : ''}${c.candidates.length ? ` · <span style="color:#b45309">연결 후보 ${c.candidates.length} (확인 필요)</span>` : ''}${c.press.length ? ` <span class="lc-press-chip">관련 설명자료 ${c.press.length}</span>` : ''}</div></div>
       ${lcStepsHtml(c, today)}
     </div>`).join('');
