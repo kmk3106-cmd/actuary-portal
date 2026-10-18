@@ -26,6 +26,15 @@ UPLOAD_EXTS = ('.hwpx', '.hwp', '.pdf', '.xlsx', '.docx', '.zip')
 STATUS_PREFIX = {'사전예고': '[사전예고]', '입법예고': '[규정변경예고]', '공포': '[고시]', '시행': '[개정]'}
 
 
+def short_reg_name(name):
+    """'은행업감독업무시행세칙, 금융투자업규정시행세칙, 보험업감독업무시행세칙, …' 같은 복수 규정 건은 보험 규정 + 외 N개 로 줄인다"""
+    parts = [p.strip() for p in (name or '').split(',') if p.strip()]
+    if len(parts) <= 1:
+        return name
+    ins = next((p for p in parts if '보험' in p), parts[0])
+    return f'{ins} 외 {len(parts) - 1}개'
+
+
 def get_all(base, table):
     st, body = api(base, 'GET', f'/tables/{table}?limit=5000')
     if st != 200:
@@ -78,7 +87,7 @@ def main():
             skipped += 1; continue
 
         # 제목은 날짜 → 단계 → 규정명 → 요지 순 (목록에서 날짜가 먼저 보이도록)
-        doc_title = f"{(ev.get('date') or '').replace('-', '.')} {STATUS_PREFIX.get(ev['status'], '')} {ev['reg_name']} · {meta['title'].split(' — ')[-1][:70]}".strip()
+        doc_title = f"{(ev.get('date') or '').replace('-', '.')} {STATUS_PREFIX.get(ev['status'], '')} {short_reg_name(ev['reg_name'])} · {meta['title'].split(' — ')[-1][:70]}".strip()
         doc_id = overrides.get(ev['id']) or (exists or {}).get('report_doc_id') or ''
         if not doc_id and doc_title in docs_by_title:
             doc_id = docs_by_title[doc_title]['id']
