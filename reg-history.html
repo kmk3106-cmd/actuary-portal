@@ -268,7 +268,7 @@
           <select id="fRel"><option value="">관련성 전체</option><option value="관련">팀 관련만</option><option value="관련,참고">관련 + 참고</option><option value="무관">무관만</option></select>
           <select id="fOwner"><option value="">담당 전체</option></select>
           <input type="text" id="fQ" placeholder="제목 · 요약 · 규정명 · 태그 검색">
-          <label class="grp-toggle" title="예고·발령·보도자료가 같은 건으로 묶인 행을 같은 색으로 칠합니다. 끄면 원래 모양으로 돌아갑니다"><input type="checkbox" id="fGroupColor"> 같은 건 색 묶기</label>
+          <label class="grp-toggle" title="같은 주제(제목 핵심어가 겹치고 시기가 가까운 예고·발령·보도자료)를 같은 색으로 칠합니다. 규정이 달라도 묶입니다. 끄면 원래 모양으로 돌아갑니다"><input type="checkbox" id="fGroupColor"> 같은 주제 색 묶기</label>
         </div>
         <div class="rh-wrap">
           <div class="tl" id="timeline"><div class="tl-empty">불러오는 중…</div></div>
@@ -539,11 +539,11 @@ function renderTimeline() {
         const acts = arr(r.actions); const done = acts.filter(a => a.state === '완료').length;
         const rv = r.relevance || '';
         const gc = CASES.find(x => x.id === CASE_OF[r.id]); const grp = (gon && gc && gc.color !== null && gc.color !== undefined) ? gc : null;
-        html += `<div class="tl-row${r.id === selectedId ? ' active' : ''}${rv === '무관' ? ' rv-dim' : ''}${grp ? ' grp grp-' + grp.color : ''}" onclick="selectItem('${escAttr(r.id)}')"${grp ? ` title="같은 건 ${grp.groupNo}: ${escAttr(grp.title)} (${grp.items.length}건 묶음)"` : ''}>
+        html += `<div class="tl-row${r.id === selectedId ? ' active' : ''}${rv === '무관' ? ' rv-dim' : ''}${grp ? ' grp grp-' + grp.color : ''}" onclick="selectItem('${escAttr(r.id)}')"${grp ? ` title="묶음 ${grp.groupNo} (${grp.topicSize}건, 같은 주제): ${escAttr(grp.topicTitles.slice(0, 4).join(' / '))}"` : ''}>
           <div class="tl-dot dot-${esc(r.status)}"></div>
           <div class="tl-date">${fmtD(d)}<small>${esc(dLabel)}</small></div>
           <div class="tl-main"><div class="tl-title">${esc(r.title)}${r.title_manual ? '' : '<span class="ai-tag" title="자동 생성한 제목입니다. 수정 폼에서 고치면 담당자 확정으로 잠깁니다">AI 초안</span>'}</div>${r.summary_line ? `<div class="tl-sum">${esc(r.summary_line)}</div>` : ''}
-            <div class="tl-meta">${grp ? `<span class="grp-chip" title="같은 건으로 묶인 ${grp.items.length}건 (예고·발령·보도자료)"><i class="fas fa-link"></i>같은 건 ${grp.groupNo}</span>` : ''}${rv ? `<span class="bd rv-${esc(rv)}" title="${escAttr(r.relevance_reason || '')}">${rv === '관련' ? '팀 관련' : rv === '참고' ? '참고' : '무관'}</span>` : ''}<span class="bd st-${esc(r.status)}" title="${escAttr(stTitle(r))}">${esc(stLabel(r))}</span><span class="bd bd-type">${esc(r.reg_type)}</span>${(() => { const c = CASES.find(x => x.id === CASE_OF[r.id]); return c && r.status !== '보도자료' ? `<span class="lc-state ls-${c.stage.key}" style="margin:0;padding:2px 8px;font-size:11px">${esc(c.stage.label.split(' · ')[0])}</span>` : ''; })()}
+            <div class="tl-meta">${grp ? `<span class="grp-chip" title="같은 주제로 묶인 ${grp.topicSize}건 (예고·발령·보도자료, 규정이 달라도 제목 핵심어가 겹치고 시기가 가까우면)"><i class="fas fa-link"></i>묶음 ${grp.groupNo}</span>` : ''}${rv ? `<span class="bd rv-${esc(rv)}" title="${escAttr(r.relevance_reason || '')}">${rv === '관련' ? '팀 관련' : rv === '참고' ? '참고' : '무관'}</span>` : ''}<span class="bd st-${esc(r.status)}" title="${escAttr(stTitle(r))}">${esc(stLabel(r))}</span><span class="bd bd-type">${esc(r.reg_type)}</span>${(() => { const c = CASES.find(x => x.id === CASE_OF[r.id]); return c && r.status !== '보도자료' ? `<span class="lc-state ls-${c.stage.key}" style="margin:0;padding:2px 8px;font-size:11px">${esc(c.stage.label.split(' · ')[0])}</span>` : ''; })()}
               ${r.impact_level ? `<span class="bd im-${esc(r.impact_level)}">영향 ${esc(r.impact_level)}</span>` : ''}
               ${r.report_doc_id ? '<span class="bd bd-rep"><i class="fas fa-file-alt"></i> 리포트</span>' : ''}
               ${acts.length ? `<span class="bd bd-act">조치 ${done}/${acts.length}</span>` : ''}
@@ -668,8 +668,48 @@ function buildCases() {
   }
   // 같은 건 색 묶기 — 2건 이상 묶인 건에만 최근 순으로 무지개 7색을 돌려 준다 (옆 건끼리 색이 겹치지 않게)
   let gi = 0;
-  for (const c of CASES.slice().sort((a, b) => (b.latest || '').localeCompare(a.latest || ''))) { c.color = c.items.length >= 2 ? (gi++ % GROUP_COLORS) : null; c.groupNo = c.color === null ? null : gi; }
+  // 주제 묶음: 예고↔발령 연결과 별개로, 규정이 달라도(감독규정 예고 → 세칙 예고 → 보도자료) 제목 핵심어가 겹치고 시기가 가까우면 한 묶음
+  const topicOf = buildTopicGroups();
+  const order = CASES.slice().sort((a, b) => (b.latest || '').localeCompare(a.latest || ''));
+  const gno = new Map();   // topic id → 묶음 번호 (최근 순)
+  for (const c of order) {
+    const t = topicOf.get(c.id); const members = t ? TOPICS.get(t) : null;
+    const size = members ? Array.from(members).reduce((n, id) => n + (CASES.find(x => x.id === id) || { items: [] }).items.length, 0) : 0;
+    if (members && size >= 2) {   /* 주제 묶음이든 예고↔발령 한 건이든 행이 2개 이상이면 색을 준다 */ if (!gno.has(t)) gno.set(t, gi++); c.groupNo = gno.get(t) + 1; c.color = gno.get(t) % GROUP_COLORS; c.topicSize = size; c.topicTitles = Array.from(members).map(id => (CASES.find(x => x.id === id) || {}).title || '').filter(Boolean); }
+    else { c.groupNo = null; c.color = null; c.topicSize = 0; c.topicTitles = []; }
+  }
 }
+// ── 주제 묶음 (화면 전용). 제목·한 줄 요약의 핵심어 2개 이상이 겹치고 날짜 차이가 TOPIC_DAYS 안이면 같은 주제로 본다. 서버 데이터는 바꾸지 않는다
+const TOPIC_DAYS = 120, TOPIC_MIN_SHARED = 2, TOPIC_MAX_DF = 6;   // 핵심어 2개 이상 공유 · 120일 안 · 너무 흔한 낱말(7건 이상에 등장)은 핵심어로 안 침 (tmp/_check_49 로 튜닝)
+const TOPIC_STOP = new Set(['마련', '신설', '개정', '강화', '도입', '발표', '기준', '세부', '산출기준', '적용', '제외', '개선', '정비', '변경', '확대', '추가', '관리', '절차', '방안', '관련', '제도', '운영', '시행', '규정', '세칙', '고시', '보험', '보험업', '감독규정', '시행세칙', '보험업법', '시행령', '시행규칙', '업무', '사항', '항목', '서식', '반영', '합리화', '명확화', '간소화', '일원화', '요건', '범위', '대상', '방법', '금융', '금융위원회', '금융감독원', '회사', '보험회사', '등', '외', '및', '중', '안', '현행', '주요', '내용', '확인', '필요', '부칙', '적용례', '개정문', '일부', '일부개정', '전부', '제정', '폐지', '추진', '발령', '예고', '단독형', '설계의무', '정보', '자료', '위한', '따라', '관한', '삭제', '조문', '완화', '조정', '개최', '근거', '양식', '합리적']);
+let TOPICS = new Map();
+function topicTokens(c) {
+  const src = c.items.map(it => [it.title || '', it.summary_line || ''].join(' ')).join(' ');
+  const toks = new Set();
+  for (const w of src.replace(/\([^)]*\)/g, ' ').split(/[^가-힣A-Za-z0-9]+/)) {
+    let t = w.replace(/(의|을|를|에|은|는|이|가|과|와|로|으로|에서|도)$/, '');   // 꼬리 조사
+    if (t.length < 2 || TOPIC_STOP.has(t) || /^\d+건?$/.test(t) || /^(제\d|별표|별지)/.test(t)) continue;
+    toks.add(t);
+  }
+  return toks;
+}
+function buildTopicGroups() {
+  const parent = new Map(); const find = x => { while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
+  const union = (a, b) => { a = find(a); b = find(b); if (a !== b) parent.set(a, b); };
+  for (const c of CASES) { parent.set(c.id, c.id); c._toks = topicTokens(c); c._day = dayNum(c.dates.notice.date || c.dates.issuance.date || c.latest || ''); }
+  const df = new Map(); for (const c of CASES) for (const t of c._toks) df.set(t, (df.get(t) || 0) + 1);
+  for (const c of CASES) c._toks = new Set(Array.from(c._toks).filter(t => df.get(t) <= TOPIC_MAX_DF));   // 흔한 낱말('업무보고서' 19건) 로는 묶지 않는다
+  for (let i = 0; i < CASES.length; i++) for (let j = i + 1; j < CASES.length; j++) {
+    const a = CASES[i], b = CASES[j];
+    if (!a._day || !b._day || Math.abs(a._day - b._day) > TOPIC_DAYS) continue;
+    let shared = 0; for (const t of a._toks) if (b._toks.has(t)) shared++;
+    if (shared >= TOPIC_MIN_SHARED) union(a.id, b.id);
+  }
+  TOPICS = new Map(); const topicOf = new Map();
+  for (const c of CASES) { const r = find(c.id); topicOf.set(c.id, r); if (!TOPICS.has(r)) TOPICS.set(r, new Set()); TOPICS.get(r).add(c.id); }
+  return topicOf;
+}
+const dayNum = d => d ? Math.round(new Date(d).getTime() / 86400000) : 0;
 // 스텝 4개(예고 · 의견마감 · 발령 · 시행) — 확인된 것만 초록, 예정은 점선, 미확인은 회색 '미확인'. 보도자료는 여기 넣지 않는다 (P0-4)
 function lcStepsHtml(c, today) {
   const link = (it, inner, cls) => it ? `<div class="lc-step link ${cls}" onclick="gotoItem('${escAttr(it.id)}')" title="${escAttr(it.title || '')}">${inner}</div>` : `<div class="lc-step ${cls}">${inner}</div>`;
@@ -1054,6 +1094,7 @@ if (canWrite) {
 loadAll().catch(e => { document.getElementById('timeline').innerHTML = `<div class="tl-empty">불러오기 실패: ${esc(e.message)}<br><small>서버가 최신 버전인지(reg_items 테이블) 확인하세요 — update-now.bat</small></div>`; });
 loadCollectStatus();
 window.__CASES = () => CASES;   // 자동 점검(tmp/_check_38)용 읽기 전용 노출
+window.__ITEMS = () => ITEMS;   // 자동 점검(tmp/_check_47)용 읽기 전용 노출
 Object.assign(window, { switchTab, selectItem, gotoItem, setLcStage, setRelState, toggleInlineReport, setActState, runCollect, ignoreInbox, registerFromInbox, openNewModal, openEditModal, closeModal, addActRow, addSrcRow, onReportFile, onAttachFiles, saveItem, deleteItem, renderInbox, renderReportInfo, renderAttList, clearReportFile, removeAtt });
 
 } catch (e) { console.error(e); if (window.Portal && Portal.showToast) Portal.showToast('페이지 초기화 오류: ' + e.message, 'error'); }
