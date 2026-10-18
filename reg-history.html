@@ -115,6 +115,14 @@
     /* 계리결산팀 관련성 (IFRS17 부채결산·계리가정·경제적가정·현금흐름) */
     .rv-관련 { background:#1d4ed8; color:#fff; } .rv-참고 { background:#e0e7ff; color:#3730a3; } .rv-무관 { background:#f3f4f6; color:#9ca3af; border:1px dashed #d1d5db; }
     .tl-row.rv-dim .tl-title { color:#9ca3af; font-weight:600; } .tl-row.rv-dim .tl-dot { opacity:.45; }
+    /* 같은 건(예고·발령·보도자료 묶음) 색 묶기 — 무지개 7색 순환. 체크박스로 끄면 원래 모양 */
+    .tl-row.grp { border-left:4px solid var(--grp); background:linear-gradient(90deg, var(--grpbg) 0, transparent 160px); }
+    .tl-row.grp.active { border-left-color:var(--grp); background:#eef4ff; }
+    .tl-row.grp-0 { --grp:#ef4444; --grpbg:#fee2e2; } .tl-row.grp-1 { --grp:#f97316; --grpbg:#ffedd5; } .tl-row.grp-2 { --grp:#eab308; --grpbg:#fef9c3; } .tl-row.grp-3 { --grp:#22c55e; --grpbg:#dcfce7; }
+    .tl-row.grp-4 { --grp:#3b82f6; --grpbg:#dbeafe; } .tl-row.grp-5 { --grp:#6366f1; --grpbg:#e0e7ff; } .tl-row.grp-6 { --grp:#a855f7; --grpbg:#f3e8ff; }
+    .grp-chip { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; color:#fff; background:var(--grp); border-radius:999px; padding:1px 8px; }
+    .grp-chip i { font-size:9px; }
+    .rh-filters label.grp-toggle { display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:#374151; white-space:nowrap; cursor:pointer; }
     .bd-rep { background:#eef2ff; color:#3730a3; } .bd-act { background:#f3f4f6; color:#374151; }
 
     /* 상세 패널 */
@@ -260,6 +268,7 @@
           <select id="fRel"><option value="">관련성 전체</option><option value="관련">팀 관련만</option><option value="관련,참고">관련 + 참고</option><option value="무관">무관만</option></select>
           <select id="fOwner"><option value="">담당 전체</option></select>
           <input type="text" id="fQ" placeholder="제목 · 요약 · 규정명 · 태그 검색">
+          <label class="grp-toggle" title="예고·발령·보도자료가 같은 건으로 묶인 행을 같은 색으로 칠합니다. 끄면 원래 모양으로 돌아갑니다"><input type="checkbox" id="fGroupColor"> 같은 건 색 묶기</label>
         </div>
         <div class="rh-wrap">
           <div class="tl" id="timeline"><div class="tl-empty">불러오는 중…</div></div>
@@ -494,6 +503,7 @@ function renderFilters() {
 }
 ['fType','fStatus','fImpact','fOwner','fRel'].forEach(id => document.getElementById(id).addEventListener('change', renderTimeline));
 document.getElementById('fQ').addEventListener('input', renderTimeline);
+(() => { const cb = document.getElementById('fGroupColor'); cb.checked = groupColorOn(); cb.addEventListener('change', () => { try { localStorage.setItem('reg_group_color', cb.checked ? '1' : '0'); } catch (e) {} renderTimeline(); }); })();   // 같은 건 색 묶기 — 브라우저별 기억, 끄면 즉시 원래 모양
 ['lcRel','lcType'].forEach(id => document.getElementById(id).addEventListener('change', renderLifecycle));
 document.getElementById('lcQ').addEventListener('input', renderLifecycle);
 
@@ -519,7 +529,7 @@ function renderTimeline() {
     if (!groups.has(y)) groups.set(y, new Map());
     const qm = groups.get(y); if (!qm.has(q)) qm.set(q, []); qm.get(q).push(r);
   }
-  let html = '';
+  let html = ''; const gon = groupColorOn();
   for (const [y, qm] of groups) {
     html += `<div class="tl-year">${esc(y)}${y !== '일정 미정' ? '년' : ''}</div>`;
     for (const [q, list] of qm) {
@@ -528,11 +538,12 @@ function renderTimeline() {
         const d = sortDate(r); const dLabel = r.date_effective ? '시행' : r.date_promulgated ? '공포' : r.date_notice ? '예고' : r.date_press ? '보도' : '';
         const acts = arr(r.actions); const done = acts.filter(a => a.state === '완료').length;
         const rv = r.relevance || '';
-        html += `<div class="tl-row${r.id === selectedId ? ' active' : ''}${rv === '무관' ? ' rv-dim' : ''}" onclick="selectItem('${escAttr(r.id)}')">
+        const gc = CASES.find(x => x.id === CASE_OF[r.id]); const grp = (gon && gc && gc.color !== null && gc.color !== undefined) ? gc : null;
+        html += `<div class="tl-row${r.id === selectedId ? ' active' : ''}${rv === '무관' ? ' rv-dim' : ''}${grp ? ' grp grp-' + grp.color : ''}" onclick="selectItem('${escAttr(r.id)}')"${grp ? ` title="같은 건 ${grp.groupNo}: ${escAttr(grp.title)} (${grp.items.length}건 묶음)"` : ''}>
           <div class="tl-dot dot-${esc(r.status)}"></div>
           <div class="tl-date">${fmtD(d)}<small>${esc(dLabel)}</small></div>
           <div class="tl-main"><div class="tl-title">${esc(r.title)}${r.title_manual ? '' : '<span class="ai-tag" title="자동 생성한 제목입니다. 수정 폼에서 고치면 담당자 확정으로 잠깁니다">AI 초안</span>'}</div>${r.summary_line ? `<div class="tl-sum">${esc(r.summary_line)}</div>` : ''}
-            <div class="tl-meta">${rv ? `<span class="bd rv-${esc(rv)}" title="${escAttr(r.relevance_reason || '')}">${rv === '관련' ? '팀 관련' : rv === '참고' ? '참고' : '무관'}</span>` : ''}<span class="bd st-${esc(r.status)}" title="${escAttr(stTitle(r))}">${esc(stLabel(r))}</span><span class="bd bd-type">${esc(r.reg_type)}</span>${(() => { const c = CASES.find(x => x.id === CASE_OF[r.id]); return c && r.status !== '보도자료' ? `<span class="lc-state ls-${c.stage.key}" style="margin:0;padding:2px 8px;font-size:11px">${esc(c.stage.label.split(' · ')[0])}</span>` : ''; })()}
+            <div class="tl-meta">${grp ? `<span class="grp-chip" title="같은 건으로 묶인 ${grp.items.length}건 (예고·발령·보도자료)"><i class="fas fa-link"></i>같은 건 ${grp.groupNo}</span>` : ''}${rv ? `<span class="bd rv-${esc(rv)}" title="${escAttr(r.relevance_reason || '')}">${rv === '관련' ? '팀 관련' : rv === '참고' ? '참고' : '무관'}</span>` : ''}<span class="bd st-${esc(r.status)}" title="${escAttr(stTitle(r))}">${esc(stLabel(r))}</span><span class="bd bd-type">${esc(r.reg_type)}</span>${(() => { const c = CASES.find(x => x.id === CASE_OF[r.id]); return c && r.status !== '보도자료' ? `<span class="lc-state ls-${c.stage.key}" style="margin:0;padding:2px 8px;font-size:11px">${esc(c.stage.label.split(' · ')[0])}</span>` : ''; })()}
               ${r.impact_level ? `<span class="bd im-${esc(r.impact_level)}">영향 ${esc(r.impact_level)}</span>` : ''}
               ${r.report_doc_id ? '<span class="bd bd-rep"><i class="fas fa-file-alt"></i> 리포트</span>' : ''}
               ${acts.length ? `<span class="bd bd-act">조치 ${done}/${acts.length}</span>` : ''}
@@ -551,6 +562,8 @@ function gotoItem(id) { switchTab('timeline'); selectItem(id); const row = docum
 //   medium 은 "연결 후보 · 원문 대조 필요", low 는 쓰지 않는다. 보도자료는 단계가 아니라 '관련 설명자료' 로만 붙는다.
 // ══════════════════════════════════════════════════════════
 let CASES = [], CASE_OF = {};
+const GROUP_COLORS = 7;   // 같은 건 색 묶기 — 무지개 7색 (buildCases 가 먼저 실행되므로 여기서 선언)
+function groupColorOn() { try { return localStorage.getItem('reg_group_color') !== '0'; } catch (e) { return true; } }   // 함수 선언(호이스팅) — 위쪽 필터 초기화 코드가 먼저 부른다
 const normName = s => String(s || '').replace(/\s/g, '');
 // 단계 사전 — 모든 화면(타임라인 배지·진행 현황·상세)이 caseStage() 한 함수로만 상태를 낸다 (지시서 §7 문구)
 const STAGES = {
@@ -653,6 +666,9 @@ function buildCases() {
     c.latest = [c.dates.effective.status === 'confirmed' ? c.dates.effective.date : '', c.dates.issuance.date, c.dates.notice.date, ...c.press.map(p => p.date_press || sortDate(p))].filter(Boolean).sort().pop() || '';
     c.title = (c.decided || c.notice || c.root).title || '';
   }
+  // 같은 건 색 묶기 — 2건 이상 묶인 건에만 최근 순으로 무지개 7색을 돌려 준다 (옆 건끼리 색이 겹치지 않게)
+  let gi = 0;
+  for (const c of CASES.slice().sort((a, b) => (b.latest || '').localeCompare(a.latest || ''))) { c.color = c.items.length >= 2 ? (gi++ % GROUP_COLORS) : null; c.groupNo = c.color === null ? null : gi; }
 }
 // 스텝 4개(예고 · 의견마감 · 발령 · 시행) — 확인된 것만 초록, 예정은 점선, 미확인은 회색 '미확인'. 보도자료는 여기 넣지 않는다 (P0-4)
 function lcStepsHtml(c, today) {
