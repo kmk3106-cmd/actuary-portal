@@ -24,6 +24,7 @@ KB_TABLE, REG_TABLE, KB_CATEGORY = 'kb_documents', 'reg_items', 'kbc_regulation'
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024
 UPLOAD_EXTS = ('.hwpx', '.hwp', '.pdf', '.xlsx', '.docx', '.zip')
 STATUS_PREFIX = {'사전예고': '[사전예고]', '입법예고': '[규정변경예고]', '공포': '[고시]', '시행': '[개정]'}
+RELEVANCE_TAG = {'관련': '', '참고': '[참고]', '무관': '[팀무관]'}   # 문서 제목에 붙는 관련성 표기 (관련은 표기 없음)
 
 
 def short_reg_name(name):
@@ -87,7 +88,8 @@ def main():
             skipped += 1; continue
 
         # 제목은 날짜 → 단계 → 규정명 → 요지 순 (목록에서 날짜가 먼저 보이도록)
-        doc_title = f"{(ev.get('date') or '').replace('-', '.')} {STATUS_PREFIX.get(ev['status'], '')} {short_reg_name(ev['reg_name'])} · {meta['title'].split(' — ')[-1][:70]}".strip()
+        rel_tag = RELEVANCE_TAG.get(meta.get('relevance', ''), '')
+        doc_title = f"{(ev.get('date') or '').replace('-', '.')} {STATUS_PREFIX.get(ev['status'], '')}{rel_tag} {short_reg_name(ev['reg_name'])} · {meta['title'].split(' — ')[-1][:70]}".strip()
         doc_id = overrides.get(ev['id']) or (exists or {}).get('report_doc_id') or ''
         if not doc_id and doc_title in docs_by_title:
             doc_id = docs_by_title[doc_title]['id']
@@ -133,7 +135,10 @@ def main():
             'report_doc_id': doc_id or None,
             'sources': [{'label': ev['source_label'], 'url': ev['url'], 'fetched_at': 0}],
             'attachments': atts, 'tags': meta['tags'][:8],
-            'source_key': key, 'source': ev['source'], 'related_notice_id': ev.get('related_notice_id'),
+            'source_key': key, 'source': ev['source'], 'related_notice_id': meta.get('related_notice_id') or ev.get('related_notice_id'),
+            'relevance': meta.get('relevance', ''), 'relevance_reason': meta.get('relevance_reason', ''),
+            # 화면에서 담당자가 바꾼 관련성(relevance_manual) 은 자동 갱신으로 덮어쓰지 않는다
+            **({'relevance': exists['relevance'], 'relevance_reason': exists.get('relevance_reason', '')} if exists and exists.get('relevance_manual') else {}),
             'gazette_no': ev.get('gazette_no', ''), 'notice_kind': ev.get('notice_kind', ''),
             'updated_by': a.author_name, 'auto_collected': True,
         }

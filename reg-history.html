@@ -51,6 +51,9 @@
     .st-공포 { background:#dbeafe; color:#1e40af; } .st-시행 { background:#d1fae5; color:#065f46; } .st-철회 { background:#f3f4f6; color:#6b7280; text-decoration:line-through; }
     .dot-입법예고 { background:#f59e0b; } .dot-사전예고 { background:#f97316; } .dot-공포 { background:#3b82f6; } .dot-시행 { background:#10b981; } .dot-철회 { background:#9ca3af; }
     .im-대 { background:#fee2e2; color:#991b1b; } .im-중 { background:#fef3c7; color:#92400e; } .im-소 { background:#ecfdf5; color:#065f46; } .im-미정 { background:#f3f4f6; color:#6b7280; }
+    /* 계리결산팀 관련성 (IFRS17 부채결산·계리가정·경제적가정·현금흐름) */
+    .rv-관련 { background:#1d4ed8; color:#fff; } .rv-참고 { background:#e0e7ff; color:#3730a3; } .rv-무관 { background:#f3f4f6; color:#9ca3af; border:1px dashed #d1d5db; }
+    .tl-row.rv-dim .tl-title { color:#9ca3af; font-weight:600; } .tl-row.rv-dim .tl-dot { opacity:.45; }
     .bd-rep { background:#eef2ff; color:#3730a3; } .bd-act { background:#f3f4f6; color:#374151; }
 
     /* 상세 패널 */
@@ -155,7 +158,7 @@
     <main class="content-body">
 
       <div class="stats-strip">
-        <div class="stat-mini"><div class="stat-mini-label">등록된 개정 건</div><div class="stat-mini-val" id="stTotal">0</div></div>
+        <div class="stat-mini"><div class="stat-mini-label">등록된 개정 건 <span style="color:#1d4ed8">(팀 관련)</span></div><div class="stat-mini-val" id="stTotal">0</div></div>
         <div class="stat-mini"><div class="stat-mini-label">시행 예정 (시행일 미래)</div><div class="stat-mini-val" id="stUpcoming" style="color:#1d4ed8">0</div></div>
         <div class="stat-mini"><div class="stat-mini-label">예고 중 (입법·사전예고)</div><div class="stat-mini-val" id="stNotice" style="color:#c2410c">0</div></div>
         <div class="stat-mini"><div class="stat-mini-label">미완료 조치</div><div class="stat-mini-val" id="stOpenActs" style="color:#d97706">0</div></div>
@@ -172,6 +175,7 @@
           <select id="fType"><option value="">규정구분 전체</option></select>
           <select id="fStatus"><option value="">상태 전체</option></select>
           <select id="fImpact"><option value="">영향도 전체</option></select>
+          <select id="fRel"><option value="">관련성 전체</option><option value="관련">팀 관련만</option><option value="관련,참고">관련 + 참고</option><option value="무관">무관만</option></select>
           <select id="fOwner"><option value="">담당 전체</option></select>
           <input type="text" id="fQ" placeholder="제목 · 요약 · 규정명 · 태그 검색">
         </div>
@@ -239,6 +243,8 @@
       <div class="fsec">영향과 조치</div>
       <div class="fr3">
         <div class="fg"><label class="fl">영향도</label><select class="fs" id="mImpact"></select></div>
+        <div class="fg"><label class="fl">팀 관련성 <small style="color:#9ca3af;font-weight:400">(IFRS17 부채결산·계리가정·경제적가정·현금흐름)</small></label><select class="fs" id="mRel"></select></div>
+        <div class="fg"><label class="fl">관련성 사유</label><input type="text" class="fi" id="mRelReason" placeholder="예: 무·저해지 해약률 모형 지정"></div>
         <div class="fg"><label class="fl">영향 영역 <small style="color:#9ca3af;font-weight:400">(쉼표)</small></label><input type="text" class="fi" id="mAreas" placeholder="해약률 가정, 위험률 가정"></div>
         <div class="fg"><label class="fl">영향 시스템 <small style="color:#9ca3af;font-weight:400">(쉼표)</small></label><input type="text" class="fi" id="mSystems" placeholder="현금흐름모델, 결산"></div>
       </div>
@@ -294,6 +300,7 @@ const KB_CATEGORY = 'kbc_regulation';            // 계리업무절차서 › �
 const REG_TYPES = ['법률', '시행령', '시행규칙', '감독규정', '시행세칙', '행정지도', '기타'];
 const STATUSES = ['입법예고', '사전예고', '공포', '시행', '철회'];
 const IMPACTS = ['대', '중', '소', '미정'];
+const RELEVANCES = ['관련', '참고', '무관'];   // config/reg_relevance.json levels 와 동일 (자동 판정 → 화면에서 수정 가능)
 const ACT_STATES = ['대기', '진행', '완료', '보류'];
 const REG_NAMES = ['보험업법', '보험업법 시행령', '보험업감독규정', '보험업감독업무시행세칙', '보험업감독규정 시행세칙'];
 const NOTICE_STATUSES = new Set(['입법예고', '사전예고']);
@@ -345,7 +352,7 @@ async function loadCollectStatus() {
 // ══════════════════════════════════════════════════════════
 function renderStats() {
   const today = todayStr();
-  document.getElementById('stTotal').textContent = ITEMS.length;
+  document.getElementById('stTotal').innerHTML = `${ITEMS.length} <span style="font-size:14px;color:#1d4ed8">(${ITEMS.filter(i => i.relevance === '관련').length})</span>`;
   document.getElementById('stUpcoming').textContent = ITEMS.filter(i => i.date_effective && i.date_effective > today && i.status !== '철회').length;
   document.getElementById('stNotice').textContent = ITEMS.filter(i => NOTICE_STATUSES.has(i.status)).length;
   document.getElementById('stOpenActs').textContent = ITEMS.reduce((n, i) => n + arr(i.actions).filter(a => a.state !== '완료').length, 0);
@@ -362,13 +369,15 @@ function renderFilters() {
   const owners = [...new Set(ITEMS.map(i => i.owner_name).filter(Boolean))];
   fillSelect('fOwner', owners, '담당 전체');
 }
-['fType','fStatus','fImpact','fOwner'].forEach(id => document.getElementById(id).addEventListener('change', renderTimeline));
+['fType','fStatus','fImpact','fOwner','fRel'].forEach(id => document.getElementById(id).addEventListener('change', renderTimeline));
 document.getElementById('fQ').addEventListener('input', renderTimeline);
 
 function filtered() {
   const t = document.getElementById('fType').value, s = document.getElementById('fStatus').value, im = document.getElementById('fImpact').value, ow = document.getElementById('fOwner').value;
   const q = document.getElementById('fQ').value.trim().toLowerCase();
+  const rel = document.getElementById('fRel').value ? document.getElementById('fRel').value.split(',') : null;
   return ITEMS.filter(i => (!t || i.reg_type === t) && (!s || i.status === s) && (!im || i.impact_level === im) && (!ow || i.owner_name === ow)
+    && (!rel || rel.includes(i.relevance || '무관'))
     && (!q || [i.title, i.summary, i.reg_name, ...(arr(i.tags)), ...(arr(i.articles))].join(' ').toLowerCase().includes(q)));
 }
 
@@ -393,11 +402,12 @@ function renderTimeline() {
       for (const r of list) {
         const d = sortDate(r); const dLabel = r.date_effective ? '시행' : r.date_promulgated ? '공포' : r.date_notice ? '예고' : '';
         const acts = arr(r.actions); const done = acts.filter(a => a.state === '완료').length;
-        html += `<div class="tl-row${r.id === selectedId ? ' active' : ''}" onclick="selectItem('${escAttr(r.id)}')">
+        const rv = r.relevance || '';
+        html += `<div class="tl-row${r.id === selectedId ? ' active' : ''}${rv === '무관' ? ' rv-dim' : ''}" onclick="selectItem('${escAttr(r.id)}')">
           <div class="tl-dot dot-${esc(r.status)}"></div>
           <div class="tl-date">${fmtD(d)}<small>${esc(dLabel)}</small></div>
           <div class="tl-main"><div class="tl-title">${esc(r.title)}</div>
-            <div class="tl-meta"><span class="bd st-${esc(r.status)}">${esc(r.status)}</span><span class="bd bd-type">${esc(r.reg_type)}</span>
+            <div class="tl-meta">${rv ? `<span class="bd rv-${esc(rv)}" title="${escAttr(r.relevance_reason || '')}">${rv === '관련' ? '팀 관련' : rv === '참고' ? '참고' : '무관'}</span>` : ''}<span class="bd st-${esc(r.status)}">${esc(r.status)}</span><span class="bd bd-type">${esc(r.reg_type)}</span>
               ${r.impact_level ? `<span class="bd im-${esc(r.impact_level)}">영향 ${esc(r.impact_level)}</span>` : ''}
               ${r.report_doc_id ? '<span class="bd bd-rep"><i class="fas fa-file-alt"></i> 리포트</span>' : ''}
               ${acts.length ? `<span class="bd bd-act">조치 ${done}/${acts.length}</span>` : ''}
@@ -428,13 +438,14 @@ function renderDetail(id) {
   const doc = it.report_doc_id ? KB_DOCS.find(d => d.id === it.report_doc_id) : null;
   el.innerHTML = `
     <div class="dp-head">
-      <div class="tl-meta" style="margin:0 0 8px"><span class="bd st-${esc(it.status)}">${esc(it.status)}</span><span class="bd bd-type">${esc(it.reg_type)}</span>${it.impact_level ? `<span class="bd im-${esc(it.impact_level)}">영향 ${esc(it.impact_level)}</span>` : ''}</div>
+      <div class="tl-meta" style="margin:0 0 8px">${it.relevance ? `<span class="bd rv-${esc(it.relevance)}">${it.relevance === '관련' ? '팀 관련' : it.relevance}</span>` : ''}<span class="bd st-${esc(it.status)}">${esc(it.status)}</span><span class="bd bd-type">${esc(it.reg_type)}</span>${it.impact_level ? `<span class="bd im-${esc(it.impact_level)}">영향 ${esc(it.impact_level)}</span>` : ''}</div>
       <div class="dp-title">${esc(it.title)}</div>
       <div class="dp-sub">${esc(it.reg_name || '')}${articles.length ? ' · ' + esc(articles.join(' · ')) : ''}${it.authority ? ' · ' + esc(it.authority) : ''}</div>
       ${canWrite ? `<div class="dp-actions"><button class="btn btn-secondary btn-sm" onclick="openEditModal('${escAttr(it.id)}')"><i class="fas fa-edit"></i> 수정</button>
         <a class="btn btn-secondary btn-sm" href="reg-history.html?item=${encodeURIComponent(it.id)}" title="이 건의 링크"><i class="fas fa-link"></i> 링크</a></div>` : ''}
     </div>
     <div class="dp-body">
+      ${it.relevance ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-crosshairs"></i> 계리결산팀 관련성</div><div class="dp-txt"><b>${esc(it.relevance === '관련' ? '관련' : it.relevance)}</b>${it.relevance_reason ? ' — ' + esc(it.relevance_reason) : ''}${it.relevance_manual ? ' <span style="color:#9ca3af;font-size:11.5px">(담당자 확정)</span>' : ' <span style="color:#9ca3af;font-size:11.5px">(자동 판정)</span>'}</div></div>` : ''}
       ${NOTICE_STATUSES.has(it.status) ? '<div class="callout"><i class="fas fa-exclamation-triangle"></i> <b>사전예고안입니다.</b> 확정 공포 조문과 다를 수 있으므로 적용 전 확정본 대조가 필요합니다.</div>' : ''}
       ${sched ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-calendar-alt"></i> 일정</div><div class="sched">${sched}</div></div>` : ''}
       ${(it.change_new || it.change_mod || it.change_del) ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-code-branch"></i> 변경</div><div class="chg"><span class="n">신설 ${Number(it.change_new) || 0}</span><span class="c">변경 ${Number(it.change_mod) || 0}</span><span class="m">이동·삭제 ${Number(it.change_del) || 0}</span></div></div>` : ''}
@@ -551,6 +562,7 @@ function fillStatic() {
   document.getElementById('mRegType').innerHTML = REG_TYPES.map(v => `<option>${v}</option>`).join('');
   document.getElementById('mStatus').innerHTML = STATUSES.map(v => `<option>${v}</option>`).join('');
   document.getElementById('mImpact').innerHTML = IMPACTS.map(v => `<option>${v}</option>`).join('');
+  document.getElementById('mRel').innerHTML = RELEVANCES.map(v => `<option>${v}</option>`).join('');
   document.getElementById('regNameList').innerHTML = REG_NAMES.map(v => `<option value="${escAttr(v)}">`).join('');
 }
 function fillDynamic() {
@@ -572,6 +584,7 @@ const readRows = (containerId) => Array.from(document.getElementById(containerId
 function resetForm() {
   ['editId','fromInboxId','mTitle','mRegName','mArticles','mAuthority','mDateNotice','mDateComment','mDateProm','mDateEff','mSummary','mChgNew','mChgMod','mChgDel','mAreas','mSystems','mTags'].forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('mRegType').value = '시행세칙'; document.getElementById('mStatus').value = '사전예고'; document.getElementById('mImpact').value = '미정';
+  document.getElementById('mRel').value = '관련'; document.getElementById('mRelReason').value = '';
   document.getElementById('mOwner').value = ''; document.getElementById('mReportDoc').value = '';
   document.getElementById('actRows').innerHTML = ''; document.getElementById('srcRows').innerHTML = '';
   pendingReportHtml = null; pendingAttachments = []; renderReportInfo(); renderAttList();
@@ -591,6 +604,7 @@ function openEditModal(id) {
   document.getElementById('mDateNotice').value = it.date_notice || ''; document.getElementById('mDateComment').value = it.date_comment_due || ''; document.getElementById('mDateProm').value = it.date_promulgated || ''; document.getElementById('mDateEff').value = it.date_effective || '';
   document.getElementById('mSummary').value = it.summary || ''; document.getElementById('mChgNew').value = it.change_new ?? ''; document.getElementById('mChgMod').value = it.change_mod ?? ''; document.getElementById('mChgDel').value = it.change_del ?? '';
   document.getElementById('mImpact').value = it.impact_level || '미정'; document.getElementById('mAreas').value = arr(it.impact_areas).join(', '); document.getElementById('mSystems').value = arr(it.impact_systems).join(', ');
+  document.getElementById('mRel').value = it.relevance || '관련'; document.getElementById('mRelReason').value = it.relevance_reason || '';
   document.getElementById('mOwner').value = it.owner_id || ''; document.getElementById('mTags').value = arr(it.tags).join(', ');
   document.getElementById('mReportDoc').value = it.report_doc_id || '';
   arr(it.actions).forEach(a => addActRow(a)); arr(it.sources).forEach(s => addSrcRow(s));
@@ -657,6 +671,9 @@ async function saveItem() {
       authority: document.getElementById('mAuthority').value.trim(), summary: document.getElementById('mSummary').value.trim(),
       change_new: n('mChgNew'), change_mod: n('mChgMod'), change_del: n('mChgDel'),
       impact_level: document.getElementById('mImpact').value, impact_areas: splitCsv(document.getElementById('mAreas').value), impact_systems: splitCsv(document.getElementById('mSystems').value),
+      relevance: document.getElementById('mRel').value, relevance_reason: document.getElementById('mRelReason').value.trim(),
+      // 사람이 저장한 값 — 자동 동기화(load_reg_history.py)가 덮어쓰지 않도록 표시
+      relevance_manual: !editId || (ITEMS.find(x => x.id === editId) || {}).relevance !== document.getElementById('mRel').value || (ITEMS.find(x => x.id === editId) || {}).relevance_manual === true,
       actions: readRows('actRows').filter(a => a.task).map((a, i) => ({ no: i + 1, task: a.task, owner: a.owner, due: a.due, state: a.state || '대기' })),
       report_doc_id: reportDocId || null,
       sources: readRows('srcRows').filter(s => s.url || s.label).map(s => ({ label: s.label, url: s.url, fetched_at: Date.now() })),

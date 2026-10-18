@@ -401,7 +401,8 @@ def hwp5_extract(path):
                 rows, cols = struct.unpack('<HH', body[4:8])
                 stack.append({'level': level, 'rows': rows, 'cols': cols, 'cells': {}, 'cur': (0, 0)})
             elif tag == HWP_TAG_LIST_HEADER and stack and len(body) >= 14:
-                col, row = struct.unpack('<HH', body[6:10])
+                # 셀 리스트 헤더: 문단수(2) + 속성(4) + 예비(2) 다음에 열 주소(2)·행 주소(2) — 실측(94x2 대비표) 으로 확인한 오프셋 8
+                col, row = struct.unpack('<HH', body[8:12])
                 stack[-1]['cur'] = (row, col)
                 stack[-1]['cells'].setdefault((row, col), [])
             elif tag == HWP_TAG_PARA_TEXT:

@@ -19,7 +19,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE = os.path.join(HERE, '..', 'templates', 'report-template.html')
 MAX_ROWS_IN_REPORT = 60          # 대비표 행이 이보다 많으면 나머지는 부록으로
-DASH_RE = re.compile(r'[-─—―–‒ー=]{4,}')
+DASH_RE = re.compile(r'(?:[-─—―–‒ー=]\s?){4,}')   # 점선(붙은 것·띄운 것 모두) = 원문 '현행과 같음'
 STATUS_LABEL = {'사전예고': '사전예고', '입법예고': '규정변경예고', '공포': '확정 고시', '시행': '확정 개정'}
 STATUS_TAG = {'사전예고': '사전예고', '입법예고': '규정변경예고', '공포': '고시', '시행': '개정·시행'}
 IMPACT_MAP = [
@@ -71,8 +71,57 @@ def impacts(text):
     return areas[:6], systems[:4]
 
 
-ITEM_START_RE = re.compile(r'^\s*(?:제\s?\d+(?:-\d+)?조|\[?별표\s?\d+|\[?별지\s?(?:제\s?)?\d+|[가-힣]\.\s|\d+\.\s|[Ⅰ-Ⅻ]\.|[ⅰ-ⅹ]\)|제\d+장|제\d+절)')
+# 새 항목(조문 단위)의 시작으로 보는 줄머리: 조문·별표·별지·장·절·로마숫자 대제목. "1." "가." 같은 호·목 번호는 같은 조문 안의 줄이다
+ITEM_START_RE = re.compile(r'^\s*(?:제\s?\d+(?:-\d+)?조(?:의\s?\d+)?|[\[<＜]?\s?별표\s?\d+|[\[<＜]?\s?별지\s?(?:제\s?)?\d+|[Ⅰ-Ⅻ]\s?\.|제\s?\d+\s?장|제\s?\d+\s?절)')
 COMPARE_FILE_RE = re.compile(r'대비|신구|신·구|개정안|고시|세칙|규정')
+MARKER_RE = re.compile(r'[<＜(]\s*(?:신\s*설|삭\s*제|생\s*략|현행과\s*같음)\s*[>＞)]|[-─—―–‒ー=]{3,}|\(현행과\s*같음\)')
+RELEVANCE_PATH = os.path.join(HERE, '..', 'config', 'reg_relevance.json')
+RELEVANCE_LEVELS = ['관련', '참고', '무관']
+
+
+def load_relevance_rules():
+    try:
+        return json.load(open(RELEVANCE_PATH, encoding='utf-8'))
+    except Exception:  # noqa
+        return {'keywords': {'관련': [], '참고': []}, 'overrides': {}}
+
+
+def classify_relevance(ev, strong_text, related, rules):
+    """(관련|참고|무관, 사유). 건별 override → 취지·주요내용 키워드 → 선행 예고의 판정 → 무관"""
+    ov = (rules.get('overrides') or {}).get(ev['id'])
+    if ov and ov.get('relevance') in RELEVANCE_LEVELS:
+        return ov['relevance'], ov.get('reason', '담당자 확정')
+    kw = rules.get('keywords') or {}
+    low = strong_text.lower()
+    for level in ('관련', '참고'):
+        hits = [k for k in kw.get(level, []) if k.lower() in low]
+        if hits:
+            return level, '키워드 자동 판정: ' + ', '.join(hits[:5])
+    if related and related.get('_relevance'):
+        return related['_relevance'][0], '선행 예고 판정 준용: ' + related['_relevance'][1]
+    return '무관', '관련 키워드 없음 (자동 판정 — 확인 필요)'
+
+
+def strip_markers(s):
+    return re.sub(r'\s', '', MARKER_RE.sub('', s or ''))
+
+
+def item_heading(ca, cb):
+    """항목 제목: 조문/별표 머리가 있는 첫 줄. 점선·마커 제거, '제n조(제목)' 까지만"""
+    for src in (cb, ca):
+        for line in str(src or '').split('\n'):
+            t = MARKER_RE.sub(' ', line)
+            t = re.sub(r'\s+', ' ', t).strip(' ·,')
+            if not t or len(t) < 2:
+                continue
+            m = re.match(r'(제\s?\d+(?:-\d+)?조(?:의\s?\d+)?\s*(?:\([^)]{0,40}\))?)', t)
+            if m:
+                return m.group(1)
+            m = re.match(r'([\[<＜]?\s?별[표지]\s?(?:제\s?)?\d+(?:-\d+)?(?:호)?\s?[\]>＞]?\s*[^①-⑳\d]{0,40}?)(?:\s+제?\s?[①-⑳\d]|$)', t)
+            if m:
+                return m.group(1).strip()
+            return t[:60]
+    return '항목'
 
 
 def compare_rows(ev):
@@ -117,19 +166,37 @@ def compare_rows(ev):
                     continue
                 if re.sub(r'\s', '', ca) in ('현행', '현행규정', '현행조문') and re.sub(r'\s', '', cb) in ('개정안', '개정', '개정조문'):
                     continue
-                starts = bool(ITEM_START_RE.match(cb) or ITEM_START_RE.match(ca))
+                first_b = (cb.strip().split('\n') or [''])[0]
+                first_a = (ca.strip().split('\n') or [''])[0]
+                starts = bool(ITEM_START_RE.match(first_b) or ITEM_START_RE.match(first_a))
                 if cur is None or starts:
                     cur = [ca, cb, a['name']]; items.append(cur)
                 else:
                     cur[0] = (cur[0] + '\n' + ca).strip('\n'); cur[1] = (cur[1] + '\n' + cb).strip('\n')
-    return [tuple(x) for x in items]
+    # 변경이 없는 항목(개정안이 점선·'현행과 같음'·'생략' 뿐이거나 현행과 동일) 은 맥락 행이므로 뺀다
+    out, unchanged = [], []
+    for ca, cb, name in items:
+        a_core, b_core = strip_markers(ca), strip_markers(cb)
+        if not a_core and not b_core:
+            continue
+        if b_core and a_core == b_core:
+            unchanged.append(item_heading(ca, cb)); continue
+        if not b_core and a_core and not re.search(r'삭\s*제', cb or '') and MARKER_RE.search(cb or ''):
+            unchanged.append(item_heading(ca, cb)); continue
+        out.append((ca, cb, name))
+    out_unchanged = []
+    for u in unchanged:
+        if u not in out_unchanged:
+            out_unchanged.append(u)
+    return out, out_unchanged
 
 
 def classify(ca, cb):
     a, b = re.sub(r'\s', '', ca), re.sub(r'\s', '', cb)
-    if (not a or re.fullmatch(r'[<＜(]?신설[>＞)]?', a)) and b:
+    a_core, b_core = strip_markers(ca), strip_markers(cb)
+    if not a_core and b_core:
         return 'n', '신설'
-    if re.search(r'[<＜(]?삭제[>＞)]?', b) and len(b) <= 12:
+    if re.search(r'삭\s*제', cb or '') and not b_core:
         return 'm', '삭제'
     if not b and a:
         return 'm', '삭제'
@@ -200,7 +267,40 @@ def short_purpose(ev):
     return (p[:70] + '…') if len(p) > 70 else p
 
 
-def build(ev, css, related):
+def relink(events):
+    """확정 건(공포·시행) ↔ 선행 예고 연결. 같은 규정, 확정일 이전 240일 안, 의견제출 시한이 확정일 이전인 예고 중
+    조문·별표 겹침이 가장 많은 것(없으면 가장 가까운 것). 수집기의 단순 '가장 가까운 예고' 연결을 덮어쓴다."""
+    def arts_of(e):
+        return set(find_articles(all_text(e))) | set(e.get('articles') or [])
+    notices = [e for e in events if e['status'] in ('사전예고', '입법예고') and e.get('date')]
+    na = {n['id']: arts_of(n) for n in notices}
+    for e in events:
+        if e['status'] not in ('공포', '시행') or not e.get('date'):
+            continue
+        ea = arts_of(e)
+        best = None
+        for n in notices:
+            if n['reg_name'].split(' ·')[0] != e['reg_name'].split(' ·')[0] or n['date'] > e['date']:
+                continue
+            gap = int(e['date'].replace('-', '')) - int(n['date'].replace('-', ''))
+            if gap > 240:
+                continue
+            # 의견제출 시한 전에 확정 게시되는 경우도 실제로 있어(’26.4 K-ICS 건) 시한으로는 거르지 않는다
+            overlap = len(ea & na[n['id']])
+            key = (overlap, -gap)
+            if best is None or key > best[0]:
+                best = (key, n['id'], n)
+        if best and (best[0][0] > 0 or not ea):
+            n = best[2]
+            e['related_notice_id'] = best[1]
+            # 강한 연결: 조문 겹침 2개 이상이거나, 예고 의견제출 시한이 지난 뒤의 확정 게시
+            e['_link_strong'] = best[0][0] >= 2 or bool(n.get('date_comment_due') and n['date_comment_due'] <= e['date'])
+        else:
+            e['related_notice_id'] = None
+            e['_link_strong'] = False
+
+
+def build(ev, css, related, rules=None):
     status = ev['status']
     text = all_text(ev)
     arts = find_articles(text)
@@ -208,18 +308,27 @@ def build(ev, css, related):
     if eff and not ev.get('date_effective'):
         ev = {**ev, 'date_effective': eff}
     areas, systems = impacts(text)
-    rows = compare_rows(ev)
+    rows, unchanged = compare_rows(ev)
     counts = {'n': 0, 'c': 0, 'm': 0}
     for ca, cb, _ in rows:
         counts[classify(ca, cb)[0]] += 1
+    strong = ' '.join(x for x in [ev.get('list_title', ''), ev.get('purpose', ''), ev.get('content', ''), (ev.get('body') or '')[:1500]] if x)
+    if not strong.strip():
+        strong = ' '.join(item_heading(ca, cb) for ca, cb, _ in rows[:40])
+    relevance, rel_reason = classify_relevance(ev, strong, related, rules or {})
+    ev['_relevance'] = (relevance, rel_reason)
     paras_src = next((a for a in ev.get('attachments', []) if a.get('extracted') and a['extracted'].get('paras')), None)
     secs = sections_from_paras(paras_src['extracted']['paras']) if paras_src else {}
     is_notice = status in ('사전예고', '입법예고')
     title_core = short_purpose(ev)
-    if (not ev.get('purpose')) and related and related.get('purpose'):
+    if (not ev.get('purpose')) and related and related.get('purpose') and ev.get('_link_strong'):
         title_core = short_purpose(related)
     elif not ev.get('purpose') and not ev.get('body') and (arts or rows):
         title_core = f"{' · '.join(arts[:3]) + ' 등 ' if arts else ''}{len(rows)}개 항목 개정" if rows else f"{' · '.join(arts[:3])} 개정"
+    # 공고문 취지가 없는 확정 건은 담당자 판정 사유(config overrides) 가 가장 좋은 한 줄 요약이다
+    ov = ((rules or {}).get('overrides') or {}).get(ev['id'], {})
+    if (not title_core or title_core == f"{ev['reg_name']} 개정" or re.fullmatch(r'\d+개 항목 개정', title_core)) and ov.get('reason'):
+        title_core = re.sub(r'\(확정\)$', '', ov['reason']).strip()
     if not title_core:
         title_core = f"{ev['reg_name']} 개정"
     h1 = f"{ev['reg_name']} 개정 — {title_core}" if not title_core.startswith(ev['reg_name']) else title_core
@@ -240,12 +349,13 @@ def build(ev, css, related):
     if ev.get('date_effective'):
         sumrows.append(('시행일', fmt_date(ev['date_effective'])))
     if rows:
-        sumrows.append(('변경 규모', f"신설 {counts['n']} · 변경 {counts['c']} · 이동·삭제 {counts['m']} (첨부 대비표 기준)"))
+        sumrows.append(('변경 규모', f"신설 {counts['n']} · 변경 {counts['c']} · 삭제 {counts['m']}" + (f" · 변경 없음 {len(unchanged)}" if unchanged else '') + ' (첨부 대비표 기준)'))
+    sumrows.append(('계리결산팀 관련성', f"{relevance} — {rel_reason}"))
     if areas:
         sumrows.append(('영향 영역', ' · '.join(areas)))
     sumrows.append(('소관', ev.get('authority') or '—'))
     if related:
-        sumrows.append(('선행 예고', f"{fmt_date(related.get('date'))} {related['reg_name']} 사전예고"))
+        sumrows.append(('선행 예고' if ev.get('_link_strong') else '선행 예고 (추정)', f"{fmt_date(related.get('date'))} {related['reg_name']} {STATUS_LABEL.get(related['status'], related['status'])}" + ('' if ev.get('_link_strong') else ' — 조문 겹침으로 추정한 연결이라 확인 필요')))
 
     # 2장 주요 내용
     main_items = bullets(ev.get('content') or '')
@@ -288,6 +398,10 @@ def build(ev, css, related):
     for i, (k, v) in enumerate(sumrows):
         H.append(f'<tr{" class=hl" if i == 0 else ""}><td class="l"><b>{esc(k)}</b></td><td class="l">{esc(v)}</td></tr>')
     H.append('</tbody></table></div>')
+    if relevance == '무관':
+        H.append('<div class="callout neutral"><b>계리결산팀 업무와 직접 관련이 없는 개정이다.</b><p>IFRS17 부채결산·계리적 가정·경제적 가정·계리모델 현금흐름에 영향을 주지 않는다 (' + esc(rel_reason) + '). 참고용으로만 보관한다.</p></div>')
+    elif relevance == '참고':
+        H.append('<div class="callout neutral"><b>계리결산팀 참고 사항이다.</b><p>' + esc(rel_reason) + '. 결산 산출물·지급여력 등 인접 영역이라 내용은 확인하되 모델 변경 대상은 아니다.</p></div>')
     if is_notice:
         H.append('<div class="callout"><b>사전예고안이다.</b><p>확정 공포 조문과 다를 수 있으므로 적용 전 확정본 대조가 필요하다. 의견제출 시한' + (f' {fmt_date(ev["date_comment_due"])}' if ev.get('date_comment_due') else '') + ' 이후 금감원·금융위 게시판에서 확정 여부를 확인한다.</p></div>')
     elif status == '공포':
@@ -330,12 +444,11 @@ def build(ev, css, related):
     # 3. 신·구 조문 대비
     if rows:
         H.append('<h2 id="3">3. 신·구 조문 대비</h2>')
-        H.append(f'<p>첨부 대비표에서 추출한 {len(rows)}개 항목이다. 개정안 칸의 <span class="mk">(현행과 같음)</span> 은 원문의 점선(———) 자리로, 현행 문구가 그대로 유지된다는 뜻이다. 신설·삭제 표시는 원문 그대로다.</p>')
+        H.append(f'<p>첨부 대비표에서 추출해 조문 단위로 묶은 {len(rows)}개 항목이다. 개정안 칸의 <span class="mk">(현행과 같음)</span> 은 원문의 점선(———) 자리로 현행 문구가 그대로 유지된다는 뜻이고, 〈신설〉·〈삭제〉 표시는 원문 그대로다.'
+                 + (f' 바뀐 내용이 없는 {len(unchanged)}개 조문(' + esc(' · '.join(unchanged[:8])) + ('…' if len(unchanged) > 8 else '') + ')은 맥락용이라 뺐다.' if unchanged else '') + '</p>')
         for i, (ca, cb, src) in enumerate(rows[:MAX_ROWS_IN_REPORT], 1):
             cls, lbl = classify(ca, cb)
-            head = (cb or ca).strip().split('\n')[0]
-            head = re.sub(r'\s+', ' ', head)[:60]
-            H.append(f'<h3>3-{i}. <span class="bdg {cls}">{lbl}</span>{esc(head)}</h3>')
+            H.append(f'<h3>3-{i}. <span class="bdg {cls}">{lbl}</span>{esc(item_heading(ca, cb))}</h3>')
             H.append('<div class="cmp"><div class="col col-a"><div class="cmph">현행</div><div class="law">' + law_html(ca, 'a') + '</div></div>'
                      '<div class="col col-b"><div class="cmph">개정안</div><div class="law">' + law_html(cb, 'b') + '</div></div></div>')
         if len(rows) > MAX_ROWS_IN_REPORT:
@@ -372,8 +485,7 @@ def build(ev, css, related):
         H.append('<details><summary>C. 신·구 조문 대비 — 나머지 항목</summary><div class="body">')
         for i, (ca, cb, src) in enumerate(rows[MAX_ROWS_IN_REPORT:], MAX_ROWS_IN_REPORT + 1):
             cls, lbl = classify(ca, cb)
-            head_c = re.sub(r'\s+', ' ', (cb or ca).strip().split('\n')[0])[:60]
-            H.append(f'<h3>3-{i}. <span class="bdg {cls}">{lbl}</span>{esc(head_c)}</h3>')
+            H.append(f'<h3>3-{i}. <span class="bdg {cls}">{lbl}</span>{esc(item_heading(ca, cb))}</h3>')
             H.append('<div class="cmp"><div class="col col-a"><div class="cmph">현행</div><div class="law">' + law_html(ca, 'a') + '</div></div><div class="col col-b"><div class="cmph">개정안</div><div class="law">' + law_html(cb, 'b') + '</div></div></div>')
         H.append('</div></details>')
     H.append('<p class="note">이 리포트는 공개 게시판(금융감독원·금융위원회)의 공고문과 첨부에서 자동 생성했다. 해석·분석이 아닌 원문 정리이며, 확정본은 원문 링크에서 확인한다.</p>')
@@ -385,6 +497,8 @@ def build(ev, css, related):
         'summary': (ev.get('purpose') or lead)[:400], 'actions': [{'no': i + 1, 'task': t, 'owner': '', 'due': '', 'state': '대기'} for i, (t, _, _) in enumerate(acts)],
         'tags': list(dict.fromkeys([ev['reg_name']] + areas[:3] + arts[:3])),
         'date_effective': ev.get('date_effective', ''),
+        'relevance': relevance, 'relevance_reason': rel_reason,
+        'related_notice_id': ev.get('related_notice_id'), 'unchanged': len(unchanged),
     }
     return '\n'.join(H), meta
 
@@ -399,18 +513,26 @@ def main():
     by_id = {e['id']: e for e in events}
     want = set(x.strip() for x in a.ids.split(',') if x.strip())
     css = load_css()
+    rules = load_relevance_rules()
+    relink(events)
     os.makedirs(a.out_dir, exist_ok=True)
     index = {}
-    for ev in events:
+    # 예고 → 확정 순으로 돌려야 확정 건이 선행 예고의 관련성 판정을 준용할 수 있다
+    order = sorted(events, key=lambda e: (0 if e['status'] in ('사전예고', '입법예고') else 1, e.get('date', '')))
+    for ev in order:
         if want and ev['id'] not in want:
             continue
         related = by_id.get(ev.get('related_notice_id'))
-        htmlstr, meta = build(ev, css, related)
+        htmlstr, meta = build(ev, css, related, rules)
         fn = os.path.join(a.out_dir, ev['id'] + '.html')
         open(fn, 'w', encoding='utf-8').write(htmlstr)
         index[ev['id']] = {'file': fn, **meta}
-        print(f"  {ev['id']} {ev.get('date')} {ev['status']} rows={meta['compare_rows']} → {meta['title'][:60]}", file=sys.stderr)
-    json.dump(index, open(os.path.join(a.out_dir, '_index.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+        print(f"  {ev['id']} {ev.get('date')} {ev['status']} [{meta['relevance']}] rows={meta['compare_rows']}+{meta['unchanged']} → {meta['title'][:50]}", file=sys.stderr)
+    # 부분 생성(--ids) 때 기존 색인을 보존
+    idx_path = os.path.join(a.out_dir, '_index.json')
+    if want and os.path.exists(idx_path):
+        old = json.load(open(idx_path, encoding='utf-8')); old.update(index); index = old
+    json.dump(index, open(idx_path, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     print(f'완료: {len(index)}건 → {a.out_dir}', file=sys.stderr)
 
 
