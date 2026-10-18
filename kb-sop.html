@@ -856,7 +856,7 @@ async function loadDocs() {
   document.getElementById('docList').innerHTML =
     '<div class="kb-loading"><div class="kb-spinner"></div> 로딩 중...</div>';
   try {
-    const r = await fetch('/tables/kb_documents?limit=500');
+    const r = await fetch('/tables/kb_documents?limit=500&lite=1');   // 목록은 본문 제외 (상세는 openDoc 에서 id 로 조회)
     if (!r.ok) throw new Error('문서 API 오류');
     const data = await r.json();
     allDocs = (data.data || data.rows || data || []).filter(d => d.is_published !== false || isLeaderOrChief);
@@ -870,7 +870,7 @@ async function loadDocs() {
 
 async function searchDocs(q) {
   try {
-    const r = await fetch(`/tables/kb_documents?limit=500&search=${encodeURIComponent(q)}`);
+    const r = await fetch(`/tables/kb_documents?limit=500&lite=1&search=${encodeURIComponent(q)}`);
     if (!r.ok) throw new Error();
     const data = await r.json();
     const results = (data.data || data.rows || data || []).filter(d => d.is_published !== false || isLeaderOrChief);

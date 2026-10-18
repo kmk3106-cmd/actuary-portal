@@ -756,7 +756,7 @@ async function loadTeamMembers() {
 /* ── 계리업무절차서 목록 캐시 ── */
 async function loadSopDocs() {
   try {
-    const r = await fetch('/tables/kb_documents?limit=500');
+    const r = await fetch('/tables/kb_documents?limit=500&lite=1');   // 제목·분류만 필요 (본문 제외)
     if (!r.ok) return;
     const data = await r.json();
     allSopDocs = (data.data || data.rows || data || []).filter(d => d.is_published !== false);

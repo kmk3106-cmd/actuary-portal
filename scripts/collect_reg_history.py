@@ -182,7 +182,8 @@ def fsc_list(src, since, delay, limit):
             if not sub:
                 continue
             href, title = html.unescape(sub.group(1)), text_of(sub.group(2))
-            key = re.sub(r'\?.*', '', href)
+            # 예고 게시판은 './po040301/view?noticeId=NNN&…' 라 경로만으로는 전부 같은 키가 된다 → 첫 파라미터(noticeId)까지 포함
+            key = href.split('&')[0]
             if key in seen:
                 continue
             seen.add(key); rows += 1

@@ -851,7 +851,13 @@ function handleTablesRequest(route, method, bodyStr, reqHeaders) {
     if (method === 'GET' && !route.id) {
       let items = applySearch(collection, route.searchParams.get('search') || '');
       items = applySort(items, route.searchParams.get('sort') || '');
-      const paged = applyPaging(items, route.searchParams.get('page'), route.searchParams.get('limit') || '100');
+      let paged = applyPaging(items, route.searchParams.get('page'), route.searchParams.get('limit') || '100');
+      // ?lite=1 : 목록 용도 — 본문(content) 을 빼고 길이만 준다 (리포트 임베드 문서가 수십 KB~수백 KB 라 목록 로드가 무거워짐)
+      if (route.searchParams.get('lite') === '1') {
+        paged = paged.map(x => (x && typeof x.content === 'string')
+          ? Object.assign({}, x, { content: undefined, content_len: x.content.length, has_content: x.content.length > 0 })
+          : x);
+      }
       return { status: 200, body: { rows: paged, data: paged, total: items.length } };
     }
 
@@ -3016,6 +3022,9 @@ function scheduleNextRegCollect() {
  *  데이터는 server/data/reg_history/ (gitignore). 실패해도 포탈에 영향 없음.
  */
 function runRegSync(trigger) {
+  if (process.env.REG_SYNC_ENABLED === '0') {   // 테스트·오프라인 환경: 외부 게시판 수집 생략
+    return Promise.resolve({ ok: true, skipped: true, seconds: 0, output: 'sync disabled (REG_SYNC_ENABLED=0)' });
+  }
   return new Promise((resolve) => {
     const { spawn } = require('child_process');
     const py = process.env.PYTHON_EXE || 'python';

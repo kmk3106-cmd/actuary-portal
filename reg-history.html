@@ -325,7 +325,7 @@ async function getRows(url) { const r = await fetch(url); if (!r.ok) throw new E
 async function loadAll() {
   const [items, inbox, users, docs] = await Promise.all([
     getRows(`/tables/${TABLE}?limit=2000`), getRows(`/tables/${INBOX}?limit=2000`),
-    getRows('/tables/users?limit=200'), getRows(`/tables/${KB_TABLE}?limit=500`),
+    getRows('/tables/users?limit=200'), getRows(`/tables/${KB_TABLE}?limit=500&lite=1`),
   ]);
   ITEMS = items; INBOX_ROWS = inbox;
   USERS = users.filter(u => u.is_active !== false);
