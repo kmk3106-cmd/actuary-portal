@@ -164,7 +164,9 @@ def main():
             'relationships': rels,
             # 예고안에서 긁은 시행일은 '예정' 이다 — 확정 시행일 칸에 넣지 않는다 (docs/03 P0-2)
             'date_effective_planned': eff if is_notice else None,
-            'date_effective_source': '' if is_notice or not eff else '발령문 본문 추출',
+            'date_effective_source': '' if is_notice or not eff else (ev.get('date_effective_source') or '발령문 본문 추출'),
+            'date_effective_rule': meta.get('date_effective_rule') or '',   # 날짜 대신 조건('공포한 날부터 시행')으로 정한 예고안
+            'date_effective_notes': ev.get('date_effective_notes') or meta.get('date_effective_notes') or '', 'supplement_text': (ev.get('supplement') or meta.get('supplement') or '')[:800],
             'title': list_title,
             'summary_line': (exists.get('summary_line') if (exists and exists.get('summary_manual')) else meta.get('summary_line', '')) or '',
             'title_source': 'manual' if manual else meta.get('title_source', ''), 'title_quality': meta.get('title_quality', ''),

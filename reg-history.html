@@ -439,7 +439,7 @@ let collectStatus = null;
 
 const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const escAttr = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-const fmtD = d => d ? String(d).replace(/-/g, '.') : '—';
+const fmtD = d => d ? (String(d).length === 4 ? d + '년' : String(d).replace(/-/g, '.')) : '—';   // 'YYYY'(월·일 미정) 도 온다
 const todayStr = () => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; };
 const splitCsv = s => String(s || '').split(/[,，]/).map(x => x.trim()).filter(Boolean);
 const arr = v => Array.isArray(v) ? v : (typeof v === 'string' && v.trim().startsWith('[') ? (() => { try { return JSON.parse(v); } catch { return []; } })() : []);
@@ -587,11 +587,13 @@ function caseDates(c) {
   const mk = (date, status, note) => ({ date: date || '', status: date ? status : 'unknown', note: date ? (note || '') : '미확인' });
   const eff = d && d.date_effective;
   const planned = (n && n.date_effective_planned) || (d && d.date_effective_planned) || '';
+  const rule = (n && n.date_effective_rule) || (d && d.date_effective_rule) || '';   // '공포한 날부터 시행' 처럼 날짜 없이 조건으로 정한 예고안
+  const effNotes = (n && n.date_effective_notes) || (d && d.date_effective_notes) || '';   // '다만 제9-4조의3은 2026.1.1 시행' 같은 예외
   return {
     notice: mk(n ? n.date_notice : (d && d.date_notice), 'confirmed', n ? '공고 게시' : '발령문 기재'),
     comment_due: mk(n ? n.date_comment_due : (d && d.date_comment_due), 'confirmed', '예고문 기준'),
     issuance: mk(d ? (d.date_promulgated || sortDate(d)) : '', 'confirmed', d ? (d.status === '공포' ? '고시일' : '게시일 기준') : ''),
-    effective: eff ? mk(eff, 'confirmed', (d.date_effective_source || '발령문 본문') + ' · 부칙 확인') : (planned ? mk(planned, 'planned', '예고안 기준 · 확정 아님') : mk('', 'unknown')),
+    effective: eff ? mk(eff, 'confirmed', (/^국가법령정보센터/.test(d.date_effective_source || '') ? d.date_effective_source + ' 확인' : (d.date_effective_source || '발령문 본문') + ' · 부칙 확인 필요') + (d.date_effective_notes ? ' · ' + d.date_effective_notes : '')) : (planned ? mk(planned, 'planned', (planned.length === 4 ? '월·일 미정 · ' : planned.length === 7 ? '일자 미정 · ' : '') + '예고안 부칙 기준 · 확정 아님' + (effNotes ? ' · ' + effNotes : '')) : (rule ? { date: '', status: 'planned', rule, note: rule + (d && d.date_effective_rule ? ' · 발령문 부칙 기준' : ' · 예고안 부칙 기준 · 확정 아님') + (effNotes ? ' · ' + effNotes : '') } : mk('', 'unknown'))),
     first_closing: mk(root.first_closing_period || '', 'manual', '담당자 입력'),
   };
 }
@@ -657,7 +659,7 @@ function lcStepsHtml(c, today) {
   const link = (it, inner, cls) => it ? `<div class="lc-step link ${cls}" onclick="gotoItem('${escAttr(it.id)}')" title="${escAttr(it.title || '')}">${inner}</div>` : `<div class="lc-step ${cls}">${inner}</div>`;
   const n = c.notice, d = c.decided, D = c.dates, k = c.stage.key;
   const cls = (ds, now) => ds.status === 'confirmed' ? 'done' : ds.status === 'planned' ? 'plan' : (now ? 'now' : 'todo');
-  const val = ds => ds.status === 'unknown' ? '미확인' : fmtD(ds.date);
+  const val = ds => ds.status === 'unknown' ? '미확인' : (ds.date ? fmtD(ds.date) : (ds.rule ? '조건부' : '미확인'));
   return `<div class="lc-steps">
     ${link(n, `<b>${n ? esc(stLabel(n)) : '예고'}</b><span>${val(D.notice)}</span><small>${n ? esc(n.authority || '') : (d ? '예고문 미수집' : '')}</small>`, cls(D.notice, false))}
     <div class="lc-step ${cls(D.comment_due, k === 'notice_open')}"><b>의견마감</b><span>${val(D.comment_due)}</span><small>${D.comment_due.status === 'confirmed' ? (D.comment_due.date < today ? '마감' : `D-${dayDiff(D.comment_due.date, today)}`) : (n ? '예고문에 시한 없음' : '')}</small></div>
@@ -719,6 +721,7 @@ function renderDetail(id) {
     step(it.status === '공포' ? '고시(발령)' : '발령(게시)', it.date_promulgated, it.date_promulgated <= today ? 'done' : ''),
     step('시행 (발령문 기준)', it.date_effective, it.date_effective <= today ? 'done' : 'due'),
     step('시행 예정 (예고안 기준 · 확정 아님)', it.date_effective_planned, ''),
+    (!it.date_effective_planned && it.date_effective_rule) ? `<div class="step"><b>시행 예정 (예고안 기준 · 확정 아님)</b>${esc(it.date_effective_rule)}</div>` : '',
   ].filter(Boolean).join('<span class="arrow"><i class="fas fa-chevron-right"></i></span>');
   const doc = it.report_doc_id ? KB_DOCS.find(d => d.id === it.report_doc_id) : null;
   const cs = CASES.find(c => c.id === CASE_OF[it.id]);

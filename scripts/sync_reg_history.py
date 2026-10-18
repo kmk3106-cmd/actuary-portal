@@ -56,6 +56,11 @@ def main():
     py = sys.executable
     run([py, '-I', os.path.join(HERE, 'collect_reg_history.py'), '--since', since, '--out', data, '--files-dir', files,
          '--delay', str(a.delay), '--merge', data])
+    # 국가법령정보 API 보강 (인증키 LAW_API_KEY 가 있을 때만): 법령 공포본 이벤트 + 행정규칙 부칙 시행일
+    if os.environ.get('LAW_API_KEY'):
+        run([py, '-I', os.path.join(HERE, 'enrich_reg_history_law.py'), '--data', data, '--since', since, '--delay', str(max(a.delay, 2.0))])
+    else:
+        print('LAW_API_KEY 없음 — 법령정보 API 보강 생략 (server/.env 에 LAW_API_KEY=… 설정)', file=sys.stderr)
     after = json.load(open(data, encoding='utf-8'))
     new_ids = [e['id'] for e in after if e['id'] not in before]
     idx_path = os.path.join(reports, '_index.json')
