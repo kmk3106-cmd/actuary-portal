@@ -542,7 +542,7 @@ function renderTimeline() {
         html += `<div class="tl-row${r.id === selectedId ? ' active' : ''}${rv === '무관' ? ' rv-dim' : ''}${grp ? ' grp grp-' + grp.color : ''}" onclick="selectItem('${escAttr(r.id)}')"${grp ? ` title="묶음 ${grp.groupNo} (${grp.topicSize}건, 같은 주제): ${escAttr(grp.topicTitles.slice(0, 4).join(' / '))}"` : ''}>
           <div class="tl-dot dot-${esc(r.status)}"></div>
           <div class="tl-date">${fmtD(d)}<small>${esc(dLabel)}</small></div>
-          <div class="tl-main"><div class="tl-title">${esc(r.title)}${r.title_manual ? '' : '<span class="ai-tag" title="자동 생성한 제목입니다. 수정 폼에서 고치면 담당자 확정으로 잠깁니다">AI 초안</span>'}</div>${r.summary_line ? `<div class="tl-sum">${esc(r.summary_line)}</div>` : ''}
+          <div class="tl-main"><div class="tl-title">${esc(r.title)}${r.title_manual ? '' : '<span class="ai-tag" title="자동 생성한 제목입니다. 수정 폼에서 고치면 담당자 확정으로 잠깁니다">AI 초안</span>'}</div>
             <div class="tl-meta">${grp ? `<span class="grp-chip" title="같은 주제로 묶인 ${grp.topicSize}건 (예고·발령·보도자료, 규정이 달라도 제목 핵심어가 겹치고 시기가 가까우면)"><i class="fas fa-link"></i>묶음 ${grp.groupNo}</span>` : ''}${rv ? `<span class="bd rv-${esc(rv)}" title="${escAttr(r.relevance_reason || '')}">${rv === '관련' ? '팀 관련' : rv === '참고' ? '참고' : '무관'}</span>` : ''}<span class="bd st-${esc(r.status)}" title="${escAttr(stTitle(r))}">${esc(stLabel(r))}</span><span class="bd bd-type">${esc(r.reg_type)}</span>${(() => { const c = CASES.find(x => x.id === CASE_OF[r.id]); return c && r.status !== '보도자료' ? `<span class="lc-state ls-${c.stage.key}" style="margin:0;padding:2px 8px;font-size:11px">${esc(c.stage.label.split(' · ')[0])}</span>` : ''; })()}
               ${r.impact_level ? `<span class="bd im-${esc(r.impact_level)}">영향 ${esc(r.impact_level)}</span>` : ''}
               ${r.report_doc_id ? '<span class="bd bd-rep"><i class="fas fa-file-alt"></i> 리포트</span>' : ''}
@@ -680,7 +680,7 @@ function buildCases() {
   }
 }
 // ── 주제 묶음 (화면 전용). 제목·한 줄 요약의 핵심어 2개 이상이 겹치고 날짜 차이가 TOPIC_DAYS 안이면 같은 주제로 본다. 서버 데이터는 바꾸지 않는다
-const TOPIC_DAYS = 120, TOPIC_MIN_SHARED = 2, TOPIC_MAX_DF = 6;   // 핵심어 2개 이상 공유 · 120일 안 · 너무 흔한 낱말(7건 이상에 등장)은 핵심어로 안 침 (tmp/_check_49 로 튜닝)
+const TOPIC_DAYS = 60, TOPIC_MIN_SHARED = 2, TOPIC_MAX_DF = 6, TOPIC_SAME_WEEK = 7;   // 핵심어 2개 이상 공유 · 60일 안 (120일이면 4월 예고 → 10월 예고까지 한 덩어리로 이어진다) · 너무 흔한 낱말(7건 이상에 등장)은 핵심어로 안 침 (tmp/_check_49 로 튜닝)
 const TOPIC_STOP = new Set(['마련', '신설', '개정', '강화', '도입', '발표', '기준', '세부', '산출기준', '적용', '제외', '개선', '정비', '변경', '확대', '추가', '관리', '절차', '방안', '관련', '제도', '운영', '시행', '규정', '세칙', '고시', '보험', '보험업', '감독규정', '시행세칙', '보험업법', '시행령', '시행규칙', '업무', '사항', '항목', '서식', '반영', '합리화', '명확화', '간소화', '일원화', '요건', '범위', '대상', '방법', '금융', '금융위원회', '금융감독원', '회사', '보험회사', '등', '외', '및', '중', '안', '현행', '주요', '내용', '확인', '필요', '부칙', '적용례', '개정문', '일부', '일부개정', '전부', '제정', '폐지', '추진', '발령', '예고', '단독형', '설계의무', '정보', '자료', '위한', '따라', '관한', '삭제', '조문', '완화', '조정', '개최', '근거', '양식', '합리적']);
 let TOPICS = new Map();
 function topicTokens(c) {
@@ -696,14 +696,15 @@ function topicTokens(c) {
 function buildTopicGroups() {
   const parent = new Map(); const find = x => { while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
   const union = (a, b) => { a = find(a); b = find(b); if (a !== b) parent.set(a, b); };
-  for (const c of CASES) { parent.set(c.id, c.id); c._toks = topicTokens(c); c._day = dayNum(c.dates.notice.date || c.dates.issuance.date || c.latest || ''); }
+  for (const c of CASES) { parent.set(c.id, c.id); c._toks = topicTokens(c); c._days = c.items.map(it => dayNum(sortDate(it))).filter(Boolean); }   // 건 안의 모든 날짜(예고·발령·보도) — 가장 가까운 날짜끼리 비교
   const df = new Map(); for (const c of CASES) for (const t of c._toks) df.set(t, (df.get(t) || 0) + 1);
   for (const c of CASES) c._toks = new Set(Array.from(c._toks).filter(t => df.get(t) <= TOPIC_MAX_DF));   // 흔한 낱말('업무보고서' 19건) 로는 묶지 않는다
   for (let i = 0; i < CASES.length; i++) for (let j = i + 1; j < CASES.length; j++) {
     const a = CASES[i], b = CASES[j];
-    if (!a._day || !b._day || Math.abs(a._day - b._day) > TOPIC_DAYS) continue;
+    let gap = Infinity; for (const x of a._days) for (const y of b._days) gap = Math.min(gap, Math.abs(x - y));
+    if (gap > TOPIC_DAYS) continue;
     let shared = 0; for (const t of a._toks) if (b._toks.has(t)) shared++;
-    if (shared >= TOPIC_MIN_SHARED) union(a.id, b.id);
+    if (shared >= TOPIC_MIN_SHARED || (shared >= 1 && gap <= TOPIC_SAME_WEEK)) union(a.id, b.id);   // 같은 주(週)에 나온 보도자료·발령·예고는 핵심어 하나만 겹쳐도 같은 건
   }
   TOPICS = new Map(); const topicOf = new Map();
   for (const c of CASES) { const r = find(c.id); topicOf.set(c.id, r); if (!TOPICS.has(r)) TOPICS.set(r, new Set()); TOPICS.get(r).add(c.id); }
