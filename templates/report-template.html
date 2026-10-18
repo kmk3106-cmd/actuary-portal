@@ -73,7 +73,26 @@ table.act .sub2{display:block;font-size:13.5px;color:var(--sub);line-height:1.65
 .src{display:block;font-size:11.5px;color:var(--src);margin-top:5px;font-weight:400;line-height:1.6;letter-spacing:0}
 .note{font-size:11.5px;color:var(--sub);margin-top:6px;line-height:1.6}
 .bdg{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 7px;margin-right:6px;vertical-align:2px;color:#fff;letter-spacing:.03em}
-.bdg.n{background:var(--ok)}.bdg.c{background:var(--acc)}.bdg.m{background:var(--sub)}
+.bdg.n{background:var(--ok)}.bdg.c{background:var(--acc)}.bdg.m{background:var(--sub)}.bdg.v{background:#6d28d9}.bdg.s{background:transparent;color:var(--sub);border:1px solid var(--line)}
+h3 .hsub{font-size:11.5px;font-weight:500;color:var(--sub);margin-left:8px;white-space:nowrap}
+/* 신·구 조문 대비 — 줄 단위 정렬표: 구분 | 현행 | 개정안 */
+table.cmpt{table-layout:fixed;font-size:13.5px;line-height:1.74;border-top:1px solid var(--fg);border-bottom:2px solid var(--fg)}
+table.cmpt th{padding:7px 4px}
+table.cmpt th.b{color:var(--fg)}
+table.cmpt th.k,table.cmpt td.k{width:52px;padding-left:2px;padding-right:2px;text-align:center;vertical-align:top}
+table.cmpt td{vertical-align:top;text-align:left;padding:6px 10px;border-bottom:1px dotted var(--line);white-space:normal;word-break:keep-all;overflow-wrap:anywhere;line-height:1.74}
+table.cmpt td+td{border-left:1px solid var(--line)}
+table.cmpt td p{margin:0}
+table.cmpt td .ind{padding-left:13px}
+table.cmpt tr.k-s td.col-b{color:var(--sub)}
+table.cmpt tr.k-n td.col-a,table.cmpt tr.k-m td.col-b{background:var(--grid)}
+table.cmpt tr.k-v td.col-b{background:rgba(109,40,217,.06)}
+.lk{display:inline-block;font-size:10px;font-weight:700;padding:1px 5px;color:#fff;letter-spacing:.02em;line-height:1.5;margin-top:3px}
+.lk.n{background:var(--ok)}.lk.c{background:var(--acc)}.lk.m{background:var(--sub)}.lk.v{background:#6d28d9}.lk.s{background:transparent;color:var(--sub);border:1px solid var(--line)}
+table.cmpt em,p em.da,p em{font-style:normal;font-weight:600;background:linear-gradient(transparent 62%,rgba(10,125,63,.25) 62%)}
+table.cmpt td.col-a em,p em.da{background:linear-gradient(transparent 62%,rgba(200,16,46,.2) 62%)}
+table.cmpt .mk{font-size:11.5px;color:var(--sub)}
+table.cmpt .nil{color:var(--sub);font-size:13px}
 .gist{border:1px solid var(--line);border-left:4px solid var(--fg);padding:12px 14px;margin:12px 0;font-size:14px;line-height:1.7;background:var(--grid)}
 .cmp{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--fg);border-bottom:2px solid var(--fg);margin:14px 0}
 .cmp > .col{min-width:0;display:flex;flex-direction:column}
@@ -106,7 +125,8 @@ details .body{padding:0 0 16px}
  table.act{font-size:14px}table.act b{font-size:14.5px}table.act .sub2{font-size:12.5px}
  table.tight{font-size:11.5px}table.tight th{font-size:10px}table.mid{font-size:12.5px}
  .cmp{grid-template-columns:1fr}
- .cmp > .col + .col{border-left:none;border-top:2px solid var(--fg)}}
+ .cmp > .col + .col{border-left:none;border-top:2px solid var(--fg)}
+ table.cmpt{font-size:12.5px}table.cmpt td{padding:5px 6px}table.cmpt th.k,table.cmpt td.k{width:40px}.lk{font-size:9px;padding:1px 3px}}
 @media(max-width:430px){:root{--fst:13px;--fsh:11px}
  table.tight{font-size:10.5px;letter-spacing:-.04em}table.tight th{font-size:9.5px}table.mid{font-size:11.5px}}
 @media print{.nav{display:none}details .body{display:block}body{font-size:10pt}}

@@ -45,6 +45,9 @@ DOWNLOAD_EXTS = ('.hwpx', '.hwp', '.xlsx')
 
 FSS = 'https://www.fss.or.kr'
 FSC = 'https://www.fsc.go.kr'
+# 보도자료는 제목에 아래 중 하나가 있어야 수집 (합격자 발표·행사 안내 등 제도와 무관한 글 제외)
+PRESS_TITLE_FILTER = ['감독규정', '시행세칙', '세칙', '시행령', '시행규칙', '보험업법', 'IFRS17', 'IFRS 17', '계리가정', '계리적', '지급여력', 'K-ICS',
+                      '할인율', '책임준비금', '보험부채', '건전성', '해약', '무·저해지', '무저해지', '경험생명표', '손실부담']
 SOURCES = {
     'fss_prv': {
         'label': '금융감독원 세칙 제·개정 예고', 'kind': 'fss_list',
@@ -67,6 +70,18 @@ SOURCES = {
         'label': '금융위원회 입법예고 (보험업법·시행령·시행규칙)', 'kind': 'fsc_list',
         'list': FSC + '/po040301', 'query': '보험업법', 'reg_name': '보험업법', 'reg_type': '법률', 'status': '입법예고',
         'authority': '금융위원회',
+    },
+    'fsc_press': {   # 금융위 보도자료 — 의결·시행 소식이 고시보다 먼저 나온다
+        'label': '금융위원회 보도자료', 'kind': 'fsc_list',
+        'list': FSC + '/no010101', 'query': '보험업감독규정', 'queries': ['보험업감독규정', '보험업법 시행령', 'IFRS17', '계리가정', '지급여력'],
+        'reg_name': '보험 감독제도', 'reg_type': '기타', 'status': '보도자료', 'authority': '금융위원회',
+        'title_filter': PRESS_TITLE_FILTER,
+    },
+    'fss_press': {   # 금감원 보도자료
+        'label': '금융감독원 보도자료', 'kind': 'fss_press',
+        'list': FSS + '/fss/bbs/B0000188/list.do', 'menu': '200218', 'queries': ['보험업감독업무', '시행세칙', 'IFRS17', '계리', '책임준비금'],
+        'reg_name': '보험 감독제도', 'reg_type': '기타', 'status': '보도자료', 'authority': '금융감독원',
+        'title_filter': PRESS_TITLE_FILTER,
     },
     'fsc_gosi': {
         'label': '금융위원회 소관규정/고시', 'kind': 'fsc_list',
@@ -154,6 +169,9 @@ def fss_detail(url, delay):
     body, _ = fetch(url, delay)
     s = body.decode('utf-8', 'replace')
     fields = {}
+    boxes = re.findall(r'<div[^>]*class="[^"]*(?:txt-box|n-dbdata)[^"]*"[^>]*>(.*?)</div>', s, re.S)
+    if boxes:
+        fields['_body'] = max((text_of(b.replace('<br/>', '\n').replace('<br>', '\n')) for b in boxes), key=len)
     for dt, dd in re.findall(r'<dt[^>]*>(.*?)</dt>\s*<dd[^>]*>(.*?)</dd>', s, re.S):
         k = text_of(dt)
         if len(k) > 40 or '민원' in k or '분쟁' in k or '신고' in k or '지킴이' in k or '인허가' in k:
@@ -170,14 +188,90 @@ def fss_detail(url, delay):
             m = re.search(r'file=([^&]+)', html.unescape(href))
             name = os.path.basename(m.group(1)) if m else 'attachment'
         atts.append({'name': name, 'url': u})
+    # 보도자료 게시판(B0000188) 은 첨부가 /fss/cmmn/file/fileDown.do 링크 + 파일명 텍스트 (파일크기 표기 제거)
+    for href, label in re.findall(r'<a[^>]*href="(/fss/cmmn/file/fileDown\.do\?[^"]+)"[^>]*class="btn-attach-download"[^>]*>(.*?)</a>', s, re.S):
+        u = encode_href(href, FSS)
+        if u in seen:
+            continue
+        seen.add(u)
+        name = re.sub(r'\s*\(파일크기\s*:[^)]*\)\s*', '', text_of(label)).strip() or 'attachment'
+        atts.append({'name': name, 'url': u})
     return fields, atts
 
 
 # ── 금융위 목록/상세 ────────────────────────────────────────────────────
+def title_ok(src, title):
+    f = src.get('title_filter')
+    return (not f) or any(k.lower() in title.lower() for k in f)
+
+
+def guess_reg(title, default_name, default_type):
+    """제목에서 규정명·구분 추정 (보도자료·입법예고 공통)"""
+    t = title.replace(' ', '')
+    other = re.search(r'은행업|금융투자업|증권사|자본시장|외부감사|상호금융|여신전문|저축은행|보험사기', t) and '보험업' not in t
+    if other:   # 타 업권·타 규정 보도자료 (제목 필터에 '시행세칙' 같은 공통어로 걸린 것)
+        return '타 업권·타 규정', '기타'
+    if '시행세칙' in t or '세칙' in t:
+        return '보험업감독업무시행세칙', '시행세칙'
+    if '감독규정' in t:
+        return '보험업감독규정', '감독규정'
+    if '시행규칙' in t:
+        return '보험업법 시행규칙', '시행규칙'
+    if '시행령' in t:
+        return '보험업법 시행령', '시행령'
+    if '보험업법' in t:
+        return '보험업법', '법률'
+    if 'IFRS17' in t.upper() or 'IFRS 17' in t.upper() or '계리가정' in t or '보험부채' in t or '할인율' in t or '책임준비금' in t:
+        return 'IFRS17 보험부채·계리가정 제도', '기타'
+    if '지급여력' in t or 'K-ICS' in t.upper() or '건전성' in t:
+        return '지급여력(K-ICS)·건전성 제도', '기타'
+    return default_name, default_type
+
+
+def fss_press(src, since, delay, limit):
+    """금감원 보도자료 목록: 번호 | 제목 | 담당부서 | 등록일"""
+    out, seen = [], set()
+    for q in src.get('queries') or [src.get('query', '')]:
+        for page in range(1, 30):
+            qs = urllib.parse.urlencode({'menuNo': src['menu'], 'searchCnd': '1', 'searchWrd': q, 'pageIndex': page})
+            body, _ = fetch(src['list'] + '?' + qs, delay)
+            s = body.decode('utf-8', 'replace')
+            rows, stop = 0, False
+            for tr in re.findall(r'<tr[^>]*>(.*?)</tr>', s, re.S):
+                tds = re.findall(r'<td[^>]*>(.*?)</td>', tr, re.S)
+                link = re.search(r'href="([^"]+)"', tr)
+                if len(tds) < 4 or not link:
+                    continue
+                rows += 1
+                title, dept, date = text_of(tds[1]), text_of(tds[2]), norm_date(text_of(tds[3]))
+                if date and date < since:
+                    stop = True; continue
+                key = re.sub(r'&.*', '', html.unescape(link.group(1)))
+                if key in seen or not title_ok(src, title):
+                    continue
+                seen.add(key)
+                out.append({'no': key, 'title': title, 'date': date, 'dept': dept, 'url': urllib.parse.urljoin(FSS, html.unescape(link.group(1)))})
+                if limit and len(out) >= limit:
+                    return out
+            if rows == 0 or stop:
+                break
+    return out
+
+
 def fsc_list(src, since, delay, limit):
     out, seen = [], set()
+    for q_text in (src.get('queries') or [src['query']]):
+        got = _fsc_list_one(src, q_text, since, delay, limit, seen)
+        out += got
+        if limit and len(out) >= limit:
+            return out[:limit]
+    return out
+
+
+def _fsc_list_one(src, q_text, since, delay, limit, seen):
+    out = []
     for page in range(1, 30):
-        q = urllib.parse.urlencode({'srchKey': 'sj', 'srchText': src['query'], 'curPage': page})
+        q = urllib.parse.urlencode({'srchKey': 'sj', 'srchText': q_text, 'curPage': page})
         body, _ = fetch(src['list'] + '?' + q, delay)
         s = body.decode('utf-8', 'replace')
         lis = [li for li in re.findall(r'<li[^>]*>\s*(<div class="inner">.*?)</li>', s, re.S)]
@@ -193,13 +287,17 @@ def fsc_list(src, since, delay, limit):
             if key in seen:
                 continue
             seen.add(key); rows += 1
-            if src['query'] not in title.replace(' ', ''):
+            if src['kind'] == 'fsc_list' and src['status'] != '보도자료' and q_text.replace(' ', '') not in title.replace(' ', ''):
+                continue
+            if not title_ok(src, title):
                 continue
             info = text_of(re.search(r'<div class="info">(.*?)</div>', li, re.S).group(1)) if '<div class="info">' in li else ''
             period = re.search(r'예고기간\s*:\s*(\d{4}-\d{2}-\d{2})\s*~\s*(\d{4}-\d{2}-\d{2})', info)
             files = fsc_files(li)
+            ldate = re.search(r'(\d{4}-\d{2}-\d{2})', text_of(li))
             item = {'title': title, 'url': urllib.parse.urljoin(FSC, href), 'info': info, 'files': files,
-                    'date': period.group(1) if period else '', 'date_comment_due': period.group(2) if period else ''}
+                    'date': period.group(1) if period else (ldate.group(1) if (ldate and src['status'] == '보도자료') else ''),
+                    'date_comment_due': period.group(2) if period else ''}
             if item['date'] and item['date'] < since:
                 stop = True
                 continue
@@ -443,7 +541,7 @@ def link_related(events):
 # ── 이벤트 조립 ──────────────────────────────────────────────────────────
 def build_fss_event(key, src, row, fields, atts):
     ev = {
-        'id': f"{key}_{re.sub(r'[^0-9A-Za-z]', '', urllib.parse.parse_qs(urllib.parse.urlparse(row['url']).query).get('lrgSlno', urllib.parse.parse_qs(urllib.parse.urlparse(row['url']).query).get('lrgClsfcNo', ['x']))[0])[-12:]}",
+        'id': f"{key}_{re.sub(r'[^0-9A-Za-z]', '', (lambda q: (q.get('lrgSlno') or q.get('lrgClsfcNo') or q.get('nttId') or ['x']))(urllib.parse.parse_qs(urllib.parse.urlparse(row['url']).query))[0])[-12:]}",
         'source': key, 'source_label': src['label'], 'url': row['url'], 'list_title': row['title'],
         'reg_name': fields.get('1. 규정의 명칭', '') or src['reg_name'], 'reg_type': src['reg_type'], 'status': src['status'],
         'authority': src['authority'], 'date': row['date'],
@@ -460,6 +558,11 @@ def build_fss_event(key, src, row, fields, atts):
         dept = re.match(r'([가-힣]+국)\s*([가-힣]+팀)?', ev['contact'] or '')
         if dept:
             ev['authority'] = '금융감독원 ' + dept.group(1) + (' ' + dept.group(2) if dept.group(2) else '')
+    elif key == 'fss_press':
+        ev['date_press'] = row['date']
+        reg_name, reg_type = guess_reg(row['title'], src['reg_name'], src['reg_type'])
+        ev.update({'reg_name': reg_name, 'reg_type': reg_type, 'authority': '금융감독원' + (' ' + row['dept'] if row.get('dept') else ''),
+                   'purpose': (fields.get('_body') or '')[:600]})
     else:
         ev.update({'date_promulgated': fields.get('게시일', row['date']) and norm_date(fields.get('게시일', row['date'])) or row['date']})
     ev['attachments'] = atts
@@ -467,8 +570,10 @@ def build_fss_event(key, src, row, fields, atts):
 
 
 def build_fsc_event(key, src, row, det, atts):
-    nid = re.search(r'(?:noticeId=|po040200/)(\d+)', row['url'])
+    nid = re.search(r'(?:noticeId=|po040200/|no010101/)(\d+)', row['url'])
     reg_name, reg_type = src['reg_name'], src['reg_type']
+    if key == 'fsc_press':
+        reg_name, reg_type = guess_reg(row['title'], src['reg_name'], src['reg_type'])
     if key == 'fsc_ntc_law':
         t = row['title'].replace(' ', '')
         if '시행규칙' in t:
@@ -487,7 +592,9 @@ def build_fsc_event(key, src, row, det, atts):
         'body': det.get('body', ''),
         'attachments': merge_atts(row.get('files', []), [(a['url'], a['name']) for a in atts]),
     }
-    if key == 'fsc_ntc':
+    if key == 'fsc_press':
+        ev['date_press'] = ev['date']
+    elif key == 'fsc_ntc':
         ev['date_notice'] = ev['date']
         ev['date_comment_due'] = row.get('date_comment_due', '')
         kind = re.search(r'구분\s*:\s*(입법예고|규정변경예고|행정예고)', row.get('info', ''))
@@ -531,11 +638,11 @@ def main():
     for key in [k.strip() for k in a.sources.split(',') if k.strip()]:
         src = SOURCES[key]
         print(f'[{key}] 목록 수집… ({src["label"]})', file=sys.stderr)
-        rows = fss_list(src, a.since, a.delay, a.limit) if src['kind'] == 'fss_list' else fsc_list(src, a.since, a.delay, a.limit)
+        rows = fss_list(src, a.since, a.delay, a.limit) if src['kind'] == 'fss_list' else fss_press(src, a.since, a.delay, a.limit) if src['kind'] == 'fss_press' else fsc_list(src, a.since, a.delay, a.limit)
         print(f'[{key}] {len(rows)}건', file=sys.stderr)
         for row in rows:
             try:
-                if src['kind'] == 'fss_list':
+                if src['kind'] in ('fss_list', 'fss_press'):
                     fields, atts = fss_detail(row['url'], a.delay)
                     ev = build_fss_event(key, src, row, fields, atts)
                 else:

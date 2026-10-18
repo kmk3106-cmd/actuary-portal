@@ -23,7 +23,7 @@ from publish_regulation import api, wrap_for_portal  # noqa: E402  (같은 임�
 KB_TABLE, REG_TABLE, KB_CATEGORY = 'kb_documents', 'reg_items', 'kbc_regulation'
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024
 UPLOAD_EXTS = ('.hwpx', '.hwp', '.pdf', '.xlsx', '.docx', '.zip')
-STATUS_PREFIX = {'사전예고': '[사전예고]', '입법예고': '[규정변경예고]', '공포': '[고시]', '시행': '[개정]'}
+STATUS_PREFIX = {'사전예고': '[사전예고]', '입법예고': '[규정변경예고]', '공포': '[고시]', '시행': '[개정]', '보도자료': '[보도자료]'}
 RELEVANCE_TAG = {'관련': '', '참고': '[참고]', '무관': '[팀무관]'}   # 문서 제목에 붙는 관련성 표기 (관련은 표기 없음)
 
 
@@ -89,7 +89,10 @@ def main():
 
         # 제목은 날짜 → 단계 → 규정명 → 요지 순 (목록에서 날짜가 먼저 보이도록)
         rel_tag = RELEVANCE_TAG.get(meta.get('relevance', ''), '')
-        doc_title = f"{(ev.get('date') or '').replace('-', '.')} {STATUS_PREFIX.get(ev['status'], '')}{rel_tag} {short_reg_name(ev['reg_name'])} · {meta['title'].split(' — ')[-1][:70]}".strip()
+        st_tag = STATUS_PREFIX.get(ev['status'], '')
+        if ev['status'] == '보도자료':   # 금융위·금감원이 같은 날 같은 제목으로 내는 공동 보도자료를 구분
+            st_tag = '[보도자료·' + ('금융위' if '금융위' in (ev.get('authority') or '') else '금감원') + ']'
+        doc_title = f"{(ev.get('date') or '').replace('-', '.')} {st_tag}{rel_tag} {short_reg_name(ev['reg_name'])} · {meta['title'].split(' — ')[-1][:70]}".strip()
         doc_id = overrides.get(ev['id']) or (exists or {}).get('report_doc_id') or ''
         if not doc_id and doc_title in docs_by_title:
             doc_id = docs_by_title[doc_title]['id']
@@ -126,16 +129,21 @@ def main():
             'title': meta['title'].split(' — ')[-1][:80] if ' — ' in meta['title'] else meta['title'][:80],
             'reg_type': ev['reg_type'], 'reg_name': ev['reg_name'], 'articles': meta['articles'][:8], 'status': ev['status'],
             'date_notice': ev.get('date_notice') or None, 'date_comment_due': ev.get('date_comment_due') or None,
-            'date_promulgated': ev.get('date_promulgated') or None, 'date_effective': ev.get('date_effective') or None,
+            'date_promulgated': ev.get('date_promulgated') or None,
+            # 시행일은 리포트 생성기가 본문("YYYY.MM.DD부터 시행")에서 찾은 값이 더 많다
+            'date_effective': ev.get('date_effective') or meta.get('date_effective') or None,
+            'date_press': ev.get('date_press') or None,
             'authority': ev.get('authority', ''), 'summary': meta['summary'],
-            'change_new': meta['change_new'], 'change_mod': meta['change_mod'], 'change_del': meta['change_del'],
-            'impact_level': '대' if meta['compare_rows'] >= 15 or any(k in ' '.join(meta['impact_areas']) for k in ('해약률', '위험률', '책임준비금', '지급여력')) else ('중' if meta['compare_rows'] else '미정'),
+            'change_new': meta['change_new'], 'change_mod': meta['change_mod'], 'change_del': meta['change_del'], 'change_move': meta.get('change_move', 0),
+            'line_counts': meta.get('line_counts') or {},
+            'impact_level': '미정' if ev['status'] == '보도자료' else '대' if meta['compare_rows'] >= 15 or any(k in ' '.join(meta['impact_areas']) for k in ('해약률', '위험률', '책임준비금', '지급여력')) else ('중' if meta['compare_rows'] else '미정'),
             'impact_areas': meta['impact_areas'], 'impact_systems': meta['impact_systems'],
             'actions': (exists or {}).get('actions') or meta['actions'],
             'report_doc_id': doc_id or None,
             'sources': [{'label': ev['source_label'], 'url': ev['url'], 'fetched_at': 0}],
             'attachments': atts, 'tags': meta['tags'][:8],
-            'source_key': key, 'source': ev['source'], 'related_notice_id': meta.get('related_notice_id') or ev.get('related_notice_id'),
+            # event_id = 수집 이벤트 id. related_notice_id 도 이벤트 id 라서 화면은 event_id 로 선행 예고를 찾는다
+            'source_key': key, 'source': ev['source'], 'event_id': ev['id'], 'related_notice_id': meta.get('related_notice_id') or ev.get('related_notice_id'),
             'relevance': meta.get('relevance', ''), 'relevance_reason': meta.get('relevance_reason', ''),
             # 화면에서 담당자가 바꾼 관련성(relevance_manual) 은 자동 갱신으로 덮어쓰지 않는다
             **({'relevance': exists['relevance'], 'relevance_reason': exists.get('relevance_reason', '')} if exists and exists.get('relevance_manual') else {}),

@@ -49,7 +49,38 @@
     .bd-type { background:#f3f4f6; color:#374151; }
     .st-입법예고 { background:#fef3c7; color:#92400e; } .st-사전예고 { background:#ffedd5; color:#9a3412; }
     .st-공포 { background:#dbeafe; color:#1e40af; } .st-시행 { background:#d1fae5; color:#065f46; } .st-철회 { background:#f3f4f6; color:#6b7280; text-decoration:line-through; }
-    .dot-입법예고 { background:#f59e0b; } .dot-사전예고 { background:#f97316; } .dot-공포 { background:#3b82f6; } .dot-시행 { background:#10b981; } .dot-철회 { background:#9ca3af; }
+    .st-보도자료 { background:#f3e8ff; color:#6b21a8; }
+    .dot-입법예고 { background:#f59e0b; } .dot-사전예고 { background:#f97316; } .dot-공포 { background:#3b82f6; } .dot-시행 { background:#10b981; } .dot-철회 { background:#9ca3af; } .dot-보도자료 { background:#a855f7; }
+
+    /* 진행 현황 — 건별 예고 → 확정 → 시행 스텝 */
+    .lc { background:#fff; border-radius:16px; border:1px solid #f3f4f6; box-shadow:0 1px 4px rgba(0,0,0,.06); overflow:hidden; }
+    .lc-sum { display:flex; gap:8px; flex-wrap:wrap; padding:12px 20px; border-bottom:1px solid #f3f4f6; }
+    .lc-sum span { font-size:12px; font-weight:700; padding:4px 11px; border-radius:999px; background:#f3f4f6; color:#374151; cursor:pointer; border:1.5px solid transparent; }
+    .lc-sum span.on { border-color:#4f86f7; background:#eef4ff; color:#1d4ed8; }
+    .lc-sum span i { font-style:normal; font-weight:800; margin-left:4px; }
+    .lc-row { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,2fr); gap:14px; padding:14px 20px; border-bottom:1px solid #f3f4f6; align-items:start; }
+    .lc-row.rv-dim { opacity:.6; }
+    .lc-title { font-size:14px; font-weight:700; color:#111827; line-height:1.4; word-break:keep-all; overflow-wrap:anywhere; }
+    .lc-sub { font-size:12px; color:#6b7280; margin-top:4px; line-height:1.5; }
+    .lc-state { display:inline-block; font-size:11.5px; font-weight:800; padding:3px 9px; border-radius:8px; margin-top:6px; }
+    .ls-예고중 { background:#ffedd5; color:#9a3412; } .ls-확정대기 { background:#fef3c7; color:#92400e; } .ls-시행대기 { background:#dbeafe; color:#1e40af; }
+    .ls-시행중 { background:#d1fae5; color:#065f46; } .ls-철회 { background:#f3f4f6; color:#6b7280; } .ls-보도만 { background:#f3e8ff; color:#6b21a8; } .ls-확정 { background:#e0e7ff; color:#3730a3; }
+    .lc-steps { display:flex; align-items:stretch; gap:0; flex-wrap:wrap; }
+    .lc-step { flex:1 1 110px; min-width:0; padding:8px 10px; border:1px solid #e5e7eb; background:#fafafa; position:relative; cursor:default; }
+    .lc-step + .lc-step { margin-left:-1px; }
+    .lc-step:first-child { border-radius:9px 0 0 9px; } .lc-step:last-child { border-radius:0 9px 9px 0; }
+    .lc-step b { display:block; font-size:10.5px; color:#9ca3af; font-weight:700; letter-spacing:.04em; }
+    .lc-step span { display:block; font-size:12.5px; font-weight:700; color:#374151; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .lc-step small { display:block; font-size:10.5px; color:#9ca3af; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .lc-step.done { background:#ecfdf5; border-color:#a7f3d0; } .lc-step.done b { color:#059669; }
+    .lc-step.now { background:#fff7ed; border-color:#fdba74; box-shadow:inset 0 0 0 1px #fdba74; } .lc-step.now b { color:#c2410c; }
+    .lc-step.todo span { color:#9ca3af; font-weight:500; }
+    .lc-step.link { cursor:pointer; } .lc-step.link:hover { background:#eef4ff; border-color:#bfdbfe; }
+    .lc-step.press { flex:0 1 150px; border-style:dashed; background:#faf5ff; border-color:#e9d5ff; } .lc-step.press b { color:#7e22ce; }
+    .lc-empty { padding:40px 20px; text-align:center; color:#9ca3af; font-size:13px; }
+    @media(max-width:900px){ .lc-row { grid-template-columns:1fr; gap:8px; } .lc-step { flex:1 1 90px; } }
+    .dp .lc-steps { margin-top:4px; }
+    .dp .lc-step { padding:6px 8px; flex:1 1 80px; }
     .im-대 { background:#fee2e2; color:#991b1b; } .im-중 { background:#fef3c7; color:#92400e; } .im-소 { background:#ecfdf5; color:#065f46; } .im-미정 { background:#f3f4f6; color:#6b7280; }
     /* 계리결산팀 관련성 (IFRS17 부채결산·계리가정·경제적가정·현금흐름) */
     .rv-관련 { background:#1d4ed8; color:#fff; } .rv-참고 { background:#e0e7ff; color:#3730a3; } .rv-무관 { background:#f3f4f6; color:#9ca3af; border:1px dashed #d1d5db; }
@@ -77,7 +108,7 @@
     .sched .arrow { color:#d1d5db; font-size:11px; }
     .chg { display:flex; gap:8px; flex-wrap:wrap; }
     .chg span { font-size:12.5px; font-weight:700; padding:4px 10px; border-radius:8px; }
-    .chg .n { background:#d1fae5; color:#065f46; } .chg .c { background:#fee2e2; color:#991b1b; } .chg .m { background:#f3f4f6; color:#374151; }
+    .chg .n { background:#d1fae5; color:#065f46; } .chg .c { background:#fee2e2; color:#991b1b; } .chg .m { background:#f3f4f6; color:#374151; } .chg .v { background:#ede9fe; color:#5b21b6; }
     .chips { display:flex; gap:5px; flex-wrap:wrap; } .chip { font-size:11.5px; background:#eef4ff; color:#1e40af; padding:2px 9px; border-radius:999px; }
     .chip.sys { background:#f5f3ff; color:#5b21b6; } .chip.tag { background:#f3f4f6; color:#374151; }
     .lnk { display:flex; align-items:center; gap:6px; font-size:13px; color:#1d4ed8; text-decoration:none; overflow-wrap:anywhere; margin-bottom:4px; }
@@ -166,8 +197,26 @@
 
       <div class="rh-tabs">
         <button class="rh-tab active" data-tab="timeline" onclick="switchTab('timeline')"><i class="fas fa-stream"></i> 타임라인</button>
+        <button class="rh-tab" data-tab="lifecycle" onclick="switchTab('lifecycle')"><i class="fas fa-route"></i> 진행 현황</button>
         <button class="rh-tab" data-tab="inbox" onclick="switchTab('inbox')"><i class="fas fa-inbox"></i> 수집함 <span class="rh-badge zero" id="inboxBadge">0</span></button>
       </div>
+
+      <!-- A-2. 진행 현황: 개정 건별 예고 → 확정 → 시행 -->
+      <section id="tabLifecycle" style="display:none">
+        <div class="rh-filters">
+          <select id="lcRel"><option value="관련,참고">관련 + 참고</option><option value="관련">팀 관련만</option><option value="">전체 (무관 포함)</option></select>
+          <select id="lcType"><option value="">규정구분 전체</option></select>
+          <input type="text" id="lcQ" placeholder="규정명 · 제목 검색">
+        </div>
+        <div class="lc">
+          <div class="lc-sum" id="lcSum"></div>
+          <div id="lcList"><div class="lc-empty">불러오는 중…</div></div>
+        </div>
+        <p style="font-size:12px;color:#9ca3af;margin:10px 4px 0;line-height:1.6">
+          한 개정 건은 <b>예고(입법·사전예고) → 의견제출 → 확정(고시·개정 게시) → 시행</b> 순으로 진행됩니다. 같은 규정의 예고와 확정 건은 조문 겹침으로 자동 연결했고,
+          보도자료는 규정명·일자(예고 45일 전 ~ 확정 90일 후)로 붙였습니다. 스텝을 누르면 타임라인의 해당 건으로 이동합니다.
+        </p>
+      </section>
 
       <!-- A. 타임라인 + B. 상세 -->
       <section id="tabTimeline">
@@ -232,13 +281,15 @@
         <div class="fg"><label class="fl">의견제출 시한</label><input type="date" class="fi" id="mDateComment"></div>
         <div class="fg"><label class="fl">공포일</label><input type="date" class="fi" id="mDateProm"></div>
         <div class="fg"><label class="fl">시행일</label><input type="date" class="fi" id="mDateEff"></div>
+        <div class="fg"><label class="fl">보도자료 일자</label><input type="date" class="fi" id="mDatePress"></div>
       </div>
       <div class="fsec">내용</div>
       <div class="fg"><label class="fl">요약</label><textarea class="fta" id="mSummary" placeholder="무엇이 바뀌는지 한두 문장"></textarea></div>
       <div class="fr3">
         <div class="fg"><label class="fl">신설 건수</label><input type="number" min="0" class="fi" id="mChgNew" placeholder="0"></div>
         <div class="fg"><label class="fl">변경 건수</label><input type="number" min="0" class="fi" id="mChgMod" placeholder="0"></div>
-        <div class="fg"><label class="fl">이동·삭제 건수</label><input type="number" min="0" class="fi" id="mChgDel" placeholder="0"></div>
+        <div class="fg"><label class="fl">이동 건수</label><input type="number" min="0" class="fi" id="mChgMove" placeholder="0"></div>
+        <div class="fg"><label class="fl">삭제 건수</label><input type="number" min="0" class="fi" id="mChgDel" placeholder="0"></div>
       </div>
       <div class="fsec">영향과 조치</div>
       <div class="fr3">
@@ -298,7 +349,9 @@ const INBOX = 'reg_inbox';
 const KB_TABLE = 'kb_documents';
 const KB_CATEGORY = 'kbc_regulation';            // 계리업무절차서 › 규정·기준 (기존 카테고리)
 const REG_TYPES = ['법률', '시행령', '시행규칙', '감독규정', '시행세칙', '행정지도', '기타'];
-const STATUSES = ['입법예고', '사전예고', '공포', '시행', '철회'];
+const STATUSES = ['입법예고', '사전예고', '보도자료', '공포', '시행', '철회'];
+const DECIDED_STATUSES = new Set(['공포', '시행']);           // 확정 단계
+const PRESS_WINDOW_BEFORE = 45, PRESS_WINDOW_AFTER = 90;     // 보도자료를 같은 건에 붙이는 일자 범위 (예고 전 ~ 확정 후, 일)
 const IMPACTS = ['대', '중', '소', '미정'];
 const RELEVANCES = ['관련', '참고', '무관'];   // config/reg_relevance.json levels 와 동일 (자동 판정 → 화면에서 수정 가능)
 const ACT_STATES = ['대기', '진행', '완료', '보류'];
@@ -323,7 +376,8 @@ const fmtD = d => d ? String(d).replace(/-/g, '.') : '—';
 const todayStr = () => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; };
 const splitCsv = s => String(s || '').split(/[,，]/).map(x => x.trim()).filter(Boolean);
 const arr = v => Array.isArray(v) ? v : (typeof v === 'string' && v.trim().startsWith('[') ? (() => { try { return JSON.parse(v); } catch { return []; } })() : []);
-const sortDate = it => it.date_effective || it.date_promulgated || it.date_notice || '';
+const sortDate = it => it.date_effective || it.date_promulgated || it.date_notice || it.date_press || '';
+const dayDiff = (a, b) => Math.round((new Date(a) - new Date(b)) / 86400000);   // a - b (일)
 
 // ══════════════════════════════════════════════════════════
 // 로드
@@ -337,7 +391,8 @@ async function loadAll() {
   ITEMS = items; INBOX_ROWS = inbox;
   USERS = users.filter(u => u.is_active !== false);
   KB_DOCS = docs.filter(d => d.category_id === KB_CATEGORY);
-  renderStats(); renderFilters(); renderTimeline(); renderInbox();
+  buildCases();
+  renderStats(); renderFilters(); renderTimeline(); renderLifecycle(); renderInbox();
   if (selectedId) renderDetail(selectedId);
   const params = new URLSearchParams(location.search);
   if (!selectedId && params.get('item')) { selectedId = params.get('item'); renderTimeline(); renderDetail(selectedId); }
@@ -365,12 +420,14 @@ function fillSelect(id, values, label) {
   sel.value = cur;
 }
 function renderFilters() {
-  fillSelect('fType', REG_TYPES, '규정구분 전체'); fillSelect('fStatus', STATUSES, '상태 전체'); fillSelect('fImpact', IMPACTS, '영향도 전체');
+  fillSelect('fType', REG_TYPES, '규정구분 전체'); fillSelect('fStatus', STATUSES, '상태 전체'); fillSelect('fImpact', IMPACTS, '영향도 전체'); fillSelect('lcType', REG_TYPES, '규정구분 전체');
   const owners = [...new Set(ITEMS.map(i => i.owner_name).filter(Boolean))];
   fillSelect('fOwner', owners, '담당 전체');
 }
 ['fType','fStatus','fImpact','fOwner','fRel'].forEach(id => document.getElementById(id).addEventListener('change', renderTimeline));
 document.getElementById('fQ').addEventListener('input', renderTimeline);
+['lcRel','lcType'].forEach(id => document.getElementById(id).addEventListener('change', renderLifecycle));
+document.getElementById('lcQ').addEventListener('input', renderLifecycle);
 
 function filtered() {
   const t = document.getElementById('fType').value, s = document.getElementById('fStatus').value, im = document.getElementById('fImpact').value, ow = document.getElementById('fOwner').value;
@@ -400,7 +457,7 @@ function renderTimeline() {
     for (const [q, list] of qm) {
       html += `<div class="tl-q">${q ? q + '분기' : '—'} <span class="cnt">${list.length}건</span></div>`;
       for (const r of list) {
-        const d = sortDate(r); const dLabel = r.date_effective ? '시행' : r.date_promulgated ? '공포' : r.date_notice ? '예고' : '';
+        const d = sortDate(r); const dLabel = r.date_effective ? '시행' : r.date_promulgated ? '공포' : r.date_notice ? '예고' : r.date_press ? '보도' : '';
         const acts = arr(r.actions); const done = acts.filter(a => a.state === '완료').length;
         const rv = r.relevance || '';
         html += `<div class="tl-row${r.id === selectedId ? ' active' : ''}${rv === '무관' ? ' rv-dim' : ''}" onclick="selectItem('${escAttr(r.id)}')">
@@ -418,6 +475,117 @@ function renderTimeline() {
   el.innerHTML = html;
 }
 function selectItem(id) { selectedId = id; renderTimeline(); renderDetail(id); if (window.innerWidth <= 1100) document.getElementById('detail').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+function gotoItem(id) { switchTab('timeline'); selectItem(id); const row = document.querySelector('.tl-row.active'); if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+
+// ══════════════════════════════════════════════════════════
+// A-2. 진행 현황 — 건(case) = 예고 + 확정 + 보도자료 묶음. 서버 데이터는 그대로 두고 화면에서만 묶는다
+//   확정 건의 related_notice_id(자동 연결) 로 예고를 붙이고, 남은 예고는 단독 건, 보도자료는 규정명·일자 범위로 붙인다
+// ══════════════════════════════════════════════════════════
+let CASES = [], CASE_OF = {};
+const normName = s => String(s || '').replace(/\s/g, '');
+function caseStage(c, today) {
+  if (c.items.some(i => i.status === '철회')) return { key: '철회', label: '철회' };
+  const eff = c.dates.effective;
+  if (eff && eff <= today) return { key: '시행중', label: '시행 중' + (dayDiff(today, eff) < 90 ? ` (시행 ${dayDiff(today, eff)}일째)` : '') };
+  if (eff && eff > today) return { key: '시행대기', label: `시행 대기 (D-${dayDiff(eff, today)})` };
+  if (c.decided) return { key: '확정', label: '확정 · 시행일 미확인' };
+  if (c.notice) {
+    const due = c.dates.comment_due;
+    if (due && due >= today) return { key: '예고중', label: `예고 중 · 의견제출 D-${dayDiff(due, today)}` };
+    const base = due || c.dates.notice;
+    return { key: '확정대기', label: `예고 종료 · 확정 미확인 (${base ? dayDiff(today, base) + '일 경과' : '일자 없음'})` };
+  }
+  return { key: '보도만', label: '보도자료만 (예고·확정 미수집)' };
+}
+function buildCases() {
+  const today = todayStr();
+  // related_notice_id 는 reg_items.id 일 수도(화면 등록), 수집 이벤트 id(event_id) 일 수도(자동 적재) 있다
+  const byId = Object.fromEntries(ITEMS.map(i => [i.id, i]));
+  for (const i of ITEMS) if (i.event_id && !byId[i.event_id]) byId[i.event_id] = i;
+  const used = new Set(); CASES = []; CASE_OF = {};
+  const mk = (root) => { const c = { id: 'case_' + root.id, root, items: [], notice: null, decided: null, press: [], dates: {} }; CASES.push(c); return c; };
+  const add = (c, it) => { if (used.has(it.id)) return; used.add(it.id); c.items.push(it); CASE_OF[it.id] = c.id; };
+  // 1) 확정 건 + 연결된 예고
+  for (const it of ITEMS.filter(i => DECIDED_STATUSES.has(i.status)).sort((a, b) => String(sortDate(a)).localeCompare(String(sortDate(b))))) {
+    if (used.has(it.id)) continue;
+    const c = mk(it); c.decided = it; add(c, it);
+    const n = it.related_notice_id && byId[it.related_notice_id];
+    if (n && !used.has(n.id) && NOTICE_STATUSES.has(n.status)) { c.notice = n; add(c, n); }
+  }
+  // 2) 남은 예고(철회 포함) → 단독 건
+  for (const it of ITEMS.filter(i => NOTICE_STATUSES.has(i.status) || i.status === '철회')) {
+    if (used.has(it.id)) continue;
+    const c = mk(it); c.notice = NOTICE_STATUSES.has(it.status) ? it : null; add(c, it);
+  }
+  // 날짜 채우기
+  for (const c of CASES) {
+    const n = c.notice, d = c.decided;
+    c.dates = { notice: n ? (n.date_notice || '') : (d && d.date_notice) || '', comment_due: n ? n.date_comment_due : (d && d.date_comment_due) || '',
+      promulgated: d ? (d.date_promulgated || sortDate(d)) : '', effective: (d && d.date_effective) || (n && n.date_effective) || '' };
+    c.reg_name = (d || n || c.root).reg_name || ''; c.reg_type = (d || n || c.root).reg_type || '';
+    c.relevance = (d && d.relevance) || (n && n.relevance) || c.root.relevance || '';
+  }
+  // 3) 보도자료 → 규정명이 같거나 규정명이 보도 제목·요약에 들어 있고, 예고 45일 전 ~ 확정 90일 후 안이면 그 건에
+  for (const p of ITEMS.filter(i => i.status === '보도자료')) {
+    const pd = p.date_press || sortDate(p); let best = null;
+    for (const c of CASES) {
+      const same = normName(c.reg_name) && (normName(c.reg_name) === normName(p.reg_name) || normName(p.title + ' ' + (p.summary || '')).includes(normName(c.reg_name)));
+      if (!same || !pd) continue;
+      const lo = c.dates.notice || c.dates.promulgated, hi = c.dates.promulgated || c.dates.notice;
+      if (!lo) continue;
+      const gap = pd < lo ? dayDiff(lo, pd) : (pd > hi ? dayDiff(pd, hi) : 0);
+      const ok = pd < lo ? gap <= PRESS_WINDOW_BEFORE : gap <= PRESS_WINDOW_AFTER;
+      if (ok && (!best || gap < best.gap)) best = { c, gap };
+    }
+    if (best) { best.c.press.push(p); add(best.c, p); }
+    else { const c = mk(p); add(c, p); c.press.push(p); c.reg_name = p.reg_name || ''; c.reg_type = p.reg_type || ''; c.relevance = p.relevance || ''; c.dates = { press: pd }; }
+  }
+  for (const c of CASES) {
+    c.stage = caseStage(c, today);
+    c.latest = [c.dates.effective, c.dates.promulgated, c.dates.notice, ...c.press.map(p => p.date_press || sortDate(p))].filter(Boolean).sort().pop() || '';
+    c.title = (c.decided || c.notice || c.root).title || '';
+  }
+}
+function lcStepsHtml(c, today, compact) {
+  const link = (it, inner, cls) => it ? `<div class="lc-step link ${cls}" onclick="gotoItem('${escAttr(it.id)}')" title="${escAttr(it.title || '')}">${inner}</div>` : `<div class="lc-step ${cls}">${inner}</div>`;
+  const n = c.notice, d = c.decided, D = c.dates;
+  const stNotice = n ? 'done' : 'todo';
+  const stDue = D.comment_due ? (D.comment_due < today ? 'done' : 'now') : (n ? 'todo' : 'todo');
+  const stDec = d ? 'done' : (n && D.comment_due && D.comment_due < today ? 'now' : 'todo');
+  const stEff = D.effective ? (D.effective <= today ? 'done' : 'now') : (d ? 'now' : 'todo');
+  const pressBefore = c.press.filter(p => !D.notice || (p.date_press || sortDate(p)) <= (D.promulgated || '9999'));
+  const pressAfter = c.press.filter(p => !pressBefore.includes(p));
+  const pressHtml = list => list.map(p => link(p, `<b>보도자료</b><span>${fmtD(p.date_press || sortDate(p))}</span><small>${esc((p.authority || '').split(' ')[0] || '')}</small>`, 'press done')).join('');
+  return `<div class="lc-steps">
+    ${pressHtml(pressBefore)}
+    ${link(n, `<b>${n ? esc(n.status) : '예고'}</b><span>${fmtD(D.notice)}</span><small>${n ? esc(n.authority || '') : '수집 안 됨'}</small>`, stNotice)}
+    <div class="lc-step ${stDue}"><b>의견제출</b><span>${fmtD(D.comment_due)}</span><small>${D.comment_due ? (D.comment_due < today ? '마감' : `D-${dayDiff(D.comment_due, today)}`) : (n ? '시한 없음' : '')}</small></div>
+    ${link(d, `<b>${d ? (d.status === '공포' ? '확정 고시' : '확정 개정') : '확정'}</b><span>${fmtD(D.promulgated)}</span><small>${d ? esc(d.authority || '') : (n ? '확정 미확인' : '')}</small>`, stDec)}
+    ${pressHtml(pressAfter)}
+    <div class="lc-step ${stEff}"><b>시행</b><span>${fmtD(D.effective)}</span><small>${D.effective ? (D.effective <= today ? '적용 중' : `D-${dayDiff(D.effective, today)}`) : (d ? '부칙 확인 필요' : '')}</small></div>
+  </div>`;
+}
+let lcStageFilter = '';
+function renderLifecycle() {
+  const today = todayStr();
+  const relSel = document.getElementById('lcRel').value; const rel = relSel ? relSel.split(',') : null;
+  const t = document.getElementById('lcType').value; const q = document.getElementById('lcQ').value.trim().toLowerCase();
+  const base = CASES.filter(c => (!rel || rel.includes(c.relevance || '무관')) && (!t || c.reg_type === t)
+    && (!q || (c.reg_name + ' ' + c.title + ' ' + c.items.map(i => i.title).join(' ')).toLowerCase().includes(q)));
+  const counts = {}; for (const c of base) counts[c.stage.key] = (counts[c.stage.key] || 0) + 1;
+  const order = [['예고중', '예고 중'], ['확정대기', '예고 후 확정 미확인'], ['확정', '확정 · 시행일 미확인'], ['시행대기', '시행 대기'], ['시행중', '시행 중'], ['보도만', '보도자료만'], ['철회', '철회']];
+  document.getElementById('lcSum').innerHTML = `<span class="${lcStageFilter ? '' : 'on'}" onclick="setLcStage('')">전체<i>${base.length}</i></span>` + order.filter(([k]) => counts[k]).map(([k, l]) => `<span class="${lcStageFilter === k ? 'on' : ''}" onclick="setLcStage('${k}')">${l}<i>${counts[k]}</i></span>`).join('');
+  const rows = base.filter(c => !lcStageFilter || c.stage.key === lcStageFilter).sort((a, b) => (b.latest || '').localeCompare(a.latest || ''));
+  const el = document.getElementById('lcList');
+  if (!rows.length) { el.innerHTML = '<div class="lc-empty">조건에 맞는 개정 건이 없습니다</div>'; return; }
+  el.innerHTML = rows.map(c => `<div class="lc-row${c.relevance === '무관' ? ' rv-dim' : ''}">
+      <div><div class="lc-title">${esc(c.title)}</div>
+        <div class="lc-sub">${c.relevance ? `<span class="bd rv-${esc(c.relevance)}">${c.relevance === '관련' ? '팀 관련' : esc(c.relevance)}</span> ` : ''}<span class="bd bd-type">${esc(c.reg_type)}</span> ${esc(c.reg_name)}${c.items.length > 1 ? ` · ${c.items.length}건 연결` : ''}</div>
+        <span class="lc-state ls-${c.stage.key}">${esc(c.stage.label)}</span></div>
+      ${lcStepsHtml(c, today)}
+    </div>`).join('');
+}
+function setLcStage(k) { lcStageFilter = k; renderLifecycle(); }
 
 // ══════════════════════════════════════════════════════════
 // B. 상세
@@ -432,10 +600,17 @@ function renderDetail(id) {
   const sched = [
     step('예고', it.date_notice, it.date_notice <= today ? 'done' : ''),
     step('의견제출', it.date_comment_due, it.date_comment_due < today ? 'done' : 'due'),
+    step('보도자료', it.date_press, 'done'),
     step('공포', it.date_promulgated, it.date_promulgated <= today ? 'done' : ''),
     step('시행', it.date_effective, it.date_effective <= today ? 'done' : 'due'),
   ].filter(Boolean).join('<span class="arrow"><i class="fas fa-chevron-right"></i></span>');
   const doc = it.report_doc_id ? KB_DOCS.find(d => d.id === it.report_doc_id) : null;
+  const cs = CASES.find(c => c.id === CASE_OF[it.id]);
+  const siblings = cs ? cs.items.filter(x => x.id !== it.id) : [];
+  const lifecycle = cs ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-route"></i> 진행 현황 <span class="lc-state ls-${cs.stage.key}" style="margin:0 0 0 4px">${esc(cs.stage.label)}</span></div>
+      ${lcStepsHtml(cs, today, true)}
+      ${siblings.length ? `<div style="font-size:12px;color:#6b7280;margin-top:8px;line-height:1.6">연결된 건: ${siblings.map(s => `<a href="#" onclick="gotoItem('${escAttr(s.id)}');return false" style="color:#1d4ed8;text-decoration:none">[${esc(s.status)}] ${fmtD(sortDate(s))} ${esc((s.title || '').slice(0, 40))}</a>`).join(' · ')}</div>` : ''}
+    </div>` : '';
   el.innerHTML = `
     <div class="dp-head">
       <div class="tl-meta" style="margin:0 0 8px">${it.relevance ? `<span class="bd rv-${esc(it.relevance)}">${it.relevance === '관련' ? '팀 관련' : it.relevance}</span>` : ''}<span class="bd st-${esc(it.status)}">${esc(it.status)}</span><span class="bd bd-type">${esc(it.reg_type)}</span>${it.impact_level ? `<span class="bd im-${esc(it.impact_level)}">영향 ${esc(it.impact_level)}</span>` : ''}</div>
@@ -447,8 +622,9 @@ function renderDetail(id) {
     <div class="dp-body">
       ${it.relevance ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-crosshairs"></i> 계리결산팀 관련성</div><div class="dp-txt"><b>${esc(it.relevance === '관련' ? '관련' : it.relevance)}</b>${it.relevance_reason ? ' — ' + esc(it.relevance_reason) : ''}${it.relevance_manual ? ' <span style="color:#9ca3af;font-size:11.5px">(담당자 확정)</span>' : ' <span style="color:#9ca3af;font-size:11.5px">(자동 판정)</span>'}</div></div>` : ''}
       ${NOTICE_STATUSES.has(it.status) ? '<div class="callout"><i class="fas fa-exclamation-triangle"></i> <b>사전예고안입니다.</b> 확정 공포 조문과 다를 수 있으므로 적용 전 확정본 대조가 필요합니다.</div>' : ''}
-      ${sched ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-calendar-alt"></i> 일정</div><div class="sched">${sched}</div></div>` : ''}
-      ${(it.change_new || it.change_mod || it.change_del) ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-code-branch"></i> 변경</div><div class="chg"><span class="n">신설 ${Number(it.change_new) || 0}</span><span class="c">변경 ${Number(it.change_mod) || 0}</span><span class="m">이동·삭제 ${Number(it.change_del) || 0}</span></div></div>` : ''}
+      ${lifecycle}
+      ${sched ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-calendar-alt"></i> 이 건의 일정</div><div class="sched">${sched}</div></div>` : ''}
+      ${(it.change_new || it.change_mod || it.change_del || it.change_move) ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-code-branch"></i> 변경 (조문 단위)</div><div class="chg"><span class="n">신설 ${Number(it.change_new) || 0}</span><span class="c">변경 ${Number(it.change_mod) || 0}</span>${Number(it.change_move) ? `<span class="v">이동 ${Number(it.change_move)}</span>` : ''}<span class="m">삭제 ${Number(it.change_del) || 0}</span></div>${it.line_counts ? `<div style="font-size:11.5px;color:#6b7280;margin-top:6px">줄 단위: ${esc(Object.entries(it.line_counts).filter(([k, v]) => v && k !== '동일').map(([k, v]) => `${k} ${v}`).join(' · '))}</div>` : ''}</div>` : ''}
       ${it.summary ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-align-left"></i> 요약</div><div class="dp-txt">${esc(it.summary)}</div></div>` : ''}
       ${(areas.length || systems.length) ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-bullseye"></i> 영향</div><div class="chips">${areas.map(a => `<span class="chip">${esc(a)}</span>`).join('')}${systems.map(a => `<span class="chip sys">${esc(a)}</span>`).join('')}</div></div>` : ''}
       ${(srcs.length || atts.length) ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-external-link-alt"></i> 출처 · 첨부</div>
@@ -582,7 +758,7 @@ function addSrcRow(s = {}) {
 const readRows = (containerId) => Array.from(document.getElementById(containerId).children).map(row => { const o = {}; row.querySelectorAll('[data-k]').forEach(i => { o[i.dataset.k] = i.value.trim(); }); return o; });
 
 function resetForm() {
-  ['editId','fromInboxId','mTitle','mRegName','mArticles','mAuthority','mDateNotice','mDateComment','mDateProm','mDateEff','mSummary','mChgNew','mChgMod','mChgDel','mAreas','mSystems','mTags'].forEach(id => { document.getElementById(id).value = ''; });
+  ['editId','fromInboxId','mTitle','mRegName','mArticles','mAuthority','mDateNotice','mDateComment','mDateProm','mDateEff','mDatePress','mSummary','mChgNew','mChgMod','mChgMove','mChgDel','mAreas','mSystems','mTags'].forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('mRegType').value = '시행세칙'; document.getElementById('mStatus').value = '사전예고'; document.getElementById('mImpact').value = '미정';
   document.getElementById('mRel').value = '관련'; document.getElementById('mRelReason').value = '';
   document.getElementById('mOwner').value = ''; document.getElementById('mReportDoc').value = '';
@@ -601,8 +777,8 @@ function openEditModal(id) {
   document.getElementById('editId').value = it.id;
   document.getElementById('mTitle').value = it.title || ''; document.getElementById('mRegType').value = it.reg_type || '기타'; document.getElementById('mRegName').value = it.reg_name || '';
   document.getElementById('mStatus').value = it.status || '사전예고'; document.getElementById('mArticles').value = arr(it.articles).join(', '); document.getElementById('mAuthority').value = it.authority || '';
-  document.getElementById('mDateNotice').value = it.date_notice || ''; document.getElementById('mDateComment').value = it.date_comment_due || ''; document.getElementById('mDateProm').value = it.date_promulgated || ''; document.getElementById('mDateEff').value = it.date_effective || '';
-  document.getElementById('mSummary').value = it.summary || ''; document.getElementById('mChgNew').value = it.change_new ?? ''; document.getElementById('mChgMod').value = it.change_mod ?? ''; document.getElementById('mChgDel').value = it.change_del ?? '';
+  document.getElementById('mDateNotice').value = it.date_notice || ''; document.getElementById('mDateComment').value = it.date_comment_due || ''; document.getElementById('mDateProm').value = it.date_promulgated || ''; document.getElementById('mDateEff').value = it.date_effective || ''; document.getElementById('mDatePress').value = it.date_press || '';
+  document.getElementById('mSummary').value = it.summary || ''; document.getElementById('mChgNew').value = it.change_new ?? ''; document.getElementById('mChgMod').value = it.change_mod ?? ''; document.getElementById('mChgMove').value = it.change_move ?? ''; document.getElementById('mChgDel').value = it.change_del ?? '';
   document.getElementById('mImpact').value = it.impact_level || '미정'; document.getElementById('mAreas').value = arr(it.impact_areas).join(', '); document.getElementById('mSystems').value = arr(it.impact_systems).join(', ');
   document.getElementById('mRel').value = it.relevance || '관련'; document.getElementById('mRelReason').value = it.relevance_reason || '';
   document.getElementById('mOwner').value = it.owner_id || ''; document.getElementById('mTags').value = arr(it.tags).join(', ');
@@ -668,8 +844,9 @@ async function saveItem() {
       title, reg_type: regType, reg_name: regName, articles: splitCsv(document.getElementById('mArticles').value), status,
       date_notice: document.getElementById('mDateNotice').value || null, date_comment_due: document.getElementById('mDateComment').value || null,
       date_promulgated: document.getElementById('mDateProm').value || null, date_effective: document.getElementById('mDateEff').value || null,
+      date_press: document.getElementById('mDatePress').value || null,
       authority: document.getElementById('mAuthority').value.trim(), summary: document.getElementById('mSummary').value.trim(),
-      change_new: n('mChgNew'), change_mod: n('mChgMod'), change_del: n('mChgDel'),
+      change_new: n('mChgNew'), change_mod: n('mChgMod'), change_move: n('mChgMove'), change_del: n('mChgDel'),
       impact_level: document.getElementById('mImpact').value, impact_areas: splitCsv(document.getElementById('mAreas').value), impact_systems: splitCsv(document.getElementById('mSystems').value),
       relevance: document.getElementById('mRel').value, relevance_reason: document.getElementById('mRelReason').value.trim(),
       // 사람이 저장한 값 — 자동 동기화(load_reg_history.py)가 덮어쓰지 않도록 표시
@@ -712,8 +889,10 @@ function deleteItem() {
 function switchTab(tab) {
   document.querySelectorAll('.rh-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.getElementById('tabTimeline').style.display = tab === 'timeline' ? '' : 'none';
+  document.getElementById('tabLifecycle').style.display = tab === 'lifecycle' ? '' : 'none';
   document.getElementById('tabInbox').style.display = tab === 'inbox' ? '' : 'none';
   if (tab === 'inbox') loadCollectStatus();
+  if (tab === 'lifecycle') renderLifecycle();
 }
 fillStatic();
 if (canWrite) {
@@ -722,7 +901,7 @@ if (canWrite) {
 }
 loadAll().catch(e => { document.getElementById('timeline').innerHTML = `<div class="tl-empty">불러오기 실패: ${esc(e.message)}<br><small>서버가 최신 버전인지(reg_items 테이블) 확인하세요 — update-now.bat</small></div>`; });
 loadCollectStatus();
-Object.assign(window, { switchTab, selectItem, toggleInlineReport, setActState, runCollect, ignoreInbox, registerFromInbox, openNewModal, openEditModal, closeModal, addActRow, addSrcRow, onReportFile, onAttachFiles, saveItem, deleteItem, renderInbox, renderReportInfo, renderAttList, clearReportFile, removeAtt });
+Object.assign(window, { switchTab, selectItem, gotoItem, setLcStage, toggleInlineReport, setActState, runCollect, ignoreInbox, registerFromInbox, openNewModal, openEditModal, closeModal, addActRow, addSrcRow, onReportFile, onAttachFiles, saveItem, deleteItem, renderInbox, renderReportInfo, renderAttList, clearReportFile, removeAtt });
 
 } catch (e) { console.error(e); if (window.Portal && Portal.showToast) Portal.showToast('페이지 초기화 오류: ' + e.message, 'error'); }
 </script>

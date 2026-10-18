@@ -10,6 +10,7 @@ docs/01_리포트_스타일가이드.md 서식을 따른다. CSS 는 templates/r
 출력: <out-dir>/<event id>.html  + <out-dir>/_index.json (id → 파일, 제목, 분류 결과)
 """
 import argparse
+import difflib
 import html
 import json
 import os
@@ -20,8 +21,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE = os.path.join(HERE, '..', 'templates', 'report-template.html')
 MAX_ROWS_IN_REPORT = 60          # 대비표 행이 이보다 많으면 나머지는 부록으로
 DASH_RE = re.compile(r'(?:[-─—―–‒ー=]\s?){4,}')   # 점선(붙은 것·띄운 것 모두) = 원문 '현행과 같음'
-STATUS_LABEL = {'사전예고': '사전예고', '입법예고': '규정변경예고', '공포': '확정 고시', '시행': '확정 개정'}
-STATUS_TAG = {'사전예고': '사전예고', '입법예고': '규정변경예고', '공포': '고시', '시행': '개정·시행'}
+STATUS_LABEL = {'사전예고': '사전예고', '입법예고': '규정변경예고', '공포': '확정 고시', '시행': '확정 개정', '보도자료': '보도자료'}
+STATUS_TAG = {'사전예고': '사전예고', '입법예고': '규정변경예고', '공포': '고시', '시행': '개정·시행', '보도자료': '보도자료'}
 IMPACT_MAP = [
     (r'해약률|해지율', '해약률 가정'), (r'위험률|사망률|발생률', '위험률 가정'), (r'할인율|금리', '할인율·금리'),
     (r'지급여력|K-ICS|요구자본|가용자본', '지급여력(K-ICS)'), (r'책임준비금|보험부채|최선추정|CSM|위험조정', '책임준비금'),
@@ -74,7 +75,7 @@ def impacts(text):
 # 새 항목(조문 단위)의 시작으로 보는 줄머리: 조문·별표·별지·장·절·로마숫자 대제목. "1." "가." 같은 호·목 번호는 같은 조문 안의 줄이다
 ITEM_START_RE = re.compile(r'^\s*(?:제\s?\d+(?:-\d+)?조(?:의\s?\d+)?|[\[<＜]?\s?별표\s?\d+|[\[<＜]?\s?별지\s?(?:제\s?)?\d+|[Ⅰ-Ⅻ]\s?\.|제\s?\d+\s?장|제\s?\d+\s?절)')
 COMPARE_FILE_RE = re.compile(r'대비|신구|신·구|개정안|고시|세칙|규정')
-MARKER_RE = re.compile(r'[<＜(]\s*(?:신\s*설|삭\s*제|생\s*략|현행과\s*같음)\s*[>＞)]|[-─—―–‒ー=]{3,}|\(현행과\s*같음\)')
+MARKER_RE = re.compile(r'[<＜(\[]\s*(?:단서|항|호|목)?\s*(?:신\s*설|삭\s*제|생\s*략|이\s*동|현행과\s*같음)\s*[>＞)\]]|[-─—―–‒ー=]{3,}|\(현행과\s*같음\)')
 RELEVANCE_PATH = os.path.join(HERE, '..', 'config', 'reg_relevance.json')
 RELEVANCE_LEVELS = ['관련', '참고', '무관']
 
@@ -191,9 +192,22 @@ def compare_rows(ev):
     return out, out_unchanged
 
 
+KIND_LABEL = {'n': '신설', 'c': '변경', 'v': '이동', 'm': '삭제', 's': '동일'}
+KIND_ORDER = ['n', 'c', 'v', 'm', 's']
+MOVE_RE = re.compile(r'(?:에서|으로|로|부터)\s*이동|이동\s*(?:신설|[>＞)\]])|[<＜(\[]\s*이동|※\s*[^\n]{0,40}이동')
+SAME_RE = re.compile(r'^\s*(?:[①-⑳]|\d+\.|[가-힣]\.|[ⅰ-ⅹ]|[㉮-㉻]|-|•|◦|○)?\s*(?:[-─—―–‒ー=·.\s]{3,}|\(\s*현행과\s*같음\s*\)|[<＜]\s*현행과\s*같음\s*[>＞]|[<＜(]\s*생\s*략\s*[>＞)])\s*(?:[-─—―–‒ー=·.\s]*)$')
+LEAD_RE = re.compile(r'^\s*(제\s?\d+(?:-\d+)?조(?:의\s?\d+)?|[①-⑳]|\d+\.|[가-힣ㄱ-ㅎa-z]\.|\(\d+\)|[ⅰ-ⅹ]+\)?|[ivx]+\)|[㉮-㉻]|[ⓐ-ⓩ])')
+MAX_ALIGN_CELLS = 90000     # 항목 안 줄 정렬 DP 상한 (현행 줄수 × 개정안 줄수 = 300×300). 넘으면 순서대로 짝짓기
+PAIR_THRESHOLD = 0.35       # 줄 정렬: 유사도가 이보다 높아야 '같은 줄의 변경' 으로 짝짓고, 낮으면 삭제 + 신설 두 줄로 둔다
+TOKEN_RE = re.compile(MARKER_RE.pattern + r'|\w+|\s+|[^\w\s]', re.U)   # 마커(〈신설〉·점선)는 한 토큰으로 묶어 밑줄이 쪼개지지 않게
+
+
 def classify(ca, cb):
+    """항목(조문) 단위 종류: n 신설 / m 삭제 / v 이동 / c 변경"""
     a, b = re.sub(r'\s', '', ca), re.sub(r'\s', '', cb)
     a_core, b_core = strip_markers(ca), strip_markers(cb)
+    if MOVE_RE.search(cb or '') or MOVE_RE.search(ca or ''):
+        return 'v', '이동'
     if not a_core and b_core:
         return 'n', '신설'
     if re.search(r'삭\s*제', cb or '') and not b_core:
@@ -203,15 +217,176 @@ def classify(ca, cb):
     return 'c', '변경'
 
 
+def split_lines(cell):
+    return [x.strip() for x in str(cell or '').split('\n') if x.strip()]
+
+
+def norm_line(s):
+    """줄 비교용 정규화: 마커·점선·공백 제거"""
+    return re.sub(r'\s', '', MARKER_RE.sub('', DASH_RE.sub('', s or '')))
+
+
+def is_same_marker(s):
+    """개정안 줄이 '① ———' / '(현행과 같음)' 처럼 현행 유지 표시뿐인가"""
+    return bool(s) and (bool(SAME_RE.match(s)) or not norm_line(s) and bool(DASH_RE.search(s) or '현행과' in s or '생략' in s))
+
+
+def lead_token(s):
+    m = LEAD_RE.match(s or '')
+    return re.sub(r'\s', '', m.group(1)) if m else ''
+
+
+def line_sim(a, b):
+    """현행 줄 a 와 개정안 줄 b 의 유사도 0~1. 개정안이 '현행과 같음' 표시면 머리번호(①, 1., 가.) 일치 여부로 본다"""
+    if is_same_marker(b):
+        la, lb = lead_token(a), lead_token(b)
+        return 0.9 if (la and la == lb) else (0.5 if not lb else 0.2)
+    na, nb = norm_line(a), norm_line(b)
+    if not nb and re.search(r'삭\s*제', b):      # 개정안 '〈삭제〉' 표시는 순서상 맞은편 현행 줄에 붙인다
+        return 0.45
+    if not na or not nb:
+        return 0.0
+    if na == nb:
+        return 1.0
+    la, lb = lead_token(a), lead_token(b)
+    sm = difflib.SequenceMatcher(None, na, nb, autojunk=False)
+    r = sm.quick_ratio()                           # 상한값. 문턱 아래면 정확히 계산할 필요 없다
+    if r >= PAIR_THRESHOLD:
+        r = sm.ratio()
+    # 개정안 줄이 '㉮ ——— 의 경과기간별…' 처럼 점선(현행과 같음)을 품고 있으면, 점선 자리는 현행 문구이므로
+    # 개정안에 남은 글자가 현행에 모두 들어있을 때 같은 줄로 본다
+    if r < PAIR_THRESHOLD and (DASH_RE.search(b) or '현행과' in b) and nb and len(nb) <= len(na):
+        segs = [re.sub(r'\s', '', seg) for seg in MARKER_RE.split(b)]
+        segs = [seg for seg in segs if len(seg) >= 2]
+        if segs and sum(1 for seg in segs if seg in na) / len(segs) >= 0.6:
+            r = max(r, 0.55)
+    if la and lb and la == lb:
+        r = max(r, 0.6)
+    return r
+
+
+def align_lines(A, B):
+    """현행 줄 목록 A 와 개정안 줄 목록 B 를 순서를 지키며 짝짓는다 (Needleman-Wunsch).
+    반환: (a 또는 '', b 또는 '') 의 목록. 셀 수가 상한을 넘으면 순서대로 짝짓는다"""
+    n, m = len(A), len(B)
+    if n * m > MAX_ALIGN_CELLS:
+        k = max(n, m)
+        return [(A[i] if i < n else '', B[i] if i < m else '') for i in range(k)]
+    # 짝 점수 = 유사도 - 문턱 (문턱보다 비슷해야 양수), 비우기 = 0. 순서를 지키며 점수 합이 최대가 되게 짝짓는다
+    score = [[line_sim(A[i], B[j]) - PAIR_THRESHOLD for j in range(m)] for i in range(n)]
+    best = [[0.0] * (m + 1) for _ in range(n + 1)]
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            best[i][j] = max(best[i - 1][j - 1] + score[i - 1][j - 1], best[i - 1][j], best[i][j - 1])
+    out, i, j = [], n, m
+    while i > 0 or j > 0:
+        if i > 0 and j > 0 and score[i - 1][j - 1] > 0 and abs(best[i][j] - (best[i - 1][j - 1] + score[i - 1][j - 1])) < 1e-9:
+            out.append((A[i - 1], B[j - 1])); i -= 1; j -= 1
+        elif i > 0 and (j == 0 or abs(best[i][j] - best[i - 1][j]) < 1e-9):
+            out.append((A[i - 1], '')); i -= 1
+        else:
+            out.append(('', B[j - 1])); j -= 1
+    out.reverse()
+    return out
+
+
+def line_pairs(ca, cb):
+    """항목 하나를 (현행 줄, 개정안 줄, 종류) 목록으로. 종류: n 신설 / c 변경 / v 이동 / m 삭제 / s 동일(현행과 같음)"""
+    # 현행 칸의 '〈신 설〉'·점선 같은 자리표시 줄은 내용이 없으므로 뺀다 (맞은편 개정안 줄이 신설로 잡힌다)
+    A = [x for x in split_lines(ca) if norm_line(x)]
+    B = split_lines(cb)
+    pairs = align_lines(A, B)
+    out = []
+    last_b_idx = max((k for k, (_, b) in enumerate(pairs) if b), default=-1)
+    trailing_same = last_b_idx >= 0 and is_same_marker(pairs[last_b_idx][1]) and not re.search(r'삭\s*제', pairs[last_b_idx][1])
+    for k, (a, b) in enumerate(pairs):
+        if a and b:
+            if is_same_marker(b) or norm_line(a) == norm_line(b):
+                kind = 's'
+            elif MOVE_RE.search(b):
+                kind = 'v'
+            elif re.search(r'[<＜(]\s*삭\s*제\s*[>＞)]', b) and not norm_line(b):
+                kind = 'm'
+            else:
+                kind = 'c'
+        elif a:
+            # 개정안 마지막 줄이 '———'(이하 현행과 같음) 이면 그 뒤 현행 줄은 유지되는 줄이다
+            kind = 's' if (trailing_same and k > last_b_idx) else 'm'
+        else:
+            kind = 'v' if MOVE_RE.search(b) else ('m' if re.search(r'[<＜(]\s*삭\s*제\s*[>＞)]', b) and not norm_line(b) else ('s' if is_same_marker(b) else 'n'))
+        out.append((a, b, kind))
+    return out
+
+
+def word_diff(a, b):
+    """두 줄의 단어 단위 차이를 (a_html, b_html) 로. 바뀐 조각은 <em> 으로 감싼다"""
+    ta, tb = TOKEN_RE.findall(a), TOKEN_RE.findall(b)
+    sm = difflib.SequenceMatcher(None, ta, tb, autojunk=False)
+    ha, hb = [], []
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        sa, sb = esc(''.join(ta[i1:i2])), esc(''.join(tb[j1:j2]))
+        if tag == 'equal':
+            ha.append(sa); hb.append(sb)
+        else:
+            if sa.strip():
+                ha.append(f'<em>{sa}</em>')
+            elif sa:
+                ha.append(sa)
+            if sb.strip():
+                hb.append(f'<em>{sb}</em>')
+            elif sb:
+                hb.append(sb)
+    return ''.join(ha), ''.join(hb)
+
+
+def mark_html(s):
+    """원문 마커(점선·〈신설〉·〈삭제〉·(현행과 같음)) 를 표시용 span 으로"""
+    s = DASH_RE.sub('<span class="mk">(현행과 같음)</span>', s)
+    # esc() 를 거친 문자열이라 '<' 는 &lt; 로 들어온다. 〈신설〉〈단서 신설〉〈삭제〉〈생략〉〈이동〉 변형을 모두 표시용 span 으로
+    s = re.sub(r'(?:&lt;|[＜(\[])\s*((?:단서|항|호|목)?\s*(?:신\s*설|삭\s*제|생\s*략|이\s*동|현행과\s*같음))\s*(?:&gt;|[＞)\]])',
+               lambda m: '<span class="mk">(현행과 같음)</span>' if '현행' in m.group(1) else '<span class="nil">〈' + re.sub(r'\s', '', m.group(1)).replace('단서', '단서 ') + '〉</span>', s)
+    return s
+
+
+def line_cls(line):
+    return ' class="ind"' if re.match(r'\s*(?:[①-⑳]|\d+\.|[가-힣]\.|[ⅰ-ⅹ]|[ivx]+\)|[㉮-㉻]|[ⓐ-ⓩ]|-|•|◦|○)', line.strip()) and not re.match(r'제\d', line.strip()) else ''
+
+
+def cmp_table(ca, cb):
+    """항목 하나의 현행·개정안을 줄 단위로 맞춘 표 HTML + 줄 종류별 개수"""
+    pairs = line_pairs(ca, cb)
+    counts = {k: 0 for k in KIND_ORDER}
+    rows = []
+    for a, b, kind in pairs:
+        counts[kind] += 1
+        if kind == 'c':
+            ha, hb = word_diff(a, b)
+            ha, hb = mark_html(ha), mark_html(hb)
+        elif kind == 'v' and a and b:
+            ha, hb = word_diff(a, b)
+            ha, hb = mark_html(ha), mark_html(hb)
+        else:
+            ha, hb = mark_html(esc(a)) if a else '', mark_html(esc(b)) if b else ''
+        if kind == 's' and a and not b:
+            hb = '<span class="mk">(현행과 같음)</span>'
+        rows.append(f'<tr class="k-{kind}"><td class="k"><span class="lk {kind}">{KIND_LABEL[kind]}</span></td>'
+                    f'<td class="col-a"><p{line_cls(a)}>{ha or "<span class=nil>—</span>"}</p></td>'
+                    f'<td class="col-b"><p{line_cls(b)}>{hb or "<span class=nil>—</span>"}</p></td></tr>')
+    html = ('<div class="tw"><table class="cmpt"><thead><tr><th class="k">구분</th><th>현행</th><th class="b">개정안</th></tr></thead><tbody>'
+            + ''.join(rows) + '</tbody></table></div>')
+    return html, counts
+
+
+def counts_text(counts, with_same=False):
+    bits = [f'{KIND_LABEL[k]} {counts[k]}' for k in KIND_ORDER if counts.get(k) and (with_same or k != 's')]
+    return ' · '.join(bits) if bits else '변경 줄 없음'
+
+
 def law_html(cell, side):
     out = []
     for line in [x for x in str(cell).split('\n') if x.strip()]:
-        s = esc(line.strip())
-        s = DASH_RE.sub('<span class="mk">(현행과 같음)</span>', s)
-        s = re.sub(r'[<＜]\s*(신\s*설|삭\s*제|생\s*략)\s*[>＞]', lambda m: '<span class="nil">〈' + re.sub(r'\s', '', m.group(1)) + '〉</span>', s)
-        s = s.replace('(현행과 같음)', '<span class="mk">(현행과 같음)</span>') if '(현행과 같음)' in line else s
-        ind = ' class="ind"' if re.match(r'\s*(?:[①-⑳]|\d+\.|[가-힣]\.|[ⅰ-ⅹ]|[ivx]+\)|[㉮-㉻]|[ⓐ-ⓩ]|-|•|◦|○)', line.strip()) and not re.match(r'제\d', line.strip()) else ''
-        out.append(f'<p{ind}>{s}</p>')
+        s = mark_html(esc(line.strip()))
+        out.append(f'<p{line_cls(line)}>{s}</p>')
     return '\n'.join(out) or '<p class="nil">—</p>'
 
 
@@ -309,9 +484,16 @@ def build(ev, css, related, rules=None):
         ev = {**ev, 'date_effective': eff}
     areas, systems = impacts(text)
     rows, unchanged = compare_rows(ev)
-    counts = {'n': 0, 'c': 0, 'm': 0}
+    counts = {k: 0 for k in KIND_ORDER}
+    line_counts = {k: 0 for k in KIND_ORDER}
+    item_tables = []      # (cls, lbl, heading, table_html, line_counts)
     for ca, cb, _ in rows:
-        counts[classify(ca, cb)[0]] += 1
+        cls, lbl = classify(ca, cb)
+        counts[cls] += 1
+        t_html, lc = cmp_table(ca, cb)
+        for k in KIND_ORDER:
+            line_counts[k] += lc[k]
+        item_tables.append((cls, lbl, item_heading(ca, cb), t_html, lc))
     strong = ' '.join(x for x in [ev.get('list_title', ''), ev.get('purpose', ''), ev.get('content', ''), (ev.get('body') or '')[:1500]] if x)
     if not strong.strip():
         strong = ' '.join(item_heading(ca, cb) for ca, cb, _ in rows[:40])
@@ -332,6 +514,12 @@ def build(ev, css, related, rules=None):
     if not title_core:
         title_core = f"{ev['reg_name']} 개정"
     h1 = f"{ev['reg_name']} 개정 — {title_core}" if not title_core.startswith(ev['reg_name']) else title_core
+    if status == '보도자료':
+        # 보도자료는 헤드라인이 가장 좋은 제목이다. '[보도자료]'·'[보도참고]' 머리말은 뗀다
+        headline = re.sub(r'^\s*[\[(【]\s*보도\s*(?:자료|참고)\s*[\])】]\s*', '', ev.get('list_title') or '').strip() or title_core
+        title_core, h1 = headline, f"{ev['reg_name']} 보도자료 — {headline}"
+        if re.match(r'^\s*※', ev.get('purpose') or ''):            # 본문이 '※ 자세한 내용은 첨부파일 참고' 뿐인 금감원 보도자료
+            ev = {**ev, 'purpose': ''}
     subt_bits = [ev['reg_name']] + ([' · '.join(arts[:4])] if arts else []) + [f"{fmt_date(ev.get('date'))} {STATUS_LABEL.get(status, status)}"]
     if ev.get('date_comment_due'):
         subt_bits.append(f"의견제출 {fmt_date(ev['date_comment_due'])}까지")
@@ -343,13 +531,14 @@ def build(ev, css, related, rules=None):
     # 결론 요약표
     sumrows = [('규정', f"{ev['reg_name']}" + (f" · {' · '.join(arts[:6])}" if arts else '')),
                ('단계', STATUS_LABEL.get(status, status) + (f" ({ev.get('notice_kind')})" if ev.get('notice_kind') else '')),
-               ('일자', ('예고 ' if is_notice else ('고시 ' if status == '공포' else '게시 ')) + fmt_date(ev.get('date')))]
+               ('일자', ('예고 ' if is_notice else ('고시 ' if status == '공포' else ('배포 ' if status == '보도자료' else '게시 '))) + fmt_date(ev.get('date')))]
     if ev.get('date_comment_due'):
         sumrows.append(('의견제출 시한', fmt_date(ev['date_comment_due'])))
     if ev.get('date_effective'):
         sumrows.append(('시행일', fmt_date(ev['date_effective'])))
     if rows:
-        sumrows.append(('변경 규모', f"신설 {counts['n']} · 변경 {counts['c']} · 삭제 {counts['m']}" + (f" · 변경 없음 {len(unchanged)}" if unchanged else '') + ' (첨부 대비표 기준)'))
+        sumrows.append(('변경 규모', f"조문 {len(rows)}개 — {counts_text(counts)}" + (f" · 변경 없음 {len(unchanged)}" if unchanged else '')
+                        + f" / 줄 단위 {counts_text(line_counts)} (첨부 대비표 기준)"))
     sumrows.append(('계리결산팀 관련성', f"{relevance} — {rel_reason}"))
     if areas:
         sumrows.append(('영향 영역', ' · '.join(areas)))
@@ -406,6 +595,8 @@ def build(ev, css, related, rules=None):
         H.append('<div class="callout"><b>사전예고안이다.</b><p>확정 공포 조문과 다를 수 있으므로 적용 전 확정본 대조가 필요하다. 의견제출 시한' + (f' {fmt_date(ev["date_comment_due"])}' if ev.get('date_comment_due') else '') + ' 이후 금감원·금융위 게시판에서 확정 여부를 확인한다.</p></div>')
     elif status == '공포':
         H.append('<div class="callout ok"><b>확정 고시다.</b><p>금융위원회 고시로 확정된 내용이다. 시행일과 경과규정(부칙)을 확인해 적용 시점을 맞춘다.</p></div>')
+    elif status == '보도자료':
+        H.append('<div class="callout neutral"><b>보도자료다.</b><p>제도 방향·의결 사실을 알리는 자료로 조문 자체가 아니다. 규정 개정이력 화면의 진행 현황에서 같은 규정의 예고·확정 건과 함께 본다.</p></div>')
     else:
         H.append('<div class="callout ok"><b>확정 개정이다.</b><p>금융감독원이 제·개정 결과를 게시한 건이다. 첨부 신·구 조문 대비표가 최종 조문이다.</p></div>')
 
@@ -421,9 +612,11 @@ def build(ev, css, related, rules=None):
         H.append(f'<tr><td class="l">의견제출</td><td>{fmt_date(ev["date_comment_due"])}</td><td class="l">도착 기준</td></tr>')
     if ev.get('date_promulgated'):
         H.append(f'<tr><td class="l">{"고시" if status == "공포" else "개정 게시"}</td><td>{fmt_date(ev["date_promulgated"])}</td><td class="l">{esc(ev.get("gazette_no") and ("금융위원회 고시 제" + ev["gazette_no"] + "호") or "확정 조문 공개")}</td></tr>')
+    if ev.get('date_press'):
+        H.append(f'<tr><td class="l">보도자료</td><td>{fmt_date(ev["date_press"])}</td><td class="l">{esc(ev.get("authority") or "")} 배포</td></tr>')
     if ev.get('date_effective'):
         H.append(f'<tr class="hl"><td class="l">시행</td><td>{fmt_date(ev["date_effective"])}</td><td class="l">부칙 기준</td></tr>')
-    elif not is_notice:
+    elif not is_notice and status != '보도자료':
         H.append('<tr><td class="l">시행</td><td>—</td><td class="l">부칙에서 확인 필요 (자동 추출 안 됨)</td></tr>')
     H.append('</tbody></table></div>')
     if ev.get('contact'):
@@ -444,13 +637,18 @@ def build(ev, css, related, rules=None):
     # 3. 신·구 조문 대비
     if rows:
         H.append('<h2 id="3">3. 신·구 조문 대비</h2>')
-        H.append(f'<p>첨부 대비표에서 추출해 조문 단위로 묶은 {len(rows)}개 항목이다. 개정안 칸의 <span class="mk">(현행과 같음)</span> 은 원문의 점선(———) 자리로 현행 문구가 그대로 유지된다는 뜻이고, 〈신설〉·〈삭제〉 표시는 원문 그대로다.'
+        H.append(f'<p>첨부 대비표에서 추출해 조문 단위로 묶은 {len(rows)}개 항목이다. 현행과 개정안을 <strong>줄 단위로 맞춰</strong> 놓았고, 왼쪽 구분 칸이 그 줄의 변경 종류다. '
+                 '바뀐 낱말은 현행 쪽은 <em class="da">붉은 밑줄</em>, 개정안 쪽은 <em>초록 밑줄</em>로 표시했다. 개정안 칸의 <span class="mk">(현행과 같음)</span> 은 원문의 점선(———) 자리로 현행 문구가 그대로 유지된다는 뜻이고, 〈신설〉·〈삭제〉·〈이동〉 표시는 원문 그대로다.'
                  + (f' 바뀐 내용이 없는 {len(unchanged)}개 조문(' + esc(' · '.join(unchanged[:8])) + ('…' if len(unchanged) > 8 else '') + ')은 맥락용이라 뺐다.' if unchanged else '') + '</p>')
-        for i, (ca, cb, src) in enumerate(rows[:MAX_ROWS_IN_REPORT], 1):
-            cls, lbl = classify(ca, cb)
-            H.append(f'<h3>3-{i}. <span class="bdg {cls}">{lbl}</span>{esc(item_heading(ca, cb))}</h3>')
-            H.append('<div class="cmp"><div class="col col-a"><div class="cmph">현행</div><div class="law">' + law_html(ca, 'a') + '</div></div>'
-                     '<div class="col col-b"><div class="cmph">개정안</div><div class="law">' + law_html(cb, 'b') + '</div></div></div>')
+        # 3-0. 변경 이력 요약표: 항목별 종류 + 줄 단위 집계
+        H.append('<h3>3-0. 변경 이력 요약</h3><div class="tw"><table class="mid wrap-ok"><thead><tr><th>#</th><th>조문 · 항목</th><th>종류</th><th>줄 단위 변경</th></tr></thead><tbody>')
+        for i, (cls, lbl, head, _, lc) in enumerate(item_tables, 1):
+            H.append(f'<tr><td>{i}</td><td class="l">{esc(head)}</td><td><span class="bdg {cls}">{lbl}</span></td><td class="l">{esc(counts_text(lc))}' + (f' <span class="mk">(동일 {lc["s"]})</span>' if lc['s'] else '') + '</td></tr>')
+        H.append(f'<tr class="tot"><td></td><td class="l">합계 {len(rows)}개 항목</td><td class="l">{esc(counts_text(counts))}</td><td class="l">{esc(counts_text(line_counts))}</td></tr></tbody></table></div>')
+        H.append('<p class="note">종류 판정: 〈신설〉·현행 공란 → 신설, 〈삭제〉·개정안 공란 → 삭제, "…에서 이동" 표기 → 이동, 그 외 → 변경. 줄 짝짓기는 머리번호(①, 1., 가.)와 문구 유사도로 자동 정렬한 것이라 원문과 다르면 첨부를 본다.</p>')
+        for i, (cls, lbl, head, t_html, lc) in enumerate(item_tables[:MAX_ROWS_IN_REPORT], 1):
+            H.append(f'<h3>3-{i}. <span class="bdg {cls}">{lbl}</span>{esc(head)} <span class="hsub">{esc(counts_text(lc))}</span></h3>')
+            H.append(t_html)
         if len(rows) > MAX_ROWS_IN_REPORT:
             H.append(f'<p class="note">나머지 {len(rows) - MAX_ROWS_IN_REPORT}개 항목은 부록 C 에 있다.</p>')
     else:
@@ -483,17 +681,17 @@ def build(ev, css, related, rules=None):
         H.append('<details><summary>B. 공고문 전문</summary><div class="body">' + ''.join(f'<p>{esc(p)}</p>' for p in bullets(ev['body'])[:60]) + '</div></details>')
     if len(rows) > MAX_ROWS_IN_REPORT:
         H.append('<details><summary>C. 신·구 조문 대비 — 나머지 항목</summary><div class="body">')
-        for i, (ca, cb, src) in enumerate(rows[MAX_ROWS_IN_REPORT:], MAX_ROWS_IN_REPORT + 1):
-            cls, lbl = classify(ca, cb)
-            H.append(f'<h3>3-{i}. <span class="bdg {cls}">{lbl}</span>{esc(item_heading(ca, cb))}</h3>')
-            H.append('<div class="cmp"><div class="col col-a"><div class="cmph">현행</div><div class="law">' + law_html(ca, 'a') + '</div></div><div class="col col-b"><div class="cmph">개정안</div><div class="law">' + law_html(cb, 'b') + '</div></div></div>')
+        for i, (cls, lbl, head, t_html, lc) in enumerate(item_tables[MAX_ROWS_IN_REPORT:], MAX_ROWS_IN_REPORT + 1):
+            H.append(f'<h3>3-{i}. <span class="bdg {cls}">{lbl}</span>{esc(head)} <span class="hsub">{esc(counts_text(lc))}</span></h3>')
+            H.append(t_html)
         H.append('</div></details>')
     H.append('<p class="note">이 리포트는 공개 게시판(금융감독원·금융위원회)의 공고문과 첨부에서 자동 생성했다. 해석·분석이 아닌 원문 정리이며, 확정본은 원문 링크에서 확인한다.</p>')
     H.append('</div></div></body></html>')
 
     meta = {
         'title': h1, 'articles': arts, 'impact_areas': areas, 'impact_systems': systems,
-        'change_new': counts['n'], 'change_mod': counts['c'], 'change_del': counts['m'], 'compare_rows': len(rows),
+        'change_new': counts['n'], 'change_mod': counts['c'], 'change_del': counts['m'], 'change_move': counts['v'], 'compare_rows': len(rows),
+        'line_counts': {KIND_LABEL[k]: line_counts[k] for k in KIND_ORDER},
         'summary': (ev.get('purpose') or lead)[:400], 'actions': [{'no': i + 1, 'task': t, 'owner': '', 'due': '', 'state': '대기'} for i, (t, _, _) in enumerate(acts)],
         'tags': list(dict.fromkeys([ev['reg_name']] + areas[:3] + arts[:3])),
         'date_effective': ev.get('date_effective', ''),
