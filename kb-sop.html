@@ -756,6 +756,13 @@ function bootPage() {
   // URL 파라미터로 특정 문서 직접 열기
   const params = new URLSearchParams(window.location.search);
   const initDocId = params.get('doc');
+  // 다른 화면(규정 개정이력 등)에서 같은 탭으로 넘어온 경우 돌아가기 버튼 (같은 사이트 상대경로만 허용)
+  const backTo = params.get('back');
+  if (backTo && /^[a-z0-9-]+\.html(\?[^\s<>"']*)?$/i.test(backTo)) {
+    const a = document.createElement('a'); a.className = 'btn btn-secondary'; a.href = backTo; a.id = 'btnBackTo';
+    a.innerHTML = '<i class="fas fa-arrow-left"></i> 돌아가기';
+    document.getElementById('headerActions').prepend(a);
+  }
 
   Promise.all([loadCategories(), loadDocs()]).then(() => {
     if (initDocId) openDoc(initDocId);
@@ -798,12 +805,12 @@ function renderCategoryTree(cats) {
   let html = '';
   for (const root of roots) {
     const childCats = children(root.id);
-    html += `<div class="tree-item tree-root" onclick="selectCategory(${root.id}, this)">
+    html += `<div class="tree-item tree-root" onclick="selectCategory('${root.id}', this)">
       <i class="tree-icon fas fa-folder"></i>
       ${escHtml(root.name)}
     </div>`;
     for (const child of childCats) {
-      html += `<div class="tree-item tree-child" onclick="selectCategory(${child.id}, this)">
+      html += `<div class="tree-item tree-child" onclick="selectCategory('${child.id}', this)">
         <i class="tree-icon fas fa-file-alt" style="color:var(--gray-400);"></i>
         ${escHtml(child.name)}
       </div>`;

@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="css/main.css?v=28">
   <style>
     /* Layout */
-    .cal-wrapper { display:grid; grid-template-columns:1fr 300px; gap:24px; align-items:start; }
+    .cal-wrapper { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:24px; align-items:start; }   /* minmax(0,…): 달력이 넓어도 1fr 열이 안 늘어나 옆 패널이 밀려나지 않는다 */
     @media(max-width:1100px){ .cal-wrapper{grid-template-columns:1fr;} }
 
     /* Toolbar */
@@ -49,12 +49,13 @@
     /* Calendar grid */
     .cal-grid { background:#fff; border-radius:16px; box-shadow:0 1px 4px rgba(0,0,0,.06);
       border:1px solid #f3f4f6; overflow:hidden; }
-    .cal-weekdays { display:grid; grid-template-columns:repeat(7,1fr);
+    .cal-weekdays { display:grid; grid-template-columns:repeat(7,minmax(0,1fr));
       background:#f8faff; border-bottom:1px solid #f3f4f6; }
     .cal-weekday { padding:10px 0; text-align:center; font-size:12px; font-weight:700; color:#6b7280; }
     .cal-weekday:first-child { color:#ef4444; }
     .cal-weekday:last-child { color:#3b82f6; }
-    .cal-days { display:grid; grid-template-columns:repeat(7,1fr); }
+    .cal-days { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); }
+    .cal-day { min-width:0; overflow:hidden; }   /* 칸 내용(연휴명·D+n 태그)이 길어도 칸 폭을 늘리지 않는다 */
     .cal-day { min-height:100px; border-right:1px solid #f3f4f6; border-bottom:1px solid #f3f4f6;
       padding:8px 6px; cursor:pointer; transition:background .15s; position:relative; }
     .cal-day:hover { background:#f8faff; }

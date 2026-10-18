@@ -236,6 +236,8 @@ function migrateDb(db) {
     'users','sessions','team_identity','core_values','team_goals',
     'individual_goals','performance_records','work_tasks','settlement_calendar',
     'automation_logs','report_history','interview_logs','audit_logs',
+    'audit_reports',   // 사이드바 점검 위젯이 첫 점검 전에도 조회한다 (없으면 새 DB 에서 404)
+    'weekly_settings', 'settlement_calendar_issues',   // 화면이 첫 저장 전에도 GET 한다 (새 DB 404 방지)
     'settlement_reviews','team_directives','executive_reports',
     'settle_items','score_rules','kpi_definitions','task_categories',
     // ── Phase 1: 업무량 모니터링 ──

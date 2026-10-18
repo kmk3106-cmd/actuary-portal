@@ -80,6 +80,18 @@
     .lc-empty { padding:40px 20px; text-align:center; color:#9ca3af; font-size:13px; }
     @media(max-width:900px){ .lc-row { grid-template-columns:1fr; gap:8px; } .lc-step { flex:1 1 90px; } }
     .dp .lc-steps { margin-top:4px; }
+
+    /* 단계 용어 안내 (접이식) */
+    .lg-wrap { margin-bottom:12px; }
+    .lg { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:0 14px; }
+    .lg summary { cursor:pointer; font-size:12.5px; font-weight:700; color:#4b5563; padding:10px 0; list-style:none; display:flex; align-items:center; gap:8px; }
+    .lg summary::-webkit-details-marker { display:none; } .lg summary i { color:#4f86f7; }
+    .lg-body { padding:4px 0 12px; font-size:12.5px; color:#374151; line-height:1.6; }
+    .lg-flow { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px; } .lg-flow i { color:#9ca3af; font-size:11px; }
+    .lg-t { border-collapse:collapse; width:100%; } .lg-t td { padding:5px 8px 5px 0; border-bottom:1px dashed #f3f4f6; vertical-align:top; font-size:12.5px; }
+    .lg-t td:first-child { white-space:nowrap; } .lg-t td:nth-child(2) { white-space:nowrap; color:#6b7280; }
+    .lg-body p { margin:10px 0 0; color:#6b7280; }
+    @media(max-width:640px){ .lg-t td:nth-child(2) { display:none; } }
     .dp .lc-step { padding:6px 8px; flex:1 1 80px; }
     .im-대 { background:#fee2e2; color:#991b1b; } .im-중 { background:#fef3c7; color:#92400e; } .im-소 { background:#ecfdf5; color:#065f46; } .im-미정 { background:#f3f4f6; color:#6b7280; }
     /* 계리결산팀 관련성 (IFRS17 부채결산·계리가정·경제적가정·현금흐름) */
@@ -203,6 +215,7 @@
 
       <!-- A-2. 진행 현황: 개정 건별 예고 → 확정 → 시행 -->
       <section id="tabLifecycle" style="display:none">
+        <div class="lg-wrap" id="legendLifecycle"></div>
         <div class="rh-filters">
           <select id="lcRel"><option value="관련,참고">관련 + 참고</option><option value="관련">팀 관련만</option><option value="">전체 (무관 포함)</option></select>
           <select id="lcType"><option value="">규정구분 전체</option></select>
@@ -220,6 +233,7 @@
 
       <!-- A. 타임라인 + B. 상세 -->
       <section id="tabTimeline">
+        <div class="lg-wrap" id="legendTimeline"></div>
         <div class="rh-filters">
           <select id="fType"><option value="">규정구분 전체</option></select>
           <select id="fStatus"><option value="">상태 전체</option></select>
@@ -357,6 +371,26 @@ const RELEVANCES = ['관련', '참고', '무관'];   // config/reg_relevance.jso
 const ACT_STATES = ['대기', '진행', '완료', '보류'];
 const REG_NAMES = ['보험업법', '보험업법 시행령', '보험업감독규정', '보험업감독업무시행세칙', '보험업감독규정 시행세칙'];
 const NOTICE_STATUSES = new Set(['입법예고', '사전예고']);
+// 단계 용어 — 배지 툴팁·용어 안내에 쓴다 (한 곳에서만 정의)
+const STAGE_HELP = {
+  '입법예고': { who: '금융위원회', what: '보험업법·시행령·시행규칙 개정안을 미리 공개하고 의견을 받는 단계. 아직 확정이 아니다', note: '법령(법률·시행령·시행규칙)' },
+  '규정변경예고': { who: '금융위원회', what: '보험업감독규정(고시) 개정안을 미리 공개하고 의견을 받는 단계. 아직 확정이 아니다', note: '감독규정' },
+  '사전예고': { who: '금융감독원', what: '보험업감독업무시행세칙 개정안을 미리 공개하고 의견을 받는 단계. 아직 확정이 아니다', note: '시행세칙' },
+  '보도자료': { who: '금융위·금감원', what: '제도 방향이나 의결 사실을 설명하는 자료. 조문이 아니고 효력도 없다 — "왜·무엇을 바꾸는지" 배경을 보는 용도', note: '설명 자료' },
+  '공포': { who: '금융위원회', what: '감독규정 개정이 고시로 확정된 것. 시행일(부칙)부터 적용', note: '확정' },
+  '시행': { who: '금융감독원', what: '시행세칙 개정이 확정되어 결과가 게시된 것. 시행일부터 적용', note: '확정' },
+  '철회': { who: '', what: '예고 후 철회된 개정안', note: '' },
+};
+// 배지 글자: 입법예고 중 감독규정 건은 원문대로 "규정변경예고"
+const stLabel = it => (it.status === '입법예고' && it.notice_kind === '규정변경예고') ? '규정변경예고' : it.status;
+const stTitle = it => { const h = STAGE_HELP[stLabel(it)] || STAGE_HELP[it.status]; return h ? `${stLabel(it)} (${h.who}${h.note ? ' · ' + h.note : ''}) — ${h.what}` : ''; };
+function stageLegendHtml() {
+  return `<details class="lg"><summary><i class="fas fa-question-circle"></i> 단계 용어 안내 — 예고 · 보도자료 · 확정이 무엇이 다른가</summary><div class="lg-body">
+    <div class="lg-flow"><span class="bd st-입법예고">입법예고 / 규정변경예고</span><span class="bd st-사전예고">사전예고</span><i class="fas fa-arrow-right"></i><span class="bd st-공포">공포(고시)</span><span class="bd st-시행">시행(개정 게시)</span><i class="fas fa-arrow-right"></i><b>시행일부터 적용</b></div>
+    <table class="lg-t">${Object.entries(STAGE_HELP).filter(([k]) => k !== '철회').map(([k, h]) => `<tr><td><span class="bd st-${esc(k === '규정변경예고' ? '입법예고' : k)}">${esc(k)}</span></td><td>${esc(h.who)}${h.note ? ` · ${esc(h.note)}` : ''}</td><td>${esc(h.what)}</td></tr>`).join('')}</table>
+    <p>예고 세 가지는 "누가·무엇을" 예고하느냐만 다르고 뜻은 같다(의견 수렴 중, 미확정). <b>보도자료는 단계가 아니라 설명 자료</b>라서 조문 대비표가 없고, 같은 규정의 예고·확정 건 옆에 참고로 붙는다. 실제 적용 시점은 확정(공포·시행) 건의 시행일이다.</p>
+  </div></details>`;
+}
 
 const currentUser = RBAC.getCurrentUser();
 const isLeader = RBAC.isTeamLeader();
@@ -464,7 +498,7 @@ function renderTimeline() {
           <div class="tl-dot dot-${esc(r.status)}"></div>
           <div class="tl-date">${fmtD(d)}<small>${esc(dLabel)}</small></div>
           <div class="tl-main"><div class="tl-title">${esc(r.title)}</div>
-            <div class="tl-meta">${rv ? `<span class="bd rv-${esc(rv)}" title="${escAttr(r.relevance_reason || '')}">${rv === '관련' ? '팀 관련' : rv === '참고' ? '참고' : '무관'}</span>` : ''}<span class="bd st-${esc(r.status)}">${esc(r.status)}</span><span class="bd bd-type">${esc(r.reg_type)}</span>
+            <div class="tl-meta">${rv ? `<span class="bd rv-${esc(rv)}" title="${escAttr(r.relevance_reason || '')}">${rv === '관련' ? '팀 관련' : rv === '참고' ? '참고' : '무관'}</span>` : ''}<span class="bd st-${esc(r.status)}" title="${escAttr(stTitle(r))}">${esc(stLabel(r))}</span><span class="bd bd-type">${esc(r.reg_type)}</span>
               ${r.impact_level ? `<span class="bd im-${esc(r.impact_level)}">영향 ${esc(r.impact_level)}</span>` : ''}
               ${r.report_doc_id ? '<span class="bd bd-rep"><i class="fas fa-file-alt"></i> 리포트</span>' : ''}
               ${acts.length ? `<span class="bd bd-act">조치 ${done}/${acts.length}</span>` : ''}
@@ -613,7 +647,7 @@ function renderDetail(id) {
     </div>` : '';
   el.innerHTML = `
     <div class="dp-head">
-      <div class="tl-meta" style="margin:0 0 8px">${it.relevance ? `<span class="bd rv-${esc(it.relevance)}">${it.relevance === '관련' ? '팀 관련' : it.relevance}</span>` : ''}<span class="bd st-${esc(it.status)}">${esc(it.status)}</span><span class="bd bd-type">${esc(it.reg_type)}</span>${it.impact_level ? `<span class="bd im-${esc(it.impact_level)}">영향 ${esc(it.impact_level)}</span>` : ''}</div>
+      <div class="tl-meta" style="margin:0 0 8px">${it.relevance ? `<span class="bd rv-${esc(it.relevance)}">${it.relevance === '관련' ? '팀 관련' : it.relevance}</span>` : ''}<span class="bd st-${esc(it.status)}" title="${escAttr(stTitle(it))}">${esc(stLabel(it))}</span><span class="bd bd-type">${esc(it.reg_type)}</span>${it.impact_level ? `<span class="bd im-${esc(it.impact_level)}">영향 ${esc(it.impact_level)}</span>` : ''}</div>
       <div class="dp-title">${esc(it.title)}</div>
       <div class="dp-sub">${esc(it.reg_name || '')}${articles.length ? ' · ' + esc(articles.join(' · ')) : ''}${it.authority ? ' · ' + esc(it.authority) : ''}</div>
       ${canWrite ? `<div class="dp-actions"><button class="btn btn-secondary btn-sm" onclick="openEditModal('${escAttr(it.id)}')"><i class="fas fa-edit"></i> 수정</button>
@@ -621,7 +655,9 @@ function renderDetail(id) {
     </div>
     <div class="dp-body">
       ${it.relevance ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-crosshairs"></i> 계리결산팀 관련성</div><div class="dp-txt"><b>${esc(it.relevance === '관련' ? '관련' : it.relevance)}</b>${it.relevance_reason ? ' — ' + esc(it.relevance_reason) : ''}${it.relevance_manual ? ' <span style="color:#9ca3af;font-size:11.5px">(담당자 확정)</span>' : ' <span style="color:#9ca3af;font-size:11.5px">(자동 판정)</span>'}</div></div>` : ''}
-      ${NOTICE_STATUSES.has(it.status) ? '<div class="callout"><i class="fas fa-exclamation-triangle"></i> <b>사전예고안입니다.</b> 확정 공포 조문과 다를 수 있으므로 적용 전 확정본 대조가 필요합니다.</div>' : ''}
+      ${NOTICE_STATUSES.has(it.status) ? `<div class="callout"><i class="fas fa-exclamation-triangle"></i> <b>${esc(stLabel(it))}안입니다 — 아직 확정이 아닙니다.</b> ${esc((STAGE_HELP[stLabel(it)] || {}).what || '')}. 확정 공포 조문과 다를 수 있으므로 적용 전 확정본 대조가 필요합니다.</div>` : ''}
+      ${it.status === '보도자료' ? `<div class="callout" style="border-left-color:#a855f7;background:#faf5ff;color:#581c87"><i class="fas fa-newspaper"></i> <b>보도자료입니다 — 규정 조문이 아닙니다.</b> ${esc(STAGE_HELP['보도자료'].what)}. 실제 조문은 아래 진행 현황에 연결된 예고·확정 건에서 봅니다.</div>` : ''}
+      ${DECIDED_STATUSES.has(it.status) ? `<div class="callout" style="border-left-color:#10b981;background:#ecfdf5;color:#065f46"><i class="fas fa-check-circle"></i> <b>확정된 개정입니다.</b> ${esc((STAGE_HELP[it.status] || {}).what || '')}${it.date_effective ? ` — 시행일 ${fmtD(it.date_effective)}` : ' — 시행일은 부칙에서 확인'}.</div>` : ''}
       ${lifecycle}
       ${sched ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-calendar-alt"></i> 이 건의 일정</div><div class="sched">${sched}</div></div>` : ''}
       ${(it.change_new || it.change_mod || it.change_del || it.change_move) ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-code-branch"></i> 변경 (조문 단위)</div><div class="chg"><span class="n">신설 ${Number(it.change_new) || 0}</span><span class="c">변경 ${Number(it.change_mod) || 0}</span>${Number(it.change_move) ? `<span class="v">이동 ${Number(it.change_move)}</span>` : ''}<span class="m">삭제 ${Number(it.change_del) || 0}</span></div>${it.line_counts ? `<div style="font-size:11.5px;color:#6b7280;margin-top:6px">줄 단위: ${esc(Object.entries(it.line_counts).filter(([k, v]) => v && k !== '동일').map(([k, v]) => `${k} ${v}`).join(' · '))}</div>` : ''}</div>` : ''}
@@ -631,7 +667,7 @@ function renderDetail(id) {
         ${srcs.map(s => s.url ? `<a class="lnk" href="${escAttr(s.url)}" target="_blank" rel="noopener"><i class="fas fa-external-link-alt"></i>${esc(s.label || s.url)}</a>` : '').join('')}
         ${atts.map(a => `<a class="lnk" href="${escAttr(a.url || ('/api/kb/download/' + encodeURIComponent(a.stored_name || '')))}" target="_blank"><i class="fas fa-paperclip"></i>${esc(a.original_name || a.name || '첨부')}</a>`).join('')}</div>` : ''}
       <div class="dp-sec"><div class="dp-lbl"><i class="fas fa-file-alt"></i> 신구조문 대비 리포트</div>
-        ${it.report_doc_id ? `<div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-primary btn-sm" href="kb-sop.html?doc=${encodeURIComponent(it.report_doc_id)}" target="_blank"><i class="fas fa-external-link-alt"></i> 리포트 보기</a>
+        ${it.report_doc_id ? `<div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-primary btn-sm" href="kb-sop.html?doc=${encodeURIComponent(it.report_doc_id)}&back=${encodeURIComponent('reg-history.html?item=' + it.id)}" title="같은 탭에서 열립니다 (새 탭은 로그인 세션이 넘어가지 않음)"><i class="fas fa-file-alt"></i> 리포트 보기</a>
           <button class="btn btn-secondary btn-sm" id="btnInline" onclick="toggleInlineReport('${escAttr(it.report_doc_id)}')"><i class="fas fa-chevron-down"></i> 여기서 펼치기</button></div>
           <div style="font-size:11.5px;color:#9ca3af;margin-top:6px">${esc(doc ? doc.title : '계리업무절차서 › 규정·기준')}</div><div id="inlineReport"></div>` : '<div style="font-size:13px;color:#9ca3af">연결된 리포트가 없습니다</div>'}
       </div>
@@ -895,6 +931,8 @@ function switchTab(tab) {
   if (tab === 'lifecycle') renderLifecycle();
 }
 fillStatic();
+document.getElementById('legendTimeline').innerHTML = stageLegendHtml();
+document.getElementById('legendLifecycle').innerHTML = stageLegendHtml();
 if (canWrite) {
   document.getElementById('headerActions').innerHTML = `<button class="btn btn-primary" onclick="openNewModal()"><i class="fas fa-plus"></i> 개정 등록</button>`;
   document.getElementById('btnCollect').style.display = '';
