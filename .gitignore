@@ -58,3 +58,6 @@ node_modules/
 
 # 지식관리 업로드 파일 (사용자 데이터 — 저장소에 올리지 않음)
 server/data/kb_files/
+
+# 규정 개정이력 자동 수집 데이터 (JSON·첨부·리포트) — 서버가 생성
+server/data/reg_history/

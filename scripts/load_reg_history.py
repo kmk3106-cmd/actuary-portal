@@ -1,0 +1,143 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+규정 개정 이벤트 + 생성 리포트 → 포탈 적재 (멱등)
+  - kb_documents (계리업무절차서 › 규정·기준) 에 리포트 HTML 을 iframe 임베드로 등록
+  - reg_items (규정 개정이력) 에 건 등록 + report_doc_id 연결 + 첨부(원문 파일) 업로드
+  - 같은 이벤트(source_key = 원문 URL) 가 이미 있으면 건너뛴다 (--update 면 갱신)
+
+  python scripts/load_reg_history.py --data data/reg_history.json --reports-dir reports/output/reg \
+      --base-url https://portal.kkuks.com --author-id u_xxx --author-name 김민국 \
+      --doc-override fss_prv_4225=kb__2d3b36e5e48a183e
+"""
+import argparse
+import base64
+import json
+import os
+import sys
+import urllib.parse
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from publish_regulation import api, wrap_for_portal  # noqa: E402  (같은 임베드 규칙 재사용)
+
+KB_TABLE, REG_TABLE, KB_CATEGORY = 'kb_documents', 'reg_items', 'kbc_regulation'
+MAX_UPLOAD_BYTES = 15 * 1024 * 1024
+UPLOAD_EXTS = ('.hwpx', '.hwp', '.pdf', '.xlsx', '.docx', '.zip')
+STATUS_PREFIX = {'사전예고': '[사전예고]', '입법예고': '[규정변경예고]', '공포': '[고시]', '시행': '[개정]'}
+
+
+def get_all(base, table):
+    st, body = api(base, 'GET', f'/tables/{table}?limit=5000')
+    if st != 200:
+        raise SystemExit(f'{table} 조회 실패 {st}: {body}')
+    return body.get('rows') or body.get('data') or []
+
+
+def upload(base, path, actor):
+    name = os.path.basename(path)
+    if os.path.splitext(name)[1].lower() not in UPLOAD_EXTS or os.path.getsize(path) > MAX_UPLOAD_BYTES:
+        return None
+    with open(path, 'rb') as f:
+        b64 = base64.b64encode(f.read()).decode('ascii')
+    st, body = api(base, 'POST', '/api/kb/upload', {'filename': name, 'content': b64, 'context': 'reg'}, actor)
+    return body if st == 200 else None
+
+
+def main():
+    ap = argparse.ArgumentParser(description='규정 개정 이벤트 → 포탈 적재')
+    ap.add_argument('--data', required=True)
+    ap.add_argument('--reports-dir', required=True, help='make_reg_report.py 출력 폴더 (_index.json 포함)')
+    ap.add_argument('--base-url', required=True)
+    ap.add_argument('--author-id', default='')
+    ap.add_argument('--author-name', default='자동수집')
+    ap.add_argument('--doc-override', action='append', default=[], help='이벤트id=kb문서id (손으로 만든 리포트를 대신 연결)')
+    ap.add_argument('--ids', default='', help='특정 이벤트만 (쉼표)')
+    ap.add_argument('--update', action='store_true', help='이미 있는 건도 리포트·필드를 갱신')
+    ap.add_argument('--no-attachments', action='store_true', help='원문 파일 업로드 생략')
+    ap.add_argument('--dry-run', action='store_true')
+    a = ap.parse_args()
+
+    events = json.load(open(a.data, encoding='utf-8'))
+    index = json.load(open(os.path.join(a.reports_dir, '_index.json'), encoding='utf-8'))
+    overrides = dict(x.split('=', 1) for x in a.doc_override)
+    want = set(x.strip() for x in a.ids.split(',') if x.strip())
+    actor = {'id': a.author_id, 'name': a.author_name, 'role': 'team_leader'}
+
+    existing = {it.get('source_key'): it for it in get_all(a.base_url, REG_TABLE) if it.get('source_key')}
+    docs_by_title = {d.get('title'): d for d in get_all(a.base_url, KB_TABLE) if d.get('category_id') == KB_CATEGORY}
+    created = updated = skipped = 0
+    for ev in events:
+        if want and ev['id'] not in want:
+            continue
+        meta = index.get(ev['id'])
+        if not meta:
+            print(f'  - {ev["id"]} 리포트 없음 (건너뜀)', file=sys.stderr); continue
+        key = ev['url']
+        exists = existing.get(key)
+        if exists and not a.update:
+            skipped += 1; continue
+
+        doc_title = f"{STATUS_PREFIX.get(ev['status'], '')} {ev['reg_name']} · {ev.get('date', '')} · {meta['title'].split(' — ')[-1][:60]}".strip()
+        doc_id = overrides.get(ev['id']) or (exists or {}).get('report_doc_id') or ''
+        if not doc_id and doc_title in docs_by_title:
+            doc_id = docs_by_title[doc_title]['id']
+        if a.dry_run:
+            print(f'  [dry] {ev["id"]} {ev.get("date")} {ev["status"]} doc={"override" if ev["id"] in overrides else (doc_id or "NEW")} title="{doc_title}"')
+            continue
+
+        # 1) 리포트 문서
+        if ev['id'] not in overrides:
+            html_str = open(meta['file'], encoding='utf-8').read()
+            doc_body = {'category_id': KB_CATEGORY, 'title': doc_title, 'content': wrap_for_portal(html_str),
+                        'is_published': True, 'author_id': a.author_id, 'author_name': a.author_name}
+            if doc_id:
+                if a.update:
+                    api(a.base_url, 'PATCH', f'/tables/{KB_TABLE}/{urllib.parse.quote(doc_id)}', {**doc_body, 'change_note': '자동 재생성'}, actor)
+            else:
+                st, body = api(a.base_url, 'POST', f'/tables/{KB_TABLE}', doc_body, actor)
+                if st not in (200, 201):
+                    print(f'  ! {ev["id"]} kb_documents 실패 {st}: {body}', file=sys.stderr); continue
+                doc_id = body['id']; docs_by_title[doc_title] = body
+
+        # 2) 첨부 업로드 (원문 파일)
+        atts = (exists or {}).get('attachments') or []
+        if not a.no_attachments and not atts:
+            for att in ev.get('attachments', []):
+                if att.get('local') and os.path.exists(att['local']):
+                    up = upload(a.base_url, att['local'], actor)
+                    if up:
+                        up['source_url'] = att['url']; atts.append(up)
+
+        # 3) reg_items
+        item = {
+            'title': meta['title'].split(' — ')[-1][:80] if ' — ' in meta['title'] else meta['title'][:80],
+            'reg_type': ev['reg_type'], 'reg_name': ev['reg_name'], 'articles': meta['articles'][:8], 'status': ev['status'],
+            'date_notice': ev.get('date_notice') or None, 'date_comment_due': ev.get('date_comment_due') or None,
+            'date_promulgated': ev.get('date_promulgated') or None, 'date_effective': ev.get('date_effective') or None,
+            'authority': ev.get('authority', ''), 'summary': meta['summary'],
+            'change_new': meta['change_new'], 'change_mod': meta['change_mod'], 'change_del': meta['change_del'],
+            'impact_level': '대' if meta['compare_rows'] >= 15 or any(k in ' '.join(meta['impact_areas']) for k in ('해약률', '위험률', '책임준비금', '지급여력')) else ('중' if meta['compare_rows'] else '미정'),
+            'impact_areas': meta['impact_areas'], 'impact_systems': meta['impact_systems'],
+            'actions': (exists or {}).get('actions') or meta['actions'],
+            'report_doc_id': doc_id or None,
+            'sources': [{'label': ev['source_label'], 'url': ev['url'], 'fetched_at': 0}],
+            'attachments': atts, 'tags': meta['tags'][:8],
+            'source_key': key, 'source': ev['source'], 'related_notice_id': ev.get('related_notice_id'),
+            'gazette_no': ev.get('gazette_no', ''), 'notice_kind': ev.get('notice_kind', ''),
+            'updated_by': a.author_name, 'auto_collected': True,
+        }
+        if exists:
+            st, body = api(a.base_url, 'PATCH', f'/tables/{REG_TABLE}/{urllib.parse.quote(exists["id"])}', item, actor)
+            updated += 1 if st == 200 else 0
+        else:
+            item['created_by'] = a.author_name
+            st, body = api(a.base_url, 'POST', f'/tables/{REG_TABLE}', item, actor)
+            if st not in (200, 201):
+                print(f'  ! {ev["id"]} reg_items 실패 {st}: {body}', file=sys.stderr); continue
+            existing[key] = body; created += 1
+        print(f'  + {ev["id"]} {ev.get("date")} {ev["status"]} doc={doc_id} atts={len(atts)}', file=sys.stderr)
+    print(f'완료: 생성 {created} · 갱신 {updated} · 건너뜀 {skipped}', file=sys.stderr)
+
+
+if __name__ == '__main__':
+    main()

@@ -2721,12 +2721,16 @@ const server = http.createServer((req, res) => {
     (async () => {
       try {
         if (req.method === 'POST' && p === '/reg/collect') {
+          // 1) python 파이프라인(금감원·금융위 게시판 → 리포트 → 자동 등록) 2) 법령 API/공고 수집함(JS)
+          const sync = await runRegSync('manual');
           const result = await withDb(async db => {
             const r = await regcollect.runCollect(db, { trigger: 'manual' });
+            r.run.sync = { ok: sync.ok, seconds: sync.seconds, tail: (sync.output || sync.error || '').split('\n').slice(-3).join(' | ') };
+            if (!sync.ok) r.run.errors.push({ source: 'sync', label: '자동 동기화(python)', message: sync.error || `종료 코드 ${sync.code}: ${(sync.output || '').split('\n').slice(-2).join(' ')}` });
             writeDb(db);
             return r;
           });
-          sendJson(200, { ok: true, ...result }); return;
+          sendJson(200, { ok: true, sync, ...result }); return;
         }
         if (req.method === 'GET' && p === '/reg/collect/status') {
           const db = readDb();
@@ -2993,6 +2997,7 @@ function scheduleNextRegCollect() {
   next.setHours(hour, 0, 0, 0);
   if (next <= now) next.setDate(next.getDate() + 1);
   safeSetTimeout(() => {
+    runRegSync('scheduled').catch(e => console.error('[reg-sync] scheduled 실패:', e.message));
     withDb(async db => {
       try {
         const r = await regcollect.runCollect(db, { trigger: 'scheduled' });
@@ -3003,6 +3008,36 @@ function scheduleNextRegCollect() {
     scheduleNextRegCollect();
   }, next - now);
   console.log(`  RegCollect: 다음 규정 수집 → ${next.toLocaleString('ko-KR')}`);
+}
+
+/**
+ * 규정 개정이력 자동 동기화 (python 파이프라인: 수집 → 리포트 생성 → kb_documents·reg_items 적재)
+ *  scripts/sync_reg_history.py 를 자식 프로세스로 실행. 포탈 자신(127.0.0.1:PORT)에 적재한다.
+ *  데이터는 server/data/reg_history/ (gitignore). 실패해도 포탈에 영향 없음.
+ */
+function runRegSync(trigger) {
+  return new Promise((resolve) => {
+    const { spawn } = require('child_process');
+    const py = process.env.PYTHON_EXE || 'python';
+    const script = path.join(ROOT, 'scripts', 'sync_reg_history.py');
+    const dataDir = process.env.REG_HISTORY_DIR || path.join(__dirname, 'data', 'reg_history');
+    const days = String(parseInt(process.env.REG_SYNC_DAYS || '120', 10) || 120);
+    const args = ['-I', script, '--base-url', `http://127.0.0.1:${PORT}`, '--data-dir', dataDir, '--days', days, '--author-name', '자동수집'];
+    const t0 = Date.now();
+    let out = '';
+    let child;
+    try {
+      child = spawn(py, args, { cwd: ROOT, windowsHide: true, env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' } });
+    } catch (e) { return resolve({ ok: false, error: 'python spawn 실패: ' + e.message }); }
+    child.stdout.on('data', c => { out += c.toString('utf8'); });
+    child.stderr.on('data', c => { out += c.toString('utf8'); });
+    child.on('error', e => resolve({ ok: false, error: 'python 실행 실패: ' + e.message, output: out }));
+    child.on('close', code => {
+      const tail = out.trim().split('\n').slice(-12).join('\n');
+      console.log(`[reg-sync] ${trigger} 종료 code=${code} (${Math.round((Date.now() - t0) / 1000)}s)\n${tail}`);
+      resolve({ ok: code === 0, code, output: tail, seconds: Math.round((Date.now() - t0) / 1000) });
+    });
+  });
 }
 
 /**
