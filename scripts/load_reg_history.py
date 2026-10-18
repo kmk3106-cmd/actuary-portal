@@ -77,7 +77,8 @@ def main():
         if exists and not a.update:
             skipped += 1; continue
 
-        doc_title = f"{STATUS_PREFIX.get(ev['status'], '')} {ev['reg_name']} · {ev.get('date', '')} · {meta['title'].split(' — ')[-1][:60]}".strip()
+        # 제목은 날짜 → 단계 → 규정명 → 요지 순 (목록에서 날짜가 먼저 보이도록)
+        doc_title = f"{(ev.get('date') or '').replace('-', '.')} {STATUS_PREFIX.get(ev['status'], '')} {ev['reg_name']} · {meta['title'].split(' — ')[-1][:70]}".strip()
         doc_id = overrides.get(ev['id']) or (exists or {}).get('report_doc_id') or ''
         if not doc_id and doc_title in docs_by_title:
             doc_id = docs_by_title[doc_title]['id']
@@ -89,7 +90,8 @@ def main():
         if ev['id'] not in overrides:
             html_str = open(meta['file'], encoding='utf-8').read()
             doc_body = {'category_id': KB_CATEGORY, 'title': doc_title, 'content': wrap_for_portal(html_str),
-                        'is_published': True, 'author_id': a.author_id, 'author_name': a.author_name}
+                        'is_published': True, 'author_id': a.author_id, 'author_name': a.author_name,
+                        'doc_date': ev.get('date') or ''}   # 목록 정렬·표시용 (게시물 일자)
             if doc_id:
                 if a.update:
                     api(a.base_url, 'PATCH', f'/tables/{KB_TABLE}/{urllib.parse.quote(doc_id)}', {**doc_body, 'change_note': '자동 재생성'}, actor)

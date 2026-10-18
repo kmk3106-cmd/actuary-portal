@@ -525,6 +525,9 @@ def main():
                 else:
                     det, atts = fsc_detail(row['url'], a.delay)
                     ev = build_fsc_event(key, src, row, det, atts)
+                    if ev.get('date') and ev['date'] < a.since:   # 고시 목록은 날짜가 상세에만 있어 여기서 거른다
+                        print(f'  - {ev["id"]} {ev["date"]} (since 이전, 중단)', file=sys.stderr)
+                        break
                 if ev['id'] in existing:
                     events.append(existing[ev['id']]); print(f'  = {ev["id"]} (기존)', file=sys.stderr); continue
                 if not a.no_download:

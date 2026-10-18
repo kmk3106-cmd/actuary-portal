@@ -16,7 +16,7 @@
     /* 3컬럼 레이아웃 */
     .kb-layout {
       display: grid;
-      grid-template-columns: 220px 300px 1fr;
+      grid-template-columns: 200px 440px 1fr;   /* 목록 폭 확대 — 규정 리포트 제목(날짜·단계·규정명·요지)이 잘리지 않게 */
       gap: 0;
       height: calc(100vh - var(--header-height));
       overflow: hidden;
@@ -139,9 +139,10 @@
       font-weight: 600;
       color: var(--gray-900);
       margin-bottom: 6px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      white-space: normal;          /* 제목 전체 표시 (줄바꿈 허용) */
+      word-break: keep-all;
+      overflow-wrap: anywhere;
+      line-height: 1.45;
     }
     .kb-doc-meta {
       display: flex;
@@ -547,7 +548,7 @@
 
     /* 반응형 */
     @media (max-width: 1100px) {
-      .kb-layout { grid-template-columns: 200px 280px 1fr; }
+      .kb-layout { grid-template-columns: 180px 340px 1fr; }
     }
     @media (max-width: 768px) {
       .kb-mobile-tabs { display: flex; }
@@ -914,18 +915,15 @@ function renderDocList(docs, query) {
     return;
   }
 
-  // 최신 수정일 순 정렬
-  const sorted = [...docs].sort((a,b) => {
-    const ta = new Date(a.updated_at || a.created_at || 0).getTime();
-    const tb = new Date(b.updated_at || b.created_at || 0).getTime();
-    return tb - ta;
-  });
+  // 정렬: 문서 일자(doc_date — 규정 리포트의 예고·고시일) 가 있으면 그 날짜, 없으면 최신 수정일 순
+  const sortKey = d => d.doc_date ? new Date(d.doc_date + 'T00:00:00').getTime() : new Date(d.updated_at || d.created_at || 0).getTime();
+  const sorted = [...docs].sort((a,b) => sortKey(b) - sortKey(a));
 
   let html = '';
   for (const doc of sorted) {
     const catColor = getCatChipColor(doc.category_id);
     const catName  = getCatName(doc.category_id);
-    const dateStr  = fmtShortDate(doc.updated_at || doc.created_at);
+    const dateStr  = doc.doc_date ? doc.doc_date.replace(/-/g, '.') : fmtShortDate(doc.updated_at || doc.created_at);
     const active   = doc.id === currentDocId ? ' active' : '';
     const draft    = !doc.is_published ? '<span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:4px;">초안</span>' : '';
     html += `<div class="kb-doc-item${active}" onclick="openDoc('${doc.id}')" id="docItem_${doc.id}">
