@@ -498,6 +498,188 @@ def relink(events):
                                + f" · 취지 유사도 {sim:.2f} · 예고 후 {gap}일")
 
 
+# ── 목록 제목 = 대상 + 실질 변경 (docs/03 P0-5, 지시서 §12) ──────────────────────────────
+TITLE_MAX = 44                 # 목록 제목 길이 상한(자). 지시서 권장 15~30자, 정확성을 위해 필요한 길이는 허용
+ITEM_MAX = 30                  # 변경 항목 하나를 줄인 길이 상한
+SUMMARY_MAX = 80               # 한 줄 요약 상한
+# 변경 행위 (문장 끝의 동작 명사). 이 앞의 명사구가 '대상' 이다
+ACTION_RE = re.compile(r'(인하|인상|신설|마련|개선|정비|확대|축소|완화|강화|단축|연장|명시|삭제|변경|도입|한정|구체화|반영|추가|폐지|통합|현행화|상향|하향|적용|제외|제한|규정|조정|전환|개편|지정|구분|간소화|일원화|명확화|합리화|허용|면제)')
+# 추상어만으로 끝나는 제목 금지: 대상 명사 없이 아래 말로만 끝나면 실패
+ABSTRACT_ONLY_RE = re.compile(r'^(?:\S+\s){0,1}(?:일부\s?개정|제도\s?개선|합리화|명확화|정비|강화|개선|변경|개정|관련\s?사항\s?변경|기준\s?강화)$')
+# 제목에서 뺄 군더더기
+TITLE_NOISE_RE = re.compile(r'\((?:안|案)\s*[^)]*\)|\[[^\]]*\]|\*[^\s]*|｢|｣|「|」|『|』|\s+등\s*$')
+PARTICLE_RE = re.compile(r'(을|를|이|가|은|는|의|에|로|으로|와|과|도|에서|에게|까지)$')
+CLAUSE_END_RE = re.compile(r'(경우|따라|위해|위하여|위한|대해|대한|관련|토록|도록|하여|함에|하고|함으로써|함에\s따라),?$')
+PRESS_LABEL_RE = re.compile(r'[ㅁ□◦○ㅇ▪■•①-⑳]\s*\(([^)]{2,24})\)')
+
+
+def _strip_article_refs(s):
+    """'(안 제6-11조의6제2항)' 같은 조문 참조를 떼고 참조 목록을 돌려준다"""
+    refs = [re.sub(r'\s', '', m) for m in re.findall(r'(?:안\s*)?(제\s?\d+(?:-\d+)?조(?:의\s?\d+)?|별표\s?\d+(?:-\d+)?(?:의\s?\d+)?|별지\s?(?:제\s?)?\d+(?:-\d+)?호?)', s)]
+    s = TITLE_NOISE_RE.sub(' ', s)
+    s = re.sub(r'\((?:제\s?\d+(?:-\d+)?조[^)]*|별표\s?\d+[^)]*|별지\s?(?:제\s?)?\d+[^)]*)\)', '', s)   # '(별지64)' 같은 조문 참조 괄호
+    s = re.sub(r'\(\s*\)', '', s)
+    s = re.sub(r'\s+', ' ', s).strip(' .,·-')
+    return s, list(dict.fromkeys(refs))
+
+
+LEAD_NUM_RE = re.compile(r'^(?:\(\d+\)|[가-힣]\.|\d+\.|[①-⑳]|[ⅰ-ⅹ]+\.?|[a-z]\)|[ㅁ□◦○ㅇ▪■•\-–])\s*')
+OBJ_PARTICLE_RE = re.compile(r'(을|를|은|는)$')     # 변경 행위 바로 앞 토큰에서만 뗀다 ('시가평가' 의 '가' 를 떼지 않기 위해)
+DOMAIN_KW_RE = re.compile(r'(해약환급금준비금|해약률|위험률|할인율|계리가정|계리적\s?가정|책임준비금|보험부채|비상위험준비금|지급여력비율|요구자본|경험통계기간|사업비\s?가정|손해율\s?가정|평균해지율|계약자배당|유배당손익|선임계리사|내부모형|ORSA|경영실태평가|업무보고서|표준약관|표준사업방법서|상품위원회|판매수수료|간단보험대리점|손해사정|DSR|LTV|담보대출|실손의료보험|실손|반려동물보험|공정가치)')
+PHRASE_CHARS = 24                    # 변경 행위 앞에서 거슬러 올라가며 모을 글자 수
+JUNK_ITEM_RE = re.compile(r'^(?:\(현행\)|\(개선\)|세부 개정 내용|자세한 사항|보험 가입기간이|보험료가 비교적|위험보장 내용이|없음 명백|일시|장소|배경|개요|추진경과|향후 계획|향후계획)')
+
+
+def _clean_item(item):
+    s = item.strip()
+    s = re.sub(r'^[^\w가-힣‘’“”「『(\[]+', '', s)                       # 앞머리 쓰레기(: ) 등)
+    if ')' in s and ('(' not in s or s.index(')') < s.index('(')):     # 글머리 분리로 잘린 괄호 꼬리
+        s = s[s.index(')') + 1:].strip()
+    s = LEAD_NUM_RE.sub('', s)
+    s = re.sub(r'^[\(（][^)）]*[\)）]\s*', '', s)                          # 앞머리 괄호 설명((종전)·(현행)) 통째로 제거
+    s = re.sub(r'\s+', ' ', s).strip()
+    return s
+
+
+def compress_item(item):
+    """'직전 분기말 … 해약환급금준비금을 현행 산출방식에 따른 금액의 100분의 80만 적립하도록 적립비율을 인하(안 제6-11조의6제2항)'
+    → '해약환급금준비금 적립비율 인하'. 마지막 변경 행위 앞의 짧은 명사구 + (빠졌으면) 가장 가까운 대상 명사를 앞에 붙인다.
+    변경 행위가 없는 글(설명·조건문)은 버린다 ('', refs)"""
+    s0 = _clean_item(item)
+    s, refs = _strip_article_refs(s0)
+    s = re.split(r'\s[-–]\s|\s\*', s)[0]                  # 부연 설명(- …, * 각주) 제거
+    if not s or JUNK_ITEM_RE.match(s) or '→' in s:
+        return '', refs
+    toks = s.split()
+    act_idx = None
+    for i in range(len(toks) - 1, -1, -1):
+        if ACTION_RE.search(toks[i]):
+            act_idx = i
+            break
+    if act_idx is None:
+        return '', refs
+    act = ACTION_RE.search(toks[act_idx]).group(1)
+    phrase = []
+    i = act_idx - 1
+    while i >= 0:
+        t = toks[i]
+        if CLAUSE_END_RE.search(t) or t.endswith(('하도록', '토록', '하여', '위해', '따라', '경우', '때에', '맞춰', '맞추어', '통해', '기준으로', '있도록')):
+            break
+        if i == act_idx - 1:
+            t = OBJ_PARTICLE_RE.sub('', t)
+        phrase.insert(0, t)
+        if len(' '.join(phrase)) >= PHRASE_CHARS:
+            break
+        i -= 1
+    out = re.sub(r'\s+', ' ', ' '.join(phrase + [act]).strip())
+    while len(out) > ITEM_MAX and ' ' in out:          # 길면 앞(수식어)부터 줄인다 — 변경 행위는 남긴다
+        out = out.split(' ', 1)[1]
+    # 대상 명사(계리 핵심어)가 빠졌으면, 변경 행위 앞에서 가장 가까운 핵심어를 앞에 붙인다 (길이 상한보다 대상이 우선)
+    before = ' '.join(toks[:act_idx])
+    kws = DOMAIN_KW_RE.findall(before)
+    if kws and kws[-1].replace(' ', '') not in out.replace(' ', ''):
+        out = kws[-1] + ' ' + out
+    return out.rstrip(' ·,('), refs
+
+
+HEADLINE_VERB_CORE = r'(도입|마련|조정|개편|강화|개선|신설|시행|구축|정비|확대|고도화|추진|실시|의결|통과|개최|운영|구성|확립|제고|제정|개정|지정|발표|전환|규제)'
+HEADLINE_VERB_RE = re.compile(HEADLINE_VERB_CORE + r'(?![가-힣])')   # '시행령' 의 '시행' 처럼 낱말 속 글자는 제외
+
+
+def press_title(ev):
+    """보도자료: 본문 글머리의 '(계리가정 관리 강화)' 같은 꼬리표 → '계리가정 관리 강화 · 계리가정 보고서 도입 발표'.
+    없으면 헤드라인의 핵심 명사구('…도입으로 … 제고하겠습니다' → '… 도입')만 남긴다"""
+    body = (ev.get('purpose') or '') + ' ' + (ev.get('body') or '')[:600]
+    labels = [l.strip() for l in PRESS_LABEL_RE.findall(body)]
+    labels = [l for l in labels if len(l) >= 4 and not JUNK_ITEM_RE.match(l) and not re.fullmatch(r'[\d.\s년월일~’‘]+', l)][:2]
+    if labels:
+        return ' · '.join(labels) + ' 발표', 'press_labels'
+    h = re.sub(r'^\s*[\[(【]\s*보도\s*(?:자료|참고)\s*[\])】]\s*', '', ev.get('list_title') or '').strip()
+    h = re.split(r'\s[-–]\s', h)[0]
+    h = re.sub(r'[「」｢｣『』]', '', h)
+    # ① '핵심 명사구 + 행위' 가 '(으)로/통해/하여' 앞에 오면 그것이 제목이다
+    m = re.match(r'^(.{6,44}?' + HEADLINE_VERB_CORE + r')(?:으로|로|을\s*통해|를\s*통해|하여|함으로써)\s', h)
+    if m:
+        core = m.group(1)
+    else:
+        # ② '…을 위해 / 되도록 / 하도록' 뒤의 주절
+        segs = re.split(r'(?:을|를)?\s*(?:위해|위하여|되도록|하도록|있도록|통해)\s*', h)
+        core = segs[-1] if len(segs) > 1 and len(re.sub(r'[가-힣]*(?:겠|했|합니다|됩니다).*$', '', segs[-1])) >= 8 else h   # 주절이 너무 짧으면('감독·지원') 조건절까지 둔다
+        core = re.sub(r'(을|를|이|가)?\s*(구성하여|마련하여|마련하였습니다|마련하겠습니다|운영하겠습니다|해나가겠습니다|나가겠습니다|해나갑니다|하겠습니다|하였습니다|했습니다|합니다|됩니다|입니다|예정입니다)\.?$', '', core).strip()
+        vm = list(HEADLINE_VERB_RE.finditer(core))
+        if vm and vm[-1].end() >= 6:
+            core = core[:vm[-1].end()]
+    core = re.sub(r'(을|를|이|가|은|는)$', '', core.strip(' .,·')).strip()
+    core = re.sub(r'(을|를|이|가)\s+' + HEADLINE_VERB_CORE + r'$', r' \2', core).strip()   # '감독을 강화' → '감독 강화', '제도가 개선' → '제도 개선'
+    if len(core) > TITLE_MAX:
+        cut = core[:TITLE_MAX]
+        core = (cut[:cut.rfind(' ')] if ' ' in cut[20:] else cut) + '…'
+    return (core or '보도자료') + ' 발표', 'headline'
+
+
+def make_title(ev, rows, ov):
+    """(목록 제목, 한 줄 요약, 출처, 품질). 출처: content(공고문 주요내용) / override(담당자 사유) / press_labels / headline / heads(대비표) / unknown
+    품질: ok / abstract(추상어뿐 → 확인 필요로 대체) / unknown"""
+    status = ev['status']
+    if status == '보도자료':
+        t, src = press_title(ev)
+        return t, (short_purpose(ev) if ev.get('purpose') else '')[:SUMMARY_MAX], src, 'ok'
+    items = []
+    for b in bullets(ev.get('content') or ''):
+        t, r = compress_item(b)
+        if t and len(t) >= 4 and not ABSTRACT_ONLY_RE.match(t):
+            items.append((t, r))
+    # 같은 뜻·하위 설명 중복 제거 (포함 관계)
+    uniq = []
+    for t, r in items:
+        k = re.sub(r'\s', '', t)
+        if any(k in re.sub(r'\s', '', u) or re.sub(r'\s', '', u) in k for u, _ in uniq):
+            continue
+        uniq.append((t, r))
+    # 팀 핵심어(해약률·계리가정 …)가 든 항목을 앞으로 — 제목 첫 자리는 가장 실질적인 변경
+    items = sorted(uniq, key=lambda x: 0 if DOMAIN_KW_RE.search(x[0]) else 1)
+    ov_reason = (ov or {}).get('reason') or ''
+    ov_reason = re.sub(r',\s*확정\)', ')', ov_reason)
+    ov_reason = re.sub(r'\(\s*확정[^)]*\)|\s*[\(（]?확정[\)）]?\s*$|\s*—.*$', '', ov_reason).strip(' ,·')
+    title, src = '', 'unknown'
+    if items:
+        title = items[0][0]
+        if len(items) > 1 and len(title) <= 22 and len(title) + 3 + len(items[1][0]) <= TITLE_MAX:
+            title += ' · ' + items[1][0]
+        rest = len(items) - (2 if ' · ' in title else 1)
+        if rest > 0:
+            title += f' 외 {rest}건'
+        src = 'content'
+    if not title and ov_reason:
+        title, src = ov_reason, 'override'
+    quality = 'ok'
+    if not title:
+        heads = [item_heading(a, b) for a, b, _ in rows[:3]]
+        if heads:
+            title = f"주요 변경내용 확인 필요 — {' · '.join(h[:14] for h in heads[:2])}{' 등' if len(rows) > 2 else ''} {len(rows)}개 조문"
+            src, quality = 'heads', 'unknown'
+        else:
+            title, src, quality = '주요 변경내용 확인 필요', 'unknown', 'unknown'
+    elif ABSTRACT_ONLY_RE.match(title):
+        title, quality = f'주요 변경내용 확인 필요 — {title}', 'abstract'
+    # 한 줄 요약: 변경 항목 2~3개 또는 취지 한 문장
+    summary = ''
+    if items:
+        parts = []
+        for t, _ in items[:3]:
+            if len(' · '.join(parts + [t])) > SUMMARY_MAX:
+                break
+            parts.append(t)
+        summary = ' · '.join(parts)
+    if not summary and ev.get('purpose'):
+        summary = short_purpose(ev)
+    if not summary and ov_reason and ov_reason != title:
+        summary = ov_reason
+    title = title[:TITLE_MAX + 12].rstrip(' ·,')
+    title = re.sub(r'\s*\([^)]*$', '', title)          # 잘린 괄호 꼬리 제거
+    return title, summary[:SUMMARY_MAX], src, quality
+
+
 def build(ev, css, related, rules=None):
     status = ev['status']
     text = all_text(ev)
@@ -525,24 +707,13 @@ def build(ev, css, related, rules=None):
     paras_src = next((a for a in ev.get('attachments', []) if a.get('extracted') and a['extracted'].get('paras')), None)
     secs = sections_from_paras(paras_src['extracted']['paras']) if paras_src else {}
     is_notice = status in ('사전예고', '입법예고')
-    title_core = short_purpose(ev)
-    if (not ev.get('purpose')) and related and related.get('purpose') and ev.get('_link_strong'):
-        title_core = short_purpose(related)
-    elif not ev.get('purpose') and not ev.get('body') and (arts or rows):
-        title_core = f"{' · '.join(arts[:3]) + ' 등 ' if arts else ''}{len(rows)}개 항목 개정" if rows else f"{' · '.join(arts[:3])} 개정"
-    # 공고문 취지가 없는 확정 건은 담당자 판정 사유(config overrides) 가 가장 좋은 한 줄 요약이다
+    if status == '보도자료' and re.match(r'^\s*※', ev.get('purpose') or ''):   # 본문이 '※ 자세한 내용은 첨부파일 참고' 뿐인 금감원 보도자료
+        ev = {**ev, 'purpose': ''}
     ov = ((rules or {}).get('overrides') or {}).get(ev['id'], {})
-    if (not title_core or title_core == f"{ev['reg_name']} 개정" or re.fullmatch(r'\d+개 항목 개정', title_core)) and ov.get('reason'):
-        title_core = re.sub(r'\(확정\)$', '', ov['reason']).strip()
-    if not title_core:
-        title_core = f"{ev['reg_name']} 개정"
-    h1 = f"{ev['reg_name']} 개정 — {title_core}" if not title_core.startswith(ev['reg_name']) else title_core
-    if status == '보도자료':
-        # 보도자료는 헤드라인이 가장 좋은 제목이다. '[보도자료]'·'[보도참고]' 머리말은 뗀다
-        headline = re.sub(r'^\s*[\[(【]\s*보도\s*(?:자료|참고)\s*[\])】]\s*', '', ev.get('list_title') or '').strip() or title_core
-        title_core, h1 = headline, f"{ev['reg_name']} 보도자료 — {headline}"
-        if re.match(r'^\s*※', ev.get('purpose') or ''):            # 본문이 '※ 자세한 내용은 첨부파일 참고' 뿐인 금감원 보도자료
-            ev = {**ev, 'purpose': ''}
+    # 목록 제목 = 대상 + 실질 변경 (지시서 §12). 선행 예고의 취지를 제목으로 물려받지 않는다 — 다른 건일 수 있다
+    list_title, summary_line, title_source, title_quality = make_title(ev, rows, ov)
+    title_core = list_title
+    h1 = f"{ev['reg_name']} {'보도자료' if status == '보도자료' else '개정'} — {list_title}"
     subt_bits = [ev['reg_name']] + ([' · '.join(arts[:4])] if arts else []) + [f"{fmt_date(ev.get('date'))} {STATUS_LABEL.get(status, status)}"]
     if ev.get('date_comment_due'):
         subt_bits.append(f"의견제출 {fmt_date(ev['date_comment_due'])}까지")
@@ -720,6 +891,7 @@ def build(ev, css, related, rules=None):
         'tags': list(dict.fromkeys([ev['reg_name']] + areas[:3] + arts[:3])),
         'date_effective': ev.get('date_effective', ''),
         'relevance': relevance, 'relevance_reason': rel_reason,
+        'list_title': list_title, 'summary_line': summary_line, 'title_source': title_source, 'title_quality': title_quality,
         'related_notice_id': ev.get('related_notice_id'), 'related_confidence': ev.get('_link_confidence') or '', 'related_evidence': ev.get('_link_evidence') or '',
         'unchanged': len(unchanged),
     }

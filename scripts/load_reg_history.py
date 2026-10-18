@@ -92,7 +92,10 @@ def main():
         st_tag = STATUS_PREFIX.get(ev['status'], '')
         if ev['status'] == '보도자료':   # 금융위·금감원이 같은 날 같은 제목으로 내는 공동 보도자료를 구분
             st_tag = '[보도자료·' + ('금융위' if '금융위' in (ev.get('authority') or '') else '금감원') + ']'
-        doc_title = f"{(ev.get('date') or '').replace('-', '.')} {st_tag}{rel_tag} {short_reg_name(ev['reg_name'])} · {meta['title'].split(' — ')[-1][:70]}".strip()
+        # 제목: 담당자가 확정한 제목(title_manual) > 자동 생성 '대상 + 실질 변경' (docs/03 P0-5)
+        manual = bool(exists and exists.get('title_manual') and exists.get('title'))
+        list_title = exists['title'] if manual else (meta.get('list_title') or meta['title'].split(' — ')[-1])[:80]
+        doc_title = f"{(ev.get('date') or '').replace('-', '.')} {st_tag}{rel_tag} {short_reg_name(ev['reg_name'])} · {list_title[:70]}".strip()
         doc_id = overrides.get(ev['id']) or (exists or {}).get('report_doc_id') or ''
         if not doc_id and doc_title in docs_by_title:
             doc_id = docs_by_title[doc_title]['id']
@@ -143,7 +146,9 @@ def main():
             # 예고안에서 긁은 시행일은 '예정' 이다 — 확정 시행일 칸에 넣지 않는다 (docs/03 P0-2)
             'date_effective_planned': eff if is_notice else None,
             'date_effective_source': '' if is_notice or not eff else '발령문 본문 추출',
-            'title': meta['title'].split(' — ')[-1][:80] if ' — ' in meta['title'] else meta['title'][:80],
+            'title': list_title,
+            'summary_line': (exists.get('summary_line') if (exists and exists.get('summary_manual')) else meta.get('summary_line', '')) or '',
+            'title_source': 'manual' if manual else meta.get('title_source', ''), 'title_quality': meta.get('title_quality', ''),
             'reg_type': ev['reg_type'], 'reg_name': ev['reg_name'], 'articles': meta['articles'][:8], 'status': ev['status'],
             'date_notice': ev.get('date_notice') or None, 'date_comment_due': ev.get('date_comment_due') or None,
             'date_promulgated': ev.get('date_promulgated') or None,
