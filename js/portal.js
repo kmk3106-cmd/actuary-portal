@@ -142,6 +142,7 @@ const Portal = (() => {
         { href: 'weekly-report.html',  icon: 'fa-calendar-week',label: '주간업무 보고' },
         { href: 'weekly-summary.html', icon: 'fa-chart-line',   label: '주간업무 실적 집계' },
         { href: 'weekly-closing.html', icon: 'fa-calendar-check', label: '주간업무 월결산' },
+        { href: 'reg-history.html',    icon: 'fa-gavel',          label: '규정 개정이력' },
         { href: 'workload-me.html',    icon: 'fa-chart-line',   label: '내 업무량' },
         { href: 'workload-team.html',  icon: 'fa-users',        label: '팀 업무량 모니터링', leaderOrChief: true }
       ]

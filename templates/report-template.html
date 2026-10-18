@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>보고서 제목</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0);padding-bottom:env(safe-area-inset-bottom,0);
+--bg:#fff;--fg:#111;--sub:#737373;--line:#e5e5e5;--acc:#c8102e;--grid:#f2f2f2;--ok:#0a7d3f;--src:#0563C1;
+--fs:15px;--fst:16px;--fsh:12.5px;--pad:20px}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e0e0e;--fg:#f0f0f0;--sub:#8f8f8f;--line:#262626;--acc:#ff6b6b;--grid:#171717;--ok:#4ade80;--src:#7ab6ff;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e0e0e;--fg:#f0f0f0;--sub:#8f8f8f;--line:#262626;--acc:#ff6b6b;--grid:#171717;--ok:#4ade80;--src:#7ab6ff;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0) + 52px);-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);
+font-family:'IBM Plex Sans KR',-apple-system,'Apple SD Gothic Neo','맑은 고딕',sans-serif;
+font-size:var(--fs);line-height:1.72;word-break:keep-all;overflow-wrap:break-word}
+.wrap{max-width:880px;margin:0 auto;padding:0 0 70px}
+.top{border-bottom:3px solid var(--fg);
+padding-left:max(var(--pad),env(safe-area-inset-left,0px));padding-right:max(var(--pad),env(safe-area-inset-right,0px));
+padding-block:26px 16px}
+.tag{display:inline-block;background:var(--acc);color:#fff;font-size:11px;font-weight:600;padding:3px 9px;letter-spacing:.05em;margin-bottom:12px}
+h1{font-size:clamp(20px,5vw,27px);margin:0 0 6px;font-weight:700;letter-spacing:-.02em;line-height:1.35}
+.subt{font-size:13px;color:var(--sub);margin:0}
+.sec{padding-left:max(var(--pad),env(safe-area-inset-left,0px));padding-right:max(var(--pad),env(safe-area-inset-right,0px))}
+.nav{position:sticky;top:env(safe-area-inset-top,0);z-index:9;background:var(--bg);border-bottom:1px solid var(--line);
+padding-left:max(var(--pad),env(safe-area-inset-left,0px));padding-right:max(var(--pad),env(safe-area-inset-right,0px));padding-block:9px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.nav .in{display:flex;gap:14px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.nav .in::-webkit-scrollbar{display:none}
+.nav a{flex:0 0 auto;font-size:12.5px;text-decoration:none;color:var(--sub);white-space:nowrap;padding:2px 0;border-bottom:2px solid transparent}
+.nav a:hover,.nav a:focus-visible{color:var(--fg);border-bottom-color:var(--acc)}
+h2{font-size:clamp(18px,4.8vw,22px);margin:40px 0 14px;font-weight:700;padding-left:13px;border-left:5px solid var(--acc);letter-spacing:-.01em;line-height:1.35}
+h3{font-size:clamp(15.5px,4vw,17.5px);margin:26px 0 10px;font-weight:600;color:var(--fg);line-height:1.5}
+p{margin:11px 0}
+strong{font-weight:600;background:linear-gradient(transparent 62%,rgba(200,16,46,.18) 62%)}
+.lead{border-left:3px solid var(--fg);padding:2px 0 2px 14px;margin:18px 0;font-size:clamp(15px,4vw,17px);font-weight:600;line-height:1.6}
+.tw{margin:14px 0;overflow:visible}
+table{width:100%;border-collapse:collapse;font-size:var(--fst);margin:0}
+th{background:var(--grid);border-top:1px solid var(--fg);border-bottom:1px solid var(--fg);padding:8px 4px;font-weight:600;font-size:var(--fsh);color:var(--sub);text-align:center;line-height:1.35;white-space:nowrap}
+td{border-bottom:1px solid var(--line);padding:8px 4px;text-align:center;line-height:1.35}
+td.l{text-align:left;font-weight:500;padding-left:8px;white-space:nowrap}
+table.wrap-ok,table.wrap-ok2{min-width:0}
+table.wrap-ok td.l,table.wrap-ok2 td.l{white-space:normal;word-break:keep-all;line-height:1.55;font-size:.9em}
+table.wrap-ok th,table.wrap-ok2 th{white-space:normal}
+td.r{text-align:right;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";white-space:nowrap;padding-right:7px;padding-left:3px;letter-spacing:-.02em}
+tr.hl td{background:var(--grid);font-weight:700}
+tr.sub td{background:var(--grid);font-weight:600;border-bottom:2px solid var(--fg)}
+tr.tot td{border-top:1px solid var(--fg);border-bottom:2px solid var(--fg);font-weight:700;background:var(--grid)}
+td.grp{background:var(--grid);font-weight:600;font-size:.92em;vertical-align:middle;border-right:1px solid var(--line);border-bottom:2px solid var(--fg);line-height:1.35}
+.callout{border:1px solid var(--line);border-left:4px solid var(--acc);padding:13px 15px;margin:14px 0;font-size:14.5px}
+.callout.ok{border-left-color:var(--ok)}
+.callout.neutral{border-left-color:var(--fg)}
+.callout b{font-weight:600}
+.callout p{margin:9px 0 0}
+.fml{border:1px solid var(--line);padding:11px 14px;margin:13px 0;text-align:center;font-size:clamp(13.5px,3.6vw,15px);background:var(--grid)}
+.fml .nm{display:block;font-size:11.5px;color:var(--sub);font-weight:600;margin-bottom:5px;letter-spacing:.03em}
+.fml .ps{display:block;font-size:11.5px;color:var(--sub);margin-top:5px}
+table.mid{font-size:calc(var(--fst) * .9);letter-spacing:-.02em}
+table.mid th,table.mid td{padding:9px 7px}
+table.tight{font-size:calc(var(--fst) * .82);letter-spacing:-.025em}
+table.tight th{font-size:calc(var(--fsh) * .88);padding:8px 5px;line-height:1.35}
+table.tight td{padding:8px 5px;line-height:1.5}
+table.tight td.l{padding-left:7px;font-size:.96em;line-height:1.55;white-space:normal;word-break:keep-all}
+table.tight td.r{padding-right:7px;padding-left:3px}
+table.act{font-size:15px}
+table.act th{padding:10px 8px;font-size:13px}
+table.act td{padding:12px 10px;line-height:1.6}
+table.act td.l{font-size:15px;white-space:normal;word-break:keep-all}
+table.act b{font-size:15.5px;display:block;margin-bottom:5px;line-height:1.5}
+table.act .sub2{display:block;font-size:13.5px;color:var(--sub);line-height:1.65;font-weight:400;letter-spacing:-.01em}
+.src{display:block;font-size:11.5px;color:var(--src);margin-top:5px;font-weight:400;line-height:1.6;letter-spacing:0}
+.note{font-size:11.5px;color:var(--sub);margin-top:6px;line-height:1.6}
+.bdg{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 7px;margin-right:6px;vertical-align:2px;color:#fff;letter-spacing:.03em}
+.bdg.n{background:var(--ok)}.bdg.c{background:var(--acc)}.bdg.m{background:var(--sub)}
+.gist{border:1px solid var(--line);border-left:4px solid var(--fg);padding:12px 14px;margin:12px 0;font-size:14px;line-height:1.7;background:var(--grid)}
+.cmp{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--fg);border-bottom:2px solid var(--fg);margin:14px 0}
+.cmp > .col{min-width:0;display:flex;flex-direction:column}
+.cmp > .col + .col{border-left:1px solid var(--line)}
+.cmph{font-size:var(--fsh);font-weight:600;color:var(--sub);text-align:center;background:var(--grid);padding:7px 4px;border-bottom:1px solid var(--fg)}
+.col-b .cmph{color:var(--fg)}
+.law{padding:11px 12px 14px;font-size:13.5px;line-height:1.74}
+.law p{margin:0}
+.law p + p{margin-top:8px}
+.law .ind{padding-left:13px}
+.law em{font-style:normal;font-weight:600;background:linear-gradient(transparent 62%,rgba(10,125,63,.25) 62%)}
+.col-a .law em{background:linear-gradient(transparent 62%,rgba(200,16,46,.2) 62%)}
+.law .mk{font-size:11.5px;color:var(--sub)}
+.law .nil{color:var(--sub);font-size:13px}
+.law del{color:var(--sub)}
+figure{margin:16px 0;border:1px solid var(--line);padding:14px 12px}
+figure svg{display:block;width:100%;height:auto}
+figcaption{font-size:11.5px;color:var(--sub);line-height:1.65;margin-top:10px}
+.figsc{overflow-x:auto}
+.figsc svg{min-width:460px}
+details{border-top:1px solid var(--line);margin:0}
+details:last-of-type{border-bottom:1px solid var(--line)}
+summary{padding:12px 2px;cursor:pointer;font-weight:600;font-size:14px;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";color:var(--acc);font-size:17px;font-weight:400}
+details[open] summary::after{content:"\2212"}
+details .body{padding:0 0 16px}
+@media(max-width:700px){:root{--fs:14.5px;--fst:14.5px;--fsh:11.5px;--pad:16px}
+ th,td{padding:7px 3px}
+ table.act{font-size:14px}table.act b{font-size:14.5px}table.act .sub2{font-size:12.5px}
+ table.tight{font-size:11.5px}table.tight th{font-size:10px}table.mid{font-size:12.5px}
+ .cmp{grid-template-columns:1fr}
+ .cmp > .col + .col{border-left:none;border-top:2px solid var(--fg)}}
+@media(max-width:430px){:root{--fst:13px;--fsh:11px}
+ table.tight{font-size:10.5px;letter-spacing:-.04em}table.tight th{font-size:9.5px}table.mid{font-size:11.5px}}
+@media print{.nav{display:none}details .body{display:block}body{font-size:10pt}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="top"><span class="tag">문서구분</span>
+<h1>보고서 제목</h1>
+<p class="subt">부제 · 작성 주체 · 기간 · 전제</p></div>
+
+<div class="nav"><div class="in">
+<a href="#c">결론</a><a href="#1">1장</a><a href="#2">2장</a><a href="#a">부록</a>
+</div></div>
+
+<div class="sec">
+
+<h2 id="c">결론</h2>
+<p class="lead">한 문장으로 요약한 결론</p>
+<p>앞 표의 합계·증감을 먼저 받아 쓰고 그 다음 세부로 분해한다.</p>
+
+<div class="tw"><table class="wrap-ok2"><thead><tr><th>구분</th><th>내용</th></tr></thead><tbody>
+<tr class="hl"><td class="l"><b>항목</b></td><td class="l">설명<span class="src">※ 근거 · 몇에서 몇으로</span></td></tr>
+</tbody></table></div>
+<p class="note">단위 · 기준 표기</p>
+
+<div class="callout neutral"><b>콜아웃 제목</b>
+<p>본문. 강조는 <strong>형광펜</strong>으로.</p></div>
+
+<h2 id="1">1. 장 제목</h2>
+<h3>1-1. 절 제목</h3>
+<p>본문</p>
+
+<div class="tw"><table class="mid"><thead><tr><th>항목</th><th>값</th></tr></thead><tbody>
+<tr><td class="l">행 이름</td><td class="r">1,234</td></tr>
+<tr class="tot"><td class="l">합계</td><td class="r">1,234</td></tr>
+</tbody></table></div>
+
+<div class="fml"><span class="nm">산식 이름</span>y = a + b x<span class="ps">a 절편 · b 기울기</span></div>
+
+<h2 id="2">2. 현행 · 개정안 대비</h2>
+<h3>2-1. <span class="bdg n">신설</span>항목 제목</h3>
+<div class="gist">한 줄 요지. 무엇이 어떻게 바뀌는지.</div>
+<div class="cmp">
+  <div class="col col-a"><div class="cmph">현행</div><div class="law">
+    <p>현행 조문. 없어지는 문구는 <em>이렇게</em>.</p>
+  </div></div>
+  <div class="col col-b"><div class="cmph">개정안</div><div class="law">
+    <p>개정 조문. 새로 들어오는 문구는 <em>이렇게</em>.</p>
+    <p class="ind">들여쓰기 한 단계</p>
+  </div></div>
+</div>
+
+<h2 id="3">3. 조치 사항</h2>
+<div class="tw"><table class="act wrap-ok"><thead><tr><th>순위</th><th>과제</th><th>영향</th></tr></thead><tbody>
+<tr class="hl"><td>1</td><td class="l"><b>과제 제목</b><span class="sub2">무엇을 왜 해야 하는지.</span></td><td>대</td></tr>
+</tbody></table></div>
+
+<h2 id="a">부록</h2>
+<details><summary>A. 부록 제목</summary><div class="body">
+<p>접었다 펴는 영역</p>
+</div></details>
+
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>규정 개정이력 - 계리결산팀 운영관리포탈</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css?v=28">
+  <style>
+    /* ── 규정 개정이력 (docs/02_규정개정이력_구축지시서.md §5) ── */
+    .rh-tabs { display:flex; gap:6px; margin-bottom:18px; border-bottom:2px solid #e5e7eb; }
+    .rh-tab { padding:10px 16px; border:none; background:none; font:inherit; font-weight:700; font-size:14px; color:#6b7280; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; display:flex; align-items:center; gap:8px; }
+    .rh-tab.active { color:#111827; border-bottom-color:#4f86f7; }
+    .rh-badge { font-size:11px; font-weight:800; background:#dc2626; color:#fff; border-radius:999px; padding:1px 7px; }
+    .rh-badge.zero { background:#e5e7eb; color:#6b7280; }
+
+    .stats-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px; }
+    .stat-mini { background:#fff; border-radius:12px; padding:14px 16px; border:1px solid #f3f4f6; box-shadow:0 1px 4px rgba(0,0,0,.04); min-width:0; }
+    .stat-mini-label { font-size:11px; color:#9ca3af; font-weight:500; margin-bottom:4px; }
+    .stat-mini-val { font-size:22px; font-weight:800; color:#374151; }
+
+    .rh-filters { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+    .rh-filters select, .rh-filters input { padding:8px 10px; border:1.5px solid #e5e7eb; border-radius:9px; font-size:13px; font-family:inherit; background:#fff; color:#374151; min-width:0; }
+    .rh-filters input { flex:1 1 180px; }
+    .rh-filters select:focus, .rh-filters input:focus { outline:none; border-color:#4f86f7; }
+
+    .rh-wrap { display:grid; grid-template-columns:minmax(0,1fr) 440px; gap:20px; align-items:start; }
+    @media(max-width:1100px){ .rh-wrap { grid-template-columns:1fr; } }
+
+    /* 타임라인 — 세로축이 시간 */
+    .tl { background:#fff; border-radius:16px; border:1px solid #f3f4f6; box-shadow:0 1px 4px rgba(0,0,0,.06); padding:8px 0 14px; min-width:0; }
+    .tl-year { padding:14px 20px 6px; font-size:16px; font-weight:800; color:#111827; }
+    .tl-q { display:flex; align-items:center; gap:10px; padding:8px 20px 4px 24px; font-size:12px; font-weight:700; color:#6b7280; }
+    .tl-q .cnt { font-size:11px; background:#f3f4f6; color:#374151; border-radius:999px; padding:1px 8px; }
+    .tl-row { display:grid; grid-template-columns:18px 88px minmax(0,1fr); gap:10px; padding:9px 20px 9px 24px; cursor:pointer; border-left:3px solid transparent; align-items:start; }
+    .tl-row:hover { background:#f8faff; }
+    .tl-row.active { background:#eef4ff; border-left-color:#4f86f7; }
+    .tl-dot { width:12px; height:12px; border-radius:50%; margin-top:5px; border:2px solid #fff; box-shadow:0 0 0 2px #e5e7eb; background:#9ca3af; }
+    .tl-date { font-size:12.5px; font-weight:700; color:#374151; white-space:nowrap; padding-top:2px; }
+    .tl-date small { display:block; font-weight:500; color:#9ca3af; font-size:10.5px; }
+    .tl-main { min-width:0; }
+    .tl-title { font-size:14px; font-weight:700; color:#111827; line-height:1.4; word-break:keep-all; overflow-wrap:anywhere; }
+    .tl-meta { display:flex; flex-wrap:wrap; gap:6px; margin-top:5px; align-items:center; }
+    .tl-empty { padding:40px 20px; text-align:center; color:#9ca3af; font-size:13px; }
+
+    .bd { font-size:11px; font-weight:700; padding:2px 8px; border-radius:8px; white-space:nowrap; }
+    .bd-type { background:#f3f4f6; color:#374151; }
+    .st-입법예고 { background:#fef3c7; color:#92400e; } .st-사전예고 { background:#ffedd5; color:#9a3412; }
+    .st-공포 { background:#dbeafe; color:#1e40af; } .st-시행 { background:#d1fae5; color:#065f46; } .st-철회 { background:#f3f4f6; color:#6b7280; text-decoration:line-through; }
+    .dot-입법예고 { background:#f59e0b; } .dot-사전예고 { background:#f97316; } .dot-공포 { background:#3b82f6; } .dot-시행 { background:#10b981; } .dot-철회 { background:#9ca3af; }
+    .im-대 { background:#fee2e2; color:#991b1b; } .im-중 { background:#fef3c7; color:#92400e; } .im-소 { background:#ecfdf5; color:#065f46; } .im-미정 { background:#f3f4f6; color:#6b7280; }
+    .bd-rep { background:#eef2ff; color:#3730a3; } .bd-act { background:#f3f4f6; color:#374151; }
+
+    /* 상세 패널 */
+    .dp { background:#fff; border-radius:16px; border:1px solid #f3f4f6; box-shadow:0 1px 4px rgba(0,0,0,.06); overflow:hidden; min-width:0; position:sticky; top:12px; }
+    @media(max-width:1100px){ .dp { position:static; } }
+    .dp-head { padding:18px 20px 14px; border-bottom:1px solid #f3f4f6; }
+    .dp-title { font-size:17px; font-weight:800; color:#111827; line-height:1.35; word-break:keep-all; overflow-wrap:anywhere; }
+    .dp-sub { font-size:12.5px; color:#6b7280; margin-top:6px; line-height:1.5; overflow-wrap:anywhere; }
+    .dp-body { padding:14px 20px 20px; max-height:calc(100vh - 140px); overflow-y:auto; }
+    @media(max-width:1100px){ .dp-body { max-height:none; } }
+    .dp-sec { margin-bottom:16px; }
+    .dp-lbl { font-size:11px; font-weight:800; color:#9ca3af; letter-spacing:.06em; text-transform:uppercase; margin-bottom:6px; display:flex; align-items:center; gap:6px; }
+    .dp-txt { font-size:13.5px; color:#111827; line-height:1.65; white-space:pre-line; overflow-wrap:anywhere; }
+    .dp-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .dp-empty { padding:48px 20px; text-align:center; color:#9ca3af; font-size:13px; }
+    .callout { border-left:4px solid #dc2626; background:#fef2f2; color:#7f1d1d; padding:10px 12px; border-radius:8px; font-size:12.5px; line-height:1.55; margin-bottom:14px; }
+    .sched { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+    .sched .step { background:#f9fafb; border:1px solid #e5e7eb; border-radius:9px; padding:6px 10px; font-size:12px; min-width:0; }
+    .sched .step b { display:block; font-size:10.5px; color:#9ca3af; font-weight:700; }
+    .sched .step.done { background:#ecfdf5; border-color:#a7f3d0; } .sched .step.due { background:#fff7ed; border-color:#fed7aa; }
+    .sched .arrow { color:#d1d5db; font-size:11px; }
+    .chg { display:flex; gap:8px; flex-wrap:wrap; }
+    .chg span { font-size:12.5px; font-weight:700; padding:4px 10px; border-radius:8px; }
+    .chg .n { background:#d1fae5; color:#065f46; } .chg .c { background:#fee2e2; color:#991b1b; } .chg .m { background:#f3f4f6; color:#374151; }
+    .chips { display:flex; gap:5px; flex-wrap:wrap; } .chip { font-size:11.5px; background:#eef4ff; color:#1e40af; padding:2px 9px; border-radius:999px; }
+    .chip.sys { background:#f5f3ff; color:#5b21b6; } .chip.tag { background:#f3f4f6; color:#374151; }
+    .lnk { display:flex; align-items:center; gap:6px; font-size:13px; color:#1d4ed8; text-decoration:none; overflow-wrap:anywhere; margin-bottom:4px; }
+    .lnk:hover { text-decoration:underline; }
+    .act-row { display:grid; grid-template-columns:22px minmax(0,1fr) auto; gap:8px; align-items:center; padding:7px 0; border-bottom:1px dashed #f3f4f6; font-size:13px; }
+    .act-no { font-size:11px; font-weight:800; color:#9ca3af; } .act-task { overflow-wrap:anywhere; }
+    .act-task small { display:block; color:#9ca3af; font-size:11px; }
+    .act-state { font-size:12px; padding:3px 6px; border-radius:7px; border:1.5px solid #e5e7eb; font-family:inherit; background:#fff; }
+    .act-state.대기 { color:#6b7280; } .act-state.진행 { color:#1d4ed8; border-color:#bfdbfe; background:#eff6ff; } .act-state.완료 { color:#065f46; border-color:#a7f3d0; background:#ecfdf5; } .act-state.보류 { color:#92400e; border-color:#fde68a; background:#fffbeb; }
+    .rep-inline { margin-top:10px; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; }
+    .rep-inline .report-embed iframe { min-height:600px; }
+    .hist { font-size:12px; color:#6b7280; line-height:1.6; }
+
+    /* 수집함 */
+    .ib { background:#fff; border-radius:16px; border:1px solid #f3f4f6; box-shadow:0 1px 4px rgba(0,0,0,.06); overflow:hidden; }
+    .ib-head { padding:14px 20px; border-bottom:1px solid #f3f4f6; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+    .ib-title { font-size:15px; font-weight:800; color:#111827; display:flex; align-items:center; gap:8px; }
+    .ib-last { font-size:12px; color:#6b7280; }
+    .ib-err { background:#fef2f2; color:#991b1b; border-bottom:1px solid #fecaca; padding:10px 20px; font-size:12.5px; line-height:1.55; overflow-wrap:anywhere; }
+    .ib-src { display:flex; gap:6px; flex-wrap:wrap; padding:10px 20px; border-bottom:1px solid #f3f4f6; }
+    .ib-src span { font-size:11.5px; padding:3px 9px; border-radius:999px; background:#f3f4f6; color:#374151; }
+    .ib-src span.ok { background:#ecfdf5; color:#065f46; } .ib-src span.off { opacity:.55; } .ib-src span.warn { background:#fffbeb; color:#92400e; }
+    .ib-row { display:grid; grid-template-columns:92px minmax(0,1fr) auto; gap:10px; padding:10px 20px; border-bottom:1px solid #f3f4f6; align-items:center; }
+    .ib-row.done { opacity:.55; }
+    .ib-date { font-size:12px; font-weight:700; color:#374151; } .ib-date small { display:block; font-weight:500; color:#9ca3af; font-size:10.5px; overflow-wrap:anywhere; }
+    .ib-t { font-size:13.5px; font-weight:600; color:#111827; overflow-wrap:anywhere; }
+    .ib-t a { color:#1d4ed8; text-decoration:none; } .ib-t a:hover { text-decoration:underline; }
+    .ib-t small { display:block; color:#6b7280; font-weight:400; font-size:12px; }
+    .ib-btns { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+    .ib-btns button { padding:5px 10px; border-radius:7px; border:none; cursor:pointer; font-size:12px; font-weight:700; font-family:inherit; }
+    .b-reg { background:#dbeafe; color:#1e40af; } .b-ign { background:#f3f4f6; color:#6b7280; }
+    @media(max-width:600px){ .ib-row { grid-template-columns:1fr; } .ib-btns { justify-content:flex-start; } }
+
+    /* 등록·수정 모달 (오버레이는 main.css .modal-overlay/.show — 규칙 14) */
+    .rh-box { background:#fff; border-radius:20px; width:760px; max-width:95vw; max-height:92vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2); }
+    .rh-box .mh { padding:22px 26px 0; display:flex; justify-content:space-between; align-items:center; }
+    .rh-box .mt { font-size:18px; font-weight:700; color:#111827; }
+    .rh-box .mc { width:40px; height:40px; border-radius:8px; border:none; background:#f3f4f6; cursor:pointer; font-size:14px; color:#6b7280; display:flex; align-items:center; justify-content:center; }
+    .rh-box .mb { padding:18px 26px 26px; }
+    .fg { margin-bottom:13px; min-width:0; } .fl { font-size:13px; font-weight:600; color:#374151; margin-bottom:5px; display:block; }
+    .fi, .fs, .fta { width:100%; padding:9px 12px; border:1.5px solid #e5e7eb; border-radius:10px; font-size:14px; color:#111827; background:#fff; font-family:inherit; box-sizing:border-box; }
+    .fi:focus, .fs:focus, .fta:focus { outline:none; border-color:#4f86f7; box-shadow:0 0 0 3px rgba(79,134,247,.1); }
+    .fta { resize:vertical; min-height:64px; }
+    .fr { display:grid; grid-template-columns:1fr 1fr; gap:12px; } .fr3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; } .fr4 { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+    @media(max-width:640px){ .fr, .fr3, .fr4 { grid-template-columns:1fr; } }
+    .fsec { font-size:12px; font-weight:800; color:#4f86f7; letter-spacing:.05em; margin:18px 0 10px; padding-top:12px; border-top:1px dashed #e5e7eb; }
+    .mf { display:flex; justify-content:flex-end; gap:10px; padding-top:12px; border-top:1px solid #f3f4f6; margin-top:10px; flex-wrap:wrap; }
+    .sub-row { display:grid; grid-template-columns:minmax(0,1fr) 110px 130px 90px 30px; gap:6px; margin-bottom:6px; align-items:center; }
+    .sub-row.src { grid-template-columns:150px minmax(0,1fr) 30px; }
+    @media(max-width:640px){ .sub-row, .sub-row.src { grid-template-columns:1fr; } }
+    .sub-row input, .sub-row select { padding:7px 9px; border:1.5px solid #e5e7eb; border-radius:8px; font-size:13px; font-family:inherit; min-width:0; }
+    .sub-row button { border:none; background:#fef2f2; color:#ef4444; border-radius:7px; height:30px; cursor:pointer; }
+    .add-mini { font-size:12px; font-weight:700; color:#4f86f7; background:none; border:1px dashed #bfdbfe; border-radius:8px; padding:6px 10px; cursor:pointer; font-family:inherit; }
+    .upl { border:1.5px dashed #d1d5db; border-radius:10px; padding:12px; text-align:center; font-size:13px; color:#6b7280; cursor:pointer; }
+    .upl:hover { border-color:#4f86f7; color:#4f86f7; } .upl input { display:none; }
+    .upl-info { font-size:12px; color:#374151; margin-top:6px; } .upl-info .x { color:#ef4444; cursor:pointer; margin-left:6px; }
+    .att-list { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+    .att-list span { font-size:12px; background:#f3f4f6; border-radius:8px; padding:4px 9px; display:inline-flex; gap:6px; align-items:center; }
+
+    @media(max-width:768px){
+      .stats-strip { grid-template-columns:1fr 1fr; } .stat-mini-val { font-size:18px; }
+      .tl-row { grid-template-columns:14px 70px minmax(0,1fr); padding:9px 12px 9px 14px; gap:8px; }
+      .tl-year { padding:12px 14px 4px; } .tl-q { padding:6px 14px 2px 16px; }
+      .dp-head, .dp-body { padding-left:14px; padding-right:14px; }
+      .ib-row, .ib-head, .ib-src, .ib-err { padding-left:14px; padding-right:14px; }
+      .rh-box .mb { padding:14px 16px 20px; } .rh-box .mh { padding:18px 16px 0; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <div class="main-content">
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-gavel" style="color:#c8102e"></i> 규정 개정이력</h1>
+      <div class="header-actions" id="headerActions"></div>
+    </header>
+    <main class="content-body">
+
+      <div class="stats-strip">
+        <div class="stat-mini"><div class="stat-mini-label">등록된 개정 건</div><div class="stat-mini-val" id="stTotal">0</div></div>
+        <div class="stat-mini"><div class="stat-mini-label">시행 예정 (시행일 미래)</div><div class="stat-mini-val" id="stUpcoming" style="color:#1d4ed8">0</div></div>
+        <div class="stat-mini"><div class="stat-mini-label">예고 중 (입법·사전예고)</div><div class="stat-mini-val" id="stNotice" style="color:#c2410c">0</div></div>
+        <div class="stat-mini"><div class="stat-mini-label">미완료 조치</div><div class="stat-mini-val" id="stOpenActs" style="color:#d97706">0</div></div>
+      </div>
+
+      <div class="rh-tabs">
+        <button class="rh-tab active" data-tab="timeline" onclick="switchTab('timeline')"><i class="fas fa-stream"></i> 타임라인</button>
+        <button class="rh-tab" data-tab="inbox" onclick="switchTab('inbox')"><i class="fas fa-inbox"></i> 수집함 <span class="rh-badge zero" id="inboxBadge">0</span></button>
+      </div>
+
+      <!-- A. 타임라인 + B. 상세 -->
+      <section id="tabTimeline">
+        <div class="rh-filters">
+          <select id="fType"><option value="">규정구분 전체</option></select>
+          <select id="fStatus"><option value="">상태 전체</option></select>
+          <select id="fImpact"><option value="">영향도 전체</option></select>
+          <select id="fOwner"><option value="">담당 전체</option></select>
+          <input type="text" id="fQ" placeholder="제목 · 요약 · 규정명 · 태그 검색">
+        </div>
+        <div class="rh-wrap">
+          <div class="tl" id="timeline"><div class="tl-empty">불러오는 중…</div></div>
+          <div class="dp" id="detail"><div class="dp-empty"><i class="fas fa-hand-pointer" style="font-size:24px;display:block;margin-bottom:8px;"></i>타임라인에서 개정 건을 누르면<br>상세가 여기에 표시됩니다</div></div>
+        </div>
+      </section>
+
+      <!-- C. 수집함 -->
+      <section id="tabInbox" style="display:none">
+        <div class="ib">
+          <div class="ib-head">
+            <div class="ib-title"><i class="fas fa-inbox" style="color:#4f86f7"></i> 자동 수집 후보 <span style="font-size:12px;color:#9ca3af;font-weight:600" id="inboxCount"></span></div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <span class="ib-last" id="inboxLast">마지막 수집 —</span>
+              <select id="fInboxState" class="fs" style="width:auto;padding:6px 10px;font-size:12.5px" onchange="renderInbox()"><option value="신규">신규만</option><option value="">전체</option><option value="등록됨">등록됨</option><option value="무시">무시</option></select>
+              <button class="btn btn-secondary btn-sm" id="btnCollect" onclick="runCollect()" style="display:none"><i class="fas fa-sync"></i> 수집 실행</button>
+            </div>
+          </div>
+          <div class="ib-err" id="inboxErr" style="display:none"></div>
+          <div class="ib-src" id="inboxSources"></div>
+          <div id="inboxList"><div class="tl-empty">불러오는 중…</div></div>
+        </div>
+        <p style="font-size:12px;color:#9ca3af;margin:10px 4px 0;line-height:1.6">
+          수집은 서버가 매일 1회 실행합니다. 확정 공포는 국가법령정보 공개 API(인증키 필요), 사전예고·입법예고는 공고 목록(config/reg_sources.json)에서 가져옵니다.
+          자동으로 본 목록에 넣지 않으며, 사람이 여기서 확인해 <b>등록</b>하거나 <b>무시</b>합니다. 무시한 건은 다시 올라오지 않습니다.
+        </p>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- D. 등록·수정 모달 -->
+<div class="modal-overlay" id="regModal">
+  <div class="rh-box">
+    <div class="mh"><span class="mt" id="modalTitle">개정 건 등록</span><button class="mc" onclick="closeModal()"><i class="fas fa-times"></i></button></div>
+    <div class="mb">
+      <input type="hidden" id="editId"><input type="hidden" id="fromInboxId">
+      <div class="fg"><label class="fl">제목 *</label><input type="text" class="fi" id="mTitle" placeholder="예: 계리적 가정 산출기준 개정"></div>
+      <div class="fr3">
+        <div class="fg"><label class="fl">규정구분 *</label><select class="fs" id="mRegType"></select></div>
+        <div class="fg"><label class="fl">규정명 *</label><input type="text" class="fi" id="mRegName" list="regNameList" placeholder="보험업감독업무시행세칙"><datalist id="regNameList"></datalist></div>
+        <div class="fg"><label class="fl">상태 *</label><select class="fs" id="mStatus"></select></div>
+      </div>
+      <div class="fr">
+        <div class="fg"><label class="fl">조문 · 별표 <small style="color:#9ca3af;font-weight:400">(쉼표 구분)</small></label><input type="text" class="fi" id="mArticles" placeholder="별표22, 별표35"></div>
+        <div class="fg"><label class="fl">소관</label><input type="text" class="fi" id="mAuthority" placeholder="금융감독원 계리리스크감독국"></div>
+      </div>
+      <div class="fsec">일정</div>
+      <div class="fr4">
+        <div class="fg"><label class="fl">예고일</label><input type="date" class="fi" id="mDateNotice"></div>
+        <div class="fg"><label class="fl">의견제출 시한</label><input type="date" class="fi" id="mDateComment"></div>
+        <div class="fg"><label class="fl">공포일</label><input type="date" class="fi" id="mDateProm"></div>
+        <div class="fg"><label class="fl">시행일</label><input type="date" class="fi" id="mDateEff"></div>
+      </div>
+      <div class="fsec">내용</div>
+      <div class="fg"><label class="fl">요약</label><textarea class="fta" id="mSummary" placeholder="무엇이 바뀌는지 한두 문장"></textarea></div>
+      <div class="fr3">
+        <div class="fg"><label class="fl">신설 건수</label><input type="number" min="0" class="fi" id="mChgNew" placeholder="0"></div>
+        <div class="fg"><label class="fl">변경 건수</label><input type="number" min="0" class="fi" id="mChgMod" placeholder="0"></div>
+        <div class="fg"><label class="fl">이동·삭제 건수</label><input type="number" min="0" class="fi" id="mChgDel" placeholder="0"></div>
+      </div>
+      <div class="fsec">영향과 조치</div>
+      <div class="fr3">
+        <div class="fg"><label class="fl">영향도</label><select class="fs" id="mImpact"></select></div>
+        <div class="fg"><label class="fl">영향 영역 <small style="color:#9ca3af;font-weight:400">(쉼표)</small></label><input type="text" class="fi" id="mAreas" placeholder="해약률 가정, 위험률 가정"></div>
+        <div class="fg"><label class="fl">영향 시스템 <small style="color:#9ca3af;font-weight:400">(쉼표)</small></label><input type="text" class="fi" id="mSystems" placeholder="현금흐름모델, 결산"></div>
+      </div>
+      <div class="fg"><label class="fl">조치 사항</label>
+        <div id="actRows"></div>
+        <button type="button" class="add-mini" onclick="addActRow()"><i class="fas fa-plus"></i> 조치 추가</button>
+      </div>
+      <div class="fr">
+        <div class="fg"><label class="fl">담당자</label><select class="fs" id="mOwner"><option value="">—</option></select></div>
+        <div class="fg"><label class="fl">태그 <small style="color:#9ca3af;font-weight:400">(쉼표)</small></label><input type="text" class="fi" id="mTags" placeholder="무저해지, 해약률"></div>
+      </div>
+      <div class="fsec">연결</div>
+      <div class="fg"><label class="fl">출처 링크</label>
+        <div id="srcRows"></div>
+        <button type="button" class="add-mini" onclick="addSrcRow()"><i class="fas fa-plus"></i> 출처 추가</button>
+      </div>
+      <div class="fr">
+        <div class="fg"><label class="fl">신구조문 대비 리포트 (HTML 파일 업로드)</label>
+          <label class="upl"><i class="fas fa-file-code"></i> 리포트 HTML 선택 → 저장 시 계리업무절차서 › 규정·기준에 등록되고 연결됩니다
+            <input type="file" id="mReportFile" accept=".html,.htm" onchange="onReportFile(event)"></label>
+          <div class="upl-info" id="reportInfo"></div>
+        </div>
+        <div class="fg"><label class="fl">또는 기존 문서 연결</label><select class="fs" id="mReportDoc"><option value="">연결 안 함</option></select></div>
+      </div>
+      <div class="fg"><label class="fl">첨부 파일 <small style="color:#9ca3af;font-weight:400">(hwpx · hwp · pdf · xlsx 등 — 신구조문대비표 원문)</small></label>
+        <label class="upl"><i class="fas fa-paperclip"></i> 파일 선택<input type="file" id="mAttach" multiple accept=".hwp,.hwpx,.pdf,.xlsx,.xls,.docx,.doc,.zip,.png,.jpg,.jpeg,.txt,.csv,.html" onchange="onAttachFiles(event)"></label>
+        <div class="att-list" id="attList"></div>
+      </div>
+      <div class="mf">
+        <button id="modalDelBtn" class="btn btn-danger" style="display:none;margin-right:auto" onclick="deleteItem()"><i class="fas fa-trash"></i> 삭제</button>
+        <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+        <button class="btn btn-primary" id="saveBtn" onclick="saveItem()"><i class="fas fa-save"></i> 저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/rbac.js?v=31"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal.js?v=37"></script>
+<script src="js/report-embed.js?v=1"></script>
+<script>
+Portal.init();
+try {
+
+// ══════════════════════════════════════════════════════════
+// 상수 (docs/02 §4 데이터 모델)
+// ══════════════════════════════════════════════════════════
+const TABLE = 'reg_items';
+const INBOX = 'reg_inbox';
+const KB_TABLE = 'kb_documents';
+const KB_CATEGORY = 'kbc_regulation';            // 계리업무절차서 › 규정·기준 (기존 카테고리)
+const REG_TYPES = ['법률', '시행령', '감독규정', '시행세칙', '행정지도', '기타'];
+const STATUSES = ['입법예고', '사전예고', '공포', '시행', '철회'];
+const IMPACTS = ['대', '중', '소', '미정'];
+const ACT_STATES = ['대기', '진행', '완료', '보류'];
+const REG_NAMES = ['보험업법', '보험업법 시행령', '보험업감독규정', '보험업감독업무시행세칙', '보험업감독규정 시행세칙'];
+const NOTICE_STATUSES = new Set(['입법예고', '사전예고']);
+
+const currentUser = RBAC.getCurrentUser();
+const isLeader = RBAC.isTeamLeader();
+const isLeaderOrChief = isLeader || RBAC.isSectionChief() || RBAC.isDivisionHead();
+const canWrite = isLeaderOrChief;                 // 팀원은 열람만 (§8). 실장 쓰기는 portal.js 읽기전용 가드가 차단
+const myName = (currentUser && (currentUser.full_name || currentUser.username)) || '';
+
+let ITEMS = [], INBOX_ROWS = [], USERS = [], KB_DOCS = [];
+let selectedId = null;
+let pendingReportHtml = null;      // { name, html }
+let pendingAttachments = [];
+let collectStatus = null;
+
+const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const escAttr = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+const fmtD = d => d ? String(d).replace(/-/g, '.') : '—';
+const todayStr = () => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; };
+const splitCsv = s => String(s || '').split(/[,，]/).map(x => x.trim()).filter(Boolean);
+const arr = v => Array.isArray(v) ? v : (typeof v === 'string' && v.trim().startsWith('[') ? (() => { try { return JSON.parse(v); } catch { return []; } })() : []);
+const sortDate = it => it.date_effective || it.date_promulgated || it.date_notice || '';
+
+// ══════════════════════════════════════════════════════════
+// 로드
+// ══════════════════════════════════════════════════════════
+async function getRows(url) { const r = await fetch(url); if (!r.ok) throw new Error(url + ' ' + r.status); const d = await r.json(); return d.rows || d.data || []; }
+async function loadAll() {
+  const [items, inbox, users, docs] = await Promise.all([
+    getRows(`/tables/${TABLE}?limit=2000`), getRows(`/tables/${INBOX}?limit=2000`),
+    getRows('/tables/users?limit=200'), getRows(`/tables/${KB_TABLE}?limit=500`),
+  ]);
+  ITEMS = items; INBOX_ROWS = inbox;
+  USERS = users.filter(u => u.is_active !== false);
+  KB_DOCS = docs.filter(d => d.category_id === KB_CATEGORY);
+  renderStats(); renderFilters(); renderTimeline(); renderInbox();
+  if (selectedId) renderDetail(selectedId);
+  const params = new URLSearchParams(location.search);
+  if (!selectedId && params.get('item')) { selectedId = params.get('item'); renderTimeline(); renderDetail(selectedId); }
+}
+async function loadCollectStatus() {
+  try { const r = await fetch('/reg/collect/status'); collectStatus = r.ok ? await r.json() : null; } catch { collectStatus = null; }
+  renderInboxHead();
+}
+
+// ══════════════════════════════════════════════════════════
+// 통계·필터
+// ══════════════════════════════════════════════════════════
+function renderStats() {
+  const today = todayStr();
+  document.getElementById('stTotal').textContent = ITEMS.length;
+  document.getElementById('stUpcoming').textContent = ITEMS.filter(i => i.date_effective && i.date_effective > today && i.status !== '철회').length;
+  document.getElementById('stNotice').textContent = ITEMS.filter(i => NOTICE_STATUSES.has(i.status)).length;
+  document.getElementById('stOpenActs').textContent = ITEMS.reduce((n, i) => n + arr(i.actions).filter(a => a.state !== '완료').length, 0);
+  const nNew = INBOX_ROWS.filter(x => x.state === '신규').length;
+  const b = document.getElementById('inboxBadge'); b.textContent = nNew; b.classList.toggle('zero', nNew === 0);
+}
+function fillSelect(id, values, label) {
+  const sel = document.getElementById(id); const cur = sel.value;
+  sel.innerHTML = `<option value="">${label}</option>` + values.map(v => `<option value="${escAttr(v)}">${esc(v)}</option>`).join('');
+  sel.value = cur;
+}
+function renderFilters() {
+  fillSelect('fType', REG_TYPES, '규정구분 전체'); fillSelect('fStatus', STATUSES, '상태 전체'); fillSelect('fImpact', IMPACTS, '영향도 전체');
+  const owners = [...new Set(ITEMS.map(i => i.owner_name).filter(Boolean))];
+  fillSelect('fOwner', owners, '담당 전체');
+}
+['fType','fStatus','fImpact','fOwner'].forEach(id => document.getElementById(id).addEventListener('change', renderTimeline));
+document.getElementById('fQ').addEventListener('input', renderTimeline);
+
+function filtered() {
+  const t = document.getElementById('fType').value, s = document.getElementById('fStatus').value, im = document.getElementById('fImpact').value, ow = document.getElementById('fOwner').value;
+  const q = document.getElementById('fQ').value.trim().toLowerCase();
+  return ITEMS.filter(i => (!t || i.reg_type === t) && (!s || i.status === s) && (!im || i.impact_level === im) && (!ow || i.owner_name === ow)
+    && (!q || [i.title, i.summary, i.reg_name, ...(arr(i.tags)), ...(arr(i.articles))].join(' ').toLowerCase().includes(q)));
+}
+
+// ══════════════════════════════════════════════════════════
+// A. 타임라인 — 시행일 역순 (없으면 공포일 → 예고일), 연도 → 분기
+// ══════════════════════════════════════════════════════════
+function renderTimeline() {
+  const el = document.getElementById('timeline');
+  const rows = filtered().slice().sort((a, b) => (sortDate(b) || '0000').localeCompare(sortDate(a) || '0000') || (b.updated_at || 0) - (a.updated_at || 0));
+  if (!rows.length) { el.innerHTML = `<div class="tl-empty"><i class="fas fa-folder-open" style="font-size:22px;display:block;margin-bottom:8px"></i>${ITEMS.length ? '조건에 맞는 개정 건이 없습니다' : '등록된 개정 건이 없습니다' + (canWrite ? ' · 오른쪽 위 [개정 등록] 또는 수집함에서 등록하세요' : '')}</div>`; return; }
+  const groups = new Map();  // year → Map(q → rows)
+  for (const r of rows) {
+    const d = sortDate(r); const y = d ? d.slice(0, 4) : '일정 미정'; const q = d ? Math.ceil(parseInt(d.slice(5, 7), 10) / 3) : 0;
+    if (!groups.has(y)) groups.set(y, new Map());
+    const qm = groups.get(y); if (!qm.has(q)) qm.set(q, []); qm.get(q).push(r);
+  }
+  let html = '';
+  for (const [y, qm] of groups) {
+    html += `<div class="tl-year">${esc(y)}${y !== '일정 미정' ? '년' : ''}</div>`;
+    for (const [q, list] of qm) {
+      html += `<div class="tl-q">${q ? q + '분기' : '—'} <span class="cnt">${list.length}건</span></div>`;
+      for (const r of list) {
+        const d = sortDate(r); const dLabel = r.date_effective ? '시행' : r.date_promulgated ? '공포' : r.date_notice ? '예고' : '';
+        const acts = arr(r.actions); const done = acts.filter(a => a.state === '완료').length;
+        html += `<div class="tl-row${r.id === selectedId ? ' active' : ''}" onclick="selectItem('${escAttr(r.id)}')">
+          <div class="tl-dot dot-${esc(r.status)}"></div>
+          <div class="tl-date">${fmtD(d)}<small>${esc(dLabel)}</small></div>
+          <div class="tl-main"><div class="tl-title">${esc(r.title)}</div>
+            <div class="tl-meta"><span class="bd st-${esc(r.status)}">${esc(r.status)}</span><span class="bd bd-type">${esc(r.reg_type)}</span>
+              ${r.impact_level ? `<span class="bd im-${esc(r.impact_level)}">영향 ${esc(r.impact_level)}</span>` : ''}
+              ${r.report_doc_id ? '<span class="bd bd-rep"><i class="fas fa-file-alt"></i> 리포트</span>' : ''}
+              ${acts.length ? `<span class="bd bd-act">조치 ${done}/${acts.length}</span>` : ''}
+              <span style="font-size:11.5px;color:#9ca3af">${esc(r.reg_name || '')}${arr(r.articles).length ? ' · ' + esc(arr(r.articles).join(' · ')) : ''}</span></div></div></div>`;
+      }
+    }
+  }
+  el.innerHTML = html;
+}
+function selectItem(id) { selectedId = id; renderTimeline(); renderDetail(id); if (window.innerWidth <= 1100) document.getElementById('detail').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+
+// ══════════════════════════════════════════════════════════
+// B. 상세
+// ══════════════════════════════════════════════════════════
+function renderDetail(id) {
+  const el = document.getElementById('detail');
+  const it = ITEMS.find(x => x.id === id);
+  if (!it) { el.innerHTML = '<div class="dp-empty">개정 건을 찾을 수 없습니다</div>'; return; }
+  const today = todayStr();
+  const acts = arr(it.actions), srcs = arr(it.sources), atts = arr(it.attachments), areas = arr(it.impact_areas), systems = arr(it.impact_systems), tags = arr(it.tags), articles = arr(it.articles);
+  const step = (lbl, d, cls) => d ? `<div class="step ${cls || ''}"><b>${lbl}</b>${fmtD(d)}</div>` : '';
+  const sched = [
+    step('예고', it.date_notice, it.date_notice <= today ? 'done' : ''),
+    step('의견제출', it.date_comment_due, it.date_comment_due < today ? 'done' : 'due'),
+    step('공포', it.date_promulgated, it.date_promulgated <= today ? 'done' : ''),
+    step('시행', it.date_effective, it.date_effective <= today ? 'done' : 'due'),
+  ].filter(Boolean).join('<span class="arrow"><i class="fas fa-chevron-right"></i></span>');
+  const doc = it.report_doc_id ? KB_DOCS.find(d => d.id === it.report_doc_id) : null;
+  el.innerHTML = `
+    <div class="dp-head">
+      <div class="tl-meta" style="margin:0 0 8px"><span class="bd st-${esc(it.status)}">${esc(it.status)}</span><span class="bd bd-type">${esc(it.reg_type)}</span>${it.impact_level ? `<span class="bd im-${esc(it.impact_level)}">영향 ${esc(it.impact_level)}</span>` : ''}</div>
+      <div class="dp-title">${esc(it.title)}</div>
+      <div class="dp-sub">${esc(it.reg_name || '')}${articles.length ? ' · ' + esc(articles.join(' · ')) : ''}${it.authority ? ' · ' + esc(it.authority) : ''}</div>
+      ${canWrite ? `<div class="dp-actions"><button class="btn btn-secondary btn-sm" onclick="openEditModal('${escAttr(it.id)}')"><i class="fas fa-edit"></i> 수정</button>
+        <a class="btn btn-secondary btn-sm" href="reg-history.html?item=${encodeURIComponent(it.id)}" title="이 건의 링크"><i class="fas fa-link"></i> 링크</a></div>` : ''}
+    </div>
+    <div class="dp-body">
+      ${NOTICE_STATUSES.has(it.status) ? '<div class="callout"><i class="fas fa-exclamation-triangle"></i> <b>사전예고안입니다.</b> 확정 공포 조문과 다를 수 있으므로 적용 전 확정본 대조가 필요합니다.</div>' : ''}
+      ${sched ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-calendar-alt"></i> 일정</div><div class="sched">${sched}</div></div>` : ''}
+      ${(it.change_new || it.change_mod || it.change_del) ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-code-branch"></i> 변경</div><div class="chg"><span class="n">신설 ${Number(it.change_new) || 0}</span><span class="c">변경 ${Number(it.change_mod) || 0}</span><span class="m">이동·삭제 ${Number(it.change_del) || 0}</span></div></div>` : ''}
+      ${it.summary ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-align-left"></i> 요약</div><div class="dp-txt">${esc(it.summary)}</div></div>` : ''}
+      ${(areas.length || systems.length) ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-bullseye"></i> 영향</div><div class="chips">${areas.map(a => `<span class="chip">${esc(a)}</span>`).join('')}${systems.map(a => `<span class="chip sys">${esc(a)}</span>`).join('')}</div></div>` : ''}
+      ${(srcs.length || atts.length) ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-external-link-alt"></i> 출처 · 첨부</div>
+        ${srcs.map(s => s.url ? `<a class="lnk" href="${escAttr(s.url)}" target="_blank" rel="noopener"><i class="fas fa-external-link-alt"></i>${esc(s.label || s.url)}</a>` : '').join('')}
+        ${atts.map(a => `<a class="lnk" href="${escAttr(a.url || ('/api/kb/download/' + encodeURIComponent(a.stored_name || '')))}" target="_blank"><i class="fas fa-paperclip"></i>${esc(a.original_name || a.name || '첨부')}</a>`).join('')}</div>` : ''}
+      <div class="dp-sec"><div class="dp-lbl"><i class="fas fa-file-alt"></i> 신구조문 대비 리포트</div>
+        ${it.report_doc_id ? `<div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-primary btn-sm" href="kb-sop.html?doc=${encodeURIComponent(it.report_doc_id)}" target="_blank"><i class="fas fa-external-link-alt"></i> 리포트 보기</a>
+          <button class="btn btn-secondary btn-sm" id="btnInline" onclick="toggleInlineReport('${escAttr(it.report_doc_id)}')"><i class="fas fa-chevron-down"></i> 여기서 펼치기</button></div>
+          <div style="font-size:11.5px;color:#9ca3af;margin-top:6px">${esc(doc ? doc.title : '계리업무절차서 › 규정·기준')}</div><div id="inlineReport"></div>` : '<div style="font-size:13px;color:#9ca3af">연결된 리포트가 없습니다</div>'}
+      </div>
+      <div class="dp-sec"><div class="dp-lbl"><i class="fas fa-tasks"></i> 조치 ${acts.length ? `<span style="color:#374151">${acts.filter(a => a.state === '완료').length}/${acts.length} 완료</span>` : ''}</div>
+        ${acts.length ? acts.map((a, i) => `<div class="act-row"><span class="act-no">${i + 1}</span><span class="act-task">${esc(a.task)}<small>${a.owner ? '담당 ' + esc(a.owner) : '담당 —'}${a.due ? ' · 기한 ' + fmtD(a.due) : ''}</small></span>
+          ${canWrite ? `<select class="act-state ${esc(a.state || '대기')}" onchange="setActState('${escAttr(it.id)}', ${i}, this.value)">${ACT_STATES.map(s => `<option ${s === (a.state || '대기') ? 'selected' : ''}>${s}</option>`).join('')}</select>` : `<span class="act-state ${esc(a.state || '대기')}">${esc(a.state || '대기')}</span>`}</div>`).join('') : '<div style="font-size:13px;color:#9ca3af">등록된 조치가 없습니다</div>'}
+      </div>
+      ${tags.length ? `<div class="dp-sec"><div class="chips">${tags.map(t => `<span class="chip tag">#${esc(t)}</span>`).join('')}</div></div>` : ''}
+      <div class="dp-sec hist"><i class="fas fa-history"></i> ${Portal.formatDate(it.created_at)} ${esc(it.created_by || '')} 등록${it.updated_at && it.updated_by && it.updated_at !== it.created_at ? ` · ${Portal.formatDate(it.updated_at)} ${esc(it.updated_by)} 수정` : ''}${it.owner_name ? ` · 담당 ${esc(it.owner_name)}` : ''}</div>
+    </div>`;
+}
+
+// 리포트 인라인 펼치기 — 새 렌더러 없이 kb_documents.content(iframe srcdoc) 를 그대로 삽입 (§5-2)
+let inlineOpenFor = null;
+async function toggleInlineReport(docId) {
+  const box = document.getElementById('inlineReport'); const btn = document.getElementById('btnInline');
+  if (inlineOpenFor === docId) { box.innerHTML = ''; inlineOpenFor = null; btn.innerHTML = '<i class="fas fa-chevron-down"></i> 여기서 펼치기'; return; }
+  box.innerHTML = '<div style="padding:16px;color:#9ca3af;font-size:13px">불러오는 중…</div>';
+  try {
+    const r = await fetch(`/tables/${KB_TABLE}/${encodeURIComponent(docId)}`); if (!r.ok) throw new Error();
+    const doc = await r.json();
+    box.innerHTML = `<div class="rep-inline">${ReportEmbed.isWrapped(doc.content) ? doc.content : '<div style="padding:14px;font-size:13px;color:#6b7280">이 문서는 리포트 임베드 형식이 아닙니다. [리포트 보기]로 여세요.</div>'}</div>`;
+    ReportEmbed.fitFrames(box); inlineOpenFor = docId; btn.innerHTML = '<i class="fas fa-chevron-up"></i> 접기';
+  } catch { box.innerHTML = '<div style="padding:14px;color:#ef4444;font-size:13px">리포트를 불러오지 못했습니다</div>'; }
+}
+
+async function setActState(itemId, idx, state) {
+  const it = ITEMS.find(x => x.id === itemId); if (!it) return;
+  const acts = arr(it.actions).map(a => ({ ...a })); if (!acts[idx]) return;
+  acts[idx].state = state;
+  try {
+    const r = await fetch(`/tables/${TABLE}/${encodeURIComponent(itemId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actions: acts, updated_by: myName }) });
+    if (!r.ok) throw new Error();
+    it.actions = acts; it.updated_by = myName; it.updated_at = Date.now();
+    renderStats(); renderTimeline(); renderDetail(itemId);
+    Portal.showToast(`조치 ${idx + 1} → ${state}`, 'success');
+  } catch { Portal.showToast('조치 상태 저장 실패', 'error'); }
+}
+
+// ══════════════════════════════════════════════════════════
+// C. 수집함
+// ══════════════════════════════════════════════════════════
+function renderInboxHead() {
+  const last = collectStatus && collectStatus.last_run;
+  document.getElementById('inboxLast').textContent = last ? `마지막 수집 ${Portal.formatDateTime(last.at)} · ${last.added}건 추가` : '마지막 수집 — (아직 실행된 적 없음)';
+  const err = document.getElementById('inboxErr');
+  if (last && last.errors && last.errors.length) {
+    err.style.display = ''; err.innerHTML = `<i class="fas fa-exclamation-circle"></i> <b>수집 실패</b> · ${Portal.formatDate(last.at)} — ` + last.errors.map(e => `${esc(e.label || e.source)}: ${esc(e.message)}`).join(' / ');
+  } else err.style.display = 'none';
+  const src = document.getElementById('inboxSources');
+  src.innerHTML = collectStatus && collectStatus.sources ? collectStatus.sources.map(s =>
+    `<span class="${!s.enabled ? 'off' : s.ready ? 'ok' : 'warn'}" title="${escAttr(s.note || '')}"><i class="fas ${!s.enabled ? 'fa-pause-circle' : s.ready ? 'fa-check-circle' : 'fa-key'}"></i> ${esc(s.label)}${!s.enabled ? ' (비활성)' : s.ready ? '' : ' (인증키 필요)'}</span>`).join('') : '';
+}
+function renderInbox() {
+  const st = document.getElementById('fInboxState').value;
+  const rows = INBOX_ROWS.filter(x => !st || x.state === st).sort((a, b) => (b.published_at || '').localeCompare(a.published_at || '') || (b.fetched_at || 0) - (a.fetched_at || 0));
+  document.getElementById('inboxCount').textContent = `${rows.length}건`;
+  const el = document.getElementById('inboxList');
+  if (!rows.length) { el.innerHTML = '<div class="tl-empty">표시할 수집 후보가 없습니다</div>'; return; }
+  el.innerHTML = rows.map(x => `<div class="ib-row${x.state !== '신규' ? ' done' : ''}">
+      <div class="ib-date">${fmtD(x.published_at) || '날짜 —'}<small>${esc(x.source_label || x.source)}</small></div>
+      <div class="ib-t">${x.url ? `<a href="${escAttr(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a>` : esc(x.title)}<small>${x.reg_name ? esc(x.reg_name) + ' · ' : ''}${x.authority ? esc(x.authority) + ' · ' : ''}${x.effective_at ? '시행 ' + fmtD(x.effective_at) + ' · ' : ''}상태 ${esc(x.state)}${x.linked_item_id ? ' · <a href="reg-history.html?item=' + encodeURIComponent(x.linked_item_id) + '">등록 건 보기</a>' : ''}</small></div>
+      <div class="ib-btns">${canWrite && x.state === '신규' ? `<button class="b-reg" onclick="registerFromInbox('${escAttr(x.id)}')"><i class="fas fa-plus"></i> 등록</button><button class="b-ign" onclick="ignoreInbox('${escAttr(x.id)}')">무시</button>` : ''}</div>
+    </div>`).join('');
+}
+async function runCollect() {
+  const btn = document.getElementById('btnCollect'); btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 수집 중…';
+  try {
+    const r = await fetch('/reg/collect', { method: 'POST' }); const d = await r.json();
+    if (!r.ok) throw new Error(d.error || r.status);
+    Portal.showToast(`수집 완료 · 신규 ${d.added}건${d.run.errors.length ? ` · 실패 ${d.run.errors.length}건` : ''}`, d.run.errors.length ? 'warning' : 'success');
+    await Promise.all([loadAll(), loadCollectStatus()]);
+  } catch (e) { Portal.showToast('수집 실행 실패: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync"></i> 수집 실행'; }
+}
+async function ignoreInbox(id) {
+  try {
+    const r = await fetch(`/tables/${INBOX}/${encodeURIComponent(id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state: '무시', updated_by: myName }) });
+    if (!r.ok) throw new Error();
+    const x = INBOX_ROWS.find(i => i.id === id); if (x) x.state = '무시';
+    renderStats(); renderInbox();
+  } catch { Portal.showToast('무시 처리 실패', 'error'); }
+}
+function registerFromInbox(id) {
+  const x = INBOX_ROWS.find(i => i.id === id); if (!x) return;
+  openNewModal();
+  document.getElementById('fromInboxId').value = id;
+  document.getElementById('mTitle').value = x.title || '';
+  document.getElementById('mRegName').value = x.reg_name || REG_NAMES.find(n => (x.title || '').includes(n)) || '';
+  document.getElementById('mRegType').value = /세칙/.test(x.title || '') ? '시행세칙' : /감독규정/.test(x.title || '') ? '감독규정' : /시행령/.test(x.title || '') ? '시행령' : /법/.test(x.title || '') ? '법률' : '기타';
+  document.getElementById('mStatus').value = /예고/.test(x.title || '') ? '사전예고' : (x.effective_at && x.effective_at <= todayStr()) ? '시행' : '공포';
+  document.getElementById('mDateNotice').value = /예고/.test(x.title || '') ? (x.published_at || '') : '';
+  document.getElementById('mDateProm').value = /예고/.test(x.title || '') ? '' : (x.published_at || '');
+  document.getElementById('mDateEff').value = x.effective_at || '';
+  document.getElementById('mAuthority').value = x.authority || '';
+  if (x.url) addSrcRow({ label: x.source_label || x.source, url: x.url });
+  document.getElementById('modalTitle').textContent = '수집 후보 등록';
+}
+
+// ══════════════════════════════════════════════════════════
+// D. 등록·수정 폼
+// ══════════════════════════════════════════════════════════
+function fillStatic() {
+  document.getElementById('mRegType').innerHTML = REG_TYPES.map(v => `<option>${v}</option>`).join('');
+  document.getElementById('mStatus').innerHTML = STATUSES.map(v => `<option>${v}</option>`).join('');
+  document.getElementById('mImpact').innerHTML = IMPACTS.map(v => `<option>${v}</option>`).join('');
+  document.getElementById('regNameList').innerHTML = REG_NAMES.map(v => `<option value="${escAttr(v)}">`).join('');
+}
+function fillDynamic() {
+  document.getElementById('mOwner').innerHTML = '<option value="">—</option>' + USERS.map(u => `<option value="${escAttr(u.id)}">${esc(u.full_name || u.username)}</option>`).join('');
+  document.getElementById('mReportDoc').innerHTML = '<option value="">연결 안 함</option>' + KB_DOCS.map(d => `<option value="${escAttr(d.id)}">${esc(d.title)}</option>`).join('');
+}
+function addActRow(a = {}) {
+  const w = document.createElement('div'); w.className = 'sub-row';
+  w.innerHTML = `<input type="text" placeholder="조치 내용" value="${escAttr(a.task || '')}" data-k="task"><input type="text" placeholder="담당" value="${escAttr(a.owner || '')}" data-k="owner"><input type="date" value="${escAttr(a.due || '')}" data-k="due"><select data-k="state">${ACT_STATES.map(s => `<option ${s === (a.state || '대기') ? 'selected' : ''}>${s}</option>`).join('')}</select><button type="button" onclick="this.parentNode.remove()"><i class="fas fa-times"></i></button>`;
+  document.getElementById('actRows').appendChild(w);
+}
+function addSrcRow(s = {}) {
+  const w = document.createElement('div'); w.className = 'sub-row src';
+  w.innerHTML = `<input type="text" placeholder="라벨 (예: 사전예고 공고)" value="${escAttr(s.label || '')}" data-k="label"><input type="url" placeholder="https://…" value="${escAttr(s.url || '')}" data-k="url"><button type="button" onclick="this.parentNode.remove()"><i class="fas fa-times"></i></button>`;
+  document.getElementById('srcRows').appendChild(w);
+}
+const readRows = (containerId) => Array.from(document.getElementById(containerId).children).map(row => { const o = {}; row.querySelectorAll('[data-k]').forEach(i => { o[i.dataset.k] = i.value.trim(); }); return o; });
+
+function resetForm() {
+  ['editId','fromInboxId','mTitle','mRegName','mArticles','mAuthority','mDateNotice','mDateComment','mDateProm','mDateEff','mSummary','mChgNew','mChgMod','mChgDel','mAreas','mSystems','mTags'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('mRegType').value = '시행세칙'; document.getElementById('mStatus').value = '사전예고'; document.getElementById('mImpact').value = '미정';
+  document.getElementById('mOwner').value = ''; document.getElementById('mReportDoc').value = '';
+  document.getElementById('actRows').innerHTML = ''; document.getElementById('srcRows').innerHTML = '';
+  pendingReportHtml = null; pendingAttachments = []; renderReportInfo(); renderAttList();
+  document.getElementById('modalDelBtn').style.display = 'none';
+}
+function openNewModal() {
+  fillDynamic(); resetForm();
+  document.getElementById('modalTitle').textContent = '개정 건 등록';
+  document.getElementById('regModal').classList.add('show');
+}
+function openEditModal(id) {
+  const it = ITEMS.find(x => x.id === id); if (!it) return;
+  fillDynamic(); resetForm();
+  document.getElementById('editId').value = it.id;
+  document.getElementById('mTitle').value = it.title || ''; document.getElementById('mRegType').value = it.reg_type || '기타'; document.getElementById('mRegName').value = it.reg_name || '';
+  document.getElementById('mStatus').value = it.status || '사전예고'; document.getElementById('mArticles').value = arr(it.articles).join(', '); document.getElementById('mAuthority').value = it.authority || '';
+  document.getElementById('mDateNotice').value = it.date_notice || ''; document.getElementById('mDateComment').value = it.date_comment_due || ''; document.getElementById('mDateProm').value = it.date_promulgated || ''; document.getElementById('mDateEff').value = it.date_effective || '';
+  document.getElementById('mSummary').value = it.summary || ''; document.getElementById('mChgNew').value = it.change_new ?? ''; document.getElementById('mChgMod').value = it.change_mod ?? ''; document.getElementById('mChgDel').value = it.change_del ?? '';
+  document.getElementById('mImpact').value = it.impact_level || '미정'; document.getElementById('mAreas').value = arr(it.impact_areas).join(', '); document.getElementById('mSystems').value = arr(it.impact_systems).join(', ');
+  document.getElementById('mOwner').value = it.owner_id || ''; document.getElementById('mTags').value = arr(it.tags).join(', ');
+  document.getElementById('mReportDoc').value = it.report_doc_id || '';
+  arr(it.actions).forEach(a => addActRow(a)); arr(it.sources).forEach(s => addSrcRow(s));
+  pendingAttachments = arr(it.attachments).slice(); renderAttList();
+  document.getElementById('modalTitle').textContent = '개정 건 수정';
+  if (isLeader) document.getElementById('modalDelBtn').style.display = '';
+  document.getElementById('regModal').classList.add('show');
+}
+function closeModal() { document.getElementById('regModal').classList.remove('show'); }
+document.getElementById('regModal').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
+
+function onReportFile(ev) {
+  const f = ev.target.files && ev.target.files[0]; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = e => {
+    const html = String(e.target.result || '');
+    if (/<script[\s>]/i.test(html)) Portal.showToast('스크립트가 포함된 HTML 입니다. 리포트는 스크립트 없이 만들어야 합니다 (스타일가이드 §5-2).', 'warning');
+    pendingReportHtml = { name: f.name, html, title: ReportEmbed.extractTitle(html) };
+    if (!document.getElementById('mTitle').value.trim() && pendingReportHtml.title) document.getElementById('mTitle').value = pendingReportHtml.title;
+    renderReportInfo();
+  };
+  rd.readAsText(f, 'utf-8'); ev.target.value = '';
+}
+function renderReportInfo() {
+  document.getElementById('reportInfo').innerHTML = pendingReportHtml ? `<i class="fas fa-check-circle" style="color:#10b981"></i> ${esc(pendingReportHtml.name)} (${Math.round(pendingReportHtml.html.length / 1024)}KB) <span class="x" onclick="clearReportFile()">제거</span>` : '';
+}
+async function onAttachFiles(ev) {
+  const files = Array.from(ev.target.files || []); ev.target.value = '';
+  for (const f of files) {
+    try {
+      const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = e => res(String(e.target.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(f); });
+      const r = await fetch('/api/kb/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename: f.name, content: b64, context: 'reg' }) });
+      if (!r.ok) throw new Error((await r.json()).error || r.status);
+      pendingAttachments.push(await r.json()); renderAttList();
+    } catch (e) { Portal.showToast(`"${f.name}" 업로드 실패: ${e.message}`, 'error'); }
+  }
+}
+function renderAttList() {
+  document.getElementById('attList').innerHTML = pendingAttachments.map((a, i) => `<span><i class="fas fa-paperclip"></i>${esc(a.original_name)}<i class="fas fa-times" style="color:#ef4444;cursor:pointer" onclick="removeAtt(${i})"></i></span>`).join('');
+}
+function clearReportFile() { pendingReportHtml = null; renderReportInfo(); }
+function removeAtt(i) { pendingAttachments.splice(i, 1); renderAttList(); }
+
+async function saveItem() {
+  const title = document.getElementById('mTitle').value.trim(), regType = document.getElementById('mRegType').value, regName = document.getElementById('mRegName').value.trim(), status = document.getElementById('mStatus').value;
+  if (!title || !regType || !regName || !status) { Portal.showToast('제목 · 규정구분 · 규정명 · 상태는 필수입니다.', 'warning'); return; }
+  const btn = document.getElementById('saveBtn'); btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 저장 중…';
+  const editId = document.getElementById('editId').value;
+  const ownerSel = document.getElementById('mOwner');
+  const n = id => { const v = document.getElementById(id).value; return v === '' ? 0 : Math.max(0, parseInt(v, 10) || 0); };
+  try {
+    // 1) 리포트 HTML → kb_documents (규정·기준) — 기존 저장 구조 그대로 (§5-3)
+    let reportDocId = document.getElementById('mReportDoc').value || '';
+    if (pendingReportHtml) {
+      const docBody = { category_id: KB_CATEGORY, title: `${regName} ${title}`.trim(), content: ReportEmbed.wrapForPortal(pendingReportHtml.html), is_published: true, author_id: currentUser.user_id, author_name: myName };
+      const r = await fetch(`/tables/${KB_TABLE}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(docBody) });
+      if (!r.ok) throw new Error('리포트 문서 저장 실패');
+      reportDocId = (await r.json()).id;
+    }
+    const body = {
+      title, reg_type: regType, reg_name: regName, articles: splitCsv(document.getElementById('mArticles').value), status,
+      date_notice: document.getElementById('mDateNotice').value || null, date_comment_due: document.getElementById('mDateComment').value || null,
+      date_promulgated: document.getElementById('mDateProm').value || null, date_effective: document.getElementById('mDateEff').value || null,
+      authority: document.getElementById('mAuthority').value.trim(), summary: document.getElementById('mSummary').value.trim(),
+      change_new: n('mChgNew'), change_mod: n('mChgMod'), change_del: n('mChgDel'),
+      impact_level: document.getElementById('mImpact').value, impact_areas: splitCsv(document.getElementById('mAreas').value), impact_systems: splitCsv(document.getElementById('mSystems').value),
+      actions: readRows('actRows').filter(a => a.task).map((a, i) => ({ no: i + 1, task: a.task, owner: a.owner, due: a.due, state: a.state || '대기' })),
+      report_doc_id: reportDocId || null,
+      sources: readRows('srcRows').filter(s => s.url || s.label).map(s => ({ label: s.label, url: s.url, fetched_at: Date.now() })),
+      attachments: pendingAttachments, tags: splitCsv(document.getElementById('mTags').value),
+      owner_id: ownerSel.value || '', owner_name: ownerSel.value ? ownerSel.options[ownerSel.selectedIndex].text : '',
+      updated_by: myName,
+    };
+    if (!editId) body.created_by = myName;
+    const r = await fetch(editId ? `/tables/${TABLE}/${encodeURIComponent(editId)}` : `/tables/${TABLE}`, { method: editId ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!r.ok) throw new Error('저장 실패 (' + r.status + ')');
+    const saved = await r.json();
+    // 2) 수집함에서 온 건 → 등록됨 표시 + 연결
+    const inboxId = document.getElementById('fromInboxId').value;
+    if (inboxId) await fetch(`/tables/${INBOX}/${encodeURIComponent(inboxId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state: '등록됨', linked_item_id: saved.id, updated_by: myName }) }).catch(() => {});
+    Portal.showToast(editId ? '개정 건이 수정되었습니다.' : '개정 건이 등록되었습니다.', 'success');
+    closeModal(); selectedId = saved.id;
+    await loadAll(); switchTab('timeline');
+  } catch (e) { Portal.showToast(e.message || '저장 중 오류', 'error'); }
+  finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> 저장'; }
+}
+function deleteItem() {
+  const id = document.getElementById('editId').value; if (!id) return;
+  Portal.confirm('이 개정 건을 삭제하시겠습니까? 연결된 리포트 문서(계리업무절차서)는 남습니다.', async () => {
+    try {
+      const r = await fetch(`/tables/${TABLE}/${encodeURIComponent(id)}`, { method: 'DELETE' }); if (!r.ok) throw new Error();
+      Portal.showToast('삭제되었습니다.', 'success'); closeModal(); selectedId = null;
+      document.getElementById('detail').innerHTML = '<div class="dp-empty">타임라인에서 개정 건을 누르면<br>상세가 여기에 표시됩니다</div>';
+      await loadAll();
+    } catch { Portal.showToast('삭제 실패', 'error'); }
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// 탭 · 초기화
+// ══════════════════════════════════════════════════════════
+function switchTab(tab) {
+  document.querySelectorAll('.rh-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.getElementById('tabTimeline').style.display = tab === 'timeline' ? '' : 'none';
+  document.getElementById('tabInbox').style.display = tab === 'inbox' ? '' : 'none';
+  if (tab === 'inbox') loadCollectStatus();
+}
+fillStatic();
+if (canWrite) {
+  document.getElementById('headerActions').innerHTML = `<button class="btn btn-primary" onclick="openNewModal()"><i class="fas fa-plus"></i> 개정 등록</button>`;
+  document.getElementById('btnCollect').style.display = '';
+}
+loadAll().catch(e => { document.getElementById('timeline').innerHTML = `<div class="tl-empty">불러오기 실패: ${esc(e.message)}<br><small>서버가 최신 버전인지(reg_items 테이블) 확인하세요 — update-now.bat</small></div>`; });
+loadCollectStatus();
+Object.assign(window, { switchTab, selectItem, toggleInlineReport, setActState, runCollect, ignoreInbox, registerFromInbox, openNewModal, openEditModal, closeModal, addActRow, addSrcRow, onReportFile, onAttachFiles, saveItem, deleteItem, renderInbox, renderReportInfo, renderAttList, clearReportFile, removeAtt });
+
+} catch (e) { console.error(e); if (window.Portal && Portal.showToast) Portal.showToast('페이지 초기화 오류: ' + e.message, 'error'); }
+</script>
+</body>
+</html>

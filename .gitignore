@@ -55,3 +55,6 @@ node_modules/
 !.claude/CLAUDE.md
 !.claude/settings.json
 !.claude/settings.local.json
+
+# 지식관리 업로드 파일 (사용자 데이터 — 저장소에 올리지 않음)
+server/data/kb_files/

@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>계리적 가정 세칙 개정안</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0);padding-bottom:env(safe-area-inset-bottom,0);
+--bg:#fff;--fg:#111;--sub:#737373;--line:#e5e5e5;--acc:#c8102e;--grid:#f2f2f2;--ok:#0a7d3f;--src:#0563C1;
+--fs:15px;--fst:16px;--fsh:12.5px;--pad:20px}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e0e0e;--fg:#f0f0f0;--sub:#8f8f8f;--line:#262626;--acc:#ff6b6b;--grid:#171717;--ok:#4ade80;--src:#7ab6ff;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e0e0e;--fg:#f0f0f0;--sub:#8f8f8f;--line:#262626;--acc:#ff6b6b;--grid:#171717;--ok:#4ade80;--src:#7ab6ff;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0) + 52px);-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);
+font-family:'IBM Plex Sans KR',-apple-system,'Apple SD Gothic Neo','맑은 고딕',sans-serif;
+font-size:var(--fs);line-height:1.72;word-break:keep-all;overflow-wrap:break-word}
+.wrap{max-width:880px;margin:0 auto;padding:0 0 70px}
+.top{border-bottom:3px solid var(--fg);
+padding-left:max(var(--pad),env(safe-area-inset-left,0px));padding-right:max(var(--pad),env(safe-area-inset-right,0px));
+padding-block:26px 16px}
+.tag{display:inline-block;background:var(--acc);color:#fff;font-size:11px;font-weight:600;padding:3px 9px;letter-spacing:.05em;margin-bottom:12px}
+h1{font-size:clamp(20px,5vw,27px);margin:0 0 6px;font-weight:700;letter-spacing:-.02em;line-height:1.35}
+.subt{font-size:13px;color:var(--sub);margin:0}
+.sec{padding-left:max(var(--pad),env(safe-area-inset-left,0px));padding-right:max(var(--pad),env(safe-area-inset-right,0px))}
+.nav{position:sticky;top:env(safe-area-inset-top,0);z-index:9;background:var(--bg);border-bottom:1px solid var(--line);
+padding-left:max(var(--pad),env(safe-area-inset-left,0px));padding-right:max(var(--pad),env(safe-area-inset-right,0px));padding-block:9px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.nav .in{display:flex;gap:14px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.nav .in::-webkit-scrollbar{display:none}
+.nav a{flex:0 0 auto;font-size:12.5px;text-decoration:none;color:var(--sub);white-space:nowrap;padding:2px 0;border-bottom:2px solid transparent}
+.nav a:hover,.nav a:focus-visible{color:var(--fg);border-bottom-color:var(--acc)}
+h2{font-size:clamp(18px,4.8vw,22px);margin:40px 0 14px;font-weight:700;padding-left:13px;border-left:5px solid var(--acc);letter-spacing:-.01em;line-height:1.35}
+h3{font-size:clamp(15.5px,4vw,17.5px);margin:26px 0 10px;font-weight:600;color:var(--fg);line-height:1.5}
+p{margin:11px 0}
+strong{font-weight:600;background:linear-gradient(transparent 62%,rgba(200,16,46,.18) 62%)}
+.lead{border-left:3px solid var(--fg);padding:2px 0 2px 14px;margin:18px 0;font-size:clamp(15px,4vw,17px);font-weight:600;line-height:1.6}
+.tw{margin:14px 0;overflow:visible}
+table{width:100%;border-collapse:collapse;font-size:var(--fst);margin:0}
+th{background:var(--grid);border-top:1px solid var(--fg);border-bottom:1px solid var(--fg);padding:8px 4px;font-weight:600;font-size:var(--fsh);color:var(--sub);text-align:center;line-height:1.35;white-space:nowrap}
+td{border-bottom:1px solid var(--line);padding:8px 4px;text-align:center;line-height:1.35}
+td.l{text-align:left;font-weight:500;padding-left:8px;white-space:nowrap}
+table.wrap-ok,table.wrap-ok2{min-width:0}
+table.wrap-ok td.l,table.wrap-ok2 td.l{white-space:normal;word-break:keep-all;line-height:1.55;font-size:.9em}
+table.wrap-ok th,table.wrap-ok2 th{white-space:normal}
+td.r{text-align:right;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";white-space:nowrap;padding-right:7px;padding-left:3px;letter-spacing:-.02em}
+tr.hl td{background:var(--grid);font-weight:700}
+tr.sub td{background:var(--grid);font-weight:600;border-bottom:2px solid var(--fg)}
+tr.tot td{border-top:1px solid var(--fg);border-bottom:2px solid var(--fg);font-weight:700;background:var(--grid)}
+td.grp{background:var(--grid);font-weight:600;font-size:.92em;vertical-align:middle;border-right:1px solid var(--line);border-bottom:2px solid var(--fg);line-height:1.35}
+.callout{border:1px solid var(--line);border-left:4px solid var(--acc);padding:13px 15px;margin:14px 0;font-size:14.5px}
+.callout.ok{border-left-color:var(--ok)}
+.callout.neutral{border-left-color:var(--fg)}
+.callout b{font-weight:600}
+.callout p{margin:9px 0 0}
+.fml{border:1px solid var(--line);padding:11px 14px;margin:13px 0;text-align:center;font-size:clamp(13.5px,3.6vw,15px);background:var(--grid)}
+.fml .nm{display:block;font-size:11.5px;color:var(--sub);font-weight:600;margin-bottom:5px;letter-spacing:.03em}
+.fml .ps{display:block;font-size:11.5px;color:var(--sub);margin-top:5px}
+table.mid{font-size:calc(var(--fst) * .9);letter-spacing:-.02em}
+table.mid th,table.mid td{padding:9px 7px}
+table.tight{font-size:calc(var(--fst) * .82);letter-spacing:-.025em}
+table.tight th{font-size:calc(var(--fsh) * .88);padding:8px 5px;line-height:1.35}
+table.tight td{padding:8px 5px;line-height:1.5}
+table.tight td.l{padding-left:7px;font-size:.96em;line-height:1.55;white-space:normal;word-break:keep-all}
+table.tight td.r{padding-right:7px;padding-left:3px}
+table.act{font-size:15px}
+table.act th{padding:10px 8px;font-size:13px}
+table.act td{padding:12px 10px;line-height:1.6}
+table.act td.l{font-size:15px;white-space:normal;word-break:keep-all}
+table.act b{font-size:15.5px;display:block;margin-bottom:5px;line-height:1.5}
+table.act .sub2{display:block;font-size:13.5px;color:var(--sub);line-height:1.65;font-weight:400;letter-spacing:-.01em}
+.src{display:block;font-size:11.5px;color:var(--src);margin-top:5px;font-weight:400;line-height:1.6;letter-spacing:0}
+.note{font-size:11.5px;color:var(--sub);margin-top:6px;line-height:1.6}
+.bdg{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 7px;margin-right:6px;vertical-align:2px;color:#fff;letter-spacing:.03em}
+.bdg.n{background:var(--ok)}.bdg.c{background:var(--acc)}.bdg.m{background:var(--sub)}
+.gist{border:1px solid var(--line);border-left:4px solid var(--fg);padding:12px 14px;margin:12px 0;font-size:14px;line-height:1.7;background:var(--grid)}
+.cmp{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--fg);border-bottom:2px solid var(--fg);margin:14px 0}
+.cmp > .col{min-width:0;display:flex;flex-direction:column}
+.cmp > .col + .col{border-left:1px solid var(--line)}
+.cmph{font-size:var(--fsh);font-weight:600;color:var(--sub);text-align:center;background:var(--grid);padding:7px 4px;border-bottom:1px solid var(--fg)}
+.col-b .cmph{color:var(--fg)}
+.law{padding:11px 12px 14px;font-size:13.5px;line-height:1.74}
+.law p{margin:0}
+.law p + p{margin-top:8px}
+.law .ind{padding-left:13px}
+.law em{font-style:normal;font-weight:600;background:linear-gradient(transparent 62%,rgba(10,125,63,.25) 62%)}
+.col-a .law em{background:linear-gradient(transparent 62%,rgba(200,16,46,.2) 62%)}
+.law .mk{font-size:11.5px;color:var(--sub)}
+.law .nil{color:var(--sub);font-size:13px}
+.law del{color:var(--sub)}
+figure{margin:16px 0;border:1px solid var(--line);padding:14px 12px}
+figure svg{display:block;width:100%;height:auto}
+figcaption{font-size:11.5px;color:var(--sub);line-height:1.65;margin-top:10px}
+.figsc{overflow-x:auto}
+.figsc svg{min-width:460px}
+details{border-top:1px solid var(--line);margin:0}
+details:last-of-type{border-bottom:1px solid var(--line)}
+summary{padding:12px 2px;cursor:pointer;font-weight:600;font-size:14px;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";color:var(--acc);font-size:17px;font-weight:400}
+details[open] summary::after{content:"\2212"}
+details .body{padding:0 0 16px}
+@media(max-width:700px){:root{--fs:14.5px;--fst:14.5px;--fsh:11.5px;--pad:16px}
+ th,td{padding:7px 3px}
+ table.act{font-size:14px}table.act b{font-size:14.5px}table.act .sub2{font-size:12.5px}
+ table.tight{font-size:11.5px}table.tight th{font-size:10px}table.mid{font-size:12.5px}
+ .cmp{grid-template-columns:1fr}
+ .cmp > .col + .col{border-left:none;border-top:2px solid var(--fg)}}
+@media(max-width:430px){:root{--fst:13px;--fsh:11px}
+ table.tight{font-size:10.5px;letter-spacing:-.04em}table.tight th{font-size:9.5px}table.mid{font-size:11.5px}}
+@media print{.nav{display:none}details .body{display:block}body{font-size:10pt}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="top"><span class="tag">사전예고</span>
+<h1>계리적 가정 산출기준 개정 신·구 조문 대비</h1>
+<p class="subt">보험업감독업무시행세칙 별표22 · 별표35 · 2026년 6월 19일 사전예고 · 2026년 10월 시행 예정</p></div>
+
+<div class="nav"><div class="in">
+<a href="#c">결론</a><a href="#1">개정 개요</a><a href="#2">해약률</a><a href="#3">위험률</a><a href="#4">기타 정비</a><a href="#5">조치 사항</a><a href="#a">부록</a>
+</div></div>
+
+<div class="sec">
+
+<h2 id="c">결론</h2>
+<p class="lead">무·저해지 상품의 해약률을 어떻게 잡을지, 감독당국이 모형과 숫자를 직접 정했다</p>
+<p>조문은 많아 보이지만 실질 변경은 세 갈래다. 둘은 전에 없던 조항이 통째로 생긴 것이고, 하나는 회사가 알아서 정하던 것을 감독당국이 못박은 것이다.</p>
+
+<div class="tw"><table class="wrap-ok2"><thead><tr><th>구분</th><th>무엇이 바뀌나</th></tr></thead><tbody>
+<tr class="hl"><td class="l"><b>① 해약률 모형 지정</b></td><td class="l">납입기간 중 해약률을 <b>로그-선형 모형</b>으로 추정하고 납입이 끝나는 시점에 <b>0.1%</b>로 수렴시키라고 명시했다. 지금은 “합리적으로 설정된 기간 동안 0으로 수렴하는 모델”이라고만 되어 있어 회사마다 달랐다<span class="src">※ 2-3 · 2-4</span></td></tr>
+<tr><td class="l"><b>② 해약률 효과 2종 신설</b></td><td class="l"><b>추가 해지상승효과</b>와 <b>납입기간 이후 해약률</b>이 새로 들어왔다. 현행 조문에 대응하는 자리가 아예 없던 내용이다<span class="src">※ 2-6 · 2-7</span></td></tr>
+<tr><td class="l"><b>③ 위험률 연령 구분</b></td><td class="l">위험률을 경과기간뿐 아니라 <b>연령까지 나눠</b> 산출하도록 했다. 별표22는 지난 4월에 이미 반영되었고 이번에 별표35가 따라온다<span class="src">※ 3-1</span></td></tr>
+</tbody></table></div>
+
+<div class="tw"><table class="mid"><thead><tr><th>신설</th><th>변경</th><th>이동 · 삭제</th><th>대상 별표</th></tr></thead><tbody>
+<tr class="tot"><td>10</td><td>6</td><td>1</td><td>2</td></tr>
+</tbody></table></div>
+<p class="note">변경 항목 전체 목록은 부록 B에 있다</p>
+
+<div class="callout neutral"><b>해약률 변경은 두 별표에 같은 내용으로 들어간다</b>
+<p>별표22와 별표35의 해약률 개정 내용은 사실상 같다. 조문 번호 체계만 다를 뿐이다. 이 보고서의 2장은 두 별표를 한 번에 다루고, 번호 대응은 부록 A에 정리했다.</p>
+<p>다만 <strong>대체모형 사용 요건 한 가지는 별표35에만 추가 의무가 붙는다.</strong> 2-4에서 다룬다.</p></div>
+
+<h2 id="1">1. 개정 개요</h2>
+
+<h3>1-1. 어떤 규정이 바뀌나</h3>
+<p>보험부채를 시가로 평가하기 시작한 2023년 1월 이후의 후속 조치다. 책임준비금이 합리적으로 산출되도록 계리적 가정 관련 조문을 손보는 것이 목적이다.</p>
+<div class="tw"><table class="wrap-ok2"><thead><tr><th>별표</th><th>이름</th><th>언제 쓰나</th></tr></thead><tbody>
+<tr><td class="l"><b>별표 22</b></td><td class="l">지급여력금액 및 지급여력기준금액 산출기준</td><td class="l">회사가 자본을 충분히 갖고 있는지 따질 때</td></tr>
+<tr><td class="l"><b>별표 35</b></td><td class="l">책임준비금 산출기준</td><td class="l">앞으로 나갈 보험금을 부채로 쌓을 때</td></tr>
+</tbody></table></div>
+<p>같은 계약을 두 가지 목적으로 평가하므로 쓰는 가정도 같아야 한다. 그래서 두 별표가 함께 바뀐다.</p>
+<div class="tw"><table class="tight"><thead><tr><th>별표</th><th>바뀌는 조문 위치</th></tr></thead><tbody>
+<tr><td>22</td><td class="l">II. 자산 및 부채평가 → 제3장 → 3-2 현행추정부채 → 나. 보험료부채 → (5) 계리적 가정 → ③ 해약률</td></tr>
+<tr><td>35</td><td class="l">제10장 가정의 산출방법 → 10-1 개요 · 10-3 해약률 · 10-4 위험률</td></tr>
+</tbody></table></div>
+
+<h3>1-2. 대비표의 점선을 읽는 법</h3>
+<p>신·구 조문 대비표가 읽기 어려운 이유는 점선 때문이다. 개정안 칸에 길게 늘어선 <span class="law mk">———————</span> 는 <strong>그 부분이 현행과 똑같다는 뜻이다.</strong> 점선이 길수록 실제로 바뀐 내용은 적다.</p>
+<p>이 보고서는 점선을 현행 문구로 되살려 개정안 전문을 보여준다. 바뀐 부분에만 색을 입혔으므로 색칠된 곳만 따라 읽으면 된다.</p>
+<div class="cmp">
+  <div class="col col-a"><div class="cmph">현행 칸 · 없어지는 문구</div>
+    <div class="law"><p>붉은 밑줄로 <em>이렇게</em> 표시한다</p></div></div>
+  <div class="col col-b"><div class="cmph">개정안 칸 · 새로 들어오는 문구</div>
+    <div class="law"><p>초록 밑줄로 <em>이렇게</em> 표시한다</p></div></div>
+</div>
+
+<h3>1-3. 일정</h3>
+<div class="tw"><table class="mid"><thead><tr><th>단계</th><th>시점</th><th>내용</th></tr></thead><tbody>
+<tr><td>사전예고</td><td class="r">2026.06.19</td><td class="l">개정안 공고 · 신·구 조문 대비표 공개</td></tr>
+<tr><td>의견제출</td><td class="r">2026.07.29</td><td class="l">40일간 · 계리리스크감독국 계리감독팀</td></tr>
+<tr class="tot"><td>시행</td><td class="r">2026.10월</td><td class="l">부칙 제1조 · 공고문에는 날짜가 비어 있음</td></tr>
+</tbody></table></div>
+<div class="callout"><b>확정본을 따로 확인해야 한다</b>
+<p>이 보고서는 사전예고안을 정리한 것이다. 의견제출 기간이 이미 지났고 시행도 임박했으므로, 실제 공포된 조문이 사전예고안과 같은지 확인이 필요하다. 의견수렴 결과 문구가 바뀌었을 수 있다.</p></div>
+
+<h2 id="2">2. 무·저해지 상품 해약률</h2>
+<p class="lead">이번 개정의 본체다 · 납입기간 중부터 납입이 끝난 뒤까지 구간별로 해약률을 어떻게 잡을지가 모두 다시 쓰였다</p>
+
+<div class="callout neutral"><b>해약률 가정이 왜 중요한가</b>
+<p>무·저해지 상품은 <b>납입기간 중에 계약을 깨면 환급금이 없거나 아주 적다.</b> 그래서 해약률을 높게 잡을수록 앞으로 나갈 돈이 줄어 부채가 작아진다. 회사가 해약률을 후하게 잡을 유인이 생기는 구조다.</p>
+<p>감독당국이 이 조문들을 두는 이유가 여기에 있다. <strong>계약자가 실제로 어떻게 행동하는지를 가정에 반영하게 해서, 해약률을 임의로 잡지 못하게 하는 것이다.</strong></p></div>
+
+<h3>■ 계약자는 어떻게 행동하나</h3>
+<p>무·저해지 상품은 납입이 끝나는 시점에 환급금이 계단식으로 뛰어오른다. 계약자 입장에서는 그 시점까지 버티는 것이 유리하다. 그래서 해약률이 아래와 같이 움직인다.</p>
+<div class="tw"><table class="tight"><thead><tr><th>구간</th><th>계약자 행동</th><th>해약률</th><th>이름</th><th>본문</th></tr></thead><tbody>
+<tr><td class="l">환급금 오르기 직전</td><td class="l">해지를 미룬다</td><td>낮아짐</td><td class="l">해지유보효과</td><td>2-3</td></tr>
+<tr class="hl"><td class="l">환급금 오른 직후</td><td class="l">미뤘던 해지가 몰린다</td><td>튀어오름</td><td class="l">해지증가효과</td><td>2-5</td></tr>
+<tr class="hl"><td class="l">낸 돈보다 더 받게 되는 시점</td><td class="l">한 번 더 몰린다</td><td>다시 오름</td><td class="l">추가 해지상승효과<span class="src">※ 신설</span></td><td>2-6</td></tr>
+<tr><td class="l">납입이 끝난 뒤</td><td class="l">환급 수준에 따라 다름</td><td>수준별</td><td class="l">납입기간 이후 해약률<span class="src">※ 신설</span></td><td>2-7</td></tr>
+</tbody></table></div>
+
+<figure class="figsc">
+<svg viewBox="0 0 700 300" role="img" aria-label="경과기간에 따른 무저해지 상품 해약률 구간 도식">
+  <rect x="56" y="30" width="294" height="190" fill="var(--grid)"/>
+  <rect x="350" y="30" width="74" height="190" fill="var(--grid)"/>
+  <rect x="490" y="30" width="74" height="190" fill="var(--grid)"/>
+  <line x1="56" y1="30" x2="680" y2="30" stroke="var(--line)"/>
+  <line x1="56" y1="125" x2="680" y2="125" stroke="var(--line)"/>
+  <line x1="56" y1="220" x2="680" y2="220" stroke="var(--fg)" stroke-width="1.2"/>
+  <line x1="56" y1="30" x2="56" y2="220" stroke="var(--fg)" stroke-width="1.2"/>
+  <line x1="350" y1="24" x2="350" y2="228" stroke="var(--acc)" stroke-width="1.4" stroke-dasharray="4 3"/>
+  <text x="350" y="18" fill="var(--acc)" font-size="11.5" font-weight="600" text-anchor="middle">납입완료</text>
+  <path d="M 70 56 C 146 112, 248 188, 350 212" fill="none" stroke="var(--fg)" stroke-width="2.2"/>
+  <path d="M 350 212 L 352 88 L 424 100 L 426 188" fill="none" stroke="var(--fg)" stroke-width="2.2"/>
+  <path d="M 426 188 L 490 188 L 492 118 L 564 128 L 566 172 L 680 172" fill="none" stroke="var(--fg)" stroke-width="2.2"/>
+  <text x="203" y="242" fill="var(--fg)" font-size="12" text-anchor="middle">납입기간 중</text>
+  <text x="203" y="258" fill="var(--sub)" font-size="11" text-anchor="middle">해지유보효과</text>
+  <text x="203" y="274" fill="var(--sub)" font-size="10.5" text-anchor="middle">2-3 · 2-4</text>
+  <text x="387" y="242" fill="var(--fg)" font-size="12" text-anchor="middle">직후 1년</text>
+  <text x="387" y="258" fill="var(--ok)" font-size="11" font-weight="600" text-anchor="middle">해지증가</text>
+  <text x="387" y="274" fill="var(--sub)" font-size="10.5" text-anchor="middle">2-5</text>
+  <text x="527" y="242" fill="var(--fg)" font-size="12" text-anchor="middle">기준환급률 초과 직후</text>
+  <text x="527" y="258" fill="var(--ok)" font-size="11" font-weight="600" text-anchor="middle">추가 해지상승 · 신설</text>
+  <text x="527" y="274" fill="var(--sub)" font-size="10.5" text-anchor="middle">2-6</text>
+  <text x="624" y="242" fill="var(--fg)" font-size="12" text-anchor="middle">납입기간 이후</text>
+  <text x="624" y="258" fill="var(--ok)" font-size="11" font-weight="600" text-anchor="middle">지급비율 연동 · 신설</text>
+  <text x="624" y="274" fill="var(--sub)" font-size="10.5" text-anchor="middle">2-7</text>
+  <text x="48" y="36" fill="var(--sub)" font-size="10.5" text-anchor="end">높음</text>
+  <text x="48" y="218" fill="var(--sub)" font-size="10.5" text-anchor="end">0.1%</text>
+  <text x="14" y="125" fill="var(--sub)" font-size="10.5" text-anchor="middle" transform="rotate(-90 14 125)">해약률</text>
+  <text x="680" y="242" fill="var(--sub)" font-size="10.5" text-anchor="end">경과기간 →</text>
+</svg>
+<figcaption>구간별 해약률의 모양을 나타낸 그림이다. 세로축 눈금은 실제 수치가 아니라 상대적인 높낮이를 보인 것이다. 납입완료 직전에 해약률을 눌러 두었다가 환급금이 오르는 시점에 다시 튀어 오르는 구조다.</figcaption>
+</figure>
+
+<h3>2-1. <span class="bdg n">신설</span>경험통계가 충분하면 경험통계를 쓴다</h3>
+<div class="gist">현행은 환급금이 낮게 설계된 상품이면 무조건 아래 가정들을 반영하라고 한다. 개정안은 <b>회사에 쌓인 실제 해지 자료가 충분하고 그 자료에 아래 내용이 이미 들어 있다면, 규정된 가정 대신 그 자료를 쓰라</b>는 단서를 달았다. 회사 입장에서는 빠져나갈 통로가 하나 생긴 셈이다.</div>
+<div class="cmp">
+  <div class="col col-a"><div class="cmph">현행</div><div class="law">
+    <p>해약환급금 수준이 낮게 설계된 상품은 다음의 해약률 가정을 반영하여야 한다.</p>
+  </div></div>
+  <div class="col col-b"><div class="cmph">개정안</div><div class="law">
+    <p><em>보험업감독규정 제7-66조 제4항에 따라 설계된 상품(이하 “무·저해지상품”이라 한다) 등</em> 해약환급금 수준이 낮게 설계된 상품<em>의 해약률 산출시 다음의 사항을 반영하여야 한다. 다만, 경험통계가 충분히 집적되어 경험통계에 다음의 사항이 반영되어 있는 경우에는 경험통계를 사용하여 해약률을 산출한다.</em></p>
+  </div></div>
+</div>
+<p class="note">무·저해지상품이라는 이름이 조문에 처음 들어왔다. 지금까지는 “해약환급금 수준이 낮게 설계된 상품”이라고 길게 풀어 썼다<span class="src">※ 별표22 3-2.나.(5)③.ㄴ.a · 별표35 10-3.나.(1)</span></p>
+
+<h3>2-2. <span class="bdg m">이동</span>초기 경과년도 예외가 자리를 옮겼다</h3>
+<div class="gist">내용은 그대로다. 따로 떨어져 있던 예외 규정을 본문 뒤 단서로 옮기고 원래 항목은 지웠다. <b>실질 변경은 없다.</b></div>
+<div class="cmp">
+  <div class="col col-a"><div class="cmph">현행</div><div class="law">
+    <p>㉮ 해약환급금 수준이 낮게 설계된 상품은 더 높게 설계된 상품보다 경과기간별 해약률 및 누적해약률을 낮은 수준으로 반영하여야 한다.</p>
+    <p class="ind">i) “㉮”에도 불구하고, 경험통계가 충분히 집적된 초기 경과년도에는 해약환급금 수준이 낮게 설계된 상품의 경과기간별 해약률이 더 높게 설계된 상품보다 높을 수 있다.</p>
+  </div></div>
+  <div class="col col-b"><div class="cmph">개정안</div><div class="law">
+    <p>㉮ 무·저해지상품의 경과기간별 해약률 및 누적해약률은 해약환급금 수준이 더 높게 설계된 상품보다 낮은 수준으로 산출하여야 한다. <em>다만, 경험통계가 충분히 집적된 초기 경과년도에는 무·저해지상품의 경과기간별 해약률이 더 높게 설계된 상품의 경과기간별 해약률보다 높을 수 있다.</em></p>
+    <p class="ind"><del>i) 항목</del> <span class="mk">&lt;삭 제&gt;</span></p>
+  </div></div>
+</div>
+
+<h3>2-3. <span class="bdg c">변경</span>납입기간 중 해약률에 모형이 지정됐다</h3>
+<div class="gist">가장 큰 변경이다. 현행은 “합리적으로 설정된 기간 동안 0으로 수렴하는 모델”이라는 추상적인 표현이라 회사마다 다른 모형을 썼다. 개정안은 <b>로그-선형 모형</b>을 쓰고 <b>납입이 끝나는 시점에 0.1%로 수렴</b>시키라고 못박았다. 적용 대상도 “경험통계가 충분하지 않은 구간”으로 분명해졌다.</div>
+<div class="cmp">
+  <div class="col col-a"><div class="cmph">현행</div><div class="law">
+    <p>i) 해약환급금 증가 직전 해지유보효과가 반영될 수 있도록 <em>해약환급금 증가규모 수준에 따라 합리적으로 설정된 기간동안</em> 해약률이 <em>“0”으로 수렴하는 해약률 모델</em>을 사용하여야 한다.</p>
+  </div></div>
+  <div class="col col-b"><div class="cmph">개정안</div><div class="law">
+    <p>i) <em>(해지유보효과)</em> 해약환급금 증가 직전 해지유보효과가 반영될 수 있도록 <em>납입기간 중 경험통계가 충분하지 않은 구간의 해약률은 납입완료 시점에 해약률이 “0.1%”로 수렴하는 로그-선형 모형을 사용하여 추정</em>하여야 한다.</p>
+  </div></div>
+</div>
+<div class="fml"><span class="nm">로그-선형 모형</span>ln(해약률) = α + β × 경과기간<span class="ps">α 절편 · β 기울기</span></div>
+<p>해약률에 로그를 씌운 값이 경과기간에 비례해 내려가는 모양이다. 쉽게 말하면 <strong>한 해가 지날 때마다 해약률이 일정한 비율로 줄어든다</strong>는 뜻이다.</p>
+
+<div class="callout"><b>0에서 0.1%로 바뀐 것이 핵심이다</b>
+<p>현행은 “0으로 수렴”이라고 되어 있다. 그런데 로그를 씌운 식에서 해약률이 정확히 0이 되려면 값이 끝없이 내려가야 한다. 계산이 되지 않으니 회사마다 적당한 하한을 두고 있었다. 개정안이 0.1%로 못박으면서 그 자율이 사라진다.</p>
+<p>지금 쓰는 모형이 로그-선형이 아니거나 수렴값이 다르다면 <strong>해약률 가정 산출 로직을 손봐야 한다.</strong> 납입기간 중 해약률이 바뀌므로 무·저해지 계약의 최선추정부채가 그만큼 움직인다.</p></div>
+
+<h3>2-4. <span class="bdg n">신설</span>다른 모형도 쓸 수 있으나 조건이 까다롭다</h3>
+<div class="gist">로그-선형 모형이 원칙이지만, 회사 자료의 특성을 살리기 위해 <b>선형-로그</b>나 <b>로그-로그</b> 모형을 쓸 수 있다. 다만 네 가지 조건을 모두 입증하고 문서로 남겨야 한다.</div>
+<div class="cmp">
+  <div class="col col-a"><div class="cmph">현행</div><div class="law">
+    <p class="nil">해당 조항 없음</p>
+  </div></div>
+  <div class="col col-b"><div class="cmph">개정안</div><div class="law">
+    <p>ⓐ i)에도 불구하고, 보험회사는 회사의 경험통계 등 특수성을 반영하기 위해 다른 모형을 사용하여 납입기간 중 해약률을 추정할 수 있다.</p>
+    <p>ⓑ 해당 모형 선택에 대한 합리성 및 타당성을 입증하고 입증 결과를 문서화하여야 한다.</p>
+    <p>ⓒ 다만, 모형 적용시 해당 상품의 특성과 무관한 초기 경과년도 수수료 등의 효과를 제거하기 위해 초기 경과년도의 관련 통계는 제외한다.</p>
+  </div></div>
+</div>
+<div class="tw"><table class="mid"><thead><tr><th>모형</th><th>산식</th><th>납입완료 시점 수렴값</th></tr></thead><tbody>
+<tr class="hl"><td class="l">로그-선형<span class="note">원칙</span></td><td class="l">ln(해약률) = α + β × 경과기간</td><td>0.1%</td></tr>
+<tr><td class="l">선형-로그</td><td class="l">해약률 = α + β × ln(경과기간)</td><td>0%</td></tr>
+<tr><td class="l">로그-로그</td><td class="l">ln(해약률) = α + β × ln(경과기간)</td><td>0.1%</td></tr>
+</tbody></table></div>
+<div class="tw"><table class="wrap-ok2"><thead><tr><th>대체모형을 쓰려면</th><th>기준</th></tr></thead><tbody>
+<tr><td class="l">자료가 얼마나 쌓였나</td><td class="l"><b>납입기간의 60% 이상</b>까지 축적</td></tr>
+<tr><td class="l">건수가 충분한가</td><td class="l">매 산출단위 · 경과년도별 <b>해지건수 50건 이상</b></td></tr>
+<tr><td class="l">모형이 더 잘 맞나</td><td class="l">로그-선형 모형보다 <b>현저하게 우수</b>하다고 판단</td></tr>
+<tr><td class="l">기록을 남겼나</td><td class="l">합리성 · 타당성 입증 결과를 문서화</td></tr>
+<tr class="tot"><td class="l">별표35에만 추가</td><td class="l">책임준비금 적정성 검증에서 <b>주요 사항으로 검증</b> · <b>경영공시</b>에 관련 사항 포함</td></tr>
+</tbody></table></div>
+<div class="callout"><b>별표35 쪽 추가 의무를 놓치기 쉽다</b>
+<p>두 별표의 해약률 조문은 거의 같은데 이 요건만 별표35가 더 무겁다. 대체모형을 쓰기로 하면 <strong>적정성 검증 항목에 올라가고 경영공시에도 실린다.</strong> 외부에 드러나는 선택이 되는 셈이다.</p>
+<p class="src">※ 별표35 10-3.나.(1)(나)①㉡ — 보험업법 제120조의2 책임준비금 적정성 검증 · 보험업감독규정 제7-44조 경영공시</p></div>
+
+<h3>2-5. <span class="bdg c">변경</span><span class="bdg n">신설</span>해지증가효과에 기간과 계산법이 생겼다</h3>
+<div class="gist">현행은 “증가 이후 1년 이상 높게 설정”이라고만 했다. 개정안은 <b>직후 1년</b>으로 기간을 특정하고, 얼마나 높일지 계산하는 방법까지 정했다.</div>
+<div class="cmp">
+  <div class="col col-a"><div class="cmph">현행</div><div class="law">
+    <p>ii) “㉮”에도 불구하고 해약환급금이 증가한 이후 <em>1년 이상</em>은 해약환급금이 더 높게 설계된 상품보다 경과기간별 해약률을 <em>높은 수준으로 설정</em>하여야 한다.</p>
+  </div></div>
+  <div class="col col-b"><div class="cmph">개정안</div><div class="law">
+    <p>ii) <em>(해지증가효과)</em> “㉮”에도 불구하고 해약환급금이 계단식으로 증가한 <em>직후 1년간</em> 해약률은 <em>해지증가효과를 반영</em>하여야 한다.</p>
+    <p class="ind"><em>ⓐ 해지유보기간은 납입기간이 10년 이하인 경우 납입완료 직전 1년, 10년 초과인 경우 납입완료 직전 3년으로 설정한다.</em></p>
+    <p class="ind"><em>ⓑ 객관성이 있는 국내외 무·저해지상품의 경과기간별 해약률과 모형으로 추정된 납입기간 중 해약률을 대상으로, ⓐ에 따른 해지유보기간에 해당하는 해약률의 차이를 해약환급금이 증가한 직후 1년간 해약률에 가산한다.</em></p>
+    <p class="ind"><em>ⓒ ⓑ의 국내외 무·저해지상품 해약률은 감독원장이 제시하는 바에 따른다.</em></p>
+  </div></div>
+</div>
+<div class="tw"><table class="mid"><thead><tr><th>납입기간</th><th>해지유보기간</th><th>가산 대상 구간</th></tr></thead><tbody>
+<tr><td>10년 이하</td><td><b>납입완료 직전 1년</b></td><td rowspan="2" class="grp">해약환급금이<br>오른 직후 1년간</td></tr>
+<tr><td>10년 초과</td><td><b>납입완료 직전 3년</b></td></tr>
+</tbody></table></div>
+<p>얼마나 더 높일지는 감독원장이 제시하는 국내외 무·저해지 상품 해약률과, 회사가 모형으로 추정한 납입기간 중 해약률의 차이로 구한다. <strong>해지유보기간에 눌러 둔 만큼을 직후 1년에 되돌려 주는 구조다.</strong></p>
+
+<h3>2-6. <span class="bdg n">신설</span>추가 해지상승효과가 새로 생겼다</h3>
+<div class="gist">현행에 대응하는 자리가 없는 완전 신설 조항이다. 보너스나 체증처럼 <b>통상적이지 않은 방법으로 환급률을 끌어올린 상품</b>을 대상으로, 환급률이 기준선을 넘는 시점 직후 1년간 해약률을 더 높이도록 했다.</div>
+<div class="cmp">
+  <div class="col col-a"><div class="cmph">현행</div><div class="law">
+    <p class="nil">해당 조항 없음</p>
+  </div></div>
+  <div class="col col-b"><div class="cmph">개정안</div><div class="law">
+    <p>iii) (추가 해지상승효과) 아래의 어느 하나에 해당하고, 경과기간 중 어느 한 시점이라도 기납입보험료 대비 해약환급금 비율이 <em>기준환급률</em>보다 큰 시점이 존재하는 경우, 기준환급률을 초과하는 시점 직후 1년간 해약률은 추가 해지상승효과를 반영하여야 한다.</p>
+    <p class="ind">ⓐ 기준환급률은 계약체결 시점 당시의 <em>평균공시이율</em>을 적용하여 계산하되, 계약체결 시점에 <em>최초 1회만</em> 판단한다.</p>
+    <p class="ind">ⓑ 추가 해지상승효과는 두 방법 중 하나를 선택하여 산출한다.</p>
+  </div></div>
+</div>
+<div class="fml"><span class="nm">기준환급률</span>기납입보험료를 평균공시이율로 부리한 금액 ÷ 기납입보험료<span class="ps">계약체결 시점의 평균공시이율로 계산하며 체결 시점에 한 번만 판단한다</span></div>
+<p>쉽게 말하면 <strong>낸 보험료를 이자만큼 불린 금액이 기준선이다.</strong> 실제 환급금이 이 선을 넘으면 계약자는 넣어둔 것보다 더 받는 상태가 된다. 그 시점에 해지가 몰릴 수 있으니 해약률을 더 높이라는 것이다.</p>
+<div class="tw"><table class="wrap-ok2"><thead><tr><th>적용 대상 상품</th><th>산출 방법 · 둘 중 택일</th></tr></thead><tbody>
+<tr><td class="l">보너스를 지급하는 상품<br>보험금을 체증하는 상품<br>보험료가 전 납입기간에 대해 동일하지 않은 상품<br>보험료가 할인되는 상품<br>그 밖에 통상적이지 않은 요소나 방법으로 환급률을 높이는 상품</td>
+<td class="l"><b>① 역산 방식</b><br>기준환급률을 넘는 시점의 표준형 상품 누적 유지율과 해당 상품의 누적 유지율이 같아지도록 거꾸로 계산하여 적용<br><br><b>② 자체 설정 방식</b><br>30% 이상 수준에서 회사가 합리적인 추가 해지상승 효과를 정하고 문서로 남기면 그 수준을 적용</td></tr>
+</tbody></table></div>
+<p class="note">표준형 상품과 똑같이 적용되는 할인은 대상에서 빠진다<span class="src">※ 보험업감독규정 제7-66조 제4항 제2호에 따른 표준형 상품</span></p>
+
+<h3>2-7. <span class="bdg n">신설</span>납입기간 이후 해약률이 새로 생겼다</h3>
+<div class="gist">역시 완전 신설이다. 납입이 끝난 뒤 자료가 부족한 구간의 해약률을 <b>표준형 상품 대비 환급금 지급비율</b>에 따라 정하도록 했다. 세 기준점을 두고 그 사이는 직선으로 이어 쓴다.</div>
+<div class="cmp">
+  <div class="col col-a"><div class="cmph">현행</div><div class="law">
+    <p class="nil">해당 조항 없음</p>
+  </div></div>
+  <div class="col col-b"><div class="cmph">개정안</div><div class="law">
+    <p>iv) (납입기간 이후 해약률) 납입기간 이후 경험통계가 충분하지 않은 구간에 대한 해약률은 표준형 상품 대비 해약환급금 지급비율에 따라 적용한다.</p>
+    <p class="ind">ⓐ 지급비율이 <em>0</em>인 경우 해약률은 <em>“0%”</em></p>
+    <p class="ind">ⓑ 지급비율이 <em>100분의 50</em>인 경우 해약률은 <em>“0.8%”</em> 또는 표준형 상품 해약률 × 100분의 20</p>
+    <p class="ind">ⓒ 지급비율이 <em>100분의 100</em>인 경우 <em>표준형 상품과 동일</em></p>
+    <p class="ind">ⓓ 그 사이 구간은 <em>선형보간</em>하여 적용</p>
+  </div></div>
+</div>
+<p>납입이 끝난 뒤에는 환급금을 얼마나 주느냐에 따라 해지할 이유가 달라진다. <strong>하나도 안 주면 깰 이유가 없으니 0%, 다 주면 일반 상품과 같으니 표준형과 동일, 절반이면 그 사이로 잡는다.</strong></p>
+
+<figure>
+<svg viewBox="0 0 520 280" role="img" aria-label="해약환급금 지급비율에 따른 납입기간 이후 해약률">
+  <line x1="70" y1="40" x2="470" y2="40" stroke="var(--line)"/>
+  <line x1="70" y1="90" x2="470" y2="90" stroke="var(--line)"/>
+  <line x1="70" y1="140" x2="470" y2="140" stroke="var(--line)"/>
+  <line x1="70" y1="190" x2="470" y2="190" stroke="var(--line)"/>
+  <line x1="70" y1="40" x2="70" y2="230" stroke="var(--fg)" stroke-width="1.2"/>
+  <line x1="70" y1="230" x2="470" y2="230" stroke="var(--fg)" stroke-width="1.2"/>
+  <path d="M 70 230 L 270 194 L 470 40" fill="none" stroke="var(--acc)" stroke-width="2.6" stroke-linejoin="round"/>
+  <line x1="270" y1="194" x2="270" y2="230" stroke="var(--sub)" stroke-dasharray="3 3"/>
+  <line x1="70" y1="194" x2="270" y2="194" stroke="var(--sub)" stroke-dasharray="3 3"/>
+  <circle cx="70" cy="230" r="5" fill="var(--acc)"/>
+  <circle cx="270" cy="194" r="5" fill="var(--acc)"/>
+  <circle cx="470" cy="40" r="5" fill="var(--acc)"/>
+  <text x="84" y="223" fill="var(--fg)" font-size="12" font-weight="600">0%</text>
+  <text x="270" y="184" fill="var(--fg)" font-size="12" font-weight="600" text-anchor="middle">0.8%</text>
+  <text x="462" y="33" fill="var(--fg)" font-size="12" font-weight="600" text-anchor="end">표준형과 동일</text>
+  <text x="170" y="163" fill="var(--sub)" font-size="11" text-anchor="middle">선형보간</text>
+  <text x="372" y="134" fill="var(--sub)" font-size="11" text-anchor="middle">선형보간</text>
+  <text x="70" y="249" fill="var(--sub)" font-size="11" text-anchor="middle">0</text>
+  <text x="270" y="249" fill="var(--sub)" font-size="11" text-anchor="middle">50</text>
+  <text x="470" y="249" fill="var(--sub)" font-size="11" text-anchor="middle">100</text>
+  <text x="270" y="269" fill="var(--sub)" font-size="11" text-anchor="middle">표준형 상품 대비 해약환급금 지급비율 (%)</text>
+  <text x="20" y="135" fill="var(--sub)" font-size="11" text-anchor="middle" transform="rotate(-90 20 135)">납입기간 이후 해약률</text>
+</svg>
+<figcaption>세 기준점을 잇는 두 개의 선분이다. 기울기가 달라 가운데에서 꺾인다. 0.8%를 “표준형 해약률의 20%”라고도 적었으므로, 조문은 표준형 상품의 납입기간 이후 해약률을 연 4% 정도로 상정한 셈이다. 실제 값은 회사별 표준형 상품 가정에 따라 달라진다.</figcaption>
+</figure>
+
+<h2 id="3">3. 위험률 연령 구분 산출</h2>
+<p class="lead">별표35의 위험률 조문이 별표22 수준으로 맞춰진다</p>
+<p>별표22는 2026년 4월 사전예고 때 이미 같은 내용이 반영됐다. 이번 개정으로 두 별표의 기준이 같아진다.</p>
+
+<h3>3-1. <span class="bdg c">변경</span><span class="bdg n">신설</span>연령을 나눠 산출하는 것이 원칙이 됐다</h3>
+<div class="gist">현행은 경과기간으로만 나눠 산출하면 됐다. 개정안은 <b>경과기간과 연령을 함께</b> 나눠 산출하도록 했다. 여기서 연령은 사고가 난 시점의 나이를 말한다. 다만 자료가 받쳐주지 않으면 나누지 않아도 된다.</div>
+<div class="cmp">
+  <div class="col col-a"><div class="cmph">현행</div><div class="law">
+    <p>가. 회사의 경험통계를 기반으로 <em>경과기간별로</em> 구분하여 위험률을 산출하고, 미래 회사의 계약인수정책 등 위험률 관리정책을 반영할 수 있다. 경험통계 기간은 경제환경의 변화 등을 고려하여 합리적으로 설정하고, 매기간 일관되게 적용하여야 한다.</p>
+  </div></div>
+  <div class="col col-b"><div class="cmph">개정안</div><div class="law">
+    <p>가. 회사의 <em>최근</em> 경험통계를 기반으로 <em>경과기간과 연령(실손의료보험 제외)을</em> 구분하여 산출한다. <em>연령 구분은 사고 시점에 도달한 연령인 도달연령을 기준으로 하며, 통계적 충분성 및 유의성 기준을 충족하지 못하는 경우 연령을 구분하지 않을 수 있다.</em> 경험통계 기간은 합리적으로 설정하고, 매기간 일관되게 적용하여야 한다.</p>
+    <p class="ind"><em>(1) 연령 구분시 통계적 충분성 및 유의성 기준은 감독원장이 제시하는 바에 따른다.</em></p>
+  </div></div>
+</div>
+<p class="note">실손의료보험은 별도의 계리적 가정 산출기준을 따르므로 빠진다<span class="src">※ 사전예고 공고 주요 내용 각주</span></p>
+
+<h3>3-2. <span class="bdg c">변경</span>세분화 요소에서 연령이 빠졌다</h3>
+<div class="gist">연령이 가목으로 올라가 원칙이 되었으므로, 나목에 “고려할 수 있다”로 남아 있던 연령을 뺐다. <b>연령이 선택에서 의무로 바뀐 것</b>을 조문으로 정리한 결과다.</div>
+<div class="cmp">
+  <div class="col col-a"><div class="cmph">현행</div><div class="law">
+    <p>나. 위험률은 보장하는 위험담보별로 산출해야 하며 <em>연령, 성별, 직업, 흡연유무 등</em> 위험률에 영향을 미치는 요소를 고려할 수 있다. 위험담보는 사망담보, 생존담보, 일반손해보험 등으로 구분하여 세분화할 수 있다.</p>
+  </div></div>
+  <div class="col col-b"><div class="cmph">개정안</div><div class="law">
+    <p>나. 위험률은 보장하는 위험담보별로 산출해야 하며 <em>성별, 직업 등</em> 위험률에 영향을 미치는 요소를 고려할 수 있다. 위험담보는 사망담보, 생존담보, 일반손해보험 등으로 구분하여 세분화할 수 있다.</p>
+  </div></div>
+</div>
+
+<h2 id="4">4. 기타 정비 사항</h2>
+<p>실질 내용보다 표현을 고르게 다듬은 항목들이다. 다만 4-1은 뒤에 나오는 여러 조항이 기대고 있는 근거 조문이라 성격이 다르다.</p>
+
+<h3>4-1. <span class="bdg n">신설</span>감독원장이 세부 기준을 정할 근거가 생겼다</h3>
+<div class="gist">별표35에 새로 들어간 조문이다. 2-5의 국내외 무·저해지 상품 해약률, 3-1의 통계적 충분성 기준처럼 <b>세칙이 수치를 직접 정하지 않고 감독원장에게 넘긴 항목들</b>이 이 조문을 근거로 삼는다.</div>
+<div class="cmp">
+  <div class="col col-a"><div class="cmph">현행</div><div class="law">
+    <p class="nil">해당 조항 없음</p>
+  </div></div>
+  <div class="col col-b"><div class="cmph">개정안</div><div class="law">
+    <p>바. 세칙에서 정하지 않은 계리적 가정 산출을 위하여 필요한 기술적이고 구체적인 산출방법 등은 감독원장이 제시할 수 있다.</p>
+  </div></div>
+</div>
+<p class="note">별표22에는 같은 역할을 하는 조항이 이미 있어 신설 대상이 아니다. 별표35만 이번에 맞춘 것이다</p>
+
+<h3>4-2. <span class="bdg c">변경</span>해약률 고려 요소를 적용이율로 바꿨다</h3>
+<div class="gist">길게 나열된 고려 요소 가운데 마지막 항목만 바뀌었다. <b>“보험계약의 이자율과 시장금리 차이”가 “적용이율”로</b> 간결해졌고, 문장 끝도 “합리적으로 반영한다”에서 “고려하여 해약률을 산출한다”로 바뀌었다.</div>
+<div class="cmp">
+  <div class="col col-a"><div class="cmph">현행</div><div class="law">
+    <p>해약율 산출시 보험종목 및 계약자 옵션의 종류, 보험가입시 연령, 경과기간, 보험료납입상태, 납입방식, 납입주기, 보험가입금액 및 보험료의 수준, 해약환급금 규모, 계약자배당 예상액, 해지시 세금효과, 보험가입 채널, 수당, 계약상태, <em>보험계약의 이자율과 시장금리 차이</em> 등을 <em>합리적으로 반영한다.</em></p>
+  </div></div>
+  <div class="col col-b"><div class="cmph">개정안</div><div class="law">
+    <p>해약률 산출시 보험종목 및 계약자 옵션의 종류, 보험가입시 연령, 경과기간, 보험료납입상태, 납입방식, 납입주기, 보험가입금액 및 보험료의 수준, 해약환급금 규모, 계약자배당 예상액, 해지시 세금효과, 보험가입 채널, 수당, 계약상태, <em>적용이율</em> 등 <em>계약자의 해약에 영향을 미칠 수 있는 요소들을 고려하여 해약률을 산출한다.</em></p>
+  </div></div>
+</div>
+<p class="note">조문 전반에서 “해약율”이 “해약률”로 통일된 것도 이번 개정에 포함된다</p>
+
+<h3>4-3. <span class="bdg c">변경</span>고금리 계약 조문을 다듬었다</h3>
+<div class="gist">4-2와 같은 맥락이다. <b>실질 내용은 그대로</b>이며 “보험계약에 적용되는 이자율”을 “보험계약의 적용이율”로 줄였다. 장기선도금리를 기준으로 쓴다는 점, 직전 회계연도와 차이가 1%p 미만이면 그대로 쓸 수 있다는 점은 유지된다.</div>
+<div class="cmp">
+  <div class="col col-a"><div class="cmph">현행</div><div class="law">
+    <p>b. <em>보험계약에 적용되는 이자율이</em> 시장금리보다 현저히 높은 경우, 해약률을 구분하여 산출함을 원칙으로 한다.</p>
+    <p class="ind">㉮ “b.”에서 해약률을 구분하여 산출하는 기준(이하 고금리 구분 이율)으로 “제5장”에 따라 산출된 장기선도금리를 사용한다.</p>
+    <p class="ind">㉯ 직전 회계연도 고금리 구분 이율과 장기선도금리 차이가 1%p 미만이면 직전 회계연도 값을 적용할 수 있다.</p>
+  </div></div>
+  <div class="col col-b"><div class="cmph">개정안</div><div class="law">
+    <p>b. <em>보험계약의 적용이율이</em> 시장금리보다 현저히 높은 경우, 해약률을 구분하여 산출함을 원칙으로 한다.</p>
+    <p class="ind">㉮ 해약률을 구분하여 산출하는 기준으로 “제5장”에 따라 산출된 장기선도금리를 사용한다.</p>
+    <p class="ind">㉯ <span class="mk">(현행과 같음)</span></p>
+  </div></div>
+</div>
+
+<h2 id="5">5. 조치 사항</h2>
+<p class="lead">신설 10건 가운데 금액에 직접 영향을 주는 것은 2-3 · 2-6 · 2-7 세 가지다</p>
+<div class="tw"><table class="act wrap-ok"><thead><tr><th>순위</th><th>과제</th><th>영향</th></tr></thead><tbody>
+<tr class="hl"><td>1</td><td class="l"><b>납입기간 중 해약률 모형 대조</b><span class="sub2">지금 쓰는 모형이 로그-선형인지, 수렴값이 0.1%인지 확인한다. 다르면 모형을 바꿔야 하고 그만큼 무·저해지 계약의 최선추정부채가 움직인다. 지금 모형을 유지하려면 2-4의 네 가지 조건을 채울 수 있는지부터 따져야 한다.</span></td><td>대</td></tr>
+<tr class="hl"><td>2</td><td class="l"><b>추가 해지상승효과 대상 상품 추출</b><span class="sub2">보너스 지급 · 체증 · 보험료 비균등 · 할인 상품을 가려내고, 환급률이 기준환급률을 넘는 시점이 있는지 계약별로 판정한다. 대상이 넓으면 산출 부하가 크다. 역산 방식과 자체 설정 방식 중 어느 쪽을 쓸지도 정해야 한다.</span></td><td>대</td></tr>
+<tr><td>3</td><td class="l"><b>납입기간 이후 해약률 재설정</b><span class="sub2">표준형 대비 지급비율을 상품별로 구해 선형보간 체계를 세운다. 지급비율이 0인 상품은 해약률이 0%가 되므로 지금 가정과 차이가 클 수 있다.</span></td><td>중</td></tr>
+<tr><td>4</td><td class="l"><b>위험률 산출단위 확대</b><span class="sub2">경과기간에 도달연령이 더해지면 산출단위가 크게 늘어난다. 단위마다 통계가 충분한지 판정해야 하므로 산출 시간과 검증 부담이 함께 커진다.</span></td><td>중</td></tr>
+<tr><td>5</td><td class="l"><b>경험통계 충분성 판단 기준 정리</b><span class="sub2">2-1의 단서에 따라 자료가 충분하면 규정된 가정 대신 경험통계를 쓸 수 있다. 어느 상품군이 여기에 해당하는지 판단 기준을 세워 두면 적용 범위를 줄일 수 있다.</span></td><td>중</td></tr>
+<tr><td>6</td><td class="l"><b>감독원장 제시 사항 대기</b><span class="sub2">국내외 무·저해지 상품 해약률, 통계적 충분성 기준은 세칙이 아니라 감독원장이 따로 제시한다. 이 값이 나와야 2-5와 3-1을 실제로 산출할 수 있다.</span></td><td>소</td></tr>
+<tr class="tot"><td>7</td><td class="l"><b>문서화와 공시 체계 점검</b><span class="sub2">대체모형을 쓰면 적정성 검증 주요 사항이 되고 경영공시 대상이 된다. 추가 해지상승효과를 자체 설정 방식으로 산출해도 문서화가 요건이다.</span></td><td>소</td></tr>
+</tbody></table></div>
+
+<div class="callout"><b>대비표에 교차참조 오기로 보이는 곳이 있다</b>
+<p>별표22의 납입기간 이후 해약률 ⓓ는 선형보간 대상을 <b>“i)”와 “ii)”, “ii)”와 “iii)”</b>으로 적고 있다. 그러나 같은 조문의 기준점은 ⓐ 지급비율 0, ⓑ 지급비율 50, ⓒ 지급비율 100이다. 별표35의 같은 조문은 <b>㉠와 ㉡, ㉡와 ㉢</b>으로 제대로 적혀 있다.</p>
+<p>별표22 쪽이 ⓐⓑⓒ로 써야 할 자리에 상위 항목 번호를 쓴 것으로 보인다. <strong>확정본에서 정정되었는지 확인이 필요하다.</strong></p></div>
+
+<h2 id="a">부록</h2>
+
+<details><summary>A. 두 별표의 조문 번호 대응</summary><div class="body">
+<p>해약률 개정 내용은 두 별표가 같지만 번호 체계가 다르다. 모델이나 산출서에서 조문을 인용할 때 쓴다.</p>
+<div class="tw"><table class="mid"><thead><tr><th>항목</th><th>별표 22</th><th>별표 35</th></tr></thead><tbody>
+<tr class="sub"><td class="l">해약률 조문 위치</td><td>3-2.나.(5)③</td><td>10-3</td></tr>
+<tr><td class="l">고려 요소</td><td>ㄴ</td><td>나</td></tr>
+<tr><td class="l">무·저해지 상품</td><td>ㄴ.a</td><td>나.(1)</td></tr>
+<tr><td class="l">낮은 수준 원칙</td><td>a.㉮</td><td>(1)(가)</td></tr>
+<tr><td class="l">계단식 증가 상품</td><td>a.㉯</td><td>(1)(나)</td></tr>
+<tr><td class="l">해지유보효과</td><td>㉯.i)</td><td>(나)①</td></tr>
+<tr><td class="l">대체모형 허용</td><td>i).ⓐ</td><td>①㉠</td></tr>
+<tr class="hl"><td class="l">대체모형 요건</td><td>i).ⓑ</td><td>①㉡ · 추가 의무</td></tr>
+<tr><td class="l">초기 통계 제외</td><td>i).ⓒ</td><td>①㉢</td></tr>
+<tr><td class="l">해지증가효과</td><td>㉯.ii)</td><td>(나)②</td></tr>
+<tr><td class="l">추가 해지상승효과</td><td>㉯.iii)</td><td>(나)③</td></tr>
+<tr><td class="l">납입기간 이후 해약률</td><td>㉯.iv)</td><td>(나)④</td></tr>
+<tr><td class="l">고금리 구분</td><td>ㄴ.b</td><td>나.(2)</td></tr>
+<tr><td class="l">감독원장 제시 근거</td><td>①.ㅇ · 기존</td><td>10-1.바 · 신설</td></tr>
+<tr class="tot"><td class="l">위험률</td><td>④ · 26.4월 반영</td><td>10-4 · 이번 개정</td></tr>
+</tbody></table></div>
+</div></details>
+
+<details><summary>B. 변경 항목 일람 17건</summary><div class="body">
+<div class="tw"><table class="tight"><thead><tr><th>구분</th><th>항목</th><th>요지</th><th>본문</th></tr></thead><tbody>
+<tr><td>신설</td><td class="l">무·저해지상품 정의</td><td class="l">감독규정 제7-66조 제4항 기준으로 정의</td><td>2-1</td></tr>
+<tr><td>신설</td><td class="l">경험통계 우선 단서</td><td class="l">자료가 충분하면 규정 가정 대신 경험통계 사용</td><td>2-1</td></tr>
+<tr><td>이동</td><td class="l">초기 경과년도 예외</td><td class="l">별도 항목에서 본문 단서로 · 실질 동일</td><td>2-2</td></tr>
+<tr class="hl"><td>변경</td><td class="l">해지유보효과 모형</td><td class="l">로그-선형 · 납입완료 시점 0.1% 수렴 지정</td><td>2-3</td></tr>
+<tr><td>신설</td><td class="l">대체모형 허용</td><td class="l">선형-로그 · 로그-로그 모형</td><td>2-4</td></tr>
+<tr><td>신설</td><td class="l">대체모형 요건</td><td class="l">자료 60% · 50건 · 적합도 · 문서화</td><td>2-4</td></tr>
+<tr><td>신설</td><td class="l">초기 통계 제외</td><td class="l">수수료 효과를 걸러내기 위함</td><td>2-4</td></tr>
+<tr><td>변경</td><td class="l">해지증가효과</td><td class="l">1년 이상에서 직후 1년으로 특정</td><td>2-5</td></tr>
+<tr><td>신설</td><td class="l">해지유보기간</td><td class="l">납입 10년 이하 1년 · 초과 3년</td><td>2-5</td></tr>
+<tr><td>신설</td><td class="l">해지증가효과 산출</td><td class="l">국내외 해약률과의 차이를 가산</td><td>2-5</td></tr>
+<tr class="hl"><td>신설</td><td class="l">추가 해지상승효과</td><td class="l">기준환급률 초과 시점 직후 1년</td><td>2-6</td></tr>
+<tr class="hl"><td>신설</td><td class="l">납입기간 이후 해약률</td><td class="l">지급비율 0 · 50 · 100 기준 선형보간</td><td>2-7</td></tr>
+<tr><td>변경</td><td class="l">위험률 산출단위</td><td class="l">경과기간에 도달연령 추가</td><td>3-1</td></tr>
+<tr><td>신설</td><td class="l">충분성 기준</td><td class="l">감독원장이 제시</td><td>3-1</td></tr>
+<tr><td>변경</td><td class="l">위험률 고려 요소</td><td class="l">나목에서 연령 삭제</td><td>3-2</td></tr>
+<tr><td>신설</td><td class="l">감독원장 제시 근거</td><td class="l">별표35 제10-1호 바목</td><td>4-1</td></tr>
+<tr><td>변경</td><td class="l">해약률 고려 요소</td><td class="l">이자율 차이에서 적용이율로</td><td>4-2</td></tr>
+<tr class="tot"><td>변경</td><td class="l">고금리 구분</td><td class="l">문구 정비 · 실질 동일</td><td>4-3</td></tr>
+</tbody></table></div>
+<p class="note">신설 10 · 변경 6 · 이동 1</p>
+</div></details>
+
+<details><summary>C. 용어</summary><div class="body">
+<div class="tw"><table class="wrap-ok2"><thead><tr><th>용어</th><th>뜻</th></tr></thead><tbody>
+<tr><td class="l"><b>무·저해지상품</b></td><td class="l">해약환급금이 없거나 일반 상품보다 적은 대신 보험료가 싼 상품. 보험업감독규정 제7-66조 제4항에 따라 설계된 상품을 말한다.</td></tr>
+<tr><td class="l"><b>표준형 상품</b></td><td class="l">해약환급금을 통상적인 수준으로 주는 일반 상품. 무·저해지 상품의 해약률을 정할 때 비교 기준이 된다.</td></tr>
+<tr><td class="l"><b>해지유보효과</b></td><td class="l">해약환급금이 오르기 직전에는 계약자가 해지를 미루는 현상. 그 구간의 해약률을 낮게 잡는다.</td></tr>
+<tr><td class="l"><b>해지증가효과</b></td><td class="l">해약환급금이 오른 직후에는 미뤄 두었던 해지가 몰리는 현상. 그 구간의 해약률을 높게 잡는다.</td></tr>
+<tr><td class="l"><b>추가 해지상승효과</b></td><td class="l">보너스나 체증 등으로 환급률을 더 끌어올린 상품에서 해지가 한 번 더 몰리는 현상. 이번에 신설됐다.</td></tr>
+<tr><td class="l"><b>기준환급률</b></td><td class="l">낸 보험료를 평균공시이율로 불린 금액의 비율. 실제 환급률이 이 선을 넘으면 추가 해지상승효과 대상이 된다.</td></tr>
+<tr><td class="l"><b>평균공시이율</b></td><td class="l">감독당국이 정해 공시하는 기준 이자율. 여기서는 기준환급률을 계산할 때 쓴다.</td></tr>
+<tr><td class="l"><b>도달연령</b></td><td class="l">사고가 일어난 시점에 피보험자가 도달해 있는 나이. 가입할 때의 나이가 아니다.</td></tr>
+<tr><td class="l"><b>선형보간</b></td><td class="l">두 기준점 사이의 값을 직선으로 이어 추정하는 방법.</td></tr>
+<tr><td class="l"><b>최선추정부채</b></td><td class="l">앞으로 나갈 돈과 들어올 돈을 확률로 가중평균해 현재가치로 환산한 금액. 해약률 가정이 바뀌면 이 값이 움직인다.</td></tr>
+<tr class="tot"><td class="l"><b>경험통계</b></td><td class="l">회사에 실제로 쌓인 계약 자료. 해지가 언제 얼마나 일어났는지를 보여준다.</td></tr>
+</tbody></table></div>
+</div></details>
+
+<details><summary>D. 참고 자료</summary><div class="body">
+<div class="tw"><table class="wrap-ok2"><thead><tr><th>자료</th><th>내용</th></tr></thead><tbody>
+<tr><td class="l">「보험업감독업무시행세칙」 개정 사전예고<span class="note">2026.06.19</span></td><td class="l">규정 변경의 취지와 주요 내용 · 의견제출 안내 · 붙임 신·구 조문 대비표</td></tr>
+<tr class="tot"><td class="l">「보험업감독업무시행세칙」 별표22<span class="note">2026.06.29 개정 반영본</span></td><td class="l">지급여력금액 및 지급여력기준금액 산출기준 전문 · 현행 조문 확인에 사용</td></tr>
+</tbody></table></div>
+<p class="note">이 보고서는 사전예고안을 정리한 것이다. 확정 공포 조문과 다를 수 있으므로 적용 전 확정본 대조가 필요하다.</p>
+</div></details>
+
+</div>
+</div>
+</body>
+</html>

@@ -9,6 +9,7 @@ const bizday = require('./lib/bizday');
 const workload = require('./lib/workload');
 const timeentry = require('./lib/timeentry');
 const points = require('./lib/points');
+const regcollect = require('./lib/regcollect');
 const { runAudit } = require('./audit');
 const { applyAutoFix } = require('./audit-autofix');
 
@@ -253,6 +254,8 @@ function migrateDb(db) {
     'member_traits',
     // ── 주간업무보고 (원본 xlsx 인별/업무유형별 통합 대체) ──
     'weekly_tasks',
+    // ── 규정 개정이력 (docs/02_규정개정이력_구축지시서.md) ──
+    'reg_items', 'reg_inbox', 'reg_collect_runs',
   ];
   for (const table of requiredTables) {
     if (!Array.isArray(db[table])) {
@@ -536,6 +539,7 @@ function readDb() {
     const db = createInitialDatabase();
     fs.mkdirSync(path.dirname(DATA_PATH), { recursive: true });
     fs.writeFileSync(DATA_PATH, JSON.stringify(db, null, 2), 'utf8');
+    migrateDb(db);   // 신규 DB 도 첫 요청부터 requiredTables 전부 보유 (없으면 첫 요청만 'Unknown table' 404)
     return db;
   }
   const db = JSON.parse(fs.readFileSync(DATA_PATH, 'utf8'));
@@ -1564,7 +1568,8 @@ const server = http.createServer((req, res) => {
           }
           const safeOriginal = String(body.filename).replace(/[\\/]/g, '_');
           const ext = path.extname(safeOriginal).toLowerCase();
-          const allowed = ['.pdf','.xlsx','.xls','.docx','.doc','.png','.jpg','.jpeg','.csv','.txt','.zip'];
+          const allowed = ['.pdf','.xlsx','.xls','.docx','.doc','.png','.jpg','.jpeg','.csv','.txt','.zip',
+                           '.hwp','.hwpx','.html','.htm'];   // 규정 개정이력: 신구조문대비표(hwpx)·리포트(html)
           if (!allowed.includes(ext)) {
             return send(400, { error: '허용되지 않은 확장자: ' + ext });
           }
@@ -2697,6 +2702,57 @@ const server = http.createServer((req, res) => {
   }
 
   // ── 주간업무 월결산 / 년간집계 (완료·미진·진행중·착수예정) ──
+  // ── 규정 개정이력: 자동 수집 (docs/02 §6) ──
+  //   POST /reg/collect          수집 즉시 실행 → reg_inbox 에 신규 후보 적재 (reg_items 자동 등록 X)
+  //   GET  /reg/collect/status   마지막 실행·실패 내역·수집원 준비 상태
+  //   POST /reg/fetch-file       { url } 허용 호스트의 파일(별표 등)을 data/kb_files 에 저장 → 첨부 레코드
+  if (urlPath.startsWith('/reg/')) {
+    const sendJson = (status, body) => {
+      res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(body));
+    };
+    const readBody = () => new Promise((resolve, reject) => {
+      const chunks = [];
+      req.on('data', c => chunks.push(c));
+      req.on('end', () => { try { resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : null); } catch (e) { reject(e); } });
+      req.on('error', reject);
+    });
+    const p = urlPath.split('?')[0];
+    (async () => {
+      try {
+        if (req.method === 'POST' && p === '/reg/collect') {
+          const result = await withDb(async db => {
+            const r = await regcollect.runCollect(db, { trigger: 'manual' });
+            writeDb(db);
+            return r;
+          });
+          sendJson(200, { ok: true, ...result }); return;
+        }
+        if (req.method === 'GET' && p === '/reg/collect/status') {
+          const db = readDb();
+          const runs = (db.reg_collect_runs || []).slice(-10).reverse();
+          const inbox = db.reg_inbox || [];
+          sendJson(200, {
+            ok: true, last_run: runs[0] || null, runs,
+            sources: regcollect.describeSources(),
+            new_count: inbox.filter(x => x.state === '신규').length,
+          }); return;
+        }
+        if (req.method === 'POST' && p === '/reg/fetch-file') {
+          const body = await readBody();
+          if (!body || !body.url) { sendJson(400, { error: 'url 필수' }); return; }
+          const destDir = path.join(__dirname, 'data', 'kb_files');
+          const att = await regcollect.downloadToFile(String(body.url), destDir);
+          sendJson(200, att); return;
+        }
+        sendJson(404, { error: 'Unknown reg endpoint' });
+      } catch (e) {
+        sendJson(500, { error: String(e.message || e) });
+      }
+    })();
+    return;
+  }
+
   // GET /weekly/closing?ym=202609&format=json|xlsx
   // GET /weekly/closing?year=2026&format=json|xlsx
   // 분류 로직 SSOT = reports/make_monthly_closing.py (서버는 호출·전달만, 규칙 11)
@@ -2922,7 +2978,32 @@ server.listen(PORT, HOST, () => {
   scheduleNextQuarterCheck();
   // 서버 시작 시 1·4·7·10월 첫 주면 누락분 보강
   setTimeout(maybeRunStartupQuarterReset, 6000);
+  // ── 규정 개정 자동 수집 (매일 REG_COLLECT_HOUR 시, 기본 06:00 · REG_COLLECT_ENABLED=0 이면 중지) ──
+  scheduleNextRegCollect();
 });
+
+/**
+ * 규정 개정 자동 수집 일 1회 예약 (docs/02 §6-4). 실패해도 포탈 기동에 영향 없음.
+ */
+function scheduleNextRegCollect() {
+  if (process.env.REG_COLLECT_ENABLED === '0') return;
+  const hour = Math.min(23, Math.max(0, parseInt(process.env.REG_COLLECT_HOUR || '6', 10) || 6));
+  const now = new Date();
+  const next = new Date(now);
+  next.setHours(hour, 0, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+  safeSetTimeout(() => {
+    withDb(async db => {
+      try {
+        const r = await regcollect.runCollect(db, { trigger: 'scheduled' });
+        writeDb(db);
+        console.log(`[reg-collect] scheduled: +${r.added}건, 실패 ${r.run.errors.length}건`);
+      } catch (e) { console.error('[reg-collect] scheduled 실패:', e.message); }
+    }).catch(() => {});
+    scheduleNextRegCollect();
+  }, next - now);
+  console.log(`  RegCollect: 다음 규정 수집 → ${next.toLocaleString('ko-KR')}`);
+}
 
 /**
  * 분기 시작일(1·4·7·10월 1일) 자정 직후 엔게이지먼트 포인트만 초기화.

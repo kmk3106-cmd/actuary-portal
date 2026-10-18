@@ -663,6 +663,15 @@
         <input type="text" class="form-control" id="modalTitle" placeholder="계리업무절차서 제목">
       </div>
       <div class="form-group">
+        <label class="form-label">리포트 HTML 파일로 등록 <small style="font-weight:400;color:var(--gray-400);">(선택 · 신구조문 대비 리포트 등 — 내용란이 자동으로 채워집니다)</small></label>
+        <div class="file-upload-area" onclick="document.getElementById('modalHtmlInput').click()">
+          <i class="fas fa-file-code" style="margin-right:6px;"></i>
+          HTML 리포트 선택 (.html)
+          <input type="file" id="modalHtmlInput" accept=".html,.htm" onchange="handleReportHtmlSelect(event)">
+        </div>
+        <div id="reportHtmlInfo" style="font-size:12.5px;color:var(--gray-500);margin-top:6px;"></div>
+      </div>
+      <div class="form-group">
         <label class="form-label">내용 (마크다운)</label>
         <textarea id="modalContent" placeholder="절차서 내용을 마크다운으로 작성하세요..."></textarea>
       </div>
@@ -700,7 +709,8 @@
 
 <script src="js/rbac.js?v=31"></script>
 <script src="js/auth.js"></script>
-<script src="js/portal.js?v=36"></script>
+<script src="js/portal.js?v=37"></script>
+<script src="js/report-embed.js?v=1"></script>
 <!-- EasyMDE 에디터 -->
 <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
 <!-- 마크다운 렌더러 -->
@@ -1033,7 +1043,7 @@ function renderDocDetail(doc) {
         </div>
       </div>
 
-      <!-- 본문 -->
+      <!-- 본문 (리포트 HTML 은 iframe srcdoc — js/report-embed.js 가 높이 자동 맞춤) -->
       <div class="kb-prose">${bodyHtml}</div>
 
       <!-- 첨부파일 -->
@@ -1051,6 +1061,7 @@ function renderDocDetail(doc) {
         </div>
       </div>
     </div>`;
+  if (window.ReportEmbed) ReportEmbed.fitFrames(content);
 }
 
 /* ── 유용성 투표 ── */
@@ -1198,6 +1209,28 @@ async function handleFileSelect(event) {
   event.target.value = '';
 }
 
+/* ── 리포트 HTML 파일 → iframe srcdoc 본문 (docs/01_리포트_스타일가이드.md §5) ── */
+function handleReportHtmlSelect(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const html = String(e.target.result || '');
+    if (/<script[\s>]/i.test(html)) {
+      Portal.showToast('스크립트가 포함된 HTML 입니다. 리포트는 스크립트 없이 만들어야 합니다 (스타일가이드 §5-2).', 'warning');
+    }
+    const wrapped = ReportEmbed.wrapForPortal(html);
+    if (easyMDE) easyMDE.value(wrapped); else document.getElementById('modalContent').value = wrapped;
+    const titleEl = document.getElementById('modalTitle');
+    const t = ReportEmbed.extractTitle(html);
+    if (!titleEl.value.trim() && t) titleEl.value = t;
+    document.getElementById('reportHtmlInfo').innerHTML =
+      `<i class="fas fa-check-circle" style="color:var(--success,#10b981);"></i> "${escHtml(file.name)}" (${Math.round(file.size / 1024)}KB) → 본문에 임베드됨. 저장하면 본문 영역에 리포트가 그대로 표시됩니다.`;
+  };
+  reader.readAsText(file, 'utf-8');
+  event.target.value = '';
+}
+
 function removeAttachment(idx) {
   pendingAttachments.splice(idx, 1);
   renderAttachPreview();
@@ -1216,7 +1249,8 @@ function renderAttachPreview() {
 /* ── 문서 저장 ── */
 async function saveDoc() {
   const title      = document.getElementById('modalTitle').value.trim();
-  const catId      = parseInt(document.getElementById('modalCategory').value, 10) || null;
+  // kb_categories.id 는 'kbc_regulation' 같은 문자열 — parseInt 하면 NaN → 저장 불가 버그 (2026-10-18 수정)
+  const catId      = document.getElementById('modalCategory').value || null;
   const content    = easyMDE ? easyMDE.value() : document.getElementById('modalContent').value;
   const published  = document.getElementById('modalPublished').checked;
   const changeNote = document.getElementById('modalChangeNote').value.trim();
