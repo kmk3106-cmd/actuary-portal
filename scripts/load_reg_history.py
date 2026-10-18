@@ -14,6 +14,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import sys
 import urllib.parse
 
@@ -75,8 +76,10 @@ def main():
 
     existing = {it.get('source_key'): it for it in get_all(a.base_url, REG_TABLE) if it.get('source_key')}
     docs_by_title = {d.get('title'): d for d in get_all(a.base_url, KB_TABLE) if d.get('category_id') == KB_CATEGORY}
-    created = updated = skipped = 0
-    for ev in events:
+    by_id = {e['id']: e for e in events}
+    created = updated = skipped = merged = 0
+    # 공동 보도자료에 통합된 건(merged_into)은 대표 건 뒤에 처리해야 대표 건의 id 를 알 수 있다
+    for ev in sorted(events, key=lambda e: 1 if (index.get(e['id']) or {}).get('merged_into') else 0):
         if want and ev['id'] not in want:
             continue
         meta = index.get(ev['id'])
@@ -84,6 +87,22 @@ def main():
             print(f'  - {ev["id"]} 리포트 없음 (건너뜀)', file=sys.stderr); continue
         key = ev['url']
         exists = existing.get(key)
+        # 금융위·금감원 공동 보도자료의 부(副) 건: 새로 만들지 않고, 이미 있으면 "통합됨" 표시만 (삭제 아님)
+        if meta.get('merged_into'):
+            primary_ev = by_id.get(meta['merged_into'])
+            primary_item = existing.get(primary_ev['url']) if primary_ev else None
+            if exists and primary_item and not a.dry_run and exists.get('merged_into') != primary_item['id']:
+                api(a.base_url, 'PATCH', f'/tables/{REG_TABLE}/{urllib.parse.quote(exists["id"])}',
+                    {'merged_into': primary_item['id'], 'merged_into_event_id': primary_ev['id'], 'is_duplicate': True, 'updated_by': a.author_name}, actor)
+                if exists.get('report_doc_id'):
+                    api(a.base_url, 'PATCH', f'/tables/{KB_TABLE}/{urllib.parse.quote(exists["report_doc_id"])}',
+                        {'title': '[중복·통합] ' + re.sub(r'^\[중복·통합\]\s*', '', (next((d['title'] for d in docs_by_title.values() if d.get('id') == exists['report_doc_id']), '') or exists.get('title', ''))),
+                         'change_note': f'공동 보도자료 — {primary_item.get("title", "")} 에 통합'}, actor)
+                merged += 1
+                print(f'  ~ {ev["id"]} → {primary_ev["id"]} 에 통합 표시', file=sys.stderr)
+            elif a.dry_run:
+                print(f'  [dry] {ev["id"]} 공동 보도자료 → {meta["merged_into"]} 에 통합 (별도 등록 안 함)')
+            continue
         if exists and not a.update:
             skipped += 1; continue
 
@@ -162,7 +181,10 @@ def main():
             'impact_areas': meta['impact_areas'], 'impact_systems': meta['impact_systems'],
             'actions': (exists or {}).get('actions') or meta['actions'],
             'report_doc_id': doc_id or None,
-            'sources': [{'label': ev['source_label'], 'url': ev['url'], 'fetched_at': 0}],
+            'sources': [{'label': ev['source_label'], 'url': ev['url'], 'fetched_at': 0}]
+                       + [{'label': j['label'] + ' (공동 배포)', 'url': j['url'], 'fetched_at': 0, 'joint': True} for j in (meta.get('joint_sources') or [])],
+            'joint_event_ids': [j['event_id'] for j in (meta.get('joint_sources') or [])],
+            'analysis_kind': meta.get('analysis_kind', ''), 'legal_status': meta.get('legal_status', ''),
             'attachments': atts, 'tags': meta['tags'][:8],
             # event_id = 수집 이벤트 id. related_notice_id 도 이벤트 id 라서 화면은 event_id 로 선행 예고를 찾는다
             'source_key': key, 'source': ev['source'], 'event_id': ev['id'], 'related_notice_id': meta.get('related_notice_id') or ev.get('related_notice_id'),
@@ -182,7 +204,7 @@ def main():
                 print(f'  ! {ev["id"]} reg_items 실패 {st}: {body}', file=sys.stderr); continue
             existing[key] = body; created += 1
         print(f'  + {ev["id"]} {ev.get("date")} {ev["status"]} doc={doc_id} atts={len(atts)}', file=sys.stderr)
-    print(f'완료: 생성 {created} · 갱신 {updated} · 건너뜀 {skipped}', file=sys.stderr)
+    print(f'완료: 생성 {created} · 갱신 {updated} · 건너뜀 {skipped} · 공동 보도자료 통합 표시 {merged}', file=sys.stderr)
 
 
 if __name__ == '__main__':

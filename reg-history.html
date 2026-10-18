@@ -431,7 +431,7 @@ const isLeaderOrChief = isLeader || RBAC.isSectionChief() || RBAC.isDivisionHead
 const canWrite = isLeaderOrChief;                 // 팀원은 열람만 (§8). 실장 쓰기는 portal.js 읽기전용 가드가 차단
 const myName = (currentUser && (currentUser.full_name || currentUser.username)) || '';
 
-let ITEMS = [], INBOX_ROWS = [], USERS = [], KB_DOCS = [];
+let ITEMS = [], MERGED = [], INBOX_ROWS = [], USERS = [], KB_DOCS = [];
 let selectedId = null;
 let pendingReportHtml = null;      // { name, html }
 let pendingAttachments = [];
@@ -455,7 +455,8 @@ async function loadAll() {
     getRows(`/tables/${TABLE}?limit=2000`), getRows(`/tables/${INBOX}?limit=2000`),
     getRows('/tables/users?limit=200'), getRows(`/tables/${KB_TABLE}?limit=500&lite=1`),
   ]);
-  ITEMS = items; INBOX_ROWS = inbox;
+  // 금융위·금감원 공동 보도자료의 부(副) 건(merged_into)은 목록에서 숨기고 대표 건의 출처로만 보인다 (데이터는 남아 있음)
+  MERGED = items.filter(i => i.merged_into); ITEMS = items.filter(i => !i.merged_into); INBOX_ROWS = inbox;
   USERS = users.filter(u => u.is_active !== false);
   KB_DOCS = docs.filter(d => d.category_id === KB_CATEGORY);
   buildCases();
@@ -474,7 +475,7 @@ async function loadCollectStatus() {
 // ══════════════════════════════════════════════════════════
 function renderStats() {
   const today = todayStr();
-  document.getElementById('stTotal').innerHTML = `${ITEMS.length} <span style="font-size:14px;color:#1d4ed8">(${ITEMS.filter(i => i.relevance === '관련').length})</span>`;
+  document.getElementById('stTotal').innerHTML = `${ITEMS.length} <span style="font-size:14px;color:#1d4ed8">(${ITEMS.filter(i => i.relevance === '관련').length})</span>${MERGED.length ? `<span style="font-size:11px;color:#9ca3af;font-weight:500;margin-left:6px" title="금융위·금감원이 같은 날 같은 제목으로 낸 공동 보도자료는 한 건으로 묶고, 다른 기관 게시물은 대표 건의 출처로만 보입니다">공동 보도자료 ${MERGED.length}건 통합</span>` : ''}`;
   document.getElementById('stUpcoming').textContent = ITEMS.filter(i => i.date_effective && i.date_effective > today && i.status !== '철회').length;
   document.getElementById('stNotice').textContent = ITEMS.filter(i => NOTICE_STATUSES.has(i.status)).length;
   document.getElementById('stOpenActs').textContent = ITEMS.reduce((n, i) => n + arr(i.actions).filter(a => a.state !== '완료').length, 0);
@@ -746,6 +747,7 @@ function renderDetail(id) {
       ${NOTICE_STATUSES.has(it.status) ? `<div class="callout"><i class="fas fa-exclamation-triangle"></i> <b>${esc(stLabel(it))}안입니다 — 아직 확정이 아닙니다.</b> ${esc((STAGE_HELP[stLabel(it)] || {}).what || '')}. 확정 공포 조문과 다를 수 있으므로 적용 전 확정본 대조가 필요합니다.</div>` : ''}
       ${it.status === '보도자료' ? `<div class="callout" style="border-left-color:#a855f7;background:#faf5ff;color:#581c87"><i class="fas fa-newspaper"></i> <b>보도자료입니다 — 규정 조문이 아닙니다.</b> ${esc(STAGE_HELP['보도자료'].what)}. 실제 조문은 아래 진행 현황에 연결된 예고·확정 건에서 봅니다.</div>` : ''}
       ${DECIDED_STATUSES.has(it.status) ? `<div class="callout" style="border-left-color:#10b981;background:#ecfdf5;color:#065f46"><i class="fas fa-check-circle"></i> <b>확정(발령)된 개정입니다.</b> ${esc((STAGE_HELP[it.status] || {}).what || '')}${it.date_effective ? ` — 시행일 ${fmtD(it.date_effective)} (${esc(it.date_effective_source || '발령문 본문')} · 부칙 확인 필요)` : ' — 시행일 미확인 (부칙에서 확인)'}.</div>` : ''}
+      ${it.legal_status ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-gavel"></i> 법적 상태 (리포트 결론과 동일)</div><div class="dp-txt">${esc(it.legal_status)}</div></div>` : ''}
       ${lifecycle}
       ${sched ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-calendar-alt"></i> 이 건의 일정</div><div class="sched">${sched}</div></div>` : ''}
       ${(it.change_new || it.change_mod || it.change_del || it.change_move) ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-code-branch"></i> 변경 (조문 단위)</div><div class="chg"><span class="n">신설 ${Number(it.change_new) || 0}</span><span class="c">변경 ${Number(it.change_mod) || 0}</span>${Number(it.change_move) ? `<span class="v">이동 ${Number(it.change_move)}</span>` : ''}<span class="m">삭제 ${Number(it.change_del) || 0}</span></div>${it.line_counts ? `<div style="font-size:11.5px;color:#6b7280;margin-top:6px">줄 단위: ${esc(Object.entries(it.line_counts).filter(([k, v]) => v && k !== '동일').map(([k, v]) => `${k} ${v}`).join(' · '))}</div>` : ''}</div>` : ''}

@@ -499,9 +499,9 @@ def relink(events):
 
 
 # ── 목록 제목 = 대상 + 실질 변경 (docs/03 P0-5, 지시서 §12) ──────────────────────────────
-TITLE_MAX = 44                 # 목록 제목 길이 상한(자). 지시서 권장 15~30자, 정확성을 위해 필요한 길이는 허용
-ITEM_MAX = 30                  # 변경 항목 하나를 줄인 길이 상한
-SUMMARY_MAX = 80               # 한 줄 요약 상한
+TITLE_MAX = 58                 # 목록 제목 길이 상한(자). 함축보다 구체성에 비중(70:30) — 수치·조문·대상을 남긴다
+ITEM_MAX = 40                  # 변경 항목 하나를 줄인 길이 상한
+SUMMARY_MAX = 110              # 한 줄 요약 상한
 # 변경 행위 (문장 끝의 동작 명사). 이 앞의 명사구가 '대상' 이다
 ACTION_RE = re.compile(r'(인하|인상|신설|마련|개선|정비|확대|축소|완화|강화|단축|연장|명시|삭제|변경|도입|한정|구체화|반영|추가|폐지|통합|현행화|상향|하향|적용|제외|제한|규정|조정|전환|개편|지정|구분|간소화|일원화|명확화|합리화|허용|면제)')
 # 추상어만으로 끝나는 제목 금지: 대상 명사 없이 아래 말로만 끝나면 실패
@@ -526,7 +526,7 @@ def _strip_article_refs(s):
 LEAD_NUM_RE = re.compile(r'^(?:\(\d+\)|[가-힣]\.|\d+\.|[①-⑳]|[ⅰ-ⅹ]+\.?|[a-z]\)|[ㅁ□◦○ㅇ▪■•\-–])\s*')
 OBJ_PARTICLE_RE = re.compile(r'(을|를|은|는)$')     # 변경 행위 바로 앞 토큰에서만 뗀다 ('시가평가' 의 '가' 를 떼지 않기 위해)
 DOMAIN_KW_RE = re.compile(r'(해약환급금준비금|해약률|위험률|할인율|계리가정|계리적\s?가정|책임준비금|보험부채|비상위험준비금|지급여력비율|요구자본|경험통계기간|사업비\s?가정|손해율\s?가정|평균해지율|계약자배당|유배당손익|선임계리사|내부모형|ORSA|경영실태평가|업무보고서|표준약관|표준사업방법서|상품위원회|판매수수료|간단보험대리점|손해사정|DSR|LTV|담보대출|실손의료보험|실손|반려동물보험|공정가치)')
-PHRASE_CHARS = 24                    # 변경 행위 앞에서 거슬러 올라가며 모을 글자 수
+PHRASE_CHARS = 34                    # 변경 행위 앞에서 거슬러 올라가며 모을 글자 수
 JUNK_ITEM_RE = re.compile(r'^(?:\(현행\)|\(개선\)|세부 개정 내용|자세한 사항|보험 가입기간이|보험료가 비교적|위험보장 내용이|없음 명백|일시|장소|배경|개요|추진경과|향후 계획|향후계획)')
 
 
@@ -546,8 +546,10 @@ def compress_item(item):
     → '해약환급금준비금 적립비율 인하'. 마지막 변경 행위 앞의 짧은 명사구 + (빠졌으면) 가장 가까운 대상 명사를 앞에 붙인다.
     변경 행위가 없는 글(설명·조건문)은 버린다 ('', refs)"""
     s0 = _clean_item(item)
+    s0 = re.sub(r'100분의\s*(\d+)', r'\1%', s0)
     s, refs = _strip_article_refs(s0)
     s = re.split(r'\s[-–]\s|\s\*', s)[0]                  # 부연 설명(- …, * 각주) 제거
+    s = re.sub(r'\([^)]*(?:고시\s*제|부칙|제\s?\d+조)[^)]*\)', '', s)   # '(금융위원회 고시 제2022-53호 부칙 제3조 삭제)' 같은 근거 괄호
     if not s or JUNK_ITEM_RE.match(s) or '→' in s:
         return '', refs
     toks = s.split()
@@ -565,6 +567,8 @@ def compress_item(item):
         t = toks[i]
         if CLAUSE_END_RE.search(t) or t.endswith(('하도록', '토록', '하여', '위해', '따라', '경우', '때에', '맞춰', '맞추어', '통해', '기준으로', '있도록')):
             break
+        if i < act_idx - 1 and ACTION_RE.search(t) and re.sub(r'[()\d.]', '', t).endswith(ACTION_RE.search(t).group(1)):   # 앞 절의 변경 행위('범위 확대') 에서 멈춘다
+            break
         if i == act_idx - 1:
             t = OBJ_PARTICLE_RE.sub('', t)
         phrase.insert(0, t)
@@ -579,6 +583,10 @@ def compress_item(item):
     kws = DOMAIN_KW_RE.findall(before)
     if kws and kws[-1].replace(' ', '') not in out.replace(' ', ''):
         out = kws[-1] + ' ' + out
+    # 수치(80%, 5년, 30년 …)는 구체성의 핵심이라 빠졌으면 괄호로 남긴다
+    nums = [n for n in re.findall(r'\d+(?:\.\d+)?\s?(?:%|년|억원|만원|배|개월|일|호)', s) if n not in out]
+    if nums:
+        out += '(' + ' · '.join(dict.fromkeys(nums[:2])) + ')'
     return out.rstrip(' ·,('), refs
 
 
@@ -644,7 +652,9 @@ def make_title(ev, rows, ov):
     title, src = '', 'unknown'
     if items:
         title = items[0][0]
-        if len(items) > 1 and len(title) <= 22 and len(title) + 3 + len(items[1][0]) <= TITLE_MAX:
+        if items[0][1] and len(title) + len(items[0][1][0]) + 2 <= TITLE_MAX and items[0][1][0] not in title:
+            title = (title[:-1] + ' · ' + items[0][1][0] + ')') if title.endswith(')') else title + f'({items[0][1][0]})'
+        if len(items) > 1 and len(title) <= 34 and len(title) + 3 + len(items[1][0]) <= TITLE_MAX:
             title += ' · ' + items[1][0]
         rest = len(items) - (2 if ' · ' in title else 1)
         if rest > 0:
@@ -680,7 +690,83 @@ def make_title(ev, rows, ov):
     return title, summary[:SUMMARY_MAX], src, quality
 
 
-def build(ev, css, related, rules=None):
+JOINT_PRESS_SIM = 0.9      # 같은 날 헤드라인 유사도가 이 이상이면 금융위·금감원 공동 보도자료 한 건으로 본다
+
+
+def _headline_key(ev):
+    h = re.sub(r'^\s*[\[(【]\s*보도\s*(?:자료|참고)\s*[\])】]\s*', '', ev.get('list_title') or '')
+    h = re.split(r'\s[-–]\s', h)[0]                     # 금융위 쪽 부제('- ｢…방안｣ 마련') 는 뺀다
+    return re.sub(r'[^가-힣A-Za-z0-9]', '', h).lower()
+
+
+def _day_num(d):
+    import datetime as _dt
+    try:
+        return _dt.date.fromisoformat(d).toordinal()
+    except Exception:
+        return 0
+
+
+def merge_joint_press(events):
+    """금융위·금감원이 같은 날 같은 제목으로 낸 공동 보도자료를 한 건으로 묶는다. 본문·첨부가 많은 쪽(보통 금감원)이 대표(primary),
+    나머지는 _merged_into 로 표시만 한다(삭제 아님). 대표 건에는 두 기관의 원문 링크를 모두 둔다 (joint_sources)."""
+    press = sorted([e for e in events if e['status'] == '보도자료' and e.get('date')], key=lambda e: e['date'])
+    merged = 0
+    used = set()
+    if True:
+        group = press
+        for i, a in enumerate(group):
+            if a['id'] in used or a.get('_merged_into'):
+                continue
+            twins = [a]
+            for b in group[i + 1:]:
+                # 같은 기관 게시물끼리는 묶지 않는다. 배포일은 하루까지 어긋날 수 있다 (금융위 11/7 · 금감원 11/8)
+                if b['id'] in used or a.get('source') == b.get('source') or abs(_day_num(a['date']) - _day_num(b['date'])) > 1:
+                    continue
+                ka, kb = _headline_key(a), _headline_key(b)
+                if ka and kb and difflib.SequenceMatcher(None, ka, kb, autojunk=False).ratio() >= JOINT_PRESS_SIM:
+                    twins.append(b); used.add(b['id'])
+            if len(twins) < 2:
+                continue
+            richness = lambda e: len(e.get('purpose') or '') + len(e.get('body') or '') + sum(1 for x in e.get('attachments', []) if x.get('extracted')) * 500
+            primary = max(twins, key=richness)
+            primary['joint_sources'] = [{'label': t['source_label'], 'url': t['url'], 'event_id': t['id']} for t in twins if t is not primary]
+            # 제목·요약은 글머리 꼬리표가 있는 쪽(보통 금감원 본문 요약)이 낫다 — 대표 건에 취지문이 없으면 가져온다
+            if not (primary.get('purpose') or '').strip():
+                best = max((t for t in twins if t is not primary), key=lambda t: len(t.get('purpose') or ''), default=None)
+                if best and (best.get('purpose') or '').strip():
+                    primary['purpose'] = best['purpose']
+            for t in twins:
+                if t is not primary:
+                    t['_merged_into'] = primary['id']; merged += 1
+    return merged
+
+
+def notice_decision_diff(notice, decided):
+    """예고안 ↔ 확정본 대비표 차이: 조문 머리 기준으로 (항목, 예고안 줄수, 확정본 줄수, 판정) 목록 + 문구가 달라진 항목 수"""
+    nr, _ = compare_rows(notice); dr, _ = compare_rows(decided)
+    key = lambda h: re.sub(r'\s', '', re.sub(r'\(.*?\)', '', h))[:24]
+    nmap = {}; dmap = {}
+    for ca, cb, _ in nr:
+        nmap.setdefault(key(item_heading(ca, cb)), []).append(cb)
+    for ca, cb, _ in dr:
+        dmap.setdefault(key(item_heading(ca, cb)), []).append(cb)
+    rows = []
+    for k in list(dict.fromkeys(list(nmap.keys()) + list(dmap.keys()))):
+        a, b = nmap.get(k), dmap.get(k)
+        if a and not b:
+            rows.append((k, len(a), 0, '확정본에서 제외'))
+        elif b and not a:
+            rows.append((k, 0, len(b), '확정본에서 추가'))
+        else:
+            ta, tb = norm_line('\n'.join(a)), norm_line('\n'.join(b))
+            r = difflib.SequenceMatcher(None, ta, tb, autojunk=False).ratio() if ta and tb else 1.0
+            la, lb = sum(len(split_lines(x)) for x in a), sum(len(split_lines(x)) for x in b)
+            rows.append((k, la, lb, '동일' if r >= 0.98 else f'문구 변경 (유사도 {r:.2f})'))
+    return rows
+
+
+def build(ev, css, related, rules=None, decided_after=None):
     status = ev['status']
     text = all_text(ev)
     arts = find_articles(text)
@@ -713,26 +799,54 @@ def build(ev, css, related, rules=None):
     # 목록 제목 = 대상 + 실질 변경 (지시서 §12). 선행 예고의 취지를 제목으로 물려받지 않는다 — 다른 건일 수 있다
     list_title, summary_line, title_source, title_quality = make_title(ev, rows, ov)
     title_core = list_title
-    h1 = f"{ev['reg_name']} {'보도자료' if status == '보도자료' else '개정'} — {list_title}"
+    analysis_kind = '사전예고안 분석' if is_notice else ('보도자료 정리' if status == '보도자료' else '확정 개정 분석')
+    h1 = f"[{analysis_kind}] {ev['reg_name']} — {list_title}"
     subt_bits = [ev['reg_name']] + ([' · '.join(arts[:4])] if arts else []) + [f"{fmt_date(ev.get('date'))} {STATUS_LABEL.get(status, status)}"]
     if ev.get('date_comment_due'):
         subt_bits.append(f"의견제출 {fmt_date(ev['date_comment_due'])}까지")
     if ev.get('date_effective'):
-        subt_bits.append(f"시행 {fmt_date(ev['date_effective'])}")
+        subt_bits.append((f"시행 예정 {fmt_date(ev['date_effective'])} (예고안 기준)" if is_notice else f"시행 {fmt_date(ev['date_effective'])} (발령문 기준)"))
     lead = ev.get('purpose') or (ev.get('body') or '')[:160] or ev.get('list_title', '')
     lead = re.sub(r'^[□◦○ㅇ\s]+', '', lead)
 
+    # 3차(P0-7): 문서 성격 / 규정 상태 / 시행 여부 / 적용 기준일 / 최종 원문 확인 여부 — 결론 첫 표 5항목 + 첫 두 문장
+    notice_label = {'사전예고': '사전예고안', '입법예고': (ev.get('notice_kind') or '입법예고') + '안'}.get(status, '')
+    doc_nature = {'사전예고': '사전예고문 (금감원 시행세칙 개정안)', '입법예고': f"{ev.get('notice_kind') or '입법예고'}문 (개정안)", '공포': '고시문 (확정 · 발령)',
+                  '시행': '확정 개정 게시문 (발령)', '보도자료': '보도자료 (설명 자료, 조문 아님)', '철회': '철회 공고'}.get(status, status)
+    eff_planned = eff if (is_notice and eff) else ''
+    if is_notice:
+        reg_state = '미확정 — ' + ('예고 중 (의견제출 ' + fmt_date(ev['date_comment_due']) + '까지)' if ev.get('date_comment_due') else '예고 중')
+        if decided_after:
+            reg_state = f"확정 발령됨 — {fmt_date(decided_after.get('date'))} {STATUS_LABEL.get(decided_after['status'], '')} (확정본 리포트 참조)"
+        eff_text = f"미시행 — 시행 예정 {fmt_date(eff_planned)} (예고안 기준 · 확정 아님)" if eff_planned else '미시행 — 시행일은 확정본 부칙에서 정함'
+        apply_date = f"{fmt_date(eff_planned)} (예정 · 확정 전 적용하지 않음)" if eff_planned else '미확인 (확정 전)'
+    elif status == '보도자료':
+        reg_state, eff_text, apply_date = '해당 없음 — 규정이 아닌 설명 자료', '해당 없음', '해당 없음 (연결된 예고·발령 건에서 확인)'
+    else:
+        reg_state = f"확정 (발령) — {fmt_date(ev.get('date'))} {'고시' if status == '공포' else '개정 게시'}"
+        eff_text = f"시행일 {fmt_date(ev['date_effective'])} (발령문 본문 추출 · 부칙 확인 필요)" if ev.get('date_effective') else '시행일 미확인 — 부칙에서 확인'
+        apply_date = fmt_date(ev['date_effective']) + ' (부칙 확인 후 확정)' if ev.get('date_effective') else '미확인'
+    verify = '원문 게시물·첨부 자동 수집본 — 담당자 원문 대조 미완료'
+    if is_notice:
+        legal = (f"본 자료는 {fmt_date(ev.get('date'))} {notice_label} 기준 분석이다. "
+                 + (f"확정 발령은 {fmt_date(decided_after.get('date'))}에 확인됐으며 확정본 조문은 확정 건 리포트에서 본다." if decided_after
+                    else "확정 발령·시행일은 미확인이며, 확정본 확인 전에는 현행 산출기준에 적용하지 않는다."))
+    elif status == '보도자료':
+        legal = f"본 자료는 {fmt_date(ev.get('date'))} 보도자료 정리다. 규정 조문이 아니고 효력도 없으며, 실제 개정 상태는 연결된 예고·발령 건에서 확인한다."
+    else:
+        legal = (f"본 자료는 {fmt_date(ev.get('date'))} 확정 {'고시' if status == '공포' else '개정 게시'}(발령) 기준 분석이다. "
+                 + (f"시행일은 {fmt_date(ev['date_effective'])}(발령문 본문 추출)이며 부칙·경과조치를 확인한 뒤 그 날부터 산출기준에 적용한다." if ev.get('date_effective')
+                    else "시행일은 미확인이며 부칙에서 확인하기 전에는 적용 시점을 확정하지 않는다."))
     # 결론 요약표
-    sumrows = [('규정', f"{ev['reg_name']}" + (f" · {' · '.join(arts[:6])}" if arts else '')),
+    sumrows = [('문서 성격', doc_nature), ('규정 상태', reg_state), ('시행 여부', eff_text), ('적용 기준일', apply_date), ('최종 원문 확인 여부', verify),
+               ('규정', f"{ev['reg_name']}" + (f" · {' · '.join(arts[:6])}" if arts else '')),
                ('단계', STATUS_LABEL.get(status, status) + (f" ({ev.get('notice_kind')})" if ev.get('notice_kind') else '')),
                ('일자', ('예고 ' if is_notice else ('고시 ' if status == '공포' else ('배포 ' if status == '보도자료' else '게시 '))) + fmt_date(ev.get('date')))]
     if ev.get('date_comment_due'):
         sumrows.append(('의견제출 시한', fmt_date(ev['date_comment_due'])))
-    if ev.get('date_effective'):
-        sumrows.append(('시행일', fmt_date(ev['date_effective'])))
     if rows:
         sumrows.append(('변경 규모', f"조문 {len(rows)}개 — {counts_text(counts)}" + (f" · 변경 없음 {len(unchanged)}" if unchanged else '')
-                        + f" / 줄 단위 {counts_text(line_counts)} (첨부 대비표 기준)"))
+                        + f" / 줄 단위 {counts_text(line_counts)} (조문 단위와 줄 단위는 서로 다른 집계라 합산하지 않는다 · 첨부 대비표 기준)"))
     sumrows.append(('계리결산팀 관련성', f"{relevance} — {rel_reason}"))
     if areas:
         sumrows.append(('영향 영역', ' · '.join(areas)))
@@ -755,6 +869,8 @@ def build(ev, css, related, rules=None):
             reason_items = [re.sub(r'^[□◦○ㅇ\s]+', '', p) for p in v if len(p) > 3]
             break
 
+    diff_rows = notice_decision_diff(related, ev) if (related and not is_notice and status != '보도자료' and ev.get('_link_confidence') == 'high') else []
+
     # 조치 사항
     acts = []
     if is_notice:
@@ -772,12 +888,15 @@ def build(ev, css, related, rules=None):
     nav = ['<a href="#c">결론</a>', '<a href="#1">개요</a>', '<a href="#2">주요 내용</a>']
     if rows:
         nav.append('<a href="#3">신·구 조문 대비</a>')
+    if diff_rows:
+        nav.append('<a href="#3a">예고안 대비 확정본</a>')
     nav += ['<a href="#4">조치 사항</a>', '<a href="#a">부록</a>']
     H.append(f'<div class="nav"><div class="in">{"".join(nav)}</div></div><div class="sec">')
 
     # 결론
     H.append('<h2 id="c">결론</h2>')
-    H.append(f'<p class="lead">{esc(lead)}</p>')
+    H.append(f'<p class="lead"><span class="who fact">원문 사실</span>{esc(legal)}</p>')
+    H.append(f'<p>{esc(lead)}</p>')
     H.append('<div class="tw"><table class="wrap-ok2"><thead><tr><th>구분</th><th>내용</th></tr></thead><tbody>')
     for i, (k, v) in enumerate(sumrows):
         H.append(f'<tr{" class=hl" if i == 0 else ""}><td class="l"><b>{esc(k)}</b></td><td class="l">{esc(v)}</td></tr>')
@@ -786,7 +905,9 @@ def build(ev, css, related, rules=None):
         H.append('<div class="callout neutral"><b>계리결산팀 업무와 직접 관련이 없는 개정이다.</b><p>IFRS17 부채결산·계리적 가정·경제적 가정·계리모델 현금흐름에 영향을 주지 않는다 (' + esc(rel_reason) + '). 참고용으로만 보관한다.</p></div>')
     elif relevance == '참고':
         H.append('<div class="callout neutral"><b>계리결산팀 참고 사항이다.</b><p>' + esc(rel_reason) + '. 결산 산출물·지급여력 등 인접 영역이라 내용은 확인하되 모델 변경 대상은 아니다.</p></div>')
-    if is_notice:
+    if is_notice and decided_after:
+        H.append(f'<div class="callout ok"><b>이 예고안은 {fmt_date(decided_after.get("date"))}에 확정 발령됐다.</b><p>확정본 조문·시행일은 확정 건 리포트(규정 개정이력 › 진행 현황에서 연결)에서 본다. 예고안과 확정본의 차이는 확정 건 리포트 3-A 절에 있다.</p></div>')
+    elif is_notice:
         H.append('<div class="callout"><b>사전예고안이다.</b><p>확정 공포 조문과 다를 수 있으므로 적용 전 확정본 대조가 필요하다. 의견제출 시한' + (f' {fmt_date(ev["date_comment_due"])}' if ev.get('date_comment_due') else '') + ' 이후 금감원·금융위 게시판에서 확정 여부를 확인한다.</p></div>')
     elif status == '공포':
         H.append('<div class="callout ok"><b>확정 고시다.</b><p>금융위원회 고시로 확정된 내용이다. 시행일과 경과규정(부칙)을 확인해 적용 시점을 맞춘다.</p></div>')
@@ -809,8 +930,10 @@ def build(ev, css, related, rules=None):
         H.append(f'<tr><td class="l">{"고시" if status == "공포" else "개정 게시"}</td><td>{fmt_date(ev["date_promulgated"])}</td><td class="l">{esc(ev.get("gazette_no") and ("금융위원회 고시 제" + ev["gazette_no"] + "호") or "확정 조문 공개")}</td></tr>')
     if ev.get('date_press'):
         H.append(f'<tr><td class="l">보도자료</td><td>{fmt_date(ev["date_press"])}</td><td class="l">{esc(ev.get("authority") or "")} 배포</td></tr>')
-    if ev.get('date_effective'):
-        H.append(f'<tr class="hl"><td class="l">시행</td><td>{fmt_date(ev["date_effective"])}</td><td class="l">부칙 기준</td></tr>')
+    if ev.get('date_effective') and is_notice:
+        H.append(f'<tr><td class="l">시행 예정</td><td>{fmt_date(ev["date_effective"])}</td><td class="l">예고안 기준 · 확정 아님 (확정본 부칙에서 다시 정함)</td></tr>')
+    elif ev.get('date_effective'):
+        H.append(f'<tr class="hl"><td class="l">시행</td><td>{fmt_date(ev["date_effective"])}</td><td class="l">발령문 본문 추출 · 부칙 확인 필요</td></tr>')
     elif not is_notice and status != '보도자료':
         H.append('<tr><td class="l">시행</td><td>—</td><td class="l">부칙에서 확인 필요 (자동 추출 안 됨)</td></tr>')
     H.append('</tbody></table></div>')
@@ -818,16 +941,16 @@ def build(ev, css, related, rules=None):
         H.append(f'<p class="note">담당 · {esc(ev["contact"])}</p>')
 
     # 2. 주요 내용
-    H.append('<h2 id="2">2. 주요 내용</h2>')
+    H.append('<h2 id="2">2. 주요 내용 <span class="who fact">원문 사실</span></h2>')
     if main_items:
-        H.append('<div class="tw"><table class="wrap-ok2"><thead><tr><th>#</th><th>내용</th></tr></thead><tbody>')
+        H.append('<div class="tw"><table class="wrap-ok2"><thead><tr><th>#</th><th>내용 (공고문 주요 내용 그대로)</th></tr></thead><tbody>')
         for i, p in enumerate(main_items[:20], 1):
             H.append(f'<tr><td>{i}</td><td class="l">{esc(p)}</td></tr>')
         H.append('</tbody></table></div>')
     else:
         H.append('<p>공고문에 요약된 주요 내용이 없다. 부록의 원문 추출 전문과 첨부 파일을 본다.</p>')
     if areas:
-        H.append(f'<p>계리결산 관점의 영향 영역은 <strong>{esc(" · ".join(areas))}</strong> 이고, 손볼 시스템은 {esc(" · ".join(systems) or "—")} 이다. 영향 영역은 본문 키워드로 자동 분류한 것이라 담당자가 확인한다.</p>')
+        H.append(f'<p><span class="who ai">AI 해석</span>계리결산 관점의 영향 영역은 <strong>{esc(" · ".join(areas))}</strong> 이고, 손볼 시스템은 {esc(" · ".join(systems) or "—")} 이다. 본문 키워드로 자동 분류한 것이며 BEL·CSM·손실요소 영향은 내부 산출자료가 없어 <b>영향 가능성 · 정량 미산출</b>이다. <span class="who todo">당사 확인 필요</span></p>')
 
     # 3. 신·구 조문 대비
     if rows:
@@ -849,8 +972,17 @@ def build(ev, css, related, rules=None):
     else:
         H.append('<h2 id="3">3. 신·구 조문 대비</h2><p>첨부 파일에서 현행·개정안 대비표를 자동으로 추출하지 못했다' + (' (hwp 바이너리 또는 PDF).' if ev.get('attachments') else ' (첨부 없음).') + ' 부록의 첨부 링크에서 원문을 연다.</p>')
 
+    if diff_rows:
+        changed = [r for r in diff_rows if r[3] != '동일']
+        H.append(f'<h2 id="3a">3-A. 예고안 대비 확정본 차이 <span class="who ai">AI 해석</span></h2>')
+        H.append(f'<p>{fmt_date(related.get("date"))} {esc(STATUS_LABEL.get(related["status"], ""))}의 대비표와 이 확정본 대비표를 조문 머리 기준으로 맞춘 결과다. 항목 {len(diff_rows)}개 중 {len(changed)}개가 다르다'
+                 + (' (문구가 바뀌었거나 항목이 추가·제외됨). 바뀐 항목은 확정본 조문을 기준으로 다시 본다.' if changed else '. 예고안과 확정본의 조문 구성이 같다 — 단, 줄 단위 문구 유사도 0.98 이상을 동일로 본 것이라 세부 문구는 3장에서 확인한다.') + '</p>')
+        H.append('<div class="tw"><table class="mid wrap-ok"><thead><tr><th>조문 · 항목</th><th>예고안 줄</th><th>확정본 줄</th><th>판정</th></tr></thead><tbody>')
+        for k, la, lb, verdict in diff_rows[:60]:
+            H.append(f'<tr{" class=hl" if verdict != "동일" else ""}><td class="l">{esc(k)}</td><td>{la}</td><td>{lb}</td><td class="l">{esc(verdict)}</td></tr>')
+        H.append('</tbody></table></div>')
     # 4. 조치 사항
-    H.append('<h2 id="4">4. 조치 사항</h2><div class="tw"><table class="act wrap-ok"><thead><tr><th>순위</th><th>과제</th><th>영향</th></tr></thead><tbody>')
+    H.append('<h2 id="4">4. 조치 사항 <span class="who todo">당사 확인 필요</span></h2><div class="tw"><table class="act wrap-ok"><thead><tr><th>순위</th><th>과제</th><th>영향</th></tr></thead><tbody>')
     for i, (t, d, lv) in enumerate(acts, 1):
         H.append(f'<tr{" class=hl" if i == 1 else ""}><td>{i}</td><td class="l"><b>{esc(t)}</b><span class="sub2">{esc(d)}</span></td><td>{lv}</td></tr>')
     H.append('</tbody></table></div><p class="note">조치 항목은 개정 내용 키워드로 자동 생성한 초안이다. 규정 개정이력 화면에서 담당·기한·상태를 관리한다.</p>')
@@ -858,7 +990,7 @@ def build(ev, css, related, rules=None):
     # 부록
     H.append('<h2 id="a">부록</h2>')
     H.append('<details><summary>A. 출처 · 첨부 파일</summary><div class="body">')
-    H.append(f'<p><a href="{esc(ev["url"])}" target="_blank" rel="noopener">{esc(ev["source_label"])} 원문 게시물 ↗</a></p>')
+    H.append(f'<p><a href="{esc(ev["url"])}" target="_blank" rel="noopener">{esc(ev["source_label"])} 원문 게시물 ↗</a>' + ''.join(f' · <a href="{esc(j["url"])}" target="_blank" rel="noopener">{esc(j["label"])} (공동 배포) ↗</a>' for j in ev.get('joint_sources', [])) + '</p>')
     if ev.get('attachments'):
         H.append('<div class="tw"><table class="wrap-ok2"><thead><tr><th>#</th><th>파일</th><th>추출</th></tr></thead><tbody>')
         for i, a in enumerate(ev['attachments'], 1):
@@ -894,6 +1026,8 @@ def build(ev, css, related, rules=None):
         'list_title': list_title, 'summary_line': summary_line, 'title_source': title_source, 'title_quality': title_quality,
         'related_notice_id': ev.get('related_notice_id'), 'related_confidence': ev.get('_link_confidence') or '', 'related_evidence': ev.get('_link_evidence') or '',
         'unchanged': len(unchanged),
+        'analysis_kind': analysis_kind, 'legal_status': legal, 'joint_sources': ev.get('joint_sources', []), 'merged_into': ev.get('_merged_into'),
+        'decided_after_id': decided_after['id'] if decided_after else None, 'diff_changed': len([r for r in diff_rows if r[3] != '동일']) if diff_rows else None,
     }
     return '\n'.join(H), meta
 
@@ -910,6 +1044,9 @@ def main():
     css = load_css()
     rules = load_relevance_rules()
     relink(events)
+    merged = merge_joint_press(events)
+    print(f'공동 보도자료 통합 {merged}건', file=sys.stderr)
+    decided_of = {e['related_notice_id']: e for e in events if e.get('related_notice_id') and e.get('_link_confidence') == 'high' and e['status'] in ('공포', '시행')}
     os.makedirs(a.out_dir, exist_ok=True)
     index = {}
     # 예고 → 확정 순으로 돌려야 확정 건이 선행 예고의 관련성 판정을 준용할 수 있다
@@ -919,7 +1056,7 @@ def main():
             continue
         # low(규정명·날짜만) 연결은 제목·관련성 준용에 쓰지 않는다 — 다른 개정 건일 가능성이 크다
         related = by_id.get(ev.get('related_notice_id')) if ev.get('_link_confidence') in ('high', 'medium') else None
-        htmlstr, meta = build(ev, css, related, rules)
+        htmlstr, meta = build(ev, css, related, rules, decided_of.get(ev['id']))
         fn = os.path.join(a.out_dir, ev['id'] + '.html')
         open(fn, 'w', encoding='utf-8').write(htmlstr)
         index[ev['id']] = {'file': fn, **meta}
