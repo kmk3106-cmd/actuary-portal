@@ -63,8 +63,22 @@
     .lc-title { font-size:14px; font-weight:700; color:#111827; line-height:1.4; word-break:keep-all; overflow-wrap:anywhere; }
     .lc-sub { font-size:12px; color:#6b7280; margin-top:4px; line-height:1.5; }
     .lc-state { display:inline-block; font-size:11.5px; font-weight:800; padding:3px 9px; border-radius:8px; margin-top:6px; }
-    .ls-예고중 { background:#ffedd5; color:#9a3412; } .ls-확정대기 { background:#fef3c7; color:#92400e; } .ls-시행대기 { background:#dbeafe; color:#1e40af; }
-    .ls-시행중 { background:#d1fae5; color:#065f46; } .ls-철회 { background:#f3f4f6; color:#6b7280; } .ls-보도만 { background:#f3e8ff; color:#6b21a8; } .ls-확정 { background:#e0e7ff; color:#3730a3; }
+    /* 단계(stage) 색 — 문구는 STAGES 사전 한 곳 (색만으로 뜻을 전하지 않는다) */
+    .ls-notice_open { background:#ffedd5; color:#9a3412; } .ls-notice_closed { background:#fef3c7; color:#92400e; } .ls-issued { background:#e0e7ff; color:#3730a3; }
+    .ls-effective { background:#d1fae5; color:#065f46; } .ls-unknown { background:#f3e8ff; color:#6b21a8; } .ls-withdrawn { background:#f3f4f6; color:#6b7280; }
+    .lc-now { font-size:13px; font-weight:600; line-height:1.55; padding:9px 12px; border-radius:9px; border:1px solid #e5e7eb; background:#f9fafb; color:#111827; margin:6px 0 8px; }
+    .lc-now.ls-notice_open, .lc-now.ls-notice_closed { background:#fff7ed; border-color:#fed7aa; } .lc-now.ls-effective { background:#ecfdf5; border-color:#a7f3d0; } .lc-now.ls-issued { background:#eef2ff; border-color:#c7d2fe; } .lc-now.ls-unknown { background:#faf5ff; border-color:#e9d5ff; }
+    .lc-step.plan { border-style:dashed; background:#fff; } .lc-step.plan b { color:#9ca3af; } .lc-step.plan span { color:#6b7280; font-weight:600; }
+    .lc-step.todo b::after { content:''; }
+    .lc-cand { margin-top:8px; padding:8px 10px; border:1px dashed #fdba74; background:#fffbeb; border-radius:9px; font-size:12.5px; color:#78350f; line-height:1.55; }
+    .lc-cand b { color:#9a3412; } .lc-cand .ev { display:block; font-size:11.5px; color:#92400e; margin-top:2px; }
+    .lc-cand .btns { margin-top:6px; display:flex; gap:6px; flex-wrap:wrap; }
+    .lc-cand button { padding:4px 10px; border-radius:7px; border:none; cursor:pointer; font-size:12px; font-weight:700; font-family:inherit; }
+    .lc-cand .ok { background:#dbeafe; color:#1e40af; } .lc-cand .no { background:#f3f4f6; color:#6b7280; }
+    .lc-docs { margin-top:8px; font-size:12.5px; color:#374151; line-height:1.6; }
+    .lc-docs a { color:#1d4ed8; text-decoration:none; } .lc-docs a:hover { text-decoration:underline; }
+    .lc-docs .dt { display:inline-block; font-size:10.5px; font-weight:800; padding:1px 6px; border-radius:6px; margin-right:4px; background:#f3e8ff; color:#6b21a8; }
+    .lc-press-chip { font-size:11px; font-weight:700; padding:2px 8px; border-radius:8px; background:#f3e8ff; color:#6b21a8; }
     .lc-steps { display:flex; align-items:stretch; gap:0; flex-wrap:wrap; }
     .lc-step { flex:1 1 110px; min-width:0; padding:8px 10px; border:1px solid #e5e7eb; background:#fafafa; position:relative; cursor:default; }
     .lc-step + .lc-step { margin-left:-1px; }
@@ -202,8 +216,8 @@
 
       <div class="stats-strip">
         <div class="stat-mini"><div class="stat-mini-label">등록된 개정 건 <span style="color:#1d4ed8">(팀 관련)</span></div><div class="stat-mini-val" id="stTotal">0</div></div>
-        <div class="stat-mini"><div class="stat-mini-label">시행 예정 (시행일 미래)</div><div class="stat-mini-val" id="stUpcoming" style="color:#1d4ed8">0</div></div>
-        <div class="stat-mini"><div class="stat-mini-label">예고 중 (입법·사전예고)</div><div class="stat-mini-val" id="stNotice" style="color:#c2410c">0</div></div>
+        <div class="stat-mini"><div class="stat-mini-label">시행 대기 (발령 확인 · 시행일 미래)</div><div class="stat-mini-val" id="stUpcoming" style="color:#1d4ed8">0</div></div>
+        <div class="stat-mini"><div class="stat-mini-label">예고 단계 (미확정)</div><div class="stat-mini-val" id="stNotice" style="color:#c2410c">0</div></div>
         <div class="stat-mini"><div class="stat-mini-label">미완료 조치</div><div class="stat-mini-val" id="stOpenActs" style="color:#d97706">0</div></div>
       </div>
 
@@ -226,8 +240,9 @@
           <div id="lcList"><div class="lc-empty">불러오는 중…</div></div>
         </div>
         <p style="font-size:12px;color:#9ca3af;margin:10px 4px 0;line-height:1.6">
-          한 개정 건은 <b>예고(입법·사전예고) → 의견제출 → 확정(고시·개정 게시) → 시행</b> 순으로 진행됩니다. 같은 규정의 예고와 확정 건은 조문 겹침으로 자동 연결했고,
-          보도자료는 규정명·일자(예고 45일 전 ~ 확정 90일 후)로 붙였습니다. 스텝을 누르면 타임라인의 해당 건으로 이동합니다.
+          한 개정 건은 <b>예고(입법·규정변경·사전예고) → 의견마감 → 발령(공포·개정 게시) → 시행</b> 순으로 진행됩니다. 단계는 원문이 확인된 것만 올라가고, 예고안에만 적힌 시행일은 <b>예정</b>,
+          확인되지 않은 날짜는 <b>미확인</b>으로 둡니다. 예고와 발령 건은 조문 겹침·취지 유사도가 충분할 때만 같은 건으로 묶고, 부족하면 상세에 "연결 후보"로만 보입니다.
+          보도자료는 단계가 아니라 관련 설명자료로 붙습니다. 스텝을 누르면 타임라인의 해당 건으로 이동합니다.
         </p>
       </section>
 
@@ -294,8 +309,12 @@
         <div class="fg"><label class="fl">예고일</label><input type="date" class="fi" id="mDateNotice"></div>
         <div class="fg"><label class="fl">의견제출 시한</label><input type="date" class="fi" id="mDateComment"></div>
         <div class="fg"><label class="fl">공포일</label><input type="date" class="fi" id="mDateProm"></div>
-        <div class="fg"><label class="fl">시행일</label><input type="date" class="fi" id="mDateEff"></div>
+        <div class="fg"><label class="fl">시행일 <small style="color:#9ca3af;font-weight:400">(발령문·부칙 확인)</small></label><input type="date" class="fi" id="mDateEff"></div>
         <div class="fg"><label class="fl">보도자료 일자</label><input type="date" class="fi" id="mDatePress"></div>
+      </div>
+      <div class="fr">
+        <div class="fg"><label class="fl">시행 예정일 <small style="color:#9ca3af;font-weight:400">(예고안 기준 · 확정 아님)</small></label><input type="date" class="fi" id="mDateEffPlanned"></div>
+        <div class="fg"><label class="fl">최초 결산 반영 <small style="color:#9ca3af;font-weight:400">(예: 2026년 3분기 결산)</small></label><input type="text" class="fi" id="mFirstClosing" placeholder="미확인이면 비워 둡니다"></div>
       </div>
       <div class="fsec">내용</div>
       <div class="fg"><label class="fl">요약</label><textarea class="fta" id="mSummary" placeholder="무엇이 바뀌는지 한두 문장"></textarea></div>
@@ -373,22 +392,31 @@ const REG_NAMES = ['보험업법', '보험업법 시행령', '보험업감독규
 const NOTICE_STATUSES = new Set(['입법예고', '사전예고']);
 // 단계 용어 — 배지 툴팁·용어 안내에 쓴다 (한 곳에서만 정의)
 const STAGE_HELP = {
-  '입법예고': { who: '금융위원회', what: '보험업법·시행령·시행규칙 개정안을 미리 공개하고 의견을 받는 단계. 아직 확정이 아니다', note: '법령(법률·시행령·시행규칙)' },
-  '규정변경예고': { who: '금융위원회', what: '보험업감독규정(고시) 개정안을 미리 공개하고 의견을 받는 단계. 아직 확정이 아니다', note: '감독규정' },
-  '사전예고': { who: '금융감독원', what: '보험업감독업무시행세칙 개정안을 미리 공개하고 의견을 받는 단계. 아직 확정이 아니다', note: '시행세칙' },
-  '보도자료': { who: '금융위·금감원', what: '제도 방향이나 의결 사실을 설명하는 자료. 조문이 아니고 효력도 없다 — "왜·무엇을 바꾸는지" 배경을 보는 용도', note: '설명 자료' },
-  '공포': { who: '금융위원회', what: '감독규정 개정이 고시로 확정된 것. 시행일(부칙)부터 적용', note: '확정' },
-  '시행': { who: '금융감독원', what: '시행세칙 개정이 확정되어 결과가 게시된 것. 시행일부터 적용', note: '확정' },
-  '철회': { who: '', what: '예고 후 철회된 개정안', note: '' },
+  '입법예고': { who: '금융위원회', what: '보험업법·시행령·시행규칙 개정안을 미리 공개하고 의견을 받는 절차. 확정 법령이 아니다', note: '법령(법률·시행령·시행규칙)', warn: '확정 법령 아님' },
+  '규정변경예고': { who: '금융위원회', what: '보험업감독규정(고시) 개정안을 미리 공개하고 의견을 받는 절차. 확정 규정이 아니다', note: '감독규정', warn: '확정 규정 아님' },
+  '사전예고': { who: '금융감독원', what: '시행세칙 개정안을 미리 알리고 의견을 받는 절차에 금감원이 쓰는 이름. 확정 세칙이 아니다', note: '시행세칙', warn: '입법·행정예고와 법적 근거가 항상 같지는 않다' },
+  '보도자료': { who: '금융위·금감원', what: '정책·예고·확정·시행을 대외적으로 설명하는 자료. 절차의 어느 시점에도 나올 수 있고, 그 자체가 확정이나 시행을 뜻하지 않는다', note: '설명 자료', warn: '보도자료 날짜는 발령일·시행일이 아니다' },
+  '의견제출 마감': { who: '', what: '예고안에 의견을 낼 수 있는 기한이 끝남', note: '', warn: '이 날 자동으로 확정되지 않는다' },
+  '공포': { who: '금융위원회', what: '감독규정 개정이 고시로 확정·공표된 것(발령). 시행일은 부칙에서 따로 정한다', note: '확정 고시(발령)', warn: '고시일에 바로 시행한다고 단정할 수 없다' },
+  '시행': { who: '금융감독원', what: '시행세칙 개정이 확정되어 결과가 게시된 것(발령). 시행일은 게시문·부칙에서 따로 정한다', note: '확정 개정(발령)', warn: '"시행세칙" 이름과 "시행 중" 단계는 다른 말이다' },
+  '시행일': { who: '', what: '확정된 규정의 효력이 생기는 날', note: '', warn: '부칙·경과조치·적용례를 반드시 확인' },
+  '최초 결산 반영': { who: '계리결산팀', what: '팀이 산출·검증·결산에 처음 반영해야 하는 시점 (법적 단계가 아닌 업무 관리 항목)', note: '담당자 입력', warn: '시행일과 반드시 같지는 않다' },
+  '철회': { who: '', what: '예고 후 철회된 개정안', note: '', warn: '' },
 };
-// 배지 글자: 입법예고 중 감독규정 건은 원문대로 "규정변경예고"
-const stLabel = it => (it.status === '입법예고' && it.notice_kind === '규정변경예고') ? '규정변경예고' : it.status;
-const stTitle = it => { const h = STAGE_HELP[stLabel(it)] || STAGE_HELP[it.status]; return h ? `${stLabel(it)} (${h.who}${h.note ? ' · ' + h.note : ''}) — ${h.what}` : ''; };
+// 자료 유형 배지 글자: 감독규정 예고는 원문대로 "규정변경예고", 확정 건은 "(발령)" 을 붙여 "시행 중" 과 헷갈리지 않게
+const DOC_LABEL = { '공포': '확정 고시(발령)', '시행': '확정 개정(발령)' };
+const stLabel = it => (it.status === '입법예고' && it.notice_kind === '규정변경예고') ? '규정변경예고' : (DOC_LABEL[it.status] || it.status);
+const stTitle = it => { const k = (it.status === '입법예고' && it.notice_kind === '규정변경예고') ? '규정변경예고' : it.status; const h = STAGE_HELP[k]; return h ? `${stLabel(it)} (${h.who}${h.note ? ' · ' + h.note : ''}) — ${h.what}` : ''; };
 function stageLegendHtml() {
-  return `<details class="lg"><summary><i class="fas fa-question-circle"></i> 단계 용어 안내 — 예고 · 보도자료 · 확정이 무엇이 다른가</summary><div class="lg-body">
-    <div class="lg-flow"><span class="bd st-입법예고">입법예고 / 규정변경예고</span><span class="bd st-사전예고">사전예고</span><i class="fas fa-arrow-right"></i><span class="bd st-공포">공포(고시)</span><span class="bd st-시행">시행(개정 게시)</span><i class="fas fa-arrow-right"></i><b>시행일부터 적용</b></div>
-    <table class="lg-t">${Object.entries(STAGE_HELP).filter(([k]) => k !== '철회').map(([k, h]) => `<tr><td><span class="bd st-${esc(k === '규정변경예고' ? '입법예고' : k)}">${esc(k)}</span></td><td>${esc(h.who)}${h.note ? ` · ${esc(h.note)}` : ''}</td><td>${esc(h.what)}</td></tr>`).join('')}</table>
-    <p>예고 세 가지는 "누가·무엇을" 예고하느냐만 다르고 뜻은 같다(의견 수렴 중, 미확정). <b>보도자료는 단계가 아니라 설명 자료</b>라서 조문 대비표가 없고, 같은 규정의 예고·확정 건 옆에 참고로 붙는다. 실제 적용 시점은 확정(공포·시행) 건의 시행일이다.</p>
+  const rows = ['입법예고', '규정변경예고', '사전예고', '보도자료', '의견제출 마감', '공포', '시행', '시행일', '최초 결산 반영'];
+  const badge = k => ({ '입법예고': 'st-입법예고', '규정변경예고': 'st-입법예고', '사전예고': 'st-사전예고', '보도자료': 'st-보도자료', '공포': 'st-공포', '시행': 'st-시행' }[k] || 'bd-type');
+  const name = k => ({ '공포': '확정 고시(발령)', '시행': '확정 개정(발령)' }[k] || k);
+  return `<details class="lg"><summary><i class="fas fa-question-circle"></i> 규정 개정 절차 한눈에 보기 — 예고 · 발령 · 시행이 무엇이 다른가</summary><div class="lg-body">
+    <p style="margin:0 0 10px;color:#111827;font-weight:600">예고는 바뀔 예정이라는 뜻, 발령(공포·개정 게시)은 최종 규정이 나왔다는 뜻, 시행은 그 규정이 실제 적용되기 시작했다는 뜻이다. 보도자료는 이 과정의 어느 시점에도 나올 수 있는 설명 자료라서 그 자체가 확정이나 시행을 뜻하지 않는다.</p>
+    <div class="lg-flow"><span class="bd st-입법예고">예고 · 의견수렴</span><i class="fas fa-arrow-right"></i><span class="bd bd-type">의견제출 마감 · 검토</span><i class="fas fa-arrow-right"></i><span class="bd st-공포">최종안 확정 · 공포(발령)</span><i class="fas fa-arrow-right"></i><span class="bd st-시행">시행 (부칙이 정한 날)</span><i class="fas fa-arrow-right"></i><span class="bd bd-type">계리팀 최초 결산 반영 (별도 확인)</span></div>
+    <table class="lg-t"><tr><th style="text-align:left;font-size:11px;color:#9ca3af;padding:2px 0">용어</th><th style="text-align:left;font-size:11px;color:#9ca3af">누가 · 무엇</th><th style="text-align:left;font-size:11px;color:#9ca3af">뜻</th><th style="text-align:left;font-size:11px;color:#9ca3af">오해하면 안 되는 점</th></tr>
+    ${rows.map(k => { const h = STAGE_HELP[k]; return `<tr><td><span class="bd ${badge(k)}">${esc(name(k))}</span></td><td>${esc(h.who)}${h.note ? ` · ${esc(h.note)}` : ''}</td><td>${esc(h.what)}</td><td style="color:#b45309">${esc(h.warn)}</td></tr>`; }).join('')}</table>
+    <p>위 순서는 이해를 돕는 일반적인 그림이다. 규정 종류에 따라 절차가 생략·추가될 수 있고, 모든 건에 똑같이 적용되지는 않는다. 화면의 <b>단계</b>는 원문(예고문·발령문)이 확인된 것만 올라가고, 확인되지 않은 날짜는 <b>미확인</b>, 예고안에만 적힌 날짜는 <b>예정</b>으로 표시한다.</p>
   </div></details>`;
 }
 
@@ -498,7 +526,7 @@ function renderTimeline() {
           <div class="tl-dot dot-${esc(r.status)}"></div>
           <div class="tl-date">${fmtD(d)}<small>${esc(dLabel)}</small></div>
           <div class="tl-main"><div class="tl-title">${esc(r.title)}</div>
-            <div class="tl-meta">${rv ? `<span class="bd rv-${esc(rv)}" title="${escAttr(r.relevance_reason || '')}">${rv === '관련' ? '팀 관련' : rv === '참고' ? '참고' : '무관'}</span>` : ''}<span class="bd st-${esc(r.status)}" title="${escAttr(stTitle(r))}">${esc(stLabel(r))}</span><span class="bd bd-type">${esc(r.reg_type)}</span>
+            <div class="tl-meta">${rv ? `<span class="bd rv-${esc(rv)}" title="${escAttr(r.relevance_reason || '')}">${rv === '관련' ? '팀 관련' : rv === '참고' ? '참고' : '무관'}</span>` : ''}<span class="bd st-${esc(r.status)}" title="${escAttr(stTitle(r))}">${esc(stLabel(r))}</span><span class="bd bd-type">${esc(r.reg_type)}</span>${(() => { const c = CASES.find(x => x.id === CASE_OF[r.id]); return c && r.status !== '보도자료' ? `<span class="lc-state ls-${c.stage.key}" style="margin:0;padding:2px 8px;font-size:11px">${esc(c.stage.label.split(' · ')[0])}</span>` : ''; })()}
               ${r.impact_level ? `<span class="bd im-${esc(r.impact_level)}">영향 ${esc(r.impact_level)}</span>` : ''}
               ${r.report_doc_id ? '<span class="bd bd-rep"><i class="fas fa-file-alt"></i> 리포트</span>' : ''}
               ${acts.length ? `<span class="bd bd-act">조치 ${done}/${acts.length}</span>` : ''}
@@ -512,91 +540,123 @@ function selectItem(id) { selectedId = id; renderTimeline(); renderDetail(id); i
 function gotoItem(id) { switchTab('timeline'); selectItem(id); const row = document.querySelector('.tl-row.active'); if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
 
 // ══════════════════════════════════════════════════════════
-// A-2. 진행 현황 — 건(case) = 예고 + 확정 + 보도자료 묶음. 서버 데이터는 그대로 두고 화면에서만 묶는다
-//   확정 건의 related_notice_id(자동 연결) 로 예고를 붙이고, 남은 예고는 단독 건, 보도자료는 규정명·일자 범위로 붙인다
+// A-2. 진행 현황 — 건(case) = 확정 건 + (근거 있는) 선행 예고 + 관련 설명자료(보도자료). 서버 데이터는 그대로 두고 화면에서만 묶는다 (docs/03 P0-3·4)
+//   예고 ↔ 확정 연결은 reg_items.relationships[] (자동 신뢰도 high/medium/low + 담당자 확인/해제). 담당자 확인 또는 자동 high 만 같은 건으로 묶고,
+//   medium 은 "연결 후보 · 원문 대조 필요", low 는 쓰지 않는다. 보도자료는 단계가 아니라 '관련 설명자료' 로만 붙는다.
 // ══════════════════════════════════════════════════════════
 let CASES = [], CASE_OF = {};
 const normName = s => String(s || '').replace(/\s/g, '');
+// 단계 사전 — 모든 화면(타임라인 배지·진행 현황·상세)이 caseStage() 한 함수로만 상태를 낸다 (지시서 §7 문구)
+const STAGES = {
+  notice_open:   { label: '예고 중 · 미확정' },
+  notice_closed: { label: '의견수렴 종료 · 발령 미확인' },
+  issued:        { label: '발령 확인 · 시행 전' },
+  effective:     { label: '시행 중' },
+  unknown:       { label: '현재 단계 확인 필요' },
+  withdrawn:     { label: '철회' },
+};
+const STAGE_ORDER = ['notice_open', 'notice_closed', 'issued', 'effective', 'unknown', 'withdrawn'];
+const AI_ACTION = { notice_open: '사전검토', notice_closed: '확정본 대기 · 발령 확인', issued: '확정본 대조', effective: '결산 반영', unknown: '추가 확인(예고문·발령문 찾기)', withdrawn: '—' };
 function caseStage(c, today) {
-  if (c.items.some(i => i.status === '철회')) return { key: '철회', label: '철회' };
-  const eff = c.dates.effective;
-  if (eff && eff <= today) return { key: '시행중', label: '시행 중' + (dayDiff(today, eff) < 90 ? ` (시행 ${dayDiff(today, eff)}일째)` : '') };
-  if (eff && eff > today) return { key: '시행대기', label: `시행 대기 (D-${dayDiff(eff, today)})` };
-  if (c.decided) return { key: '확정', label: '확정 · 시행일 미확인' };
-  if (c.notice) {
-    const due = c.dates.comment_due;
-    if (due && due >= today) return { key: '예고중', label: `예고 중 · 의견제출 D-${dayDiff(due, today)}` };
-    const base = due || c.dates.notice;
-    return { key: '확정대기', label: `예고 종료 · 확정 미확인 (${base ? dayDiff(today, base) + '일 경과' : '일자 없음'})` };
+  const D = c.dates;
+  if (c.items.some(i => i.status === '철회')) return { key: 'withdrawn', label: STAGES.withdrawn.label, sentence: '예고 후 철회된 개정안입니다.' };
+  if (c.decided) {
+    const eff = D.effective.status === 'confirmed' ? D.effective.date : '';
+    if (eff && eff <= today) return { key: 'effective', label: `${STAGES.effective.label} · ${fmtD(eff)}부터`, sentence: `${fmtD(eff)}부터 시행 중입니다 (발령 ${fmtD(D.issuance.date)}, 시행일은 발령문 본문 기준이라 부칙 확인이 필요합니다).` };
+    return { key: 'issued', label: STAGES.issued.label + (eff ? ` · 시행 ${fmtD(eff)} (D-${dayDiff(eff, today)})` : ' · 시행일 미확인'),
+      sentence: `발령(확정)은 ${fmtD(D.issuance.date)}에 확인됐습니다. 시행일은 ${eff ? fmtD(eff) + ' (발령문 본문 기준, 부칙 확인 필요)' : '아직 확인되지 않았습니다 — 부칙에서 확인해야 합니다'}.` };
   }
-  return { key: '보도만', label: '보도자료만 (예고·확정 미수집)' };
+  if (c.notice) {
+    const due = D.comment_due.date;
+    if (due && due >= today) return { key: 'notice_open', label: `${STAGES.notice_open.label} · 의견마감 D-${dayDiff(due, today)}`, sentence: `현재 ${stLabel(c.notice)} 단계입니다. 최종 발령문은 아직 확인되지 않았습니다.` };
+    const base = due || D.notice.date;
+    return { key: 'notice_closed', label: STAGES.notice_closed.label + (base ? ` · ${dayDiff(today, base)}일 경과` : ''),
+      sentence: `${due ? '의견제출이 ' + fmtD(due) + '에 마감됐지만' : stLabel(c.notice) + '가 공개됐지만'} 발령문은 아직 확인되지 않았습니다. 확정된 것으로 보지 않습니다.` };
+  }
+  return { key: 'unknown', label: STAGES.unknown.label + ' (보도자료만)', sentence: '보도자료만 있어 규정 개정 단계를 확인할 수 없습니다. 예고문·발령문을 찾아 등록해야 합니다.' };
+}
+// 날짜마다 확인 수준 — confirmed(원문 확인) / planned(예고안 기준 예정) / manual(담당자 입력) / unknown(미확인). 미확인에는 날짜를 채우지 않는다 (P0-2)
+function caseDates(c) {
+  const n = c.notice, d = c.decided, root = d || n || c.root;
+  const mk = (date, status, note) => ({ date: date || '', status: date ? status : 'unknown', note: date ? (note || '') : '미확인' });
+  const eff = d && d.date_effective;
+  const planned = (n && n.date_effective_planned) || (d && d.date_effective_planned) || '';
+  return {
+    notice: mk(n ? n.date_notice : (d && d.date_notice), 'confirmed', n ? '공고 게시' : '발령문 기재'),
+    comment_due: mk(n ? n.date_comment_due : (d && d.date_comment_due), 'confirmed', '예고문 기준'),
+    issuance: mk(d ? (d.date_promulgated || sortDate(d)) : '', 'confirmed', d ? (d.status === '공포' ? '고시일' : '게시일 기준') : ''),
+    effective: eff ? mk(eff, 'confirmed', (d.date_effective_source || '발령문 본문') + ' · 부칙 확인') : (planned ? mk(planned, 'planned', '예고안 기준 · 확정 아님') : mk('', 'unknown')),
+    first_closing: mk(root.first_closing_period || '', 'manual', '담당자 입력'),
+  };
 }
 function buildCases() {
   const today = todayStr();
-  // related_notice_id 는 reg_items.id 일 수도(화면 등록), 수집 이벤트 id(event_id) 일 수도(자동 적재) 있다
+  // 연결 대상 id 는 reg_items.id(화면 등록) 또는 수집 이벤트 id(event_id, 자동 적재) 둘 다 올 수 있다
   const byId = Object.fromEntries(ITEMS.map(i => [i.id, i]));
   for (const i of ITEMS) if (i.event_id && !byId[i.event_id]) byId[i.event_id] = i;
   const used = new Set(); CASES = []; CASE_OF = {};
-  const mk = (root) => { const c = { id: 'case_' + root.id, root, items: [], notice: null, decided: null, press: [], dates: {} }; CASES.push(c); return c; };
+  const mk = (root) => { const c = { id: 'case_' + root.id, root, items: [], notice: null, decided: null, press: [], candidates: [], dates: {} }; CASES.push(c); return c; };
   const add = (c, it) => { if (used.has(it.id)) return; used.add(it.id); c.items.push(it); CASE_OF[it.id] = c.id; };
-  // 1) 확정 건 + 연결된 예고
+  const linksOf = it => {
+    const rels = arr(it.relationships);
+    if (rels.length) return rels;
+    // 1차 이전 데이터(relationships 없음): 자동 연결의 근거를 모르므로 후보로만 본다
+    return it.related_notice_id ? [{ related_event_id: it.related_notice_id, type: 'notice_of', confidence: 'medium', evidence: '근거 미기록(이전 자동 연결)', state: 'auto' }] : [];
+  };
+  // 1) 확정 건 + 근거 있는 선행 예고 (담당자 확인 > 자동 high). medium 자동 연결은 후보
   for (const it of ITEMS.filter(i => DECIDED_STATUSES.has(i.status)).sort((a, b) => String(sortDate(a)).localeCompare(String(sortDate(b))))) {
     if (used.has(it.id)) continue;
     const c = mk(it); c.decided = it; add(c, it);
-    const n = it.related_notice_id && byId[it.related_notice_id];
-    if (n && !used.has(n.id) && NOTICE_STATUSES.has(n.status)) { c.notice = n; add(c, n); }
+    const rels = linksOf(it).filter(r => r.state !== 'rejected');
+    const pick = rels.find(r => r.state === 'confirmed') || rels.find(r => r.state === 'auto' && r.confidence === 'high');
+    const n = pick && byId[pick.related_event_id];
+    if (n && !used.has(n.id) && NOTICE_STATUSES.has(n.status)) { c.notice = n; c.link = pick; add(c, n); }
+    for (const r of rels.filter(r => r !== pick && r.state === 'auto' && r.confidence === 'medium')) { const cand = byId[r.related_event_id]; if (cand && cand.id !== (n && n.id)) c.candidates.push({ rel: r, item: cand }); }
   }
   // 2) 남은 예고(철회 포함) → 단독 건
   for (const it of ITEMS.filter(i => NOTICE_STATUSES.has(i.status) || i.status === '철회')) {
     if (used.has(it.id)) continue;
     const c = mk(it); c.notice = NOTICE_STATUSES.has(it.status) ? it : null; add(c, it);
   }
-  // 날짜 채우기
   for (const c of CASES) {
-    const n = c.notice, d = c.decided;
-    c.dates = { notice: n ? (n.date_notice || '') : (d && d.date_notice) || '', comment_due: n ? n.date_comment_due : (d && d.date_comment_due) || '',
-      promulgated: d ? (d.date_promulgated || sortDate(d)) : '', effective: (d && d.date_effective) || (n && n.date_effective) || '' };
-    c.reg_name = (d || n || c.root).reg_name || ''; c.reg_type = (d || n || c.root).reg_type || '';
-    c.relevance = (d && d.relevance) || (n && n.relevance) || c.root.relevance || '';
+    const base = c.decided || c.notice || c.root;
+    c.reg_name = base.reg_name || ''; c.reg_type = base.reg_type || '';
+    c.relevance = (c.decided && c.decided.relevance) || (c.notice && c.notice.relevance) || c.root.relevance || '';
+    c.dates = caseDates(c);
   }
-  // 3) 보도자료 → 규정명이 같거나 규정명이 보도 제목·요약에 들어 있고, 예고 45일 전 ~ 확정 90일 후 안이면 그 건에
+  // 3) 보도자료 → 관련 설명자료로만 붙인다 (규정명 동일·제목에 규정명, 예고 45일 전 ~ 발령 90일 후). 단계에는 영향 없음
   for (const p of ITEMS.filter(i => i.status === '보도자료')) {
     const pd = p.date_press || sortDate(p); let best = null;
     for (const c of CASES) {
+      if (!c.notice && !c.decided) continue;
       const same = normName(c.reg_name) && (normName(c.reg_name) === normName(p.reg_name) || normName(p.title + ' ' + (p.summary || '')).includes(normName(c.reg_name)));
       if (!same || !pd) continue;
-      const lo = c.dates.notice || c.dates.promulgated, hi = c.dates.promulgated || c.dates.notice;
+      const lo = c.dates.notice.date || c.dates.issuance.date, hi = c.dates.issuance.date || c.dates.notice.date;
       if (!lo) continue;
       const gap = pd < lo ? dayDiff(lo, pd) : (pd > hi ? dayDiff(pd, hi) : 0);
       const ok = pd < lo ? gap <= PRESS_WINDOW_BEFORE : gap <= PRESS_WINDOW_AFTER;
       if (ok && (!best || gap < best.gap)) best = { c, gap };
     }
     if (best) { best.c.press.push(p); add(best.c, p); }
-    else { const c = mk(p); add(c, p); c.press.push(p); c.reg_name = p.reg_name || ''; c.reg_type = p.reg_type || ''; c.relevance = p.relevance || ''; c.dates = { press: pd }; }
+    else { const c = mk(p); add(c, p); c.press.push(p); c.reg_name = p.reg_name || ''; c.reg_type = p.reg_type || ''; c.relevance = p.relevance || ''; c.dates = caseDates(c); }
   }
   for (const c of CASES) {
     c.stage = caseStage(c, today);
-    c.latest = [c.dates.effective, c.dates.promulgated, c.dates.notice, ...c.press.map(p => p.date_press || sortDate(p))].filter(Boolean).sort().pop() || '';
+    c.latest = [c.dates.effective.status === 'confirmed' ? c.dates.effective.date : '', c.dates.issuance.date, c.dates.notice.date, ...c.press.map(p => p.date_press || sortDate(p))].filter(Boolean).sort().pop() || '';
     c.title = (c.decided || c.notice || c.root).title || '';
   }
 }
-function lcStepsHtml(c, today, compact) {
+// 스텝 4개(예고 · 의견마감 · 발령 · 시행) — 확인된 것만 초록, 예정은 점선, 미확인은 회색 '미확인'. 보도자료는 여기 넣지 않는다 (P0-4)
+function lcStepsHtml(c, today) {
   const link = (it, inner, cls) => it ? `<div class="lc-step link ${cls}" onclick="gotoItem('${escAttr(it.id)}')" title="${escAttr(it.title || '')}">${inner}</div>` : `<div class="lc-step ${cls}">${inner}</div>`;
-  const n = c.notice, d = c.decided, D = c.dates;
-  const stNotice = n ? 'done' : 'todo';
-  const stDue = D.comment_due ? (D.comment_due < today ? 'done' : 'now') : (n ? 'todo' : 'todo');
-  const stDec = d ? 'done' : (n && D.comment_due && D.comment_due < today ? 'now' : 'todo');
-  const stEff = D.effective ? (D.effective <= today ? 'done' : 'now') : (d ? 'now' : 'todo');
-  const pressBefore = c.press.filter(p => !D.notice || (p.date_press || sortDate(p)) <= (D.promulgated || '9999'));
-  const pressAfter = c.press.filter(p => !pressBefore.includes(p));
-  const pressHtml = list => list.map(p => link(p, `<b>보도자료</b><span>${fmtD(p.date_press || sortDate(p))}</span><small>${esc((p.authority || '').split(' ')[0] || '')}</small>`, 'press done')).join('');
+  const n = c.notice, d = c.decided, D = c.dates, k = c.stage.key;
+  const cls = (ds, now) => ds.status === 'confirmed' ? 'done' : ds.status === 'planned' ? 'plan' : (now ? 'now' : 'todo');
+  const val = ds => ds.status === 'unknown' ? '미확인' : fmtD(ds.date);
   return `<div class="lc-steps">
-    ${pressHtml(pressBefore)}
-    ${link(n, `<b>${n ? esc(n.status) : '예고'}</b><span>${fmtD(D.notice)}</span><small>${n ? esc(n.authority || '') : '수집 안 됨'}</small>`, stNotice)}
-    <div class="lc-step ${stDue}"><b>의견제출</b><span>${fmtD(D.comment_due)}</span><small>${D.comment_due ? (D.comment_due < today ? '마감' : `D-${dayDiff(D.comment_due, today)}`) : (n ? '시한 없음' : '')}</small></div>
-    ${link(d, `<b>${d ? (d.status === '공포' ? '확정 고시' : '확정 개정') : '확정'}</b><span>${fmtD(D.promulgated)}</span><small>${d ? esc(d.authority || '') : (n ? '확정 미확인' : '')}</small>`, stDec)}
-    ${pressHtml(pressAfter)}
-    <div class="lc-step ${stEff}"><b>시행</b><span>${fmtD(D.effective)}</span><small>${D.effective ? (D.effective <= today ? '적용 중' : `D-${dayDiff(D.effective, today)}`) : (d ? '부칙 확인 필요' : '')}</small></div>
+    ${link(n, `<b>${n ? esc(stLabel(n)) : '예고'}</b><span>${val(D.notice)}</span><small>${n ? esc(n.authority || '') : (d ? '예고문 미수집' : '')}</small>`, cls(D.notice, false))}
+    <div class="lc-step ${cls(D.comment_due, k === 'notice_open')}"><b>의견마감</b><span>${val(D.comment_due)}</span><small>${D.comment_due.status === 'confirmed' ? (D.comment_due.date < today ? '마감' : `D-${dayDiff(D.comment_due.date, today)}`) : (n ? '예고문에 시한 없음' : '')}</small></div>
+    ${link(d, `<b>${d ? esc(stLabel(d)) : '발령'}</b><span>${val(D.issuance)}</span><small>${d ? esc(D.issuance.note + (d.authority ? ' · ' + d.authority : '')) : (k === 'notice_closed' ? '발령문 확인 필요' : '')}</small>`, cls(D.issuance, k === 'notice_closed'))}
+    <div class="lc-step ${cls(D.effective, k === 'issued')}"><b>시행${D.effective.status === 'planned' ? ' 예정' : ''}</b><span>${val(D.effective)}</span><small>${D.effective.status === 'confirmed' ? (D.effective.date <= today ? '적용 중 · ' : `D-${dayDiff(D.effective.date, today)} · `) + esc(D.effective.note) : esc(D.effective.note)}</small></div>
   </div>`;
 }
 let lcStageFilter = '';
@@ -607,19 +667,34 @@ function renderLifecycle() {
   const base = CASES.filter(c => (!rel || rel.includes(c.relevance || '무관')) && (!t || c.reg_type === t)
     && (!q || (c.reg_name + ' ' + c.title + ' ' + c.items.map(i => i.title).join(' ')).toLowerCase().includes(q)));
   const counts = {}; for (const c of base) counts[c.stage.key] = (counts[c.stage.key] || 0) + 1;
-  const order = [['예고중', '예고 중'], ['확정대기', '예고 후 확정 미확인'], ['확정', '확정 · 시행일 미확인'], ['시행대기', '시행 대기'], ['시행중', '시행 중'], ['보도만', '보도자료만'], ['철회', '철회']];
-  document.getElementById('lcSum').innerHTML = `<span class="${lcStageFilter ? '' : 'on'}" onclick="setLcStage('')">전체<i>${base.length}</i></span>` + order.filter(([k]) => counts[k]).map(([k, l]) => `<span class="${lcStageFilter === k ? 'on' : ''}" onclick="setLcStage('${k}')">${l}<i>${counts[k]}</i></span>`).join('');
+  document.getElementById('lcSum').innerHTML = `<span class="${lcStageFilter ? '' : 'on'}" onclick="setLcStage('')">전체<i>${base.length}</i></span>` + STAGE_ORDER.filter(k => counts[k]).map(k => `<span class="${lcStageFilter === k ? 'on' : ''}" onclick="setLcStage('${k}')">${esc(STAGES[k].label)}<i>${counts[k]}</i></span>`).join('');
   const rows = base.filter(c => !lcStageFilter || c.stage.key === lcStageFilter).sort((a, b) => (b.latest || '').localeCompare(a.latest || ''));
   const el = document.getElementById('lcList');
   if (!rows.length) { el.innerHTML = '<div class="lc-empty">조건에 맞는 개정 건이 없습니다</div>'; return; }
-  el.innerHTML = rows.map(c => `<div class="lc-row${c.relevance === '무관' ? ' rv-dim' : ''}">
-      <div><div class="lc-title">${esc(c.title)}</div>
-        <div class="lc-sub">${c.relevance ? `<span class="bd rv-${esc(c.relevance)}">${c.relevance === '관련' ? '팀 관련' : esc(c.relevance)}</span> ` : ''}<span class="bd bd-type">${esc(c.reg_type)}</span> ${esc(c.reg_name)}${c.items.length > 1 ? ` · ${c.items.length}건 연결` : ''}</div>
-        <span class="lc-state ls-${c.stage.key}">${esc(c.stage.label)}</span></div>
+  // 줄 순서: 상태 → 시행 여부 → 제목 → 메타 (모바일에서 상태가 먼저 보이게)
+  el.innerHTML = rows.map(c => `<div class="lc-row${c.relevance === '무관' ? ' rv-dim' : ''}" data-stage="${c.stage.key}">
+      <div><span class="lc-state ls-${c.stage.key}" style="margin:0 0 6px">${esc(c.stage.label)}</span>
+        <div class="lc-title">${esc(c.title)}</div>
+        <div class="lc-sub">${c.relevance ? `<span class="bd rv-${esc(c.relevance)}">${c.relevance === '관련' ? '팀 관련' : esc(c.relevance)}</span> ` : ''}<span class="bd bd-type">${esc(c.reg_type)}</span> ${esc(c.reg_name)}${c.notice && c.decided ? ' · 예고·발령 연결' : ''}${c.candidates.length ? ` · <span style="color:#b45309">연결 후보 ${c.candidates.length} (확인 필요)</span>` : ''}${c.press.length ? ` <span class="lc-press-chip">관련 설명자료 ${c.press.length}</span>` : ''}</div></div>
       ${lcStepsHtml(c, today)}
     </div>`).join('');
 }
 function setLcStage(k) { lcStageFilter = k; renderLifecycle(); }
+// 연결 후보 확인/해제 — 확정 건의 relationships[] 에 담당자 상태를 기록한다 (자동 재적재가 덮어쓰지 않음)
+async function setRelState(decidedId, relatedEventId, state) {
+  const it = ITEMS.find(x => x.id === decidedId); if (!it) return;
+  let rels = arr(it.relationships).map(r => ({ ...r }));
+  if (!rels.length && it.related_notice_id) rels = [{ related_event_id: it.related_notice_id, type: 'notice_of', confidence: 'medium', evidence: '근거 미기록(이전 자동 연결)', state: 'auto' }];
+  const r = rels.find(x => x.related_event_id === relatedEventId); if (!r) return;
+  r.state = state; r.reviewed_by = myName; r.reviewed_at = Date.now();
+  try {
+    const res = await fetch(`/tables/${TABLE}/${encodeURIComponent(decidedId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ relationships: rels, updated_by: myName }) });
+    if (!res.ok) throw new Error();
+    it.relationships = rels; it.updated_by = myName; it.updated_at = Date.now();
+    buildCases(); renderStats(); renderTimeline(); renderLifecycle(); if (selectedId) renderDetail(selectedId);
+    Portal.showToast(state === 'confirmed' ? '선행 예고로 연결했습니다.' : '연결을 해제했습니다 (별개 건으로 둡니다).', 'success');
+  } catch { Portal.showToast('연결 상태 저장 실패', 'error'); }
+}
 
 // ══════════════════════════════════════════════════════════
 // B. 상세
@@ -634,16 +709,24 @@ function renderDetail(id) {
   const sched = [
     step('예고', it.date_notice, it.date_notice <= today ? 'done' : ''),
     step('의견제출', it.date_comment_due, it.date_comment_due < today ? 'done' : 'due'),
-    step('보도자료', it.date_press, 'done'),
-    step('공포', it.date_promulgated, it.date_promulgated <= today ? 'done' : ''),
-    step('시행', it.date_effective, it.date_effective <= today ? 'done' : 'due'),
+    step('보도자료 발표', it.date_press, 'done'),
+    step(it.status === '공포' ? '고시(발령)' : '발령(게시)', it.date_promulgated, it.date_promulgated <= today ? 'done' : ''),
+    step('시행 (발령문 기준)', it.date_effective, it.date_effective <= today ? 'done' : 'due'),
+    step('시행 예정 (예고안 기준 · 확정 아님)', it.date_effective_planned, ''),
   ].filter(Boolean).join('<span class="arrow"><i class="fas fa-chevron-right"></i></span>');
   const doc = it.report_doc_id ? KB_DOCS.find(d => d.id === it.report_doc_id) : null;
   const cs = CASES.find(c => c.id === CASE_OF[it.id]);
-  const siblings = cs ? cs.items.filter(x => x.id !== it.id) : [];
-  const lifecycle = cs ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-route"></i> 진행 현황 <span class="lc-state ls-${cs.stage.key}" style="margin:0 0 0 4px">${esc(cs.stage.label)}</span></div>
-      ${lcStepsHtml(cs, today, true)}
-      ${siblings.length ? `<div style="font-size:12px;color:#6b7280;margin-top:8px;line-height:1.6">연결된 건: ${siblings.map(s => `<a href="#" onclick="gotoItem('${escAttr(s.id)}');return false" style="color:#1d4ed8;text-decoration:none">[${esc(s.status)}] ${fmtD(sortDate(s))} ${esc((s.title || '').slice(0, 40))}</a>`).join(' · ')}</div>` : ''}
+  const siblings = cs ? cs.items.filter(x => x.id !== it.id && x.status !== '보도자료') : [];
+  const pressDocs = cs ? cs.press : [];
+  const lifecycle = cs ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-route"></i> 진행 현황 — 지금 어디까지 왔나요?</div>
+      <div class="lc-now ls-${cs.stage.key}"><span class="lc-state ls-${cs.stage.key}" style="margin:0 6px 0 0">${esc(cs.stage.label)}</span>${esc(cs.stage.sentence)}</div>
+      ${lcStepsHtml(cs, today)}
+      <div style="font-size:12px;color:#6b7280;margin-top:6px;line-height:1.6">최초 결산 반영: ${cs.dates.first_closing.status === 'manual' ? '<b style="color:#111827">' + esc(cs.dates.first_closing.date) + '</b> (담당자 입력)' : '미확인 (담당자가 수정 폼에서 입력)'} · 현재 업무상 조치(AI 제안): <b style="color:#111827">${esc(AI_ACTION[cs.stage.key] || '—')}</b></div>
+      ${cs.candidates.length ? cs.candidates.map(({ rel, item }) => `<div class="lc-cand"><b>연결 후보 · 원문 대조 필요</b> — 이 발령문의 선행 예고일 수 있으나 근거가 부족해 같은 건으로 묶지 않았습니다.<br>
+          <a href="#" onclick="gotoItem('${escAttr(item.id)}');return false" style="color:#1d4ed8;text-decoration:none">[${esc(stLabel(item))}] ${fmtD(sortDate(item))} ${esc((item.title || '').slice(0, 60))}</a><span class="ev">근거: ${esc(rel.evidence || '—')} (자동 판정 ${esc(rel.confidence)})</span>
+          ${canWrite && cs.decided ? `<div class="btns"><button class="ok" onclick="setRelState('${escAttr(cs.decided.id)}','${escAttr(rel.related_event_id)}','confirmed')"><i class="fas fa-link"></i> 같은 건으로 연결</button><button class="no" onclick="setRelState('${escAttr(cs.decided.id)}','${escAttr(rel.related_event_id)}','rejected')"><i class="fas fa-unlink"></i> 별개 건 (연결 해제)</button></div>` : ''}</div>`).join('') : ''}
+      ${siblings.length ? `<div style="font-size:12px;color:#6b7280;margin-top:8px;line-height:1.6">연결된 건${cs.link ? ` <span style="color:#9ca3af">(${cs.link.state === 'confirmed' ? '담당자 확인' : '자동 · ' + esc(cs.link.evidence || '')})</span>` : ''}: ${siblings.map(s => `<a href="#" onclick="gotoItem('${escAttr(s.id)}');return false" style="color:#1d4ed8;text-decoration:none">[${esc(stLabel(s))}] ${fmtD(sortDate(s))} ${esc((s.title || '').slice(0, 40))}</a>`).join(' · ')}${canWrite && cs.decided && cs.link ? ` <button class="btn btn-secondary btn-sm" style="padding:2px 8px;font-size:11px" title="다른 개정 건이면 해제합니다 (데이터는 남고 별개 건으로 표시)" onclick="setRelState('${escAttr(cs.decided.id)}','${escAttr(cs.link.related_event_id)}','rejected')">연결 해제</button>` : ''}</div>` : ''}
+      ${pressDocs.length ? `<div class="lc-docs"><b>관련 설명자료</b> (단계가 아닌 참고 자료)<br>${pressDocs.map(p => `<span class="dt">보도자료</span><a href="#" onclick="gotoItem('${escAttr(p.id)}');return false">${fmtD(p.date_press || sortDate(p))} ${esc((p.authority || '').split(' ')[0])} · ${esc((p.title || '').slice(0, 60))}</a>`).join('<br>')}</div>` : ''}
     </div>` : '';
   el.innerHTML = `
     <div class="dp-head">
@@ -657,7 +740,7 @@ function renderDetail(id) {
       ${it.relevance ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-crosshairs"></i> 계리결산팀 관련성</div><div class="dp-txt"><b>${esc(it.relevance === '관련' ? '관련' : it.relevance)}</b>${it.relevance_reason ? ' — ' + esc(it.relevance_reason) : ''}${it.relevance_manual ? ' <span style="color:#9ca3af;font-size:11.5px">(담당자 확정)</span>' : ' <span style="color:#9ca3af;font-size:11.5px">(자동 판정)</span>'}</div></div>` : ''}
       ${NOTICE_STATUSES.has(it.status) ? `<div class="callout"><i class="fas fa-exclamation-triangle"></i> <b>${esc(stLabel(it))}안입니다 — 아직 확정이 아닙니다.</b> ${esc((STAGE_HELP[stLabel(it)] || {}).what || '')}. 확정 공포 조문과 다를 수 있으므로 적용 전 확정본 대조가 필요합니다.</div>` : ''}
       ${it.status === '보도자료' ? `<div class="callout" style="border-left-color:#a855f7;background:#faf5ff;color:#581c87"><i class="fas fa-newspaper"></i> <b>보도자료입니다 — 규정 조문이 아닙니다.</b> ${esc(STAGE_HELP['보도자료'].what)}. 실제 조문은 아래 진행 현황에 연결된 예고·확정 건에서 봅니다.</div>` : ''}
-      ${DECIDED_STATUSES.has(it.status) ? `<div class="callout" style="border-left-color:#10b981;background:#ecfdf5;color:#065f46"><i class="fas fa-check-circle"></i> <b>확정된 개정입니다.</b> ${esc((STAGE_HELP[it.status] || {}).what || '')}${it.date_effective ? ` — 시행일 ${fmtD(it.date_effective)}` : ' — 시행일은 부칙에서 확인'}.</div>` : ''}
+      ${DECIDED_STATUSES.has(it.status) ? `<div class="callout" style="border-left-color:#10b981;background:#ecfdf5;color:#065f46"><i class="fas fa-check-circle"></i> <b>확정(발령)된 개정입니다.</b> ${esc((STAGE_HELP[it.status] || {}).what || '')}${it.date_effective ? ` — 시행일 ${fmtD(it.date_effective)} (${esc(it.date_effective_source || '발령문 본문')} · 부칙 확인 필요)` : ' — 시행일 미확인 (부칙에서 확인)'}.</div>` : ''}
       ${lifecycle}
       ${sched ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-calendar-alt"></i> 이 건의 일정</div><div class="sched">${sched}</div></div>` : ''}
       ${(it.change_new || it.change_mod || it.change_del || it.change_move) ? `<div class="dp-sec"><div class="dp-lbl"><i class="fas fa-code-branch"></i> 변경 (조문 단위)</div><div class="chg"><span class="n">신설 ${Number(it.change_new) || 0}</span><span class="c">변경 ${Number(it.change_mod) || 0}</span>${Number(it.change_move) ? `<span class="v">이동 ${Number(it.change_move)}</span>` : ''}<span class="m">삭제 ${Number(it.change_del) || 0}</span></div>${it.line_counts ? `<div style="font-size:11.5px;color:#6b7280;margin-top:6px">줄 단위: ${esc(Object.entries(it.line_counts).filter(([k, v]) => v && k !== '동일').map(([k, v]) => `${k} ${v}`).join(' · '))}</div>` : ''}</div>` : ''}
@@ -794,7 +877,7 @@ function addSrcRow(s = {}) {
 const readRows = (containerId) => Array.from(document.getElementById(containerId).children).map(row => { const o = {}; row.querySelectorAll('[data-k]').forEach(i => { o[i.dataset.k] = i.value.trim(); }); return o; });
 
 function resetForm() {
-  ['editId','fromInboxId','mTitle','mRegName','mArticles','mAuthority','mDateNotice','mDateComment','mDateProm','mDateEff','mDatePress','mSummary','mChgNew','mChgMod','mChgMove','mChgDel','mAreas','mSystems','mTags'].forEach(id => { document.getElementById(id).value = ''; });
+  ['editId','fromInboxId','mTitle','mRegName','mArticles','mAuthority','mDateNotice','mDateComment','mDateProm','mDateEff','mDatePress','mDateEffPlanned','mFirstClosing','mSummary','mChgNew','mChgMod','mChgMove','mChgDel','mAreas','mSystems','mTags'].forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('mRegType').value = '시행세칙'; document.getElementById('mStatus').value = '사전예고'; document.getElementById('mImpact').value = '미정';
   document.getElementById('mRel').value = '관련'; document.getElementById('mRelReason').value = '';
   document.getElementById('mOwner').value = ''; document.getElementById('mReportDoc').value = '';
@@ -813,7 +896,7 @@ function openEditModal(id) {
   document.getElementById('editId').value = it.id;
   document.getElementById('mTitle').value = it.title || ''; document.getElementById('mRegType').value = it.reg_type || '기타'; document.getElementById('mRegName').value = it.reg_name || '';
   document.getElementById('mStatus').value = it.status || '사전예고'; document.getElementById('mArticles').value = arr(it.articles).join(', '); document.getElementById('mAuthority').value = it.authority || '';
-  document.getElementById('mDateNotice').value = it.date_notice || ''; document.getElementById('mDateComment').value = it.date_comment_due || ''; document.getElementById('mDateProm').value = it.date_promulgated || ''; document.getElementById('mDateEff').value = it.date_effective || ''; document.getElementById('mDatePress').value = it.date_press || '';
+  document.getElementById('mDateNotice').value = it.date_notice || ''; document.getElementById('mDateComment').value = it.date_comment_due || ''; document.getElementById('mDateProm').value = it.date_promulgated || ''; document.getElementById('mDateEff').value = it.date_effective || ''; document.getElementById('mDatePress').value = it.date_press || ''; document.getElementById('mDateEffPlanned').value = it.date_effective_planned || ''; document.getElementById('mFirstClosing').value = it.first_closing_period || '';
   document.getElementById('mSummary').value = it.summary || ''; document.getElementById('mChgNew').value = it.change_new ?? ''; document.getElementById('mChgMod').value = it.change_mod ?? ''; document.getElementById('mChgMove').value = it.change_move ?? ''; document.getElementById('mChgDel').value = it.change_del ?? '';
   document.getElementById('mImpact').value = it.impact_level || '미정'; document.getElementById('mAreas').value = arr(it.impact_areas).join(', '); document.getElementById('mSystems').value = arr(it.impact_systems).join(', ');
   document.getElementById('mRel').value = it.relevance || '관련'; document.getElementById('mRelReason').value = it.relevance_reason || '';
@@ -881,6 +964,7 @@ async function saveItem() {
       date_notice: document.getElementById('mDateNotice').value || null, date_comment_due: document.getElementById('mDateComment').value || null,
       date_promulgated: document.getElementById('mDateProm').value || null, date_effective: document.getElementById('mDateEff').value || null,
       date_press: document.getElementById('mDatePress').value || null,
+      date_effective_planned: document.getElementById('mDateEffPlanned').value || null, first_closing_period: document.getElementById('mFirstClosing').value.trim(),
       authority: document.getElementById('mAuthority').value.trim(), summary: document.getElementById('mSummary').value.trim(),
       change_new: n('mChgNew'), change_mod: n('mChgMod'), change_move: n('mChgMove'), change_del: n('mChgDel'),
       impact_level: document.getElementById('mImpact').value, impact_areas: splitCsv(document.getElementById('mAreas').value), impact_systems: splitCsv(document.getElementById('mSystems').value),
@@ -939,7 +1023,8 @@ if (canWrite) {
 }
 loadAll().catch(e => { document.getElementById('timeline').innerHTML = `<div class="tl-empty">불러오기 실패: ${esc(e.message)}<br><small>서버가 최신 버전인지(reg_items 테이블) 확인하세요 — update-now.bat</small></div>`; });
 loadCollectStatus();
-Object.assign(window, { switchTab, selectItem, gotoItem, setLcStage, toggleInlineReport, setActState, runCollect, ignoreInbox, registerFromInbox, openNewModal, openEditModal, closeModal, addActRow, addSrcRow, onReportFile, onAttachFiles, saveItem, deleteItem, renderInbox, renderReportInfo, renderAttList, clearReportFile, removeAtt });
+window.__CASES = () => CASES;   // 자동 점검(tmp/_check_38)용 읽기 전용 노출
+Object.assign(window, { switchTab, selectItem, gotoItem, setLcStage, setRelState, toggleInlineReport, setActState, runCollect, ignoreInbox, registerFromInbox, openNewModal, openEditModal, closeModal, addActRow, addSrcRow, onReportFile, onAttachFiles, saveItem, deleteItem, renderInbox, renderReportInfo, renderAttList, clearReportFile, removeAtt });
 
 } catch (e) { console.error(e); if (window.Portal && Portal.showToast) Portal.showToast('페이지 초기화 오류: ' + e.message, 'error'); }
 </script>

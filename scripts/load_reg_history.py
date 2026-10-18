@@ -125,13 +125,30 @@ def main():
                         up['source_url'] = att['url']; atts.append(up)
 
         # 3) reg_items
+        is_notice = ev['status'] in ('사전예고', '입법예고')
+        eff = ev.get('date_effective') or meta.get('date_effective') or None
+        # 선행 예고 연결: 자동 신뢰도(high/medium/low) + 근거. 담당자가 [연결 확인]/[연결 해제] 한 상태는 보존한다 (docs/03 P0-3)
+        kept = {r.get('related_event_id'): r for r in ((exists or {}).get('relationships') or []) if r.get('state') in ('confirmed', 'rejected')}
+        rels = []
+        rid = meta.get('related_notice_id') or ev.get('related_notice_id')
+        if rid:
+            r = {'related_event_id': rid, 'type': 'notice_of', 'confidence': meta.get('related_confidence') or 'low',
+                 'evidence': meta.get('related_evidence') or '', 'state': 'auto'}
+            if rid in kept:
+                r.update({k: kept[rid][k] for k in ('state', 'reviewed_by', 'reviewed_at') if k in kept[rid]})
+            rels.append(r)
+        rels += [r0 for k, r0 in kept.items() if k != rid]
         item = {
+            'relationships': rels,
+            # 예고안에서 긁은 시행일은 '예정' 이다 — 확정 시행일 칸에 넣지 않는다 (docs/03 P0-2)
+            'date_effective_planned': eff if is_notice else None,
+            'date_effective_source': '' if is_notice or not eff else '발령문 본문 추출',
             'title': meta['title'].split(' — ')[-1][:80] if ' — ' in meta['title'] else meta['title'][:80],
             'reg_type': ev['reg_type'], 'reg_name': ev['reg_name'], 'articles': meta['articles'][:8], 'status': ev['status'],
             'date_notice': ev.get('date_notice') or None, 'date_comment_due': ev.get('date_comment_due') or None,
             'date_promulgated': ev.get('date_promulgated') or None,
-            # 시행일은 리포트 생성기가 본문("YYYY.MM.DD부터 시행")에서 찾은 값이 더 많다
-            'date_effective': ev.get('date_effective') or meta.get('date_effective') or None,
+            # 시행일은 리포트 생성기가 본문("YYYY.MM.DD부터 시행")에서 찾은 값이 더 많다 (확정 건만)
+            'date_effective': None if is_notice else eff,
             'date_press': ev.get('date_press') or None,
             'authority': ev.get('authority', ''), 'summary': meta['summary'],
             'change_new': meta['change_new'], 'change_mod': meta['change_mod'], 'change_del': meta['change_del'], 'change_move': meta.get('change_move', 0),

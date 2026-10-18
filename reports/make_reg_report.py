@@ -442,37 +442,60 @@ def short_purpose(ev):
     return (p[:70] + '…') if len(p) > 70 else p
 
 
+LINK_MAX_GAP_DAYS = 240          # 예고 → 확정 게시 사이 최대 간격
+LINK_HIGH_OVERLAP, LINK_HIGH_SIM = 2, 0.6     # high: 조문 겹침 ≥2 또는 취지 유사도 ≥0.6
+LINK_MED_OVERLAP, LINK_MED_SIM = 1, 0.3       # medium: 겹침 1 또는 유사도 ≥0.3 (연결 후보 · 원문 대조 필요)
+LINK_CONFIDENCE_LABEL = {'high': '선행 예고', 'medium': '선행 예고 (연결 후보 · 원문 대조 필요)', 'low': '선행 예고 (추정 · 근거 부족)'}
+
+
+def _gist(e):
+    """연결 비교용 취지 문장 (공백 제거)"""
+    return re.sub(r'\s', '', (e.get('purpose') or e.get('content') or e.get('list_title') or '')[:400])
+
+
 def relink(events):
-    """확정 건(공포·시행) ↔ 선행 예고 연결. 같은 규정, 확정일 이전 240일 안, 의견제출 시한이 확정일 이전인 예고 중
-    조문·별표 겹침이 가장 많은 것(없으면 가장 가까운 것). 수집기의 단순 '가장 가까운 예고' 연결을 덮어쓴다."""
+    """확정 건(공포·시행) ↔ 선행 예고 연결 + 신뢰도·근거 (docs/03 P0-3).
+    같은 규정, 확정일 이전 240일 안의 예고 가운데 조문·별표 겹침과 취지 유사도가 가장 높은 것을 고르고
+    high / medium / low 로 매긴다. low 는 "같은 규정의 가장 가까운 예고" 일 뿐이라 화면에서는 쓰지 않는다."""
     def arts_of(e):
-        return set(find_articles(all_text(e))) | set(e.get('articles') or [])
+        # 바이너리 hwp 는 문단 없이 표만 나오므로 대비표 항목 머리(제n조·별표)도 조문 근거로 쓴다
+        heads = ' '.join(item_heading(a, b) for a, b, _ in compare_rows(e)[0])
+        return set(find_articles(all_text(e) + ' ' + heads)) | set(e.get('articles') or [])
     notices = [e for e in events if e['status'] in ('사전예고', '입법예고') and e.get('date')]
     na = {n['id']: arts_of(n) for n in notices}
+    ng = {n['id']: _gist(n) for n in notices}
     for e in events:
         if e['status'] not in ('공포', '시행') or not e.get('date'):
             continue
-        ea = arts_of(e)
+        ea, eg = arts_of(e), _gist(e)
         best = None
         for n in notices:
             if n['reg_name'].split(' ·')[0] != e['reg_name'].split(' ·')[0] or n['date'] > e['date']:
                 continue
             gap = int(e['date'].replace('-', '')) - int(n['date'].replace('-', ''))
-            if gap > 240:
+            if gap > LINK_MAX_GAP_DAYS:
                 continue
             # 의견제출 시한 전에 확정 게시되는 경우도 실제로 있어(’26.4 K-ICS 건) 시한으로는 거르지 않는다
-            overlap = len(ea & na[n['id']])
-            key = (overlap, -gap)
+            overlap = sorted(ea & na[n['id']])
+            sim = difflib.SequenceMatcher(None, eg, ng[n['id']], autojunk=False).ratio() if eg and ng[n['id']] else 0.0
+            key = (len(overlap) * 2 + sim * 3, -gap)
             if best is None or key > best[0]:
-                best = (key, n['id'], n)
-        if best and (best[0][0] > 0 or not ea):
-            n = best[2]
-            e['related_notice_id'] = best[1]
-            # 강한 연결: 조문 겹침 2개 이상이거나, 예고 의견제출 시한이 지난 뒤의 확정 게시
-            e['_link_strong'] = best[0][0] >= 2 or bool(n.get('date_comment_due') and n['date_comment_due'] <= e['date'])
+                best = (key, n, overlap, sim, gap)
+        if not best:
+            e['related_notice_id'] = None; e['_link_strong'] = False; e['_link_confidence'] = ''; e['_link_evidence'] = ''
+            continue
+        _, n, overlap, sim, gap = best
+        if len(overlap) >= LINK_HIGH_OVERLAP or sim >= LINK_HIGH_SIM:
+            conf = 'high'
+        elif len(overlap) >= LINK_MED_OVERLAP or sim >= LINK_MED_SIM:
+            conf = 'medium'
         else:
-            e['related_notice_id'] = None
-            e['_link_strong'] = False
+            conf = 'low'
+        e['related_notice_id'] = n['id']
+        e['_link_confidence'] = conf
+        e['_link_strong'] = conf == 'high'
+        e['_link_evidence'] = (f"규정명 동일 · 조문 겹침 {len(overlap)}개" + (f"({', '.join(overlap[:4])})" if overlap else '')
+                               + f" · 취지 유사도 {sim:.2f} · 예고 후 {gap}일")
 
 
 def build(ev, css, related, rules=None):
@@ -543,8 +566,9 @@ def build(ev, css, related, rules=None):
     if areas:
         sumrows.append(('영향 영역', ' · '.join(areas)))
     sumrows.append(('소관', ev.get('authority') or '—'))
-    if related:
-        sumrows.append(('선행 예고' if ev.get('_link_strong') else '선행 예고 (추정)', f"{fmt_date(related.get('date'))} {related['reg_name']} {STATUS_LABEL.get(related['status'], related['status'])}" + ('' if ev.get('_link_strong') else ' — 조문 겹침으로 추정한 연결이라 확인 필요')))
+    if related and ev.get('_link_confidence') != 'low':
+        sumrows.append((LINK_CONFIDENCE_LABEL.get(ev.get('_link_confidence') or 'medium'),
+                        f"{fmt_date(related.get('date'))} {related['reg_name']} {STATUS_LABEL.get(related['status'], related['status'])} — 근거: {ev.get('_link_evidence') or '조문 겹침'}"))
 
     # 2장 주요 내용
     main_items = bullets(ev.get('content') or '')
@@ -696,7 +720,8 @@ def build(ev, css, related, rules=None):
         'tags': list(dict.fromkeys([ev['reg_name']] + areas[:3] + arts[:3])),
         'date_effective': ev.get('date_effective', ''),
         'relevance': relevance, 'relevance_reason': rel_reason,
-        'related_notice_id': ev.get('related_notice_id'), 'unchanged': len(unchanged),
+        'related_notice_id': ev.get('related_notice_id'), 'related_confidence': ev.get('_link_confidence') or '', 'related_evidence': ev.get('_link_evidence') or '',
+        'unchanged': len(unchanged),
     }
     return '\n'.join(H), meta
 
@@ -720,7 +745,8 @@ def main():
     for ev in order:
         if want and ev['id'] not in want:
             continue
-        related = by_id.get(ev.get('related_notice_id'))
+        # low(규정명·날짜만) 연결은 제목·관련성 준용에 쓰지 않는다 — 다른 개정 건일 가능성이 크다
+        related = by_id.get(ev.get('related_notice_id')) if ev.get('_link_confidence') in ('high', 'medium') else None
         htmlstr, meta = build(ev, css, related, rules)
         fn = os.path.join(a.out_dir, ev['id'] + '.html')
         open(fn, 'w', encoding='utf-8').write(htmlstr)
