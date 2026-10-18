@@ -55,15 +55,23 @@ def api(base: str, method: str, path: str, body=None, actor=None):
     data = json.dumps(body, ensure_ascii=False).encode('utf-8') if body is not None else None
     req = urllib.request.Request(base.rstrip('/') + path, data=data, method=method)
     req.add_header('Content-Type', 'application/json')
+    # Cloudflare 가 'Python-urllib' 기본 UA 를 차단(error 1010) → 브라우저형 UA 명시
+    req.add_header('User-Agent', 'Mozilla/5.0 (compatible; ActuaryPortal-publish/1.0)')
     if actor:
         req.add_header('X-Actor-User', actor.get('id', ''))
         req.add_header('X-Actor-Username', urllib.parse.quote(actor.get('name', '')))   # 헤더는 latin-1 → 한글은 URL 인코딩 (portal.js 와 동일)
         req.add_header('X-Actor-Role', actor.get('role', 'team_leader'))
+    def parse(raw: bytes):
+        txt = raw.decode('utf-8', 'replace')
+        try:
+            return json.loads(txt or 'null')
+        except json.JSONDecodeError:
+            return {'error': 'non-JSON response', 'body_head': txt[:300]}   # 프록시/HTML 오류 페이지 등
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
-            return r.status, json.loads(r.read().decode('utf-8') or 'null')
+            return r.status, parse(r.read())
     except urllib.error.HTTPError as e:
-        return e.code, json.loads(e.read().decode('utf-8') or 'null')
+        return e.code, parse(e.read())
 
 
 def main():
