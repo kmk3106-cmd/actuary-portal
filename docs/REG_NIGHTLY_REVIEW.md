@@ -7,7 +7,7 @@
 
 | 항목 | 내용 |
 |---|---|
-| 스케줄 | Claude 예약 작업 "규정이력 야간 점검", 매일 **00:00 KST** 새 세션. 02:52 의 "일일 포탈 자체점검" 과 겹치지 않도록 02:00 전 종료 |
+| 스케줄 | Claude 예약 작업 "규정이력 야간 점검 (상주세션)", 매일 **00:00 KST** 에 저장소가 붙어 있는 **상주 작업세션**("규정이력 야간 점검 · 상주 작업세션")을 깨운다. 02:52 의 "일일 포탈 자체점검" 과 겹치지 않도록 02:00 전 종료 |
 | 묶음 SSOT | `config/reg_topic_groups.json` — groups[{no, label, event_ids[], note}] |
 | 관련성 SSOT | `config/reg_relevance.json` — overrides{event_id: {relevance, reason}} + keywords |
 | 적용 스크립트 | `scripts/apply_reg_review.py --base-url https://portal.kkuks.com --groups --relevance` (PATCH 뒤 재조회로 확인) |
@@ -62,3 +62,6 @@
 
 ## 6. 예약 작업 바꾸기
 - 시간·중지는 Claude 예약 작업 설정에서. 기준·범위를 바꾸려면 이 문서를 고친다 (예약 작업의 프롬프트는 이 문서를 가리킬 뿐이다).
+- **왜 상주 세션인가 (2026-10-20)**: 예약 작업이 매번 새로 띄우는 세션은 저장소가 붙지 않아 실서버 적용까지만 하고 커밋·푸시를 못 했다(10/19·10/20 두 번). 그래서 저장소를 붙여 만든 상주 세션(푸시 dry-run 확인됨)에 예약 작업이 메시지를 보내 깨우는 방식으로 바꿨다. 옛 예약 작업은 "구 · 중지" 로 비활성.
+- 상주 세션은 대화가 누적된다. 느려지거나 어긋나면 같은 방식(저장소 붙여 생성 → 준비 점검 → 예약 작업의 persistent_session_id 교체)으로 새로 만든다.
+- 세션이 푸시를 못 했을 때의 복구: `tmp/_check_52_rebuild_review_config.py --base-url https://portal.kkuks.com --groups config/reg_topic_groups.json --relevance config/reg_relevance.json` 로 실서버 상태에서 설정 파일을 복원해 커밋한다 (적용 dry-run 이 0 이어야 한다).
