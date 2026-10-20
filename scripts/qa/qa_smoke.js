@@ -15,6 +15,7 @@ const http = require('http'); const path = require('path'); const fs = require('
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const DEFAULTS = { port: 8930, out: path.join(ROOT, 'tmp', 'qa_out'), roles: 'team_leader,employee', maxClicks: 40, seed: '', pages: '' };
+const REPORT_TZ = process.env.QA_TZ || 'Asia/Seoul';   // 보고서·QA_LOG 날짜 기준 시간대 (02:52 KST 실행 시 UTC 는 전날이 됨)
 const PAGE_TIMEOUT = 25000;           // 한 페이지 로드 대기 (ms)
 const SETTLE_MS = 400;                // 클릭 후 대기
 const WIDTHS = { desktop: { width: 1400, height: 900 }, phone: { width: 390, height: 800 } };
@@ -92,7 +93,7 @@ async function main() {
   const BASE = `http://127.0.0.1:${a.port}`;
   const dbPath = path.join(a.out, 'qa_db.json'); try { fs.unlinkSync(dbPath); } catch {}
   if (a.seed) fs.copyFileSync(a.seed, dbPath);
-  const today = new Date(); const ymd = today.toISOString().slice(0, 10); const stamp = `QA 자동점검 ${ymd}`;
+  const today = new Date(); const ymd = new Intl.DateTimeFormat('sv-SE', { timeZone: REPORT_TZ }).format(today); const stamp = `QA 자동점검 ${ymd}`;
   const findings = [];   // { page, role, width, kind, detail, shot }
   const visited = [];
   const envNotes = [];   // 환경 탓(파이썬 모듈·CDN) — 결함으로 세지 않고 보고서에만 적는다
