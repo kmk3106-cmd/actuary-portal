@@ -6,8 +6,8 @@
     "overrides 는 담당자가 검토한 결과. 자동 수집된 새 건은 키워드로 1차 판정되고 화면에서 바꿀 수 있다.",
     "overrides 는 매일 00:00 KST 야간 점검(docs/REG_NIGHTLY_REVIEW.md)이 검토해 갱신하고 scripts/apply_reg_review.py --relevance 로 포탈에 반영한다. 화면에서 담당자가 확정한 건(relevance_manual) 은 건드리지 않는다."
   ],
-  "updated_at": "2026-10-21 00:25 KST",
-  "updated_by": "야간점검 (2026-10-21 00:00 KST 정규, 전체 재검토)",
+  "updated_at": "2026-10-22 00:05 KST",
+  "updated_by": "야간점검 (2026-10-22 00:00 KST 정규, 신규 1건 판정 + 전체 재검토)",
   "levels": [
     "관련",
     "참고",
@@ -79,6 +79,10 @@
     ]
   },
   "overrides": {
+    "fss_prv_4447": {
+      "relevance": "참고",
+      "reason": "IFRS18 업무보고서 반영·K-ICS 일반운영위험액 세분화(GA 구분)·부동산PF 신용공여 한도(감독규정 §7-5의3) 세칙 반영 — 리스크·결산보고 인접, 9/11 감독규정 입법예고의 세칙 후속"
+    },
     "fss_prv_4405": {
       "relevance": "관련",
       "reason": "계리가정 보고서 세부기준 신설(제4-1조의5)"

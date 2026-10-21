@@ -6,8 +6,8 @@
     "event_ids 는 reg_items.event_id (fss_prv_NNNN · fsc_ntc_NNNN · fss_info_… · fsc_gosi_NNNN · fss_press_… · fsc_press_… · lawapi_…).",
     "적용: python scripts/apply_reg_review.py --base-url https://portal.kkuks.com --groups (실서버 reg_items 에 topic_group_* 반영). 적재 스크립트도 이 파일을 읽어 재적재 때 유지한다."
   ],
-  "updated_at": "2026-10-21 00:18 KST",
-  "updated_by": "야간점검 (2026-10-21 00:00 KST 정규, 전체 재검토)",
+  "updated_at": "2026-10-22 00:03 KST",
+  "updated_by": "야간점검 (2026-10-22 00:00 KST 정규, 신규 1건 + 전체 재검토)",
   "groups": [
     {
       "no": 1,
@@ -396,14 +396,15 @@
     },
     {
       "no": 38,
-      "label": "계리가정 보고서 도입",
+      "label": "계리가정 보고서·PF한도 세칙",
       "event_ids": [
         "fsc_ntc_4171",
         "fsc_press_87701",
         "fss_press_227769",
-        "fss_prv_4405"
+        "fss_prv_4405",
+        "fss_prv_4447"
       ],
-      "note": "2026-09-11~2026-10-12 · 2026-09-11 감독규정 입법예고 + 보도자료 → 10-12 세칙 예고(제4-1조의5) (유지)"
+      "note": "2026-09-11~2026-10-20 · 2026-09-11 감독규정 입법예고(계리가정 보고서 §6-8의2 + PF 신용공여 한도 §7-5의3 + IFRS18) + 보도자료 → 10-12 세칙 예고(계리가정 보고서 세부기준) → 10-20 세칙 예고(PF 한도·IFRS18 업무보고서·일반운영위험액, 예고문이 감독규정 §7-5의3 개정을 명시 인용). 같은 감독규정 개정의 세칙 후속 2건 (2026-10-22 추가)"
     }
   ]
 }
