@@ -6,8 +6,8 @@
     "overrides 는 담당자가 검토한 결과. 자동 수집된 새 건은 키워드로 1차 판정되고 화면에서 바꿀 수 있다.",
     "overrides 는 매일 00:00 KST 야간 점검(docs/REG_NIGHTLY_REVIEW.md)이 검토해 갱신하고 scripts/apply_reg_review.py --relevance 로 포탈에 반영한다. 화면에서 담당자가 확정한 건(relevance_manual) 은 건드리지 않는다."
   ],
-  "updated_at": "2026-10-22 00:05 KST",
-  "updated_by": "야간점검 (2026-10-22 00:00 KST 정규, 신규 1건 판정 + 전체 재검토)",
+  "updated_at": "2026-10-23 00:05 KST",
+  "updated_by": "야간점검 (2026-10-23 00:00 KST 정규, 전체 재검토 — 변경 없음)",
   "levels": [
     "관련",
     "참고",

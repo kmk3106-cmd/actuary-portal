@@ -6,8 +6,8 @@
     "event_ids 는 reg_items.event_id (fss_prv_NNNN · fsc_ntc_NNNN · fss_info_… · fsc_gosi_NNNN · fss_press_… · fsc_press_… · lawapi_…).",
     "적용: python scripts/apply_reg_review.py --base-url https://portal.kkuks.com --groups (실서버 reg_items 에 topic_group_* 반영). 적재 스크립트도 이 파일을 읽어 재적재 때 유지한다."
   ],
-  "updated_at": "2026-10-22 00:03 KST",
-  "updated_by": "야간점검 (2026-10-22 00:00 KST 정규, 신규 1건 + 전체 재검토)",
+  "updated_at": "2026-10-23 00:02 KST",
+  "updated_by": "야간점검 (2026-10-23 00:00 KST 정규, 전체 재검토 — 묶음 변경 없음)",
   "groups": [
     {
       "no": 1,
@@ -280,7 +280,7 @@
         "fsc_press_85446",
         "fss_press_205410"
       ],
-      "note": "2024-11-07~2025-10-20 · 2024-11-07 계리가정 합리화·단계적 할인율 → 2025-10-20 할인율 현실화·듀레이션갭, 같은 할인율 조정 사안의 후속 (유지)"
+      "note": "2024-11-07~2025-10-20 · 2024-11-07 계리가정 합리화·단계적 할인율(최종관찰만기 확대 일정 조정) → 2025-10-20 할인율 현실화·듀레이션갭. 2025-10 보도자료 본문이 '24.11월 최종관찰만기 확대 일정 결정을 명시 인용 → 같은 사안 확인 (2026-10-23)"
     },
     {
       "no": 28,
